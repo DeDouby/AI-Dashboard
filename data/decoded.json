@@ -1,40 +1,40 @@
 [
   {
-    "timestamp": "2026-01-10T20:13:53.962+0000",
+    "timestamp": 1768078043.946201,
     "device_id": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
-    "name": "ThermoBeacon2",
+    "name": null,
     "adv": {
-      "alive": true,
-      "status": "active",
+      "alive": false,
+      "status": "offline",
       "packet_counter": null,
-      "raw": "190019060000F1F0530B70015B0379016803F9101000",
+      "raw": null,
       "internal": {
         "temperature": {
-          "value": 73.4,
-          "unit": "\u00b0F"
+          "value": null,
+          "unit": "\u00b0C"
         },
         "humidity": {
-          "value": 53.6875,
+          "value": null,
           "unit": "%"
         }
       },
       "external": {
-        "present": true,
+        "present": false,
         "temperature": {
-          "value": 74.4125,
-          "unit": "\u00b0F"
+          "value": null,
+          "unit": "\u00b0C"
         },
         "humidity": {
-          "value": 54.5,
+          "value": null,
           "unit": "%"
         }
       },
       "vpd_internal": {
-        "value": 1.301,
+        "value": null,
         "unit": "kPa"
       },
       "vpd_external": {
-        "value": 1.322,
+        "value": null,
         "unit": "kPa"
       }
     },
@@ -46,7 +46,7 @@
       "internal": {
         "temperature": {
           "value": null,
-          "unit": "\u00b0F"
+          "unit": "\u00b0C"
         },
         "humidity": {
           "value": null,
@@ -57,7 +57,7 @@
         "present": false,
         "temperature": {
           "value": null,
-          "unit": "\u00b0F"
+          "unit": "\u00b0C"
         },
         "humidity": {
           "value": null,
@@ -73,14 +73,14 @@
         "unit": "kPa"
       }
     },
-    "bridge_alive": true,
-    "bridge_status": "OK",
-    "bridge_last_seen": 0.0,
-    "alive": true,
-    "status": "active",
+    "bridge_alive": false,
+    "bridge_status": "OFFLINE",
+    "bridge_last_seen": null,
+    "alive": false,
+    "status": "offline",
     "health": {
       "uptime": {
-        "value": 100.2585837841034,
+        "value": null,
         "unit": "s"
       },
       "battery": {
@@ -89,7 +89,7 @@
         "voltage": null
       },
       "signal": {
-        "rssi": -67,
+        "rssi": null,
         "quality": null
       }
     }

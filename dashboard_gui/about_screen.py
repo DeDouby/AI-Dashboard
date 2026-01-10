@@ -9,6 +9,7 @@ import webbrowser
 
 from dashboard_gui.ui.common.header_online import HeaderBar
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
+from dashboard_gui.ui.i18n import I18N
 
 
 class AboutScreen(Screen):
@@ -28,7 +29,7 @@ class AboutScreen(Screen):
             goto_debug=lambda *_: setattr(self.manager, "current", "debug"),
             goto_device_picker=lambda *_: setattr(self.manager, "current", "device_picker"),
         )
-        self.header.lbl_title.text = "About"
+        self.header.lbl_title.text = I18N.t("menu.about")
         self.header.update_back_button("about")
         root.add_widget(self.header)
 
@@ -58,28 +59,17 @@ class AboutScreen(Screen):
             return lbl
 
         body.add_widget(add_label(
-            "ManoVerde Panel 1.24",
+            I18N.t("about.version"),
             size=28,
             bold=True
         ))
 
-        body.add_widget(add_label(
-            "Manoverde es un sistema de monitorización y análisis para sensores "
-            "Bluetooth Low Energy (BLE).\n\n"
-            "Unifica datos de diferentes fabricantes y protocolos "
-            "(ADV, GATT, dispositivos híbridos) en un modelo único y consistente.\n\n"
-            "Se centra en señales en tiempo real, control explícito y configuración "
-            "transparente — sin automatizaciones ocultas.\n\n"
-            "Manoverde interpreta los dispositivos tal como se comportan, "
-            "sin forzarlos a abstracciones simplificadas.\n\n"
-            "Bluetooth es necesario para detectar y leer los sensores. "
-            "Actívalo y concede los permisos solicitados."
-        ))
+        body.add_widget(add_label(I18N.t("about.description")))
 
         link = add_label(
-            "[ref=https://github.com/Hackintosh1980/AI-Dashboard]"
-            "Project & Updates:\n"
-            "https://github.com/Hackintosh1980/AI-Dashboard"
+            f"[ref={I18N.t('about.repo_url')}]"
+            f"{I18N.t('about.repo_text')}\n"
+            f"{I18N.t('about.repo_url')}"
             "[/ref]",
             color=(0.35, 0.65, 1, 1),
             markup=True
@@ -88,7 +78,7 @@ class AboutScreen(Screen):
         body.add_widget(link)
 
         body.add_widget(add_label(
-            "© 2025 Dominik Rosenthal (Hackintosh1980)",
+            I18N.t("about.copyright"),
             size=14,
             color=(0.75, 0.75, 0.75, 1)
         ))

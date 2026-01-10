@@ -20,23 +20,23 @@
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-10T20:15:49.441+0000",
+    "timestamp": "2026-01-10T20:50:47.234+0000",
     "name": "TP351S (987A)",
     "address": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
-    "rssi": -73,
+    "rssi": -81,
     "adv_raw": "C2E10034223301",
     "gat_raw": null,
     "log_raw": "C2E10034223301",
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-10T20:17:06.421+0000",
+    "timestamp": "2026-01-10T20:27:09.808+0000",
     "name": "ThermoBeacon2",
     "address": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
-    "rssi": -55,
-    "adv_raw": "190019060000F1F0530B6F015A0378016503B9111000",
+    "rssi": -67,
+    "adv_raw": "190019060000F1F04F0B70015A037801620314141000",
     "gat_raw": null,
-    "log_raw": "190019060000F1F0530B6F015A0378016503B9111000",
+    "log_raw": "190019060000F1F04F0B70015A037801620314141000",
     "note": "raw"
   },
   {
@@ -50,10 +50,70 @@
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-10T20:17:14.369+0000",
+    "timestamp": "2026-01-10T20:18:07.418+0000",
     "name": "(unknown)",
     "address": "EB2BFD0A-54EB-C964-F5B1-555E663A9680",
-    "rssi": -91,
+    "rssi": -77,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-10T20:30:14.526+0000",
+    "name": "(unknown)",
+    "address": "9B397CF2-5471-28CF-0560-17A45ECD4A13",
+    "rssi": -74,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-10T20:18:09.170+0000",
+    "name": "(unknown)",
+    "address": "2AE57C4B-A366-23A2-D76A-96631D0413B5",
+    "rssi": -61,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-10T20:30:45.633+0000",
+    "name": "(unknown)",
+    "address": "5CC23932-246D-4ABF-FA90-2C4D7A5F4198",
+    "rssi": -67,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-10T20:37:19.319+0000",
+    "name": "(unknown)",
+    "address": "FC966672-AA6A-67AC-D465-F9EFF56D532B",
+    "rssi": -55,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-10T20:50:14.090+0000",
+    "name": "(unknown)",
+    "address": "857C4F63-F827-6445-3C23-DDE8475EF814",
+    "rssi": -77,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-10T20:50:22.944+0000",
+    "name": "(unknown)",
+    "address": "BA38F580-2DEB-FAFF-C135-2077B15978EB",
+    "rssi": -77,
     "adv_raw": "",
     "gat_raw": null,
     "log_raw": "",
