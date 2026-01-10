@@ -14,6 +14,7 @@ from kivy.uix.button import Button
 import time
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 import config
+from dashboard_gui.ui.i18n import I18N
 
 class SettingsMainPanel(BoxLayout):
     def __init__(self, on_save, on_cancel, **kw):
@@ -48,7 +49,7 @@ class SettingsMainPanel(BoxLayout):
                 height=dp_scaled(48),
                 spacing=dp_scaled(10)
             )
-            lbl = Label(text=label_text, size_hint=(0.35,1), font_size=sp_scaled(16))
+            lbl = Label(text=I18N.t(label_text), size_hint=(0.35,1), font_size=sp_scaled(16))
             slider = Slider(min=min_v, max=max_v, step=step, value=float(self.cfg.get(key,0)), size_hint=(0.45,1))
             val = Label(text=str(self.cfg.get(key,0)), size_hint=(0.20,1), font_size=sp_scaled(16))
             slider.bind(value=lambda inst,v,lab=val: setattr(lab,"text",f"{v:.1f}"))
@@ -65,18 +66,18 @@ class SettingsMainPanel(BoxLayout):
             container.add_widget(row)
 
         # --- Sliders ---
-        add_slider("Refresh Interval","refresh_interval",0.5,10,0.5)
-        add_slider("UI Refresh","ui_refresh_interval",0.1,5,0.1)
-        add_slider("Stale Timeout","stale_timeout",5,60,1)
-        add_slider("Temp Offset","temperature_offset",-10,10,0.1)
-        add_slider("Humidity Offset","humidity_offset",-20,20,1)
-        add_slider("Leaf Offset","leaf_offset",-10,10,0.1)
+        add_slider("settings.refresh_interval","refresh_interval",0.5,10,0.5)
+        add_slider("settings.ui_refresh_interval","ui_refresh_interval",0.1,5,0.1)
+        add_slider("settings.stale_timeout","stale_timeout",5,60,1)
+        add_slider("settings.temp_offset","temperature_offset",-10,10,0.1)
+        add_slider("settings.humidity_offset","humidity_offset",-20,20,1)
+        add_slider("settings.leaf_offset","leaf_offset",-10,10,0.1)
 
         self._update_dev_visibility()
 
         # --- Temperature Unit Toggle ---
         toggle_row = BoxLayout(size_hint_y=None, height=dp_scaled(48), spacing=dp_scaled(10))
-        toggle_row.add_widget(Label(text="Temperature Unit", size_hint=(0.35,1), font_size=sp_scaled(16)))
+        toggle_row.add_widget(Label(text=I18N.t("settings.temperature_unit"), size_hint=(0.35,1), font_size=sp_scaled(16)))
         self.temp_unit = self.cfg.get("temperature_unit","C")
         self.btn_C = Button(text="°C", font_size=sp_scaled(18), background_color=(0.4,0.7,1,1) if self.temp_unit=="C" else (0.3,0.3,0.3,1))
         self.btn_F = Button(text="°F", font_size=sp_scaled(18), background_color=(0.4,0.7,1,1) if self.temp_unit=="F" else (0.3,0.3,0.3,1))
@@ -88,38 +89,31 @@ class SettingsMainPanel(BoxLayout):
 
         scroll.add_widget(container)
         self.add_widget(scroll)
-        # nach Unit Toggle hinzufügen, also unter self.temp_unit Row
-        lang_row = BoxLayout(
-            size_hint_y=None,
-            height=dp_scaled(48),
-            spacing=dp_scaled(10)
-        )
-        
-        lang_row.add_widget(Label(
-            text="Language",
-            size_hint=(0.35, 1),
-            font_size=sp_scaled(16)
-        ))
-        
+
+        # --- Language Row ---
+        lang_row = BoxLayout(size_hint_y=None, height=dp_scaled(48), spacing=dp_scaled(10))
+        lang_row.add_widget(Label(text=I18N.t("settings.language"), size_hint=(0.35,1), font_size=sp_scaled(16)))
+
         self.lang_buttons = {}
-        for code, label in [("en", "EN"), ("de", "DE"), ("es", "ES")]:
+        for code, label in [("en","EN"),("de","DE"),("es","ES")]:
             btn = Button(
                 text=label,
                 font_size=sp_scaled(16),
-                background_color=(0.4, 0.7, 1, 1) if config._init().get("language", "en") == code else (0.3,0.3,0.3,1)
+                background_color=(0.4,0.7,1,1) if self.cfg.get("language","en")==code else (0.3,0.3,0.3,1)
             )
             btn.bind(on_release=lambda inst, c=code: self._set_language(c))
             self.lang_buttons[code] = btn
             lang_row.add_widget(btn)
-        
+
         container.add_widget(lang_row)
+
         # --- Bottom Buttons ---
         btn_row = BoxLayout(size_hint_y=None, height=dp_scaled(36), spacing=dp_scaled(10))
-        btn_reset = Button(text="Reset Defaults", font_size=sp_scaled(16), background_color=(0.45,0.45,0.45,1))
+        btn_reset = Button(text=I18N.t("settings.reset_defaults"), font_size=sp_scaled(16), background_color=(0.45,0.45,0.45,1))
         btn_reset.bind(on_release=lambda *_: self._reset_defaults())
-        btn_save = Button(text="Save", font_size=sp_scaled(18), background_color=(0.2,0.55,0.2,1))
+        btn_save = Button(text=I18N.t("settings.save"), font_size=sp_scaled(18), background_color=(0.2,0.55,0.2,1))
         btn_save.bind(on_release=lambda *_: self.on_save(self._collect()))
-        btn_cancel = Button(text="Cancel", font_size=sp_scaled(18), background_color=(0.55,0.2,0.2,1))
+        btn_cancel = Button(text=I18N.t("settings.cancel"), font_size=sp_scaled(18), background_color=(0.55,0.2,0.2,1))
         btn_cancel.bind(on_release=lambda *_: self.on_cancel())
         btn_row.add_widget(btn_reset)
         btn_row.add_widget(btn_save)
@@ -185,20 +179,20 @@ class SettingsMainPanel(BoxLayout):
                 row.disabled = True
                 row.opacity = 0
                 row.height = 0
+
     def _set_language(self, code):
         import config
-        from dashboard_gui.ui.i18n import I18N
-        
+
         # in Config speichern
         cfg = config._init()
         cfg["language"] = code
         config.save(cfg)
-        
+
         # I18N setzen
         I18N.set_language(code)
-        
+
         # Buttons aktualisieren
         for c, btn in self.lang_buttons.items():
-            btn.background_color = (0.4, 0.7, 1, 1) if c == code else (0.3,0.3,0.3,1)
-        
+            btn.background_color = (0.4,0.7,1,1) if c==code else (0.3,0.3,0.3,1)
+
         print(f"[SETTINGS] Language switched to {code}")

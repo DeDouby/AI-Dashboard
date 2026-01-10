@@ -1,40 +1,40 @@
 [
   {
-    "timestamp": 1768067112.021993,
+    "timestamp": "2026-01-10T20:13:53.962+0000",
     "device_id": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
-    "name": null,
+    "name": "ThermoBeacon2",
     "adv": {
-      "alive": false,
-      "status": "offline",
+      "alive": true,
+      "status": "active",
       "packet_counter": null,
-      "raw": null,
+      "raw": "190019060000F1F0530B70015B0379016803F9101000",
       "internal": {
         "temperature": {
-          "value": null,
-          "unit": "\u00b0C"
+          "value": 73.4,
+          "unit": "\u00b0F"
         },
         "humidity": {
-          "value": null,
+          "value": 53.6875,
           "unit": "%"
         }
       },
       "external": {
-        "present": false,
+        "present": true,
         "temperature": {
-          "value": null,
-          "unit": "\u00b0C"
+          "value": 74.4125,
+          "unit": "\u00b0F"
         },
         "humidity": {
-          "value": null,
+          "value": 54.5,
           "unit": "%"
         }
       },
       "vpd_internal": {
-        "value": null,
+        "value": 1.301,
         "unit": "kPa"
       },
       "vpd_external": {
-        "value": null,
+        "value": 1.322,
         "unit": "kPa"
       }
     },
@@ -46,7 +46,7 @@
       "internal": {
         "temperature": {
           "value": null,
-          "unit": "\u00b0C"
+          "unit": "\u00b0F"
         },
         "humidity": {
           "value": null,
@@ -57,7 +57,7 @@
         "present": false,
         "temperature": {
           "value": null,
-          "unit": "\u00b0C"
+          "unit": "\u00b0F"
         },
         "humidity": {
           "value": null,
@@ -75,12 +75,12 @@
     },
     "bridge_alive": true,
     "bridge_status": "OK",
-    "bridge_last_seen": null,
-    "alive": false,
-    "status": "offline",
+    "bridge_last_seen": 0.0,
+    "alive": true,
+    "status": "active",
     "health": {
       "uptime": {
-        "value": null,
+        "value": 100.2585837841034,
         "unit": "s"
       },
       "battery": {
@@ -89,7 +89,7 @@
         "voltage": null
       },
       "signal": {
-        "rssi": null,
+        "rssi": -67,
         "quality": null
       }
     }

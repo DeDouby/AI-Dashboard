@@ -4,6 +4,7 @@ from kivy.properties import ObjectProperty, BooleanProperty
 
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
+from dashboard_gui.ui.i18n import I18N
 
 
 class ControlButtons(BoxLayout):
@@ -18,6 +19,9 @@ class ControlButtons(BoxLayout):
     COLOR_START = (0.16, 0.45, 0.16, 1)   # dunkles Grün
     COLOR_STOP  = (0.45, 0.15, 0.15, 1)   # dunkles Rot
     COLOR_RESET = (0.15, 0.22, 0.55, 1)   # tiefes Blau
+    TXT_START = "control.start"
+    TXT_STOP  = "control.stop"
+    TXT_RESET = "control.reset"
 
     def __init__(self, on_start=None, on_stop=None, on_reset=None, **kwargs):
         super().__init__(orientation="horizontal", **kwargs)
@@ -46,7 +50,10 @@ class ControlButtons(BoxLayout):
             size_hint=(0.5, 1),
             padding=[dp_scaled(10), dp_scaled(10)],
         )
-        self.btn_toggle.text = "[font=FA]\uf04b[/font]  Start"
+        self.btn_toggle.text = (
+            "[font=FA]\uf04b[/font]  " + I18N.t(self.TXT_START)
+        )
+
         self.btn_toggle.bind(on_release=self._toggle)
 
         # ----------------------------------------------------
@@ -61,7 +68,9 @@ class ControlButtons(BoxLayout):
             size_hint=(0.5, 1),
             padding=[dp_scaled(10), dp_scaled(10)],
         )
-        self.btn_reset.text = "[font=FA]\uf021[/font]  Reset"
+        self.btn_reset.text = (
+            "[font=FA]\uf021[/font]  " + I18N.t(self.TXT_RESET)
+        )
         self.btn_reset.bind(on_release=lambda *_: self._trigger(self.on_reset))
 
         self.add_widget(self.btn_toggle)
@@ -79,11 +88,14 @@ class ControlButtons(BoxLayout):
 
         if self.running:
             self.btn_toggle.background_color = self.COLOR_STOP
-            self.btn_toggle.text = "[font=FA]\uf04d[/font]  Stop"
+            self.btn_toggle.text = (
+                "[font=FA]\uf04d[/font]  " + I18N.t(self.TXT_STOP)
+            )
         else:
             self.btn_toggle.background_color = self.COLOR_START
-            self.btn_toggle.text = "[font=FA]\uf04b[/font]  Start"
-
+            self.btn_toggle.text = (
+                "[font=FA]\uf04b[/font]  " + I18N.t(self.TXT_START)
+            )
 
     # ----------------------------------------------------
     #  Button gedrückt → toggeln
@@ -96,8 +108,11 @@ class ControlButtons(BoxLayout):
             self._trigger(self.on_start)
 
             self.btn_toggle.background_color = self.COLOR_STOP
-            self.btn_toggle.text = "[font=FA]\uf04d[/font]  Stop"
+            self.btn_toggle.text = (
+                "[font=FA]\uf04d[/font]  " + I18N.t(self.TXT_STOP)
+            )
             return
+
 
         # RUNNING → STOP
         else:
@@ -105,7 +120,9 @@ class ControlButtons(BoxLayout):
             self._trigger(self.on_stop)
 
             self.btn_toggle.background_color = self.COLOR_START
-            self.btn_toggle.text = "[font=FA]\uf04b[/font]  Start"
+            self.btn_toggle.text = (
+                "[font=FA]\uf04b[/font]  " + I18N.t(self.TXT_START)
+            )
 
 
     # ----------------------------------------------------
@@ -116,11 +133,14 @@ class ControlButtons(BoxLayout):
 
         if running:
             self.btn_toggle.background_color = self.COLOR_STOP
-            self.btn_toggle.text = "[font=FA]\uf04d[/font]  Stop"
+            self.btn_toggle.text = (
+                "[font=FA]\uf04d[/font]  " + I18N.t(self.TXT_STOP)
+            )
         else:
             self.btn_toggle.background_color = self.COLOR_START
-            self.btn_toggle.text = "[font=FA]\uf04b[/font]  Start"
-
+            self.btn_toggle.text = (
+                "[font=FA]\uf04b[/font]  " + I18N.t(self.TXT_START)
+            )
 
     # ----------------------------------------------------
     # Callbacks

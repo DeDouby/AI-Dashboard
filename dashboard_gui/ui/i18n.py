@@ -6,7 +6,6 @@ I18N Helper – zentrale Übersetzungen
 
 import config
 
-
 class I18N:
     _lang = "en"
 
@@ -25,6 +24,11 @@ class I18N:
             "settings.reset_defaults": "Reset Defaults",
             "settings.save": "Save",
             "settings.cancel": "Cancel",
+
+            # ControlButtons
+            "control.start": "Start",
+            "control.stop": "Stop",
+            "control.reset": "Reset",
 
             # Window Picker
             "menu.vpd_scatter": "VPD Scatter",
@@ -52,6 +56,11 @@ class I18N:
             "settings.save": "Guardar",
             "settings.cancel": "Cancelar",
 
+            # ControlButtons
+            "control.start": "Iniciar",
+            "control.stop": "Detener",
+            "control.reset": "Restablecer",
+
             # Window Picker
             "menu.vpd_scatter": "Dispersión VPD",
             "menu.setup": "Configuración",
@@ -69,14 +78,19 @@ class I18N:
             "settings.temperature_unit": "Temperatureinheit",
             "settings.language": "Sprache",
             "settings.refresh_interval": "Aktualisierungsintervall",
-            "settings.ui_refresh_interval": "UI Aktualisierung",
-            "settings.stale_timeout": "Stale Timeout",
-            "settings.temp_offset": "Temp Offset",
-            "settings.humidity_offset": "Feuchtigkeit Offset",
-            "settings.leaf_offset": "Blatt Offset",
+            "settings.ui_refresh_interval": "UI-Aktualisierung",
+            "settings.stale_timeout": "Inaktivitäts-Timeout",
+            "settings.temp_offset": "Temperatur-Korrektur",
+            "settings.humidity_offset": "Feuchtigkeit-Korrektur",
+            "settings.leaf_offset": "Blatt-Korrektur",
             "settings.reset_defaults": "Standardwerte zurücksetzen",
             "settings.save": "Speichern",
             "settings.cancel": "Abbrechen",
+
+            # ControlButtons
+            "control.start": "Start",
+            "control.stop": "Stopp",
+            "control.reset": "Zurücksetzen",
 
             # Window Picker
             "menu.vpd_scatter": "VPD-Diagramm",
