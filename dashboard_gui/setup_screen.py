@@ -12,7 +12,9 @@ from kivy.utils import platform
 from dashboard_gui.ui.setup_content.setup_main_panel import SetupMainPanel
 from dashboard_gui.ui.common.header_online import HeaderBar
 import config
-
+from dashboard_gui.global_state_manager import GLOBAL_STATE
+import core
+import config
 
 _selected = {}      # mac -> { "adv": str, "gatt": str, "bridge": str }
 _device_names = {}  # mac -> display name   ✅ FEHLTE
@@ -52,6 +54,7 @@ class SetupScreen(Screen):
             on_save=self._save,
             on_back=self._back,
             on_profile_change=self._set_profile,
+            on_device_toggle=self._toggle_device,  # <-- hier Callback
             on_adv=self.set_adv,
             on_gatt=self.set_gatt,
             on_bridge=self.set_bridge,
@@ -94,6 +97,7 @@ class SetupScreen(Screen):
             print("[Setup] Bridge restart FEHLER:", e)
 
     # ---------------------------------------------------------
+    # ---------------------------------------------------------
     def update_devices(self, *_):
         self.panel.clear_devices()
     
@@ -118,53 +122,126 @@ class SetupScreen(Screen):
                 continue
     
             _device_names[mac] = name
-            sel = _selected.get(mac, {})
     
-            adv = sel.get("adv", config.get_adv_decoder(mac))
-            gatt = sel.get("gatt", config.get_gatt_decoder(mac))
-            bridge = sel.get("bridge", config.get_bridge_profile(mac))
+            if not config.is_developer_mode():
+                if "ThermoBeacon2" not in name:
+                    continue
     
-            # 🔥 KEIN STATUS MEHR
-            self.panel.add_device(
-                name=name,
-                adv=adv,
-                gatt=gatt,
-                bridge=bridge,
-                mac=mac
-            )
-
-
+                # immer Dict verwenden, nicht True
+                sel = _selected.get(mac, {
+                    "adv": config.get_adv_decoder(mac),
+                    "gatt": config.get_gatt_decoder(mac),
+                    "bridge": config.get_bridge_profile(mac)
+                })
+    
+                _selected[mac] = sel  # sicherstellen
+    
+                self.panel.add_device(
+                    name=name,
+                    mac=mac,
+                    selected=True
+                )
+    
+            else:
+                sel = _selected.get(mac, {})
+                adv = sel.get("adv", config.get_adv_decoder(mac))
+                gatt = sel.get("gatt", config.get_gatt_decoder(mac))
+                bridge = sel.get("bridge", config.get_bridge_profile(mac))
+                self.panel.add_device(
+                    name=name,
+                    adv=adv,
+                    gatt=gatt,
+                    bridge=bridge,
+                    mac=mac
+                )
     # ---------------------------------------------------------
     def _set_profile(self, mac, prof):
         _selected[mac] = {"profile": prof}
 
     # ---------------------------------------------------------
+    # 🔥 SetupScreen _save() – GATT automatisch wie Header
+    # ---------------------------------------------------------
     def _save(self, *_):
-        cfg = config._init()
+        import core
+        from dashboard_gui.global_state_manager import GLOBAL_STATE
+        from kivy.app import App
     
+        # -------------------------
+        # 1) Config zusammenstellen
+        # -------------------------
+        cfg = config._init()
         devices = {}
     
         for mac, sel in _selected.items():
-            # nur speichern, wenn IRGENDEINE Auswahl existiert
-            if not sel:
-                continue
-    
             name = _device_names.get(mac, mac)
     
-            devices[mac] = {
-                "name": name,
-                "adv_decoder": sel.get("adv", ""),
-                "gatt_decoder": sel.get("gatt", ""),
-                "bridge_profile": sel.get("bridge", "")
-            }
+            if not config.is_developer_mode() and "ThermoBeacon2" in name:
+                # Non-Dev Mode → feste Defaults
+                sel = {
+                    "adv": "ThermoBeacon2_ADV",
+                    "gatt": "ThermoBeacon2_GATT",
+                    "bridge": "ThermoBeacon2_Bridge"
+                }
+                _selected[mac] = sel  # 🔥 wichtig für spätere Nutzung
+    
+            adv = sel.get("adv", "")
+            gatt = sel.get("gatt", "")
+            bridge = sel.get("bridge", "")
+    
+            # nur speichern, wenn mindestens eines gesetzt ist
+            if any([adv, gatt, bridge]):
+                devices[mac] = {
+                    "name": name,
+                    "adv_decoder": adv,
+                    "gatt_decoder": gatt,
+                    "bridge_profile": bridge
+                }
+    
+        # 🔒 Absicherung: niemals leere devices speichern
+        if not devices:
+            print("[Setup] Kein Device zum Speichern – Config bleibt unverändert")
+            return
     
         cfg["devices"] = devices
-    
         config.save(cfg)
         config.reload()
+        print("[Setup] Config gespeichert")
     
-        print("[Setup] config gespeichert (nur explizit gewählte Devices)")
-
+        # -------------------------
+        # 2) GATT Bridge automatisch schreiben + Core restart
+        # -------------------------
+        try:
+            for mac, dev in devices.items():
+                bridge_profile = dev.get("bridge_profile", "")
+                if bridge_profile:
+                    GLOBAL_STATE.write_gatt_bridge_config(mac)
+    
+            # Core neu starten einmalig nach allen Devices
+            core.restart_bridge()
+            GLOBAL_STATE.set_active_channel("gatt")
+    
+            # Header sofort updaten
+            app = App.get_running_app()
+            screen = app.root.get_screen("setup")
+            if hasattr(screen, "header"):
+                idx = GLOBAL_STATE.get_active_index()
+                device_list = GLOBAL_STATE.get_device_list()
+                if device_list and 0 <= idx < len(device_list):
+                    device_id = device_list[idx]
+                    screen.header.set_device_label(device_id)
+                screen.header.set_rssi(None)
+                screen.header.set_external(False)
+    
+            print("[Setup] GATT Bridge automatisch aktiviert für alle Devices")
+    
+        except Exception as e:
+            print("[Setup] Fehler bei GATT Auto-Activate:", e)
+    
+        # -------------------------
+        # 3) Direkt ins Dashboard springen
+        # -------------------------
+        if self.manager:
+            self.manager.current = "dashboard"
 
     # ---------------------------------------------------------
     def _back(self, *_):
@@ -189,9 +266,14 @@ class SetupScreen(Screen):
         else:
             _selected.setdefault(mac, {})["bridge"] = val
 
-    # ---------------------------------------------------------
-    # LIVE UPDATE FROM GSM (nur Header)
-    # ---------------------------------------------------------
+    # neue Funktion für Toggle
+    def _toggle_device(self, mac, is_selected):
+        if is_selected:
+            _selected.setdefault(mac, {})["adv"] = config.get_adv_decoder(mac)
+            _selected[mac]["gatt"] = config.get_gatt_decoder(mac)
+            _selected[mac]["bridge"] = config.get_bridge_profile(mac)
+        else:
+            _selected.pop(mac, None)
     # ---------------------------------------------------------
     # LIVE UPDATE FROM GSM (nur Header)
     # ---------------------------------------------------------

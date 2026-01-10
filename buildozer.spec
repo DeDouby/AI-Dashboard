@@ -1,6 +1,6 @@
 [app]
-title = thermotest
-package.name = thermotest
+title = ManoVerde Panel
+package.name = manoverde
 package.domain = org.hackintosh1980
 
 source.include_exts = py,kv,png,jpg,json,ttf

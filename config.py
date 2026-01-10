@@ -19,15 +19,20 @@ CONFIG_PATH = os.path.join(DATA, "config.json")
 
 DEFAULTS = {
     "devices": {},
-    "bridge_profiles": {},     # NEU – aber unsichtbar nach außen
+    "bridge_profiles": {},
     "refresh_interval": 2.0,
     "stale_timeout": 15.0,
     "ui_refresh_interval": 1.0,
     "temperature_unit": "C",
     "temperature_offset": 0.0,
     "humidity_offset": 0.0,
-    "leaf_offset": 0.0
+    "leaf_offset": 0.0,
+    "developer_mode": False,
+
+    # 🧩 SPRACHE
+    "language": "en",  # "en", "es", "de"
 }
+
 
 _config = None
 
@@ -163,5 +168,13 @@ def set_device_name(mac, name):
     if mac not in devs:
         devs[mac] = {}
     devs[mac]["name"] = name
+    save(cfg)
+def is_developer_mode():
+    return bool(_init().get("developer_mode", False))
+
+
+def set_developer_mode(state: bool):
+    cfg = _init()
+    cfg["developer_mode"] = bool(state)
     save(cfg)
 

@@ -204,12 +204,21 @@ class DashboardMainPanel(GridLayout):
     # ============================================================
     def _apply_tile_visibility(self, active_keys):
         self.clear_widgets()
-
+    
+        # 🔄 Hintergrund wechseln
+        if active_keys:
+            # mindestens 1 Tile aktiv → background2
+            self.bg_rect.source = os.path.join("assets", "background2.png")
+        else:
+            # keine Tiles → default background
+            self.bg_rect.source = os.path.join("assets", "background.png")
+    
+        # Tiles in gewünschter Reihenfolge hinzufügen
         order = [
             "temp_in", "hum_in", "vpd_in",
             "temp_ex", "hum_ex", "vpd_ex",
         ]
-
+    
         for key in order:
             if key in active_keys:
                 self.add_widget(self.tile_map[key])

@@ -28,12 +28,14 @@ def list_profiles():
 # Hauptklasse
 # ------------------------------------------------------------
 class SetupMainPanel(BoxLayout):
-
     def __init__(self, on_refresh, on_save, on_back, on_profile_change,
+                 on_device_toggle=None,  # <-- neu
                  on_adv=None, on_gatt=None, on_bridge=None,
                  on_restart_bridge=None, on_restart_adv=None, on_restart_gatt=None, 
                  **kw):
         super().__init__(orientation="vertical", spacing=15, **kw)
+
+        self.on_device_toggle = on_device_toggle  # <-- speichern
 
         self.on_refresh = on_refresh
         self.on_save = on_save
@@ -234,7 +236,12 @@ class SetupMainPanel(BoxLayout):
     # --------------------------------------------------------
     # Gerät hinzufügen (ADV + GATT + BRIDGE)
     # --------------------------------------------------------
-    def add_device(self, name, adv, gatt, bridge, mac):
+    def add_device(self, name, mac, adv=None, gatt=None, bridge=None, selected=True):
+        """
+        Fügt ein Gerät hinzu.
+        - Non-Dev Mode: nur Name + ToggleButton
+        - Dev Mode: Spinner für adv/gatt/bridge
+        """
     
         row = BoxLayout(
             orientation="horizontal",
@@ -244,11 +251,8 @@ class SetupMainPanel(BoxLayout):
             padding=[5, 5, 5, 5]
         )
     
-        left = BoxLayout(
-            orientation="vertical",
-            size_hint_x=0.25,
-            spacing=2
-        )
+        # linke Spalte: Name + MAC
+        left = BoxLayout(orientation="vertical", size_hint_x=0.25, spacing=2)
     
         lbl_name = Label(
             text=name,
@@ -276,16 +280,33 @@ class SetupMainPanel(BoxLayout):
     
         row.add_widget(left)
     
-        sp_adv = Spinner(text=adv or "---", values=self.adv_profiles, size_hint_x=0.25)
-        sp_adv.bind(text=lambda _, val: self.on_adv(mac, val))
-        row.add_widget(sp_adv)
+        # ✅ Non-Dev Mode: ToggleButton für Auswahl
+        from kivy.uix.togglebutton import ToggleButton
+        
+        toggle = ToggleButton(
+            text="Selected",
+            size_hint_x=0.25,
+            state="down" if selected else "normal"
+        )
+        
+        # Prüfen, ob Callback existiert
+        if self.on_device_toggle:
+            toggle.bind(state=lambda inst, val: self.on_device_toggle(mac, val=="down"))
+        
+        row.add_widget(toggle)
     
-        sp_gatt = Spinner(text=gatt or "---", values=self.gatt_profiles, size_hint_x=0.25)
-        sp_gatt.bind(text=lambda _, val: self.on_gatt(mac, val))
-        row.add_widget(sp_gatt)
+        # Dev Mode: nur wenn adv/gatt/bridge übergeben sind
+        if adv is not None and gatt is not None and bridge is not None:
+            sp_adv = Spinner(text=adv or "---", values=self.adv_profiles, size_hint_x=0.25)
+            sp_adv.bind(text=lambda _, val: self.on_adv(mac, val))
+            row.add_widget(sp_adv)
     
-        sp_bridge = Spinner(text=bridge or "---", values=self.bridge_profiles, size_hint_x=0.25)
-        sp_bridge.bind(text=lambda _, val: self.on_bridge(mac, val))
-        row.add_widget(sp_bridge)
+            sp_gatt = Spinner(text=gatt or "---", values=self.gatt_profiles, size_hint_x=0.25)
+            sp_gatt.bind(text=lambda _, val: self.on_gatt(mac, val))
+            row.add_widget(sp_gatt)
+    
+            sp_bridge = Spinner(text=bridge or "---", values=self.bridge_profiles, size_hint_x=0.25)
+            sp_bridge.bind(text=lambda _, val: self.on_bridge(mac, val))
+            row.add_widget(sp_bridge)
     
         self.device_box.add_widget(row)

@@ -392,7 +392,7 @@ class HeaderBar(BoxLayout):
 
         # TEXT & ICONS
         self.lbl_title = Label(
-            text="AI Dashboard",
+            text="Mano Verde Panel",
             font_size=sp_scaled(22),
             halign="left",
             size_hint=(0.28, 1)

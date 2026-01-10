@@ -25,6 +25,7 @@ from dashboard_gui.settings_screen import SettingsScreen
 from dashboard_gui.ui.cam_viewer_content.cam_viewer_screen import CamViewerScreen
 from dashboard_gui.about_screen import AboutScreen
 from dashboard_gui.ui.vpd_scatter_screen_content.vpd_scatter_screen import VPDScatterScreen
+from dashboard_gui.ui.i18n import I18N
 
 import core
 
@@ -60,6 +61,7 @@ def init_buffer():
 class DashboardApp(App):
 
     def build(self):
+        I18N.init()      
         init_buffer()
 
         sm = ScreenManager(transition=FadeTransition())

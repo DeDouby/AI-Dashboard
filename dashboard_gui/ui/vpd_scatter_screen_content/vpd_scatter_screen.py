@@ -206,6 +206,15 @@ class VPDScatterScreen(Screen):
 
         Clock.schedule_interval(self._tick, 1.0)
 
+        # -------------------------------------------------
+        # DEVICE SWIPE (HORIZONTAL) – IDENTISCH ZUM MAINPANEL
+        # -------------------------------------------------
+        from dashboard_gui.ui.scaling_utils import dp_scaled
+        self._touch_start_x = None
+        self._touch_active = False
+        self._swipe_threshold = dp_scaled(60)
+
+
     # -------------------------------------------------
     # LAYOUT SYNC
     # -------------------------------------------------
@@ -408,6 +417,57 @@ class VPDScatterScreen(Screen):
             f"{fmt(getattr(self, '_leaf_offset', None), '°C')}"
 
         )
+    # ============================================================
+    # DEVICE SWIPE (HORIZONTAL)
+    # ============================================================
+    def on_touch_down(self, touch):
+        if self.collide_point(*touch.pos):
+            self._touch_start_x = touch.x
+            self._touch_active = True
+        return super().on_touch_down(touch)
+
+    def on_touch_move(self, touch):
+        if not self._touch_active or self._touch_start_x is None:
+            return super().on_touch_move(touch)
+
+        dx = touch.x - self._touch_start_x
+
+        if abs(dx) >= self._swipe_threshold:
+            touch.grab(self)
+
+            if dx < 0:
+                self._next_device()
+            else:
+                self._prev_device()
+
+            self._touch_active = False
+            self._touch_start_x = None
+            touch.ungrab(self)
+            return True
+
+        return super().on_touch_move(touch)
+
+    def on_touch_up(self, touch):
+        if touch.grab_current is self:
+            touch.ungrab(self)
+            return True
+
+        self._touch_active = False
+        self._touch_start_x = None
+        return super().on_touch_up(touch)
+
+    def _next_device(self):
+        lst = self.gsm.get_device_list()
+        if not lst:
+            return
+        self.gsm.set_active_index((self.gsm.active_index + 1) % len(lst))
+
+    def _prev_device(self):
+        lst = self.gsm.get_device_list()
+        if not lst:
+            return
+        self.gsm.set_active_index((self.gsm.active_index - 1) % len(lst))
+
     # -------------------------------------------------
     # RESET
     # -------------------------------------------------

@@ -121,6 +121,13 @@ def _le16u(b, pos):
     if v in (0xFFFF, 0x0FFF): 
         return None
     return v
+def _dev_enabled():
+    try:
+        return config.is_developer_mode()
+    except Exception:
+        return False
+
+
 # ------------------------------------------------------------
 # DECODIERUNG (roh → Werte)
 # ------------------------------------------------------------
@@ -457,9 +464,11 @@ def _write(frames):
     json.dump(frames, open(tmp, "w"), indent=2)
     os.replace(tmp, DEC_FILE)
 
-    _write_csv(frames)
-
-    print("[Decoder] decoded.json + log.csv written")
+    if _dev_enabled():
+        _write_csv(frames)
+        print("[Decoder] decoded.json + log.csv written")
+    else:
+        _ensure_csv_cleared()
 
 def _write_csv(frames):
     file_exists = os.path.exists(CSV_FILE)
@@ -536,3 +545,9 @@ def start_decoder_thread(interval=1.0):
     decoder_thread = DecoderThread(interval)
     decoder_thread.start()
     print("[Decoder] Thread started")
+def _ensure_csv_cleared():
+    try:
+        if os.path.exists(CSV_FILE):
+            os.remove(CSV_FILE)
+    except Exception:
+        pass

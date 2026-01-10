@@ -1,20 +1,20 @@
 [
   {
-    "timestamp": "2025-12-29T17:03:38.691+0000",
-    "device_id": "C898B4F2-B452-7502-1A67-0536E77D49EA",
-    "name": "sps",
+    "timestamp": 1768067112.021993,
+    "device_id": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
+    "name": null,
     "adv": {
-      "alive": true,
-      "status": "active",
+      "alive": false,
+      "status": "offline",
       "packet_counter": null,
-      "raw": "D508CF1400148D5208",
+      "raw": null,
       "internal": {
         "temperature": {
-          "value": 22.61,
+          "value": null,
           "unit": "\u00b0C"
         },
         "humidity": {
-          "value": 53.27,
+          "value": null,
           "unit": "%"
         }
       },
@@ -30,7 +30,7 @@
         }
       },
       "vpd_internal": {
-        "value": 1.282,
+        "value": null,
         "unit": "kPa"
       },
       "vpd_external": {
@@ -75,12 +75,12 @@
     },
     "bridge_alive": true,
     "bridge_status": "OK",
-    "bridge_last_seen": 0.0,
-    "alive": true,
-    "status": "active",
+    "bridge_last_seen": null,
+    "alive": false,
+    "status": "offline",
     "health": {
       "uptime": {
-        "value": 66.35771179199219,
+        "value": null,
         "unit": "s"
       },
       "battery": {
@@ -89,7 +89,7 @@
         "voltage": null
       },
       "signal": {
-        "rssi": -77,
+        "rssi": null,
         "quality": null
       }
     }

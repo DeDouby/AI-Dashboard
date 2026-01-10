@@ -3,6 +3,8 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.core.window import Window
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
+import config
+from dashboard_gui.ui.i18n import I18N
 
 
 class WindowPicker(FloatLayout):
@@ -47,15 +49,24 @@ class WindowPicker(FloatLayout):
             )
         )
 
+        dev = config.is_developer_mode()
+        
         entries = [
-            ("Setup",       goto_setup),
-            ("Settings",    goto_settings),
-            ("Debug",       goto_debug),
-            ("Devices",     goto_devices),
-            ("CSV Viewer",  goto_csv),
-            ("Camera",      goto_cam),
-            ("VPD Scatter", goto_vpd_scatter),  # <--- NEU
-            ("About",       goto_about),
+            (I18N.t("menu.vpd_scatter"), goto_vpd_scatter),
+            (I18N.t("menu.setup"),       goto_setup),
+            (I18N.t("menu.settings"),    goto_settings),
+        ]
+        
+        if dev:
+            entries += [
+                (I18N.t("menu.debug"),   goto_debug),
+                (I18N.t("menu.csv"),     goto_csv),
+                (I18N.t("menu.camera"),  goto_cam),
+            ]
+        
+        entries += [
+            (I18N.t("menu.devices"),     goto_devices),
+            (I18N.t("menu.about"),       goto_about),
         ]
 
         for label, fnc in entries:
