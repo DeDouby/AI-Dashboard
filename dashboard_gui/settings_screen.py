@@ -63,17 +63,16 @@ class SettingsScreen(Screen):
         config.reload()
 
         # Live Watchdog update
-        try:
-            from core import _watchdog
-            if _watchdog:
-                _watchdog.set_timeout(cfg["stale_timeout"])
-                print(f"[SETTINGS] Watchdog stale_timeout live gesetzt → {cfg['stale_timeout']}")
-        except Exception as e:
-            print("[SETTINGS] Fehler beim Setzen des Watchdog-Timeouts:", e)
-
+        from core import _watchdog
+        
+        if _watchdog and hasattr(_watchdog, "set_timeout"):
+            _watchdog.set_timeout(cfg["stale_timeout"])
+            print(f"[SETTINGS] Watchdog stale_timeout live gesetzt → {cfg['stale_timeout']}")
+        else:
+            print("[SETTINGS] Watchdog live update nicht unterstützt – greift beim Neustart")
+        
         # Back to dashboard
         self.manager.current = "dashboard"
-
     # -----------------------------
     # Cancel Handler
     # -----------------------------
