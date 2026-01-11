@@ -87,14 +87,21 @@ class SetupScreen(Screen):
 
 
     # ---------------------------------------------------------
+    # ---------------------------------------------------------
+    # SetupScreen – Bridge-only Restart (ohne Core, ohne Dump)
+    # ---------------------------------------------------------
     def _restart_bridge(self, *_):
         try:
-            import core
-            core.stop()
-            core.start()
-            print("[Setup] Bridge manuell neu gestartet")
+            from bridge_manager import get_bridge
+    
+            bridge = get_bridge()
+            bridge.stop()
+            bridge.start()
+    
+            print("[Setup] ADV + GATT Bridges neu gestartet (Bridge-only)")
+    
         except Exception as e:
-            print("[Setup] Bridge restart FEHLER:", e)
+            print("[Setup] Bridge-only Restart FEHLER:", e)
 
     # ---------------------------------------------------------
     # ---------------------------------------------------------
