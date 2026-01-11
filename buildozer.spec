@@ -10,8 +10,8 @@ source.dir = .
 
 version = 1.1
 package.version_code = 1
-icon.filename = Logo.png
-presplash.filename = pre_splash.png
+icon.filename = assets/logo.png
+presplash.filename = assets/pre_splash.png
 #presplash.keep_ratio = True
 presplash.color = black
 orientation = landscape
