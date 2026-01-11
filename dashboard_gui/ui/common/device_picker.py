@@ -185,7 +185,6 @@ class DevicePickerScreen(Screen):
             font_size=sp_scaled(18),
             size_hint=(None, 1),
             width=dp_scaled(44),
-            background_normal="",
             background_down="",
             background_color=(0.25, 0.25, 0.30, 1),
         )
@@ -197,7 +196,6 @@ class DevicePickerScreen(Screen):
             font_size=sp_scaled(18),
             size_hint=(None, 1),
             width=dp_scaled(44),
-            background_normal="",
             background_down="",
             background_color=(0.25, 0.25, 0.30, 1),
         )
@@ -212,7 +210,6 @@ class DevicePickerScreen(Screen):
             font_size=sp_scaled(16),
             size_hint=(None, None),
             size=(dp_scaled(140), dp_scaled(40)),
-            background_normal="",
             background_down="",
             background_color=(0.25, 0.35, 0.30, 1),
         )

@@ -16,9 +16,10 @@ class ControlButtons(BoxLayout):
     running = BooleanProperty(False)
 
     # Dark-Pro Farben
-    COLOR_START = (0.16, 0.45, 0.16, 1)   # dunkles Grün
-    COLOR_STOP  = (0.45, 0.15, 0.15, 1)   # dunkles Rot
-    COLOR_RESET = (0.15, 0.22, 0.55, 1)   # tiefes Blau
+    # Helleres, freundlicheres Schema
+    COLOR_START = (0.25, 0.65, 0.25, 1)   # helleres Grün
+    COLOR_STOP  = (0.75, 0.25, 0.25, 1)   # helleres Rot
+    COLOR_RESET = (0.35, 0.45, 0.85, 1)   # helleres Blau
     TXT_START = "control.start"
     TXT_STOP  = "control.stop"
     TXT_RESET = "control.reset"
@@ -42,7 +43,6 @@ class ControlButtons(BoxLayout):
         #   TOGGLE BUTTON (Start/Stop)
         # ----------------------------------------------------
         self.btn_toggle = Button(
-            background_normal="",
             background_down="",
             background_color=self.COLOR_START,
             markup=True,
@@ -60,7 +60,6 @@ class ControlButtons(BoxLayout):
         #   RESET BUTTON
         # ----------------------------------------------------
         self.btn_reset = Button(
-            background_normal="",
             background_down="",
             background_color=self.COLOR_RESET,
             markup=True,

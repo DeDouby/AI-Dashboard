@@ -124,6 +124,38 @@ class GlobalStateManager:
     # ---------------------------------------------------------
     def attach_dashboard(self, scr):
         self.dashboard_ref = scr
+    
+        # -------------------------------------------------
+        # BOOTSTRAP: aktives Device + Channel + Bridge
+        # -------------------------------------------------
+        try:
+            import config
+            import core
+    
+            cfg = config._init()
+            devices = cfg.get("devices", {})
+    
+            if not devices:
+                return
+    
+            device_ids = list(devices.keys())
+            self.active_index = 0
+            device_id = device_ids[0]
+    
+            dev = devices.get(device_id, {})
+            bridge_profile = dev.get("bridge_profile")
+    
+            if bridge_profile:
+                self.write_gatt_bridge_config(device_id)
+                core.restart_bridge()
+                self.set_active_channel("gatt")
+            else:
+                self.set_active_channel("adv")
+    
+            print(f"[GSM] Bootstrap device={device_id} channel={self.active_channel}")
+    
+        except Exception as e:
+            print("[GSM] Bootstrap failed:", e)
 
     def attach_fullscreen(self, scr):
         self.fullscreen_ref = scr

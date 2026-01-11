@@ -64,7 +64,6 @@ class CSVViewerScreen(Screen):
             text="📁 Datei",
             size_hint=(None, 1),
             width=dp_scaled(110),
-            background_normal="",
             background_down="",
             background_color=(0.20, 0.25, 0.35, 1),
             color=(1, 1, 1, 1),
@@ -76,7 +75,6 @@ class CSVViewerScreen(Screen):
         # --- Tabs
         self.btn_tab_table = Button(
             text="Tabelle",
-            background_normal="",
             background_down="",
             background_color=(0.20, 0.30, 0.70, 1),
             color=(1, 1, 1, 1),
@@ -86,7 +84,6 @@ class CSVViewerScreen(Screen):
 
         self.btn_tab_graph = Button(
             text="Graph",
-            background_normal="",
             background_down="",
             background_color=(0.12, 0.12, 0.18, 1),
             color=(1, 1, 1, 1),
@@ -102,7 +99,6 @@ class CSVViewerScreen(Screen):
             text="Reset",
             size_hint=(None, 1),
             width=dp_scaled(90),
-            background_normal="",
             background_down="",
             background_color=(0.35, 0.20, 0.20, 1),
             color=(1, 1, 1, 1),

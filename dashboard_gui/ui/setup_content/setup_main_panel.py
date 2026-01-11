@@ -23,6 +23,7 @@ def list_profiles():
     return sorted(names)
 
 
+
 # ------------------------------------------------------------
 # Hauptklasse
 # ------------------------------------------------------------
@@ -127,46 +128,42 @@ class SetupMainPanel(BoxLayout):
         # Buttons unten
         # --------------------------------------------------------
         btns = BoxLayout(size_hint_y=None, height=dp(36), spacing=15)
-
+        
+        # --- Refresh ---
         b = Button(
             text=f"[font=FA]\uf021[/font]  {I18N.t('control.refresh') if 'control.refresh' in I18N._translations[I18N._lang] else 'Refresh'}",
             markup=True,
             font_size=sp_scaled(18),
-            background_normal="",
-            background_down="",
             background_color=(0.2, 0.2, 0.2, 1),
         )
         b.bind(on_release=lambda *_: self.on_refresh())
         btns.add_widget(b)
-
+        
+        # --- Save ---
         b = Button(
             text=f"[font=FA]\uf0c7[/font]  {I18N.t('settings.save')}",
             markup=True,
             font_size=sp_scaled(18),
-            background_normal="",
-            background_down="",
             background_color=(0.2, 0.5, 0.2, 1),
         )
         b.bind(on_release=lambda *_: self.on_save())
         btns.add_widget(b)
-
+        
+        # --- Cancel ---
         b = Button(
             text=f"[font=FA]\uf060[/font]  {I18N.t('settings.cancel')}",
             markup=True,
             font_size=sp_scaled(18),
-            background_normal="",
-            background_down="",
             background_color=(0.5, 0.2, 0.2, 1),
         )
         b.bind(on_release=lambda *_: self.on_back())
         btns.add_widget(b)
-
+        
+        # --- Restart Core ---
         b = Button(
             text=f"[font=FA]\uf021[/font]  {I18N.t('control.restart') if 'control.restart' in I18N._translations[I18N._lang] else 'Restart Core'}",
             markup=True,
             font_size=sp_scaled(20),
-            background_normal="",
-            background_down="",
             background_color=(0.3, 0.3, 0.6, 1),
             padding=[dp_scaled(10), dp_scaled(10)],
         )
@@ -175,9 +172,8 @@ class SetupMainPanel(BoxLayout):
         else:
             b.disabled = True
         btns.add_widget(b)
-
+        
         self.add_widget(btns)
-
     # --------------------------------------------------------
     def _update_bg(self, *_):
         self.bg.size = self.size

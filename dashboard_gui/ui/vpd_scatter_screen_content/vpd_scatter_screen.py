@@ -94,7 +94,6 @@ class VPDScatterScreen(Screen):
                 size_hint=(None, None),
                 size=(dp_scaled(90), dp_scaled(32)),
                 font_size=sp_scaled(14),
-                background_normal="",
                 background_color=(0.2, 0.2, 0.2, 0.85),
                 on_release=lambda *_: self._set_vpd_bg(key)
             )

@@ -89,7 +89,6 @@ class CSVGraphView(BoxLayout):
             text="Reset Zoom",
             size_hint=(None, 1),
             width=dp_scaled(120),
-            background_normal="",
             background_down="",
             background_color=(0.15, 0.22, 0.55, 1),
             color=(0.95, 0.95, 0.98, 1),

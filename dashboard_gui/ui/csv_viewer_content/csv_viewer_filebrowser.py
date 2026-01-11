@@ -86,7 +86,6 @@ class CSVViewerFileBrowser(FloatLayout):
 
         btn_title = Button(
             text="CSV / JSON auswählen",
-            background_normal="",
             background_down="",
             background_color=(0, 0, 0, 0),
             color=(0.95, 0.95, 0.98, 1),
@@ -120,7 +119,6 @@ class CSVViewerFileBrowser(FloatLayout):
                         text=name,
                         size_hint_y=None,
                         height=dp_scaled(40),
-                        background_normal="",
                         background_down="",
                         background_color=(0.16, 0.16, 0.22, 1),  # Dark-Pro List-Item
                         color=(0.95, 0.95, 0.98, 1),
@@ -134,7 +132,6 @@ class CSVViewerFileBrowser(FloatLayout):
                 text=f"data/ Ordner nicht gefunden:\n{base}",
                 size_hint_y=None,
                 height=dp_scaled(80),
-                background_normal="",
                 background_down="",
                 background_color=(0.25, 0.16, 0.16, 1),
                 color=(0.98, 0.90, 0.90, 1),
@@ -149,7 +146,6 @@ class CSVViewerFileBrowser(FloatLayout):
             text="Abbrechen",
             size_hint_y=None,
             height=dp_scaled(40),
-            background_normal="",
             background_down="",
             background_color=(0.45, 0.15, 0.15, 1),  # Dark-Pro Stop-Farbe
             color=(0.98, 0.95, 0.95, 1),

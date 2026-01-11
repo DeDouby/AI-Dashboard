@@ -1,40 +1,40 @@
 [
   {
-    "timestamp": 1768078043.946201,
+    "timestamp": "2026-01-10T23:59:21.007+0000",
     "device_id": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
-    "name": null,
+    "name": "ThermoBeacon2",
     "adv": {
-      "alive": false,
-      "status": "offline",
+      "alive": true,
+      "status": "active",
       "packet_counter": null,
-      "raw": null,
+      "raw": "190019060000F1F04C0B5501600353018003D0451000",
       "internal": {
         "temperature": {
-          "value": null,
+          "value": 21.3125,
           "unit": "\u00b0C"
         },
         "humidity": {
-          "value": null,
+          "value": 54.0,
           "unit": "%"
         }
       },
       "external": {
-        "present": false,
+        "present": true,
         "temperature": {
-          "value": null,
+          "value": 21.1875,
           "unit": "\u00b0C"
         },
         "humidity": {
-          "value": null,
+          "value": 56.0,
           "unit": "%"
         }
       },
       "vpd_internal": {
-        "value": null,
+        "value": 1.166,
         "unit": "kPa"
       },
       "vpd_external": {
-        "value": null,
+        "value": 1.107,
         "unit": "kPa"
       }
     },
@@ -73,14 +73,14 @@
         "unit": "kPa"
       }
     },
-    "bridge_alive": false,
-    "bridge_status": "OFFLINE",
-    "bridge_last_seen": null,
-    "alive": false,
-    "status": "offline",
+    "bridge_alive": true,
+    "bridge_status": "OK",
+    "bridge_last_seen": 0.0,
+    "alive": true,
+    "status": "active",
     "health": {
       "uptime": {
-        "value": null,
+        "value": 12.03340482711792,
         "unit": "s"
       },
       "battery": {
@@ -89,7 +89,7 @@
         "voltage": null
       },
       "signal": {
-        "rssi": null,
+        "rssi": -58,
         "quality": null
       }
     }
