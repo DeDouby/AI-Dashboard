@@ -40,11 +40,7 @@ class SetupScreen(Screen):
         root = BoxLayout(orientation="vertical", spacing=10, padding=10)
         self.add_widget(root)
 
-        self.header = HeaderBar(
-            goto_setup=lambda *_: None,
-            goto_debug=lambda *_: setattr(self.manager, "current", "debug"),
-            goto_device_picker=lambda *_: setattr(self.manager, "current", "device_picker"),
-        )
+        self.header = HeaderBar()
         self.header.lbl_title.text = "Setup"
         self.header.update_back_button("setup")
         root.add_widget(self.header)

@@ -20,11 +20,8 @@ class CamViewerScreen(Screen):
         root = BoxLayout(orientation="vertical")
 
         # HEADER
-        self.header = HeaderBar(
-            goto_setup=lambda: setattr(self.manager, "current", "setup"),
-            goto_debug=lambda: setattr(self.manager, "current", "debug"),
-            goto_device_picker=lambda: setattr(self.manager, "current", "device_picker"),
-        )
+        self.header = HeaderBar()
+
         self.header.update_back_button("cam_viewer")
         
         root.add_widget(self.header)

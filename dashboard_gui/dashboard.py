@@ -14,37 +14,33 @@ from dashboard_gui.ui.common.control_buttons import ControlButtons
 from dashboard_gui.ui.dashboard_content.dashboard_main_panel import DashboardMainPanel
 
 
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.screenmanager import Screen
+from dashboard_gui.global_state_manager import GLOBAL_STATE
+from dashboard_gui.ui.common.header_online import HeaderBar
+
 class DashboardScreen(Screen):
+    name = "dashboard"
+
     def __init__(self, **kw):
         super().__init__(**kw)
 
-        # ROOT
+        # ROOT Layout
         root = BoxLayout(orientation="vertical")
         self.add_widget(root)
 
         # Global State registrieren
         GLOBAL_STATE.attach_dashboard(self)
 
-        # -------------------------------------------------
         # HEADER
-        # -------------------------------------------------
-        self.header = HeaderBar(
-            goto_setup=self.goto_setup,
-            goto_debug=self.goto_debug,
-            goto_device_picker=self.open_device_picker
-        )
+        self.header = HeaderBar()
         root.add_widget(self.header)
-        
 
-        # -------------------------------------------------
-        # MAIN CONTENT
-        # -------------------------------------------------
-        self.content = DashboardMainPanel()
+        # MAIN PANEL → nur ein Panel verwenden
+        self.content = DashboardMainPanel(size_hint_y=1)
         root.add_widget(self.content)
 
-        # -------------------------------------------------
         # CONTROL BUTTONS
-        # -------------------------------------------------
         self.controls = ControlButtons(
             on_start=lambda *_: GLOBAL_STATE.start(),
             on_stop=lambda *_: GLOBAL_STATE.stop(),
@@ -60,7 +56,6 @@ class DashboardScreen(Screen):
         self.tile_temp_ex = self.content.tile_temp_ex
         self.tile_hum_ex  = self.content.tile_hum_ex
         self.tile_vpd_ex  = self.content.tile_vpd_ex
-
 
     # -----------------------------------------------------
     # Navigation

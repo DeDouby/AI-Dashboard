@@ -24,11 +24,8 @@ class AboutScreen(Screen):
         root = BoxLayout(orientation="vertical")
 
         # HEADER
-        self.header = HeaderBar(
-            goto_setup=lambda *_: setattr(self.manager, "current", "setup"),
-            goto_debug=lambda *_: setattr(self.manager, "current", "debug"),
-            goto_device_picker=lambda *_: setattr(self.manager, "current", "device_picker"),
-        )
+        self.header = HeaderBar()
+
         self.header.lbl_title.text = I18N.t("menu.about")
         self.header.update_back_button("about")
         root.add_widget(self.header)

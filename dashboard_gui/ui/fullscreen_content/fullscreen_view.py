@@ -1,6 +1,8 @@
 # SESSION 37 – FULLSCREEN WITH SWIPE + SWITCH BUTTONS + ANDROID LAYOUT FIX
 import time
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.screenmanager import Screen
 from kivy_garden.graph import Graph, LinePlot
 from kivy.graphics import Rectangle
@@ -28,7 +30,7 @@ class FullScreenView(Screen):
         self._last_tap_pos = None
 
 
-        root = BoxLayout(orientation="vertical", spacing=dp_scaled(8), padding=dp_scaled(8))
+        root = BoxLayout(orientation="vertical", spacing=dp_scaled(2), padding=dp_scaled(2))
         self.add_widget(root)
 
         # BG
@@ -37,59 +39,26 @@ class FullScreenView(Screen):
         self.bind(pos=self._update_bg, size=self._update_bg)
 
         # HEADER
-        self.header = HeaderBar(
-            goto_setup=lambda *_: setattr(self.manager, "current", "setup"),
-            goto_debug=lambda *_: setattr(self.manager, "current", "debug"),
-            goto_device_picker=lambda *_: setattr(self.manager, "current", "device_picker"),
-        )
+        self.header = HeaderBar()
         root.add_widget(self.header)
         self.header.update_back_button("fullscreen")
         self.header.set_rssi("--")
         self.header.set_external(False)
         self.header.set_clock("--:--")
 
-        # ----------------------------------------------------------
-        # VALUE PANEL – ANDROID FIX (ohne Titel)
-        # ----------------------------------------------------------
-        vp = BoxLayout(
-            orientation="vertical",
-            size_hint_y=0.22,   # vorher 0.30
-            spacing=dp_scaled(6),
-            padding=dp_scaled(6)
-        )
-
-        # ---- Titel entfernt ----
-        # (self.lbl_title = ... und vp.add_widget(self.lbl_title) sind raus)
-
-        # Value + Trend getrennt in einer Reihe
-        row = BoxLayout(orientation="horizontal", size_hint_y=0.55)
-        self.lbl_value = Label(text="--", font_size=sp_scaled(40))
-        self.lbl_trend = Label(text="→", font_size=sp_scaled(34), font_name="FA",
-                               color=(0.7, 0.7, 0.7, 1), size_hint_x=0.25)
-        row.add_widget(self.lbl_value)
-        row.add_widget(self.lbl_trend)
-
-        # Footer unten
-        footer = BoxLayout(orientation="horizontal", spacing=dp_scaled(8), size_hint_y=0.20)
-        self.lbl_avg = Label(text="avg: --", font_size=sp_scaled(14))
-        self.lbl_minmax = Label(text="", font_size=sp_scaled(14))
-        footer.add_widget(self.lbl_avg)
-        footer.add_widget(self.lbl_minmax)
-
-        vp.add_widget(row)
-        root.add_widget(vp)
-
-
+    
         # ----------------------------------------------------------
         # GRAPH
         # ----------------------------------------------------------
         self.graph = Graph(
             xlabel="", ylabel="", xmin=0, xmax=60, ymin=0, ymax=1,
-            x_ticks_major=0, x_ticks_minor=0, y_ticks_major=0, y_ticks_minor=0,
-            x_grid_label=False, y_grid_label=False, draw_border=False,
+            x_ticks_major=0, x_ticks_minor=0,
+            y_ticks_major=0, y_ticks_minor=0,
+            x_grid_label=False, y_grid_label=False,
+            draw_border=False,
             background_color=(0, 0, 0, 0),
             tick_color=(0, 0, 0, 0),
-            padding=dp_scaled(12),
+            padding=dp_scaled(2),   # ← EIN Wert, wie im ChartTile
             size_hint=(1, 1),
         )
         
@@ -102,17 +71,81 @@ class FullScreenView(Screen):
         root.add_widget(self.graph)
         
         # ----------------------------------------------------------
-        # FOOTER (avg / min / max)  ← HIER WAR DER FEHLENDE TEIL
+        # VALUE PANEL – FIXED OVERLAY MIT MITTIGER POSITION
         # ----------------------------------------------------------
-        root.add_widget(footer)
+        vp_overlay = FloatLayout(
+            size_hint=(1, None),
+            height=dp_scaled(110),
+        )
+        root.add_widget(vp_overlay)
         
+        # Obere Zeile: Wert + Trend
+        row_top = BoxLayout(
+            orientation="horizontal",
+            size_hint=(1, None),
+            height=dp_scaled(60),
+            padding=(dp_scaled(6), 0, dp_scaled(6), 0),
+            spacing=dp_scaled(6)
+        )
+        
+        self.lbl_value = Label(
+            text="--",
+            font_size=sp_scaled(40),
+            halign="center",
+            valign="middle"
+        )
+        self.lbl_value.bind(size=self.lbl_value.setter('text_size'))
+        
+        self.lbl_trend = Label(
+            text="→",
+            font_size=sp_scaled(34),
+            font_name="FA",
+            color=(0.7, 0.7, 0.7, 1),
+            halign="center",
+            valign="middle"
+        )
+        self.lbl_trend.bind(size=self.lbl_trend.setter('text_size'))
+        
+        row_top.add_widget(self.lbl_value)
+        row_top.add_widget(self.lbl_trend)
+        
+        # Untere Zeile: Avg / MinMax, horizontal zentriert
+        row_bottom = GridLayout(
+            cols=2,
+            size_hint=(1, None),
+            height=dp_scaled(40),
+            padding=(dp_scaled(12), 0, dp_scaled(12), dp_scaled(4))
+        )
+        self.lbl_avg = Label(
+            text="avg: --",
+            font_size=sp_scaled(14),
+            halign="center",
+            valign="middle"
+        )
+        self.lbl_avg.bind(size=self.lbl_avg.setter('text_size'))
+        
+        self.lbl_minmax = Label(
+            text="",
+            font_size=sp_scaled(14),
+            halign="center",
+            valign="middle"
+        )
+        self.lbl_minmax.bind(size=self.lbl_minmax.setter('text_size'))
+        
+        row_bottom.add_widget(self.lbl_avg)
+        row_bottom.add_widget(self.lbl_minmax)
+        
+        vp_overlay.add_widget(row_top)
+        vp_overlay.add_widget(row_bottom)
+        
+        row_top.pos_hint = {"top": 1.0}    # Wert oben im Overlay
+        row_bottom.pos_hint = {"y": 0.0}   # Avg/MinMax unten
         # ----------------------------------------------------------
         # SWITCH BUTTONS (Session 37C – SAFE OVERLAY)
         # ----------------------------------------------------------
-        from kivy.uix.floatlayout import FloatLayout
         
-        overlay = FloatLayout(size_hint=(1, 1))
-        root.add_widget(overlay)
+        overlay = FloatLayout(size_hint=(1, None), height=0)
+        self.add_widget(overlay)  # AUF SCREEN, NICHT im root
         
         btn_size = dp_scaled(42)
         
@@ -304,7 +337,8 @@ class FullScreenView(Screen):
             mx += 0.5
         
         # Zoom-abhängige Y-Luft (mehr Atmung beim Reinzoomen)
-        margin = (mx - mn) * (0.15 + 0.15 / self._zoom)
+        dynamic = max(0.08, 0.25 / self._zoom)
+        margin = (mx - mn) * dynamic
 
         self.graph.ymin = mn - margin
         self.graph.ymax = mx + margin

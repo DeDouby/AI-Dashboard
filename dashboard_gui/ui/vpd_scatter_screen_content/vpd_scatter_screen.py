@@ -56,10 +56,7 @@ class VPDScatterScreen(Screen):
         app = App.get_running_app()
         sm = app.root if app else None
 
-        self.header = HeaderBar(
-            goto_setup=lambda *_: setattr(sm, "current", "setup") if sm else None,
-            goto_debug=lambda *_: setattr(sm, "current", "debug") if sm else None,
-            goto_device_picker=lambda *_: setattr(self.manager, "current", "device_picker"),        )
+        self.header = HeaderBar()
         self.main.add_widget(self.header)
 
         self.header.enable_back("dashboard")

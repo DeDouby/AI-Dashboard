@@ -30,11 +30,8 @@ class CSVViewerScreen(Screen):
         # ============================================================
         # HEADER
         # ============================================================
-        self.header = HeaderBar(
-            goto_setup=lambda *_: setattr(self.manager, "current", "setup"),
-            goto_debug=lambda *_: setattr(self.manager, "current", "debug"),
-            goto_device_picker=lambda *_: setattr(self.manager, "current", "device_picker"),
-        )
+        self.header = HeaderBar()
+
         self.header.lbl_title.text = "CSV Viewer"
         self.header.enable_back("dashboard")
         root.add_widget(self.header)

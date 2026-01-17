@@ -211,23 +211,35 @@ class LEDCircle(Widget):
         self._apply(self._base_status)
 
 
+from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.button import Button
+from kivy.uix.label import Label
+from kivy.metrics import dp, sp
+from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
+import config
+
 class DevicePickerMenu(FloatLayout):
     def __init__(self, parent_header, device_list, on_select_device, **kw):
         super().__init__(**kw)
         self.parent_header = parent_header
 
         from dashboard_gui.global_state_manager import GLOBAL_STATE
-   
         self._current_idx = GLOBAL_STATE.active_index
 
-
-
-        # Hintergrund – schließt Menü
-        bg = Button(background_color=(0, 0, 0, 0))
+        # -----------------------------
+        # 1) Hintergrund Overlay
+        # -----------------------------
+        bg = Button(
+            background_color=(0, 0, 0, 0.15),  # nur 15% Deckkraft
+            border=(0,0,0,0)
+        )
         bg.bind(on_release=lambda *_: self.close())
         self.add_widget(bg)
 
-        # Panel-Höhe = Geräteliste + Channel-Liste
+        # -----------------------------
+        # 2) Panel für Buttons
+        # -----------------------------
         num_buttons = len(device_list) + 2   # ADV + GATT
         w = dp_scaled(220)
         h = dp_scaled(40 * num_buttons + 20)
@@ -237,57 +249,52 @@ class DevicePickerMenu(FloatLayout):
             size_hint=(None, None),
             size=(w, h),
             spacing=dp_scaled(6),
+            padding=[dp_scaled(4), dp_scaled(4), dp_scaled(4), dp_scaled(4)],
             pos=(
                 parent_header.lbl_dev.to_window(*parent_header.lbl_dev.pos)[0],
                 parent_header.lbl_dev.to_window(*parent_header.lbl_dev.pos)[1] - h - dp_scaled(10)
             )
         )
+        self.add_widget(self.panel)
 
-        # ----------------------------------------------------
-        # DEVICES  (CONFIG ONLY – KEINE LIVE DATEN)
-        # ----------------------------------------------------
-        import config
+        # -----------------------------
+        # 3) Devices aus Config
+        # -----------------------------
         cfg = config._init()
         devices_cfg = cfg.get("devices", {})
-        
+
         for idx, mac in enumerate(device_list):
-        
-            # Name NUR aus config
             name = devices_cfg.get(mac, {}).get("name")
-        
-            # Anzeige: Name > MAC
             label = name if name else mac
-        
+
             b = Button(
                 text=label,
                 font_size=sp_scaled(18),
-                background_color=(0.22, 0.25, 0.30, 0.95)
+                background_color=(0.22, 0.25, 0.30, 0.55),  # semi-transparent
+                color=(0.95, 0.95, 0.98, 1)
             )
-        
-            from dashboard_gui.global_state_manager import GLOBAL_STATE
-        
             b.bind(on_release=lambda _, i=idx: (
                 on_select_device(i),
                 setattr(self, "_current_idx", i),
                 self.close()
             ))
-        
             self.panel.add_widget(b)
-        # ----------------------------------------------------
-        # SEPARATOR
-        # ----------------------------------------------------
+
+        # -----------------------------
+        # 4) Separator
+        # -----------------------------
         sep = Label(text="CHANNEL", font_size=sp_scaled(14), color=(0.8, 0.8, 0.8, 1))
         self.panel.add_widget(sep)
 
-        # ----------------------------------------------------
-        # CHANNEL BUTTONS (ADV / GATT)
-        # ----------------------------------------------------
-
+        # -----------------------------
+        # 5) Channel Buttons (ADV / GATT)
+        # -----------------------------
         # ADV
         b_adv = Button(
             text="ADV channel",
             font_size=sp_scaled(18),
-            background_color=(0.20, 0.30, 0.25, 0.95)
+            background_color=(0.20, 0.30, 0.25, 0.55),
+            color=(0.95,0.95,0.98,1)
         )
         b_adv.bind(
             on_release=lambda *_: (
@@ -297,65 +304,43 @@ class DevicePickerMenu(FloatLayout):
         )
         self.panel.add_widget(b_adv)
 
-
         # GATT
         b_gatt = Button(
             text="GATT channel",
             font_size=sp_scaled(18),
-            background_color=(0.25, 0.20, 0.30, 0.95)
+            background_color=(0.25, 0.20, 0.30, 0.55),
+            color=(0.95,0.95,0.98,1)
         )
-        
         def activate_gatt():
-            from dashboard_gui.global_state_manager import GLOBAL_STATE
-            import config
-        
-            item = device_list[self._current_idx]
-            
+            import core
             device_id = device_list[self._current_idx]
-  
-            # 1) bridge_profile aus HAUPTCONFIG lesen
-            cfg = config._init()
-            dev = cfg.get("devices", {}).get(device_id, {})
-            bridge_profile = dev.get("bridge_profile", "")
-        
-            # 2) NUR wenn bridge_profile existiert → Bridge steuern
+            dev_cfg = cfg.get("devices", {}).get(device_id, {})
+            bridge_profile = dev_cfg.get("bridge_profile", "")
+
             if bridge_profile:
                 GLOBAL_STATE.write_gatt_bridge_config(device_id)
-            
-                import core
                 core.restart_bridge()
-        
-            # 3) Channel IMMER umschalten
+
             GLOBAL_STATE.set_active_channel("gatt")
-        
-            # 4) Menü schließen
             self.close()
-        
+
         b_gatt.bind(on_release=lambda *_: activate_gatt())
         self.panel.add_widget(b_gatt)
 
-
-
-
-        self.add_widget(self.panel)
-
+    # -----------------------------
+    # 6) Menü schließen
+    # -----------------------------
     def close(self):
-        header = self.parent_header
-        if header and header.parent and header.parent.parent:
-            screen = header.parent.parent
-            if self in screen.children:
-                screen.remove_widget(self)
-        if hasattr(header, "_device_menu") and header._device_menu is self:
-            header._device_menu = None
+        if self.parent:
+            self.parent.remove_widget(self)
+            if self.parent_header:
+                self.parent_header._device_menu = None
+
 # -------------------------------------------------------
 # HEADER BAR
 # -------------------------------------------------------
 class HeaderBar(BoxLayout):
-    def __init__(self, goto_setup, goto_debug, goto_device_picker=None, **kw):
-        self.goto_setup = goto_setup
-        self.goto_debug = goto_debug
-        self.goto_device_picker = goto_device_picker
-
+    def __init__(self, **kw):
         super().__init__(**kw)
 
         self.orientation = "horizontal"
@@ -499,33 +484,19 @@ class HeaderBar(BoxLayout):
 
 
     def _open_menu(self):
-            # Falls Menü schon offen → schließen
-            if self._menu_overlay:
-                screen = self.parent.parent
-                if self._menu_overlay in screen.children:
-                    screen.remove_widget(self._menu_overlay)
-                self._menu_overlay = None
-                return
+        # Falls Menü schon offen ist, nichts tun
+        if getattr(self, "_menu_overlay", None):
+            return
     
-            from kivy.app import App
-            app = App.get_running_app()
-            sm = app.root
+        # WindowPicker erzeugen, HeaderBar als Referenz optional übergeben
+        picker = WindowPicker(parent_header=self)
     
-            picker = WindowPicker(
-                parent_header=self,
-                goto_setup=lambda: setattr(sm, "current", "setup"),
-                goto_debug=lambda: setattr(sm, "current", "debug"),
-                goto_devices=(self.goto_device_picker or (lambda: None)),
-                goto_csv=lambda: setattr(sm, "current", "csv_viewer"),
-                goto_settings=lambda: setattr(sm, "current", "settings"),
-                goto_about=lambda: setattr(sm, "current", "about"),
-                goto_cam=lambda: setattr(sm, "current", "cam_viewer"),
-                goto_vpd_scatter=lambda: setattr(sm, "current", "vpd_scatter"),
-            )
+        # Overlay speichern, damit wir später schließen können
+        self._menu_overlay = picker
     
-            self._menu_overlay = picker
-            screen = self.parent.parent     # Header -> BoxLayout -> Screen
-            screen.add_widget(picker)
+        # Picker zum Screen hinzufügen
+        screen = self.parent.parent
+        screen.add_widget(picker)
 
 
 

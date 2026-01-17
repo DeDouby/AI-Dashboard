@@ -26,11 +26,7 @@ class DevicePickerScreen(Screen):
         # -------------------------------------------------
         # HEADER (identisch zu About)
         # -------------------------------------------------
-        self.header = HeaderBar(
-            goto_setup=lambda *_: setattr(self.manager, "current", "setup"),
-            goto_debug=lambda *_: setattr(self.manager, "current", "debug"),
-            goto_device_picker=lambda *_: None,  # already here
-        )
+        self.header = HeaderBar()
         self.header.lbl_title.text = "Devices"
         self.header.update_back_button("device_picker")
         root.add_widget(self.header)

@@ -23,11 +23,8 @@ class SettingsScreen(Screen):
         GLOBAL_STATE.attach_settings(self)
 
         # Header Bar
-        self.header = HeaderBar(
-            goto_setup=lambda *_: setattr(self.manager, "current", "setup"),
-            goto_debug=lambda *_: setattr(self.manager, "current", "debug"),
-            goto_device_picker=lambda *_: setattr(self.manager, "current", "device_picker")
-        )
+        self.header = HeaderBar()
+
         self.header.update_back_button("settings")
         root.add_widget(self.header)
 
