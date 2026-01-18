@@ -258,17 +258,24 @@ def decode_channel(entry, raw_key, profile_name,
     if not decoded:
         return offline_channel_frame(raw_hex)
 
+    # Offsets anwenden
     T_i, H_i, T_e, H_e = calculator.apply_offsets(
         decoded["T_i"], decoded["H_i"], decoded["T_e"], decoded["H_e"]
     )
 
     unit = f"°{config.get_temperature_unit().upper()}"
 
+    # 🔹 Koordinaten VOR dem Return berechnen
+    xi, yi = calculator.vpd_coord_internal(T_i, H_i)
+    xe, ye = calculator.vpd_coord_external(T_e, H_e)
+
+    # --- Sauber zurückgeben ---
     return {
         "alive": True,
         "status": "active",
         "packet_counter": entry.get("packet_counter"),
         "raw": decoded["raw"],
+
         "internal": {
             "temperature": {"value": calculator.to_unit(T_i), "unit": unit},
             "humidity": {"value": H_i, "unit": "%"},
@@ -280,6 +287,11 @@ def decode_channel(entry, raw_key, profile_name,
         },
         "vpd_internal": {"value": calculator.vpd_internal(T_i, H_i), "unit": "kPa"},
         "vpd_external": {"value": calculator.vpd_external(T_e, H_e), "unit": "kPa"},
+
+        "coord": {
+            "internal": {"x": xi, "y": yi},
+            "external": {"x": xe, "y": ye},
+        }
     }
 
 def offline_channel_frame(raw_hex=None):
@@ -299,6 +311,11 @@ def offline_channel_frame(raw_hex=None):
         },
         "vpd_internal": {"value": None, "unit": "kPa"},
         "vpd_external": {"value": None, "unit": "kPa"},
+        "coord": {
+            "internal": {"x": None, "y": None},
+            "external": {"x": None, "y": None},
+        },
+
     }
 
 

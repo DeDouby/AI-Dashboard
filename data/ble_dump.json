@@ -1,48 +1,48 @@
 [
   {
-    "timestamp": "2026-01-17T00:14:03.954+0000",
+    "timestamp": "2026-01-18T00:26:23.483+0000",
     "name": "sps",
     "address": "C898B4F2-B452-7502-1A67-0536E77D49EA",
-    "rssi": -70,
-    "adv_raw": "3108FE130037645B08",
+    "rssi": -77,
+    "adv_raw": "1908941100761E5908",
     "gat_raw": null,
-    "log_raw": "3108FE130037645B08",
+    "log_raw": "1908941100761E5908",
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-17T00:12:56.992+0000",
+    "timestamp": "2026-01-18T00:24:55.814+0000",
     "name": "ThermoBeacon2",
     "address": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
-    "rssi": -64,
-    "adv_raw": "190019060000F1F0C3115101FE02480140032ADE0100",
+    "rssi": -54,
+    "adv_raw": "190019060000F1F0AF114D01D9024501F9027E320300",
     "gat_raw": null,
-    "log_raw": "190019060000F1F0C3115101FE02480140032ADE0100",
+    "log_raw": "190019060000F1F0AF114D01D9024501F9027E320300",
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-16T23:54:59.363+0000",
+    "timestamp": "2026-01-17T23:04:38.825+0000",
     "name": "(unknown)",
-    "address": "EE6AC4DB-E641-B7C6-FF6C-FD3DD8C5DD33",
-    "rssi": -64,
+    "address": "B2024E30-8A01-4BD3-B11C-8CFA4C492573",
+    "rssi": -75,
     "adv_raw": "",
     "gat_raw": null,
     "log_raw": "",
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-17T00:04:40.360+0000",
+    "timestamp": "2026-01-17T23:14:56.329+0000",
     "name": "(unknown)",
-    "address": "2AE6F30B-82B2-B06A-B9C3-8F644DFA1473",
-    "rssi": -69,
+    "address": "583808B1-58D0-2959-BEBA-C0B0A3418A18",
+    "rssi": -55,
     "adv_raw": "",
     "gat_raw": null,
     "log_raw": "",
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-17T00:14:04.868+0000",
+    "timestamp": "2026-01-17T23:04:51.097+0000",
     "name": "(unknown)",
-    "address": "8C8994A5-23BE-85DD-63E7-56C116F0BF8E",
+    "address": "33171D0B-8D75-B748-95CD-5FB25F649B49",
     "rssi": -56,
     "adv_raw": "",
     "gat_raw": null,
@@ -50,13 +50,83 @@
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-17T00:13:26.430+0000",
+    "timestamp": "2026-01-18T00:25:46.039+0000",
     "name": "TP351S (987A)",
     "address": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
-    "rssi": -58,
-    "adv_raw": "C2C6002A223301",
+    "rssi": -69,
+    "adv_raw": "C2BF0027223301",
     "gat_raw": null,
-    "log_raw": "C2C6002A223301",
+    "log_raw": "C2BF0027223301",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-17T23:25:02.514+0000",
+    "name": "(unknown)",
+    "address": "DB20BCCA-C21C-AA37-0D16-F3CC08782A9A",
+    "rssi": -70,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-17T23:40:11.229+0000",
+    "name": "(unknown)",
+    "address": "78F4860D-86FF-CCC9-97E7-EC4372BEBAAA",
+    "rssi": -75,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-17T23:54:27.725+0000",
+    "name": "(unknown)",
+    "address": "E09F3734-F3C3-69BE-37ED-E6D7DDC56866",
+    "rssi": -71,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-18T00:09:55.371+0000",
+    "name": "(unknown)",
+    "address": "B09F9F4A-1187-3202-D7B6-ED681EBE8149",
+    "rssi": -66,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-18T00:21:08.549+0000",
+    "name": "(unknown)",
+    "address": "55967621-C217-20DF-2198-02202763D808",
+    "rssi": -68,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-18T00:21:51.914+0000",
+    "name": "(unknown)",
+    "address": "D0ACA8D6-6511-4741-A434-7D1F627DDFA2",
+    "rssi": -48,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-18T00:26:26.473+0000",
+    "name": "(unknown)",
+    "address": "C61C1B56-7907-FAE6-B122-707B8677BC67",
+    "rssi": -46,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
     "note": "raw"
   }
 ]

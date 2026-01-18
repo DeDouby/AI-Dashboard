@@ -4,7 +4,19 @@
       "name": "sps",
       "adv_decoder": "Inkbird_ADV_Desktop",
       "gatt_decoder": "Inkbird_GATT",
-      "bridge_profile": "Inkbird_Bridge"
+      "bridge_profile": ""
+    },
+    "FABCEA8B-7EC8-2594-4879-2B3B63989660": {
+      "name": "ThermoBeacon2",
+      "adv_decoder": "ThermoBeacon2_ADV",
+      "gatt_decoder": "ThermoBeacon2_GATT",
+      "bridge_profile": ""
+    },
+    "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21": {
+      "name": "TP351S (987A)",
+      "adv_decoder": "passthrough",
+      "gatt_decoder": "ThermoPro_GATT",
+      "bridge_profile": ""
     }
   },
   "bridge_profiles": {},
@@ -14,7 +26,7 @@
   "temperature_unit": "C",
   "temperature_offset": 0.0,
   "humidity_offset": 0.0,
-  "leaf_offset": -1.5999999999999996,
+  "leaf_offset": 0.0,
   "developer_mode": false,
-  "language": "es"
+  "language": "en"
 }

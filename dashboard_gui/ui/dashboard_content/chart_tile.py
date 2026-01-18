@@ -26,6 +26,7 @@ class ChartTile(ButtonBehavior, BoxLayout):
         self.color = color_rgba
         self.window = 120
         self.buffer = []
+        self._coord_buffers = {}  # NEU: für interne/externe Koordinaten
         self.last_value = None
         self.smoothing = 0.25
         # Multi-Device Buffers: device_id → eigener Verlauf
@@ -122,46 +123,64 @@ class ChartTile(ButtonBehavior, BoxLayout):
     # -------------------------------------------------
     # UPDATE
     # -------------------------------------------------
-    def update(self, value, buf_key, render=False):
+    # -------------------------------------------------
+    # TILE-COMPATIBLE UPDATE
+    # -------------------------------------------------
+    def update(self, value, buf_key, stream=None, render=False):
+        """
+        Update eines Tiles (Buffer + Coord)
+        value: float oder int
+        buf_key: device_id_channel_tile
+        stream: dict mit coord, adv/gatt
+        render: Label + Graph sofort aktualisieren
+        """
+    
         if value is None:
             return
     
-        # -------------------------------------------------
-        # UNIT SWITCH DETECT → RESCALE ALL BUFFERS (wie vorher)
-        # -------------------------------------------------
+        # -------------------------
+        # UNIT SWITCH DETECT (nur Float-Werte)
+        # -------------------------
         if self.unit != self._last_unit:
-            if self._last_unit == "°C" and self.unit == "°F":
-                # °C → °F
-                for k, b in self.buffers.items():
-                    self.buffers[k] = [(v * 9 / 5) + 32 for v in b]
-            elif self._last_unit == "°F" and self.unit == "°C":
-                # °F → °C
-                for k, b in self.buffers.items():
-                    self.buffers[k] = [(v - 32) * 5 / 9 for v in b]
+            for k, b in self.buffers.items():
+                for i in range(len(b)):
+                    if isinstance(b[i], dict) and "value" in b[i]:
+                        # dict Buffer für Coord
+                        if self._last_unit == "°C" and self.unit == "°F":
+                            b[i]["value"] = (b[i]["value"] * 9 / 5) + 32
+                        elif self._last_unit == "°F" and self.unit == "°C":
+                            b[i]["value"] = (b[i]["value"] - 32) * 5 / 9
+                    else:
+                        # alte Float-Buffer
+                        if self._last_unit == "°C" and self.unit == "°F":
+                            b[i] = (b[i] * 9 / 5) + 32
+                        elif self._last_unit == "°F" and self.unit == "°C":
+                            b[i] = (b[i] - 32) * 5 / 9
             self._last_unit = self.unit
     
-        # -------------------------------------------------
-        # BUFFER KEY
-        # -------------------------------------------------
+        # -------------------------
+        # Buffer initialisieren
+        # -------------------------
         if buf_key not in self.buffers:
             self.buffers[buf_key] = []
         buf = self.buffers[buf_key]
     
-        # --- VALUE PARSEN ---
+        # Value glätten
         try:
             v = float(value)
         except:
             return
     
-        # --- Glättung ---
-        if len(buf) == 0:
+        if not buf:
             smoothed = v
         else:
-            smoothed = (buf[-1] * (1 - self.smoothing)) + (v * self.smoothing)
+            last_val = buf[-1]["value"] if isinstance(buf[-1], dict) else buf[-1]
+            smoothed = last_val * (1 - self.smoothing) + v * self.smoothing
     
-        # --- Trend ---
-        if render and len(buf) > 1:
-            diff = smoothed - buf[-1]
+        # Trend anzeigen
+        if render and buf:
+            last_val = buf[-1]["value"] if isinstance(buf[-1], dict) else buf[-1]
+            diff = smoothed - last_val
             if diff > 0.01:
                 self.lbl_trend.text = "\uf062"
             elif diff < -0.01:
@@ -169,20 +188,44 @@ class ChartTile(ButtonBehavior, BoxLayout):
             else:
                 self.lbl_trend.text = "\uf061"
     
-        # --- Anzeige-Wert ---
+        # Anzeige
         display_value = smoothed
         if self.base_unit == "°C" and self.unit == "°F":
             display_value = (smoothed * 9 / 5) + 32
     
-        # --- Buffer ---
+        # -------------------------
+        # Coord aus Stream übernehmen
+        # -------------------------
+        coords = {"internal": {}, "external": {}}
+        if stream and "coord" in stream:
+            coords["internal"] = stream["coord"].get("internal", {})
+            coords["external"] = stream["coord"].get("external", {})
+    
+        # -------------------------
+        # Float Buffer für alte Graphen
+        # -------------------------
         buf.append(smoothed)
         if len(buf) > self.window:
             buf.pop(0)
-        
+    
+        # -------------------------
+        # Coord Buffer für Tiles
+        # -------------------------
+        if not hasattr(self, "_coord_buffers"):
+            self._coord_buffers = {}
+        if buf_key not in self._coord_buffers:
+            self._coord_buffers[buf_key] = []
+        coord_buf = self._coord_buffers[buf_key]
+        coord_buf.append({"value": smoothed, "coord": coords})
+        if len(coord_buf) > self.window:
+            coord_buf.pop(0)
+    
+        # -------------------------
+        # Render Label + Graph (nur Floats)
+        # -------------------------
         if render:
             self.lbl_value.text = f"{display_value:.2f} {self.unit}"
-            self._render_buffer(buf)
-
+            self._render_buffer(buf)  # nur Floats
       
     def _render_buffer(self, buf):
         pts = [(i, val) for i, val in enumerate(buf)]

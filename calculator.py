@@ -72,3 +72,21 @@ def vpd_external(T_e, H_e):
         return None
     leaf_off = config.get_leaf_offset()
     return _vpd(T_e + leaf_off, H_e)
+
+# ------------------------------------------------------------
+# Scatter-Koordinaten (einheitenfrei)
+# x = humidity (%)
+# y = temperature (°C, inkl. leaf offset!)
+# ------------------------------------------------------------
+def vpd_coord_internal(T_i, H_i):
+    if T_i is None or H_i is None:
+        return None, None
+    leaf_off = config.get_leaf_offset()
+    return H_i, T_i + leaf_off
+
+
+def vpd_coord_external(T_e, H_e):
+    if T_e is None or H_e is None:
+        return None, None
+    leaf_off = config.get_leaf_offset()
+    return H_e, T_e + leaf_off

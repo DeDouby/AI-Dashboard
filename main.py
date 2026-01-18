@@ -14,16 +14,16 @@ from kivy.metrics import dp, sp
 # -------------------------------------------------------
 from dashboard_gui.dashboard import DashboardScreen
 from dashboard_gui.setup_screen import SetupScreen
-from dashboard_gui.debug_screen import DebugScreen
+from dashboard_gui.ui.debug_content.debug_screen import DebugScreen
 from dashboard_gui.data_buffer import BUFFER
 from dashboard_gui.ui.fullscreen_content.fullscreen_view import FullScreenView
 from dashboard_gui.ui.scaling_utils import UI_SCALE
-from dashboard_gui.ui.common.device_picker import DevicePickerScreen
-from dashboard_gui.debug_filemanager import DebugFileManagerScreen
+from dashboard_gui.ui.device_picker_content.device_picker import DevicePickerScreen
+from dashboard_gui.ui.debug_content.debug_filemanager import DebugFileManagerScreen
 from dashboard_gui.ui.csv_viewer_content.csv_viewer_screen import CSVViewerScreen
 from dashboard_gui.settings_screen import SettingsScreen
 from dashboard_gui.ui.cam_viewer_content.cam_viewer_screen import CamViewerScreen
-from dashboard_gui.about_screen import AboutScreen
+from dashboard_gui.ui.about_content.about_screen import AboutScreen
 from dashboard_gui.ui.vpd_scatter_screen_content.vpd_scatter_screen import VPDScatterScreen
 from dashboard_gui.ui.i18n import I18N
 

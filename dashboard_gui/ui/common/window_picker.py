@@ -1,8 +1,8 @@
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
-from kivy.core.window import Window
 from kivy.metrics import dp, sp
+from kivy.core.window import Window
 from kivy.app import App
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 import config
@@ -28,7 +28,7 @@ class WindowPicker(FloatLayout):
         # -----------------------------
         # 2) Panel für Buttons
         # -----------------------------
-        w, h = dp(160), dp(240)
+        w, h = dp(160), dp(200)
         self.panel = BoxLayout(
             orientation="vertical",
             size_hint=(None, None),
