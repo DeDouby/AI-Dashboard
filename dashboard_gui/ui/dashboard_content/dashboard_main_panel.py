@@ -3,6 +3,7 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.graphics import Rectangle, Color
 from dashboard_gui.ui.dashboard_content.chart_tile import ChartTile
 from dashboard_gui.ui.scaling_utils import dp_scaled
+from kivy.animation import Animation
 
 
 class DashboardMainPanel(GridLayout):
@@ -240,6 +241,12 @@ class DashboardMainPanel(GridLayout):
         if abs(dx) >= self._swipe_threshold:
             from dashboard_gui.global_state_manager import GLOBAL_STATE
             touch.grab(self)
+            if dx < 0:
+                self._swipe_feedback(-1)
+                self._next_device()
+            else:
+                self._swipe_feedback(1)
+                self._prev_device()
 
             if dx < 0:
                 self._next_device()
@@ -275,3 +282,23 @@ class DashboardMainPanel(GridLayout):
         if not lst:
             return
         GLOBAL_STATE.set_active_index((GLOBAL_STATE.active_index - 1) % len(lst))
+
+    def get_active_tile_keys(self):
+        return [k for k, v in self.tile_map.items() if v.parent is self]   
+
+    def _swipe_feedback(self, direction):
+        offset = dp_scaled(24) * direction
+    
+        for tile in self.children:
+            # Start: leicht verschieben
+            anim = Animation(
+                x=tile.x + offset,
+                d=0.08,
+                t="out_quad"
+            ) + Animation(
+                x=tile.x,
+                d=0.12,
+                t="out_quad"
+            )
+            anim.start(tile)        
+    

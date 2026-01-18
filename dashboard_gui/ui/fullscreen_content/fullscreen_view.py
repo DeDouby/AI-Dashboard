@@ -202,14 +202,15 @@ class FullScreenView(Screen):
     # TILE SWITCH
     # ----------------------------------------------------------
     def _switch(self, direction):
-        order = ["temp_in", "hum_in", "vpd_in", "temp_ex", "hum_ex", "vpd_ex"]
-        try:
-            idx = order.index(self.tile_id)
-        except:
-            idx = 0
+        dashboard = self.manager.get_screen("dashboard")
+        order = dashboard.content.get_active_tile_keys()
+    
+        if not order or self.tile_id not in order:
+            return
+    
+        idx = order.index(self.tile_id)
         new_idx = (idx + direction) % len(order)
         self.activate_tile(order[new_idx])
-
     # ----------------------------------------------------------
     # TILE ACTIVATE
     # ----------------------------------------------------------
