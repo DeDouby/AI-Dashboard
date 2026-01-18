@@ -10,33 +10,33 @@
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-18T22:26:34.020+0000",
+    "timestamp": "2026-01-18T23:08:01.715+0000",
     "name": "ThermoBeacon2",
     "address": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
-    "rssi": -63,
-    "adv_raw": "190019060000F1F0A5115701E0025001110345680400",
+    "rssi": -78,
+    "adv_raw": "190019060000F1F0A8115201E5024F010D03FD710400",
     "gat_raw": null,
-    "log_raw": "190019060000F1F0A5115701E0025001110345680400",
+    "log_raw": "190019060000F1F0A8115201E5024F010D03FD710400",
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-18T22:25:52.662+0000",
+    "timestamp": "2026-01-18T23:07:58.302+0000",
     "name": "sps",
     "address": "C898B4F2-B452-7502-1A67-0536E77D49EA",
-    "rssi": -87,
-    "adv_raw": "7A08841200B3235908",
+    "rssi": -71,
+    "adv_raw": "5008B51200FB2A5908",
     "gat_raw": null,
-    "log_raw": "7A08841200B3235908",
+    "log_raw": "5008B51200FB2A5908",
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-18T22:26:24.843+0000",
+    "timestamp": "2026-01-18T23:03:36.349+0000",
     "name": "TP351S (987A)",
     "address": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
-    "rssi": -55,
-    "adv_raw": "C2C70027213301",
+    "rssi": -73,
+    "adv_raw": "C2C90026213301",
     "gat_raw": null,
-    "log_raw": "C2C70027213301",
+    "log_raw": "C2C90026213301",
     "note": "raw"
   },
   {
@@ -90,10 +90,110 @@
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-18T22:26:30.357+0000",
+    "timestamp": "2026-01-18T22:30:11.451+0000",
     "name": "(unknown)",
     "address": "C89ED053-96D2-C253-C0D1-E434DA840A30",
-    "rssi": -62,
+    "rssi": -68,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-18T22:31:36.535+0000",
+    "name": "(unknown)",
+    "address": "70A200F1-BF83-A24C-8617-AE384360F598",
+    "rssi": -48,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-18T22:31:39.013+0000",
+    "name": "(unknown)",
+    "address": "C343E383-D1C8-3C49-336D-926B223AF43F",
+    "rssi": -55,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-18T22:36:13.542+0000",
+    "name": "(unknown)",
+    "address": "0A845E62-1384-EE75-7BCD-EE2891985F7E",
+    "rssi": -57,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-18T22:36:16.884+0000",
+    "name": "(unknown)",
+    "address": "4D8ABC5A-3721-2B6F-C34D-2CF33F81F688",
+    "rssi": -70,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-18T22:43:53.500+0000",
+    "name": "(unknown)",
+    "address": "B48491C3-37EC-1862-342D-7AFF2793C082",
+    "rssi": -80,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-18T22:44:08.221+0000",
+    "name": "(unknown)",
+    "address": "84FB85C6-1299-A8C2-C4A7-F9E900DDD36C",
+    "rssi": -55,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-18T22:55:11.157+0000",
+    "name": "(unknown)",
+    "address": "285FC4CE-BD34-7B56-A30F-9B4CD54252CC",
+    "rssi": -69,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-18T22:58:40.580+0000",
+    "name": "(unknown)",
+    "address": "54BF815A-6802-AC9B-9495-4E65E023650A",
+    "rssi": -77,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-18T22:58:42.451+0000",
+    "name": "(unknown)",
+    "address": "89302BC8-0CC4-9B56-3DF4-D906537D0119",
+    "rssi": -82,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-18T23:08:02.348+0000",
+    "name": "(unknown)",
+    "address": "71CACC3B-FE76-7AEF-6843-F37EB1DE7DD0",
+    "rssi": -44,
     "adv_raw": "",
     "gat_raw": null,
     "log_raw": "",

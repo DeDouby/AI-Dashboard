@@ -127,7 +127,13 @@ class SetupScreen(Screen):
             _device_names[mac] = name
     
             if not config.is_developer_mode():
-                if "sps" not in name:
+                lname = name.lower()
+                if not (
+                    "sps" in lname
+                    or "thermobeacon" in lname
+                    or "tp351" in lname
+                    or "thermopro" in lname
+                ):
                     continue
     
                 # immer Dict verwenden, nicht True
@@ -178,12 +184,32 @@ class SetupScreen(Screen):
         for mac, sel in _selected.items():
             name = _device_names.get(mac, mac)
     
-            if not config.is_developer_mode() and "sps" in name.lower():
-                sel = {
-                    "adv": "Inkbird_ADV_Desktop",
-                    "gatt": "Inkbird_GATT",
-                    "bridge": "Inkbird_Bridge"
-                }
+            if not config.is_developer_mode():
+                lname = name.lower()
+            
+                if "sps" in lname:
+                    sel = {
+                        "adv": "Inkbird_ADV_Desktop",
+                        "gatt": "Inkbird_GATT",
+                        "bridge": "Inkbird_Bridge"
+                    }
+            
+                elif "thermobeacon" in lname:
+                    sel = {
+                        "adv": "ThermoBeacon2_ADV",
+                        "gatt": "ThermoBeacon2_GATT",
+                        "bridge": "ThermoBeacon2_Bridge"
+                    }
+            
+                elif "tp351" in lname or "thermopro" in lname:
+                    sel = {
+                        "gatt": "ThermoPro_GATT",
+                        "bridge": "ThermoPro_Bridge"
+                    }
+            
+                else:
+                    continue
+            
                 _selected[mac] = sel
     
             adv = sel.get("adv", "")
