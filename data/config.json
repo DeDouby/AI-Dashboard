@@ -27,6 +27,6 @@
   "temperature_offset": 0.0,
   "humidity_offset": 0.0,
   "leaf_offset": 0.0,
-  "developer_mode": true,
-  "language": "en"
+  "developer_mode": false,
+  "language": "es"
 }

@@ -5,6 +5,7 @@ from kivy.metrics import dp, sp
 from kivy.core.window import Window
 from kivy.app import App
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
+from dashboard_gui.ui.i18n import I18N
 import config
 
 class WindowPicker(FloatLayout):
@@ -51,21 +52,21 @@ class WindowPicker(FloatLayout):
         # 4) Buttons & Navigation
         # -----------------------------
         entries = [
-            ("VPD Scatter", lambda: setattr(sm, "current", "vpd_scatter")),
-            ("Setup",       lambda: setattr(sm, "current", "setup")),
-            ("Settings",    lambda: setattr(sm, "current", "settings")),
+            ("menu.vpd_scatter", lambda: setattr(sm, "current", "vpd_scatter")),
+            ("menu.setup",       lambda: setattr(sm, "current", "setup")),
+            ("menu.settings",    lambda: setattr(sm, "current", "settings")),
         ]
 
         if dev:
             entries += [
-                ("Debug",  lambda: setattr(sm, "current", "debug")),
-                ("CSV",    lambda: setattr(sm, "current", "csv_viewer")),
-                ("Camera", lambda: setattr(sm, "current", "cam_viewer")),
+                ("menu.debug",  lambda: setattr(sm, "current", "debug")),
+                ("menu.csv",    lambda: setattr(sm, "current", "csv_viewer")),
+                ("menu.camera", lambda: setattr(sm, "current", "cam_viewer")),
             ]
 
         entries += [
-            ("Devices", lambda: setattr(sm, "current", "device_picker")),
-            ("About",   lambda: setattr(sm, "current", "about")),
+            ("menu.devices", lambda: setattr(sm, "current", "device_picker")),
+            ("menu.about",   lambda: setattr(sm, "current", "about")),
         ]
 
         # -----------------------------
@@ -73,10 +74,10 @@ class WindowPicker(FloatLayout):
         # -----------------------------
         for label, cb in entries:
             b = Button(
-                text=label,
+                text=I18N.t(label),
                 font_size=sp(18),
-                background_color=(0.22, 0.25, 0.30, 0.55),  # Alpha 0.55 → gut lesbar, transparent
-                color=(0.95, 0.95, 0.98, 1)                 # Schriftfarbe bleibt voll sichtbar
+                background_color=(0.22, 0.25, 0.30, 0.55),
+                color=(0.95, 0.95, 0.98, 1)
             )
             b.bind(on_release=lambda _, f=cb: (f(), self.close()))
             self.panel.add_widget(b)
