@@ -63,7 +63,7 @@ class FullScreenView(Screen):
         )
         
         # Dummy-Plots
-        self.plot = LinePlot(color=[1, 1, 1, 1], line_width=2)
+        self.plot = LinePlot(color=[1, 1, 1, 1], line_width=3)
         self.graph.add_plot(self.plot)
         self.plot_glow = LinePlot(color=[1, 1, 1, 0.25], line_width=5)
         self.graph.add_plot(self.plot_glow)
@@ -244,10 +244,10 @@ class FullScreenView(Screen):
         except:
             pass
 
-        self.plot = LinePlot(color=main_color, line_width=2.5)
+        self.plot = LinePlot(color=main_color, line_width=5.0)
         self.graph.add_plot(self.plot)
 
-        self.plot_glow = LinePlot(color=glow_color, line_width=5)
+        self.plot_glow = LinePlot(color=glow_color, line_width=6)
         self.graph.add_plot(self.plot_glow)
 
         self._load_tile()
