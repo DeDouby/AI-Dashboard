@@ -47,13 +47,19 @@ class AboutScreen(Screen):
                 font_size=sp_scaled(size),
                 color=color,
                 markup=markup,
-                bold=bold,
-                halign="left",
+                halign="center",
                 valign="top",
-                size_hint_y=None
+                size_hint_y=None,
             )
-            lbl.bind(texture_size=lambda i, *_: setattr(i, "height", i.texture_size[1]))
+        
+            # 🔧 wichtig für korrektes Wrapping & Einrückung
+            lbl.bind(
+                width=lambda i, w: setattr(i, "text_size", (w - dp_scaled(40), None)),
+                texture_size=lambda i, ts: setattr(i, "height", ts[1])
+            )
+        
             return lbl
+
 
         body.add_widget(add_label(
             I18N.t("about.version"),
