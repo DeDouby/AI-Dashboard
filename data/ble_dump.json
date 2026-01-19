@@ -1,22 +1,22 @@
 [
   {
-    "timestamp": "2026-01-19T00:24:27.435+0000",
+    "timestamp": "2026-01-19T01:09:34.138+0000",
     "name": "sps",
     "address": "C898B4F2-B452-7502-1A67-0536E77D49EA",
-    "rssi": -72,
-    "adv_raw": "24086D1100CBEA5908",
+    "rssi": -67,
+    "adv_raw": "2308F41300AF655908",
     "gat_raw": null,
-    "log_raw": "24086D1100CBEA5908",
+    "log_raw": "2308F41300AF655908",
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-19T00:24:31.048+0000",
+    "timestamp": "2026-01-19T01:09:34.137+0000",
     "name": "ThermoBeacon2",
     "address": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
-    "rssi": -67,
-    "adv_raw": "190019060000F1F0A5115001DB0247010103EB830400",
+    "rssi": -71,
+    "adv_raw": "190019060000F1F09E114D010503480140037A8E0400",
     "gat_raw": null,
-    "log_raw": "190019060000F1F0A5115001DB0247010103EB830400",
+    "log_raw": "190019060000F1F09E114D010503480140037A8E0400",
     "note": "raw"
   },
   {
@@ -60,13 +60,13 @@
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-18T23:59:53.138+0000",
+    "timestamp": "2026-01-19T01:07:10.047+0000",
     "name": "TP351S (987A)",
     "address": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
-    "rssi": -61,
-    "adv_raw": "C2C70025213301",
+    "rssi": -54,
+    "adv_raw": "C2C30024213301",
     "gat_raw": null,
-    "log_raw": "C2C70025213301",
+    "log_raw": "C2C30024213301",
     "note": "raw"
   },
   {
@@ -160,10 +160,50 @@
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-19T00:24:42.445+0000",
+    "timestamp": "2026-01-19T00:35:11.741+0000",
     "name": "(unknown)",
     "address": "4B540818-4193-6B5E-F780-FF2E6C2A1C3D",
+    "rssi": -75,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-19T00:50:08.410+0000",
+    "name": "(unknown)",
+    "address": "C87383BA-6748-6E9D-2993-CEF1421B65A8",
     "rssi": -76,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-19T00:56:25.949+0000",
+    "name": "(unknown)",
+    "address": "A6967AAC-5C90-D81D-2A47-1C65E7FF6B27",
+    "rssi": -64,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-19T00:56:29.618+0000",
+    "name": "(unknown)",
+    "address": "7D487C84-8F80-F0E0-CA32-40425C636587",
+    "rssi": -57,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-19T01:09:39.710+0000",
+    "name": "(unknown)",
+    "address": "A7F36E4E-0F3B-594D-CEB3-85A693F5FEB5",
+    "rssi": -62,
     "adv_raw": "",
     "gat_raw": null,
     "log_raw": "",
