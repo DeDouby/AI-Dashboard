@@ -58,7 +58,8 @@ class SettingsMainPanel(BoxLayout):
             row.add_widget(slider)
             row.add_widget(val)
 
-            if not self.is_dev and key in ("refresh_interval","ui_refresh_interval","stale_timeout"):
+            if not self.is_dev and key in ("refresh_interval","ui_refresh_interval","stale_timeout","tile_graph_window"):
+
                 row.height = 0
                 row.opacity = 0
                 row.disabled = True
@@ -69,6 +70,7 @@ class SettingsMainPanel(BoxLayout):
         add_slider("settings.refresh_interval","refresh_interval",0.5,10,0.5)
         add_slider("settings.ui_refresh_interval","ui_refresh_interval",0.1,5,0.1)
         add_slider("settings.stale_timeout","stale_timeout",5,60,1)
+        add_slider("settings.tile_graph_window","tile_graph_window",30,600,10)
         add_slider("settings.temp_offset","temperature_offset",-10,10,0.1)
         add_slider("settings.humidity_offset","humidity_offset",-20,20,1)
         add_slider("settings.leaf_offset","leaf_offset",-10,10,0.1)
@@ -139,6 +141,7 @@ class SettingsMainPanel(BoxLayout):
             "refresh_interval":2.0,
             "ui_refresh_interval":1.0,
             "stale_timeout":15.0,
+            "tile_graph_window":120,
             "temperature_offset":0.0,
             "humidity_offset":0.0,
             "leaf_offset":0.0,
@@ -166,7 +169,8 @@ class SettingsMainPanel(BoxLayout):
 
     def _update_dev_visibility(self):
         self.is_dev = config.is_developer_mode()
-        for key in ("refresh_interval","ui_refresh_interval","stale_timeout"):
+        for key in ("refresh_interval","ui_refresh_interval","stale_timeout","tile_graph_window"):
+
             slider = self.inputs.get(key)
             if not slider:
                 continue

@@ -23,6 +23,7 @@ DEFAULTS = {
     "refresh_interval": 2.0,
     "stale_timeout": 15.0,
     "ui_refresh_interval": 1.0,
+    "tile_graph_window": 120,
     "temperature_unit": "C",
     "temperature_offset": 0.0,
     "humidity_offset": 0.0,
@@ -178,3 +179,5 @@ def set_developer_mode(state: bool):
     cfg["developer_mode"] = bool(state)
     save(cfg)
 
+def get_tile_graph_window():
+    return int(_init().get("tile_graph_window", 120))

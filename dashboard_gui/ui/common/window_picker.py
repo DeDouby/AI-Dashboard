@@ -70,11 +70,24 @@ class WindowPicker(FloatLayout):
         ]
 
         # -----------------------------
-        # 5) Buttons erzeugen (semi-transparent)
+        # 5) Buttons erzeugen (semi-transparent) mit FA-Icons
         # -----------------------------
+        fa_map = {
+            "menu.vpd_scatter": "\uf201",   # fa-chart-scatter
+            "menu.setup":       "\uf7d9",   # fa-cog
+            "menu.settings":    "\uf013",   # fa-cog (kann gleich wie setup sein)
+            "menu.debug":       "\uf1b9",   # fa-bug
+            "menu.csv":         "\uf1c3",   # fa-file-csv
+            "menu.camera":      "\uf030",   # fa-camera
+            "menu.devices":     "\uf2c7",   # fa-desktop / device
+            "menu.about":       "\uf05a",   # fa-info-circle
+        }
+        
         for label, cb in entries:
+            icon = fa_map.get(label, "\uf128")  # default fa-question-circle
             b = Button(
-                text=I18N.t(label),
+                text=f"[font=FA]{icon}[/font]  {I18N.t(label)}",
+                markup=True,
                 font_size=sp(18),
                 background_color=(0.22, 0.25, 0.30, 0.55),
                 color=(0.95, 0.95, 0.98, 1)

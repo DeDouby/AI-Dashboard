@@ -7,7 +7,7 @@ from kivy.graphics import Rectangle, Color
 
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.global_state_manager import GLOBAL_STATE
-
+import config
 
 class ChartTile(ButtonBehavior, BoxLayout):
 
@@ -24,7 +24,7 @@ class ChartTile(ButtonBehavior, BoxLayout):
         self.title = title
         self.unit = unit
         self.color = color_rgba
-        self.window = 120
+        self.window = config.get_tile_graph_window()
         self.buffer = []
         self._coord_buffers = {}  # NEU: für interne/externe Koordinaten
         self.last_value = None
@@ -300,3 +300,26 @@ class ChartTile(ButtonBehavior, BoxLayout):
                 return
 
         print("❌ ERROR: Tile-Key nicht gefunden!")
+
+    def apply_graph_window(self, new_window: int):
+        if new_window <= 0:
+            return
+    
+        self.window = int(new_window)
+    
+        # alle Float-Buffer trimmen
+        for key, buf in self.buffers.items():
+            if len(buf) > self.window:
+                self.buffers[key] = buf[-self.window:]
+    
+        # Coord-Buffer trimmen
+        if hasattr(self, "_coord_buffers"):
+            for key, buf in self._coord_buffers.items():
+                if len(buf) > self.window:
+                    self._coord_buffers[key] = buf[-self.window:]
+    
+        # Graph neu rendern (falls Daten da)
+        for buf in self.buffers.values():
+            if buf:
+                self._render_buffer(buf)
+                break        

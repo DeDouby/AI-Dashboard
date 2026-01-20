@@ -28,5 +28,6 @@
   "humidity_offset": 0.0,
   "leaf_offset": 0.0,
   "developer_mode": false,
-  "language": "en"
+  "language": "en",
+  "tile_graph_window": 320
 }

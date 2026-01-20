@@ -61,22 +61,24 @@ class DevicePickerMenu(FloatLayout):
         for idx, mac in enumerate(device_list):
             name = devices_cfg.get(mac, {}).get("name")
             label = name if name else mac
-
+        
             b = Button(
-                text=label,
+                text=f"[font=FA]\uf2c7[/font]  {label}",  # \uf108 = Device Icon
                 font_size=sp_scaled(20),
+                markup=True,           # WICHTIG!
                 size_hint_y=None,
                 height=dp_scaled(50),
                 background_color=(0.22, 0.25, 0.30, 0.55),
                 color=(0.95, 0.95, 0.98, 1)
             )
+        
             b.bind(on_release=lambda _, i=idx: (
-                on_select_device(i),   # → GLOBAL_STATE.set_active_index(i)
+                on_select_device(i),
                 setattr(self, "_current_idx", i),
                 self.close()
             ))
+        
             self.panel.add_widget(b)
-
         # -----------------------------
         # 4) Separator
         # -----------------------------
@@ -99,15 +101,18 @@ class DevicePickerMenu(FloatLayout):
     # -----------------------------
     def _add_channel_buttons(self, device_list, cfg):
         from dashboard_gui.global_state_manager import GLOBAL_STATE
-
-        # ADV
+    
+        # -----------------------------
+        # ADV Button
+        # -----------------------------
         b_adv = Button(
-            text="ADV channel",
+            text=f"[font=FA]\uf1eb[/font]  ADV channel",  # \uf1eb = fa-broadcast-tower
             font_size=sp_scaled(20),
+            markup=True,                # unbedingt für FA
             size_hint_y=None,
             height=dp_scaled(50),
             background_color=(0.20, 0.30, 0.25, 0.55),
-            color=(0.95,0.95,0.98,1)
+            color=(0.95, 0.95, 0.98, 1)
         )
         def activate_adv():
             GLOBAL_STATE.set_active_channel("adv")
@@ -115,23 +120,25 @@ class DevicePickerMenu(FloatLayout):
         
         b_adv.bind(on_release=lambda *_: activate_adv())
         self.panel.add_widget(b_adv)
-
-        # GATT
+    
+        # -----------------------------
+        # GATT Button
+        # -----------------------------
         b_gatt = Button(
-            text="GATT channel",
+            text=f"[font=FA]\uf0c1[/font]  GATT channel",  # \uf0c1 = fa-link
             font_size=sp_scaled(20),
+            markup=True,                # unbedingt für FA
             size_hint_y=None,
             height=dp_scaled(50),
-            background_color=(0.25,0.20,0.30,0.55),
-            color=(0.95,0.95,0.98,1)
+            background_color=(0.25, 0.20, 0.30, 0.55),
+            color=(0.95, 0.95, 0.98, 1)
         )
         def activate_gatt():
             idx = self._current_idx if self._current_idx is not None else 0
             device_id = device_list[idx]
-        
             GLOBAL_STATE.set_active_channel("gatt")
             self.close()
-
+    
         b_gatt.bind(on_release=lambda *_: activate_gatt())
         self.panel.add_widget(b_gatt)
 

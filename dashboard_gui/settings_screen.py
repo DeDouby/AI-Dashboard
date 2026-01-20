@@ -49,7 +49,7 @@ class SettingsScreen(Screen):
         cfg["refresh_interval"] = float(values.get("refresh_interval",2.0))
         cfg["ui_refresh_interval"] = float(values.get("ui_refresh_interval",1.0))
         cfg["stale_timeout"] = float(values.get("stale_timeout",15.0))
-
+        cfg["tile_graph_window"] = int(values.get("tile_graph_window",120))
         cfg["temperature_offset"] = float(values.get("temperature_offset",0.0))
         cfg["humidity_offset"] = float(values.get("humidity_offset",0.0))
         cfg["leaf_offset"] = float(values.get("leaf_offset",0.0))
@@ -58,7 +58,7 @@ class SettingsScreen(Screen):
 
         config.save(cfg)
         config.reload()
-
+        
         # Live Watchdog update
         from core import _watchdog
         
@@ -67,6 +67,15 @@ class SettingsScreen(Screen):
             print(f"[SETTINGS] Watchdog stale_timeout live gesetzt → {cfg['stale_timeout']}")
         else:
             print("[SETTINGS] Watchdog live update nicht unterstützt – greift beim Neustart")
+        
+        # 🔄 Live Tile Graph-Window Update
+        import config as _config
+        new_window = _config.get_tile_graph_window()
+        
+        dashboard = self.manager.get_screen("dashboard")
+        for tile in dashboard.content.tile_map.values():
+            if hasattr(tile, "apply_graph_window"):
+                tile.apply_graph_window(new_window)
         
         # Back to dashboard
         self.manager.current = "dashboard"
