@@ -88,6 +88,19 @@ class DashboardApp(App):
         core.stop()
 
 
+
+    def on_pause(self):
+        # nichts tun, nur resident bleiben
+        return True
+
+    def on_resume(self):
+        try:
+            import core
+            print("[APP] resume → bridge restart")
+            core.restart_bridge()
+        except Exception as e:
+            print("[APP] bridge restart failed:", e)
+
 # -------------------------------------------------------
 # Offizieller Einstiegspunkt
 # -------------------------------------------------------
