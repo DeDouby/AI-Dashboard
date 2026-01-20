@@ -230,8 +230,6 @@ class DashboardMainPanel(GridLayout):
         if self.collide_point(*touch.pos):
             self._touch_start_x = touch.x
             self._touch_active = True
-            touch.grab(self)   # 🔑 FIX
-            return True
         return super().on_touch_down(touch)
 
     def on_touch_move(self, touch):
