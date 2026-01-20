@@ -19,6 +19,7 @@
       "bridge_profile": "ThermoPro_Bridge"
     }
   },
+  "bridge_profiles": {},
   "refresh_interval": 2.0,
   "stale_timeout": 15.0,
   "ui_refresh_interval": 1.0,
@@ -27,5 +28,5 @@
   "humidity_offset": 0.0,
   "leaf_offset": 0.0,
   "developer_mode": false,
-  "language": "es"
+  "language": "en"
 }

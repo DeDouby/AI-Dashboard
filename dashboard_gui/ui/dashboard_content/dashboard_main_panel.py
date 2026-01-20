@@ -239,10 +239,8 @@ class DashboardMainPanel(GridLayout):
         dx = touch.x - self._touch_start_x
     
         if abs(dx) >= self._swipe_threshold:
-            from dashboard_gui.global_state_manager import GLOBAL_STATE
             touch.grab(self)
     
-            # Swipe-Richtung erkennen und nur einmal Device wechseln
             if dx < 0:
                 self._swipe_feedback(-1)
                 self._next_device()
@@ -250,7 +248,7 @@ class DashboardMainPanel(GridLayout):
                 self._swipe_feedback(1)
                 self._prev_device()
     
-            # Swipe abgeschlossen → Reset
+            # 🔒 NUR EINMAL
             self._touch_active = False
             self._touch_start_x = None
             touch.ungrab(self)

@@ -1,50 +1,50 @@
 [
   {
-    "timestamp": "2026-01-19T01:09:14.558+0000",
+    "timestamp": "2026-01-20T00:43:18.069+0000",
     "device_id": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
     "name": "ThermoBeacon2",
     "adv": {
       "alive": true,
       "status": "active",
       "packet_counter": null,
-      "raw": "190019060000F1F09B114D01040348014203668E0400",
+      "raw": "190019060000F1F09B115301F70252012103D7D90500",
       "internal": {
         "temperature": {
-          "value": 20.8125,
+          "value": 21.1875,
           "unit": "\u00b0C"
         },
         "humidity": {
-          "value": 48.25,
+          "value": 47.4375,
           "unit": "%"
         }
       },
       "external": {
         "present": true,
         "temperature": {
-          "value": 20.5,
+          "value": 21.125,
           "unit": "\u00b0C"
         },
         "humidity": {
-          "value": 52.125,
+          "value": 50.0625,
           "unit": "%"
         }
       },
       "vpd_internal": {
-        "value": 1.272,
+        "value": 1.322,
         "unit": "kPa"
       },
       "vpd_external": {
-        "value": 1.154,
+        "value": 1.251,
         "unit": "kPa"
       },
       "coord": {
         "internal": {
-          "x": 48.25,
-          "y": 20.8125
+          "x": 47.4375,
+          "y": 21.1875
         },
         "external": {
-          "x": 52.125,
-          "y": 20.5
+          "x": 50.0625,
+          "y": 21.125
         }
       }
     },
@@ -100,7 +100,7 @@
     "status": "active",
     "health": {
       "uptime": {
-        "value": 365.8479309082031,
+        "value": 225.33079719543457,
         "unit": "s"
       },
       "battery": {
@@ -109,27 +109,27 @@
         "voltage": null
       },
       "signal": {
-        "rssi": -64,
+        "rssi": -55,
         "quality": null
       }
     }
   },
   {
-    "timestamp": "2026-01-19T01:09:13.945+0000",
+    "timestamp": "2026-01-20T00:43:19.604+0000",
     "device_id": "C898B4F2-B452-7502-1A67-0536E77D49EA",
     "name": "sps",
     "adv": {
       "alive": true,
       "status": "active",
       "packet_counter": null,
-      "raw": "1E08F2130022A15908",
+      "raw": "63082813006F505808",
       "internal": {
         "temperature": {
-          "value": 20.78,
+          "value": 21.47,
           "unit": "\u00b0C"
         },
         "humidity": {
-          "value": 51.06,
+          "value": 49.04,
           "unit": "%"
         }
       },
@@ -145,7 +145,7 @@
         }
       },
       "vpd_internal": {
-        "value": 1.201,
+        "value": 1.304,
         "unit": "kPa"
       },
       "vpd_external": {
@@ -154,8 +154,8 @@
       },
       "coord": {
         "internal": {
-          "x": 51.06,
-          "y": 20.78
+          "x": 49.04,
+          "y": 21.47
         },
         "external": {
           "x": null,
@@ -215,7 +215,7 @@
     "status": "active",
     "health": {
       "uptime": {
-        "value": 365.8479309082031,
+        "value": 225.33079719543457,
         "unit": "s"
       },
       "battery": {
@@ -224,13 +224,13 @@
         "voltage": null
       },
       "signal": {
-        "rssi": -66,
+        "rssi": -80,
         "quality": null
       }
     }
   },
   {
-    "timestamp": 1768784957.938175,
+    "timestamp": 1768869805.067542,
     "device_id": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
     "name": null,
     "adv": {

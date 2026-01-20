@@ -233,38 +233,37 @@ class SetupScreen(Screen):
         cfg["devices"] = devices
         config.save(cfg)
         config.reload()
+
         print("[Setup] Config gespeichert")
     
         # -------------------------
-        # 2) GATT Bridge automatisch schreiben + Core restart
+        # 2) GATT Bridge gezielt für Device 0 schreiben + Restart
         # -------------------------
         try:
-            for mac, dev in devices.items():
-                bridge_profile = dev.get("bridge_profile", "")
-                if bridge_profile:
-                    GLOBAL_STATE.write_gatt_bridge_config(mac)
-    
-            # Core neu starten einmalig nach allen Devices
-            core.restart_bridge()
+            device_list = list(devices.keys())
+            if not device_list:
+                raise RuntimeError("keine Devices nach Setup")
+        
+            # 🔒 IMMER Device 0
+            device_id = device_list[0]
+            dev = devices.get(device_id, {})
+            bridge_profile = dev.get("bridge_profile", "")
+        
+            if bridge_profile:
+                GLOBAL_STATE.write_gatt_bridge_config(device_id)
+                print(f"[Setup] GATT config geschrieben für Device 0: {device_id}")
+            else:
+                print("[Setup] Device 0 hat kein bridge_profile")
+        
+            # GSM sauber initialisieren
+            GLOBAL_STATE.active_index = 0
             GLOBAL_STATE.set_active_channel("gatt")
-    
-            # Header sofort updaten
-            app = App.get_running_app()
-            screen = app.root.get_screen("setup")
-            if hasattr(screen, "header"):
-                idx = GLOBAL_STATE.get_active_index()
-                device_list = GLOBAL_STATE.get_device_list()
-                if device_list and 0 <= idx < len(device_list):
-                    device_id = device_list[idx]
-                    screen.header.set_device_label(device_id)
-                screen.header.set_rssi(None)
-                screen.header.set_external(False)
-    
-            print("[Setup] GATT Bridge automatisch aktiviert für alle Devices")
-    
+        
+            # Bridge EINMAL neu starten
+            core.restart_bridge()
+        
         except Exception as e:
-            print("[Setup] Fehler bei GATT Auto-Activate:", e)
-    
+            print("[Setup] Fehler bei GATT Auto-Activate:", e)    
         # -------------------------
         # 3) Direkt ins Dashboard springen
         # -------------------------

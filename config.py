@@ -19,6 +19,7 @@ CONFIG_PATH = os.path.join(DATA, "config.json")
 
 DEFAULTS = {
     "devices": {},
+    "bridge_profiles": {},
     "refresh_interval": 2.0,
     "stale_timeout": 15.0,
     "ui_refresh_interval": 1.0,
@@ -135,6 +136,8 @@ def reload():
         _config = json.load(f)
     print("[config] reload OK")
 
+def get_bridge_profiles():
+    return _init().get("bridge_profiles", {})
 
 def set_bridge_profile(mac, profile):
     cfg = _init()

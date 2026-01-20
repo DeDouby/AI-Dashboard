@@ -71,7 +71,7 @@ class DevicePickerMenu(FloatLayout):
                 color=(0.95, 0.95, 0.98, 1)
             )
             b.bind(on_release=lambda _, i=idx: (
-                on_select_device(i),
+                on_select_device(i),   # → GLOBAL_STATE.set_active_index(i)
                 setattr(self, "_current_idx", i),
                 self.close()
             ))
@@ -109,10 +109,11 @@ class DevicePickerMenu(FloatLayout):
             background_color=(0.20, 0.30, 0.25, 0.55),
             color=(0.95,0.95,0.98,1)
         )
-        b_adv.bind(on_release=lambda *_: (
-            GLOBAL_STATE.set_active_channel("adv"),
+        def activate_adv():
+            GLOBAL_STATE.set_active_channel("adv")
             self.close()
-        ))
+        
+        b_adv.bind(on_release=lambda *_: activate_adv())
         self.panel.add_widget(b_adv)
 
         # GATT
@@ -124,18 +125,10 @@ class DevicePickerMenu(FloatLayout):
             background_color=(0.25,0.20,0.30,0.55),
             color=(0.95,0.95,0.98,1)
         )
-
         def activate_gatt():
             idx = self._current_idx if self._current_idx is not None else 0
             device_id = device_list[idx]
-            dev_cfg = cfg.get("devices", {}).get(device_id, {})
-            bridge_profile = dev_cfg.get("bridge_profile", "")
-
-            if bridge_profile:
-                GLOBAL_STATE.write_gatt_bridge_config(device_id)
-                import core
-                core.restart_bridge()
-
+        
             GLOBAL_STATE.set_active_channel("gatt")
             self.close()
 

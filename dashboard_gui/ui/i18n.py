@@ -128,7 +128,7 @@ class I18N:
 
             # Window Picker
             "menu.vpd_scatter": "VPD-Diagramm",
-            "menu.setup": "Konfiguration",
+            "menu.setup": "Setup",
             "menu.settings": "Einstellungen",
             "menu.debug": "Debug",
             "menu.csv": "CSV-Viewer",

@@ -265,9 +265,10 @@ class HeaderBar(BoxLayout):
         self.lbl_dev = Button(
             text="---",
             font_size=sp_scaled(20),
-            size_hint=(0.20, 1),
+            size_hint=(0.22, 1),
             background_color=(0, 0, 0, 0),
-            color=(0.95, 0.95, 0.98, 1)
+            color=(0.95, 0.95, 0.98, 1),
+            halign="left"
         )
         self.lbl_dev.bind(on_release=lambda *_: self._open_device_menu())
         
@@ -399,7 +400,8 @@ class HeaderBar(BoxLayout):
         self.set_clock(time.strftime("%H:%M:%S"))
 
         # DEVICE LABEL
-        self.lbl_dev.text = self._resolve_device_name(frame)
+        self.lbl_dev.text = self._format_device_with_channel(frame)
+
 
 
         # RSSI (health.signal bevorzugt)
@@ -433,7 +435,8 @@ class HeaderBar(BoxLayout):
 
     def set_device_label(self, frame):
         if isinstance(frame, dict):
-            self.lbl_dev.text = self._resolve_device_name(frame)
+            self.lbl_dev.text = self._format_device_with_channel(frame)
+
         elif isinstance(frame, str):
             name = self._name_from_config(frame)
             self.lbl_dev.text = name or self._short_dev(frame)
@@ -524,3 +527,17 @@ class HeaderBar(BoxLayout):
             return name
     
         return self._short_dev(mac)
+
+    def _format_device_with_channel(self, frame):
+        if not frame:
+            return "---"
+    
+        name = self._resolve_device_name(frame)
+    
+        from dashboard_gui.global_state_manager import GLOBAL_STATE
+        ch = GLOBAL_STATE.get_active_channel()
+    
+        # bewusst kurz & ruhig
+        tag = "GATT" if ch == "gatt" else "ADV"
+    
+        return f"{name} · {tag}"        
