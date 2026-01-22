@@ -70,7 +70,7 @@ class SettingsMainPanel(BoxLayout):
         add_slider("settings.refresh_interval","refresh_interval",0.5,10,0.5)
         add_slider("settings.ui_refresh_interval","ui_refresh_interval",0.1,5,0.1)
         add_slider("settings.stale_timeout","stale_timeout",5,60,1)
-        add_slider("settings.tile_graph_window","tile_graph_window",30,600,10)
+        add_slider("settings.tile_graph_window","tile_graph_window",30,1200,10)
         add_slider("settings.temp_offset","temperature_offset",-10,10,0.1)
         add_slider("settings.humidity_offset","humidity_offset",-20,20,1)
         add_slider("settings.leaf_offset","leaf_offset",-10,10,0.1)

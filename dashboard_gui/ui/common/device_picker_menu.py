@@ -28,7 +28,7 @@ class DevicePickerMenu(FloatLayout):
         # 2) Panel für Buttons
         # -----------------------------
         num_buttons = len(device_list) + 2  # + ADV + GATT
-        panel_width = dp_scaled(200)
+        self.panel_width = dp_scaled(200)
         panel_height = dp_scaled(120 * len(device_list) + 20)
 
         # Absolute Window-Position des Buttons
@@ -44,7 +44,7 @@ class DevicePickerMenu(FloatLayout):
         self.panel = BoxLayout(
             orientation="vertical",
             size_hint=(None, None),
-            size=(panel_width, panel_height),
+            size=(self.panel_width, panel_height),
             spacing=dp_scaled(8),
             padding=[dp_scaled(6)]*4,
             pos=(panel_x, panel_y)
@@ -63,13 +63,19 @@ class DevicePickerMenu(FloatLayout):
             label = name if name else mac
         
             b = Button(
-                text=f"[font=FA]\uf2c7[/font]  {label}",  # \uf108 = Device Icon
+                text=f"[font=FA]\uf2c7[/font]  {label}",
                 font_size=sp_scaled(20),
-                markup=True,           # WICHTIG!
+                markup=True,
                 size_hint_y=None,
                 height=dp_scaled(50),
+            
                 background_color=(0.22, 0.25, 0.30, 0.55),
-                color=(0.95, 0.95, 0.98, 1)
+                color=(0.95, 0.95, 0.98, 1),
+            
+                halign="left",
+                valign="middle",
+                padding=(dp_scaled(14), 0),
+                text_size=(self.panel_width, None),
             )
         
             b.bind(on_release=lambda _, i=idx: (
@@ -83,7 +89,7 @@ class DevicePickerMenu(FloatLayout):
         # 4) Separator
         # -----------------------------
         sep = Label(
-            text="CHANNEL",
+            text="-- CHANNEL --",
             font_size=sp_scaled(16),
             color=(0.8, 0.8, 0.8, 1),
             size_hint_y=None,
@@ -106,13 +112,19 @@ class DevicePickerMenu(FloatLayout):
         # ADV Button
         # -----------------------------
         b_adv = Button(
-            text=f"[font=FA]\uf1eb[/font]  ADV channel",  # \uf1eb = fa-broadcast-tower
+            text=f"[font=FA]\uf1eb[/font]  ADV channel",
             font_size=sp_scaled(20),
-            markup=True,                # unbedingt für FA
+            markup=True,
             size_hint_y=None,
             height=dp_scaled(50),
+        
             background_color=(0.20, 0.30, 0.25, 0.55),
-            color=(0.95, 0.95, 0.98, 1)
+            color=(0.95, 0.95, 0.98, 1),
+        
+            halign="left",
+            valign="middle",
+            padding=(dp_scaled(14), 0),
+            text_size=(self.panel_width, None),
         )
         def activate_adv():
             GLOBAL_STATE.set_active_channel("adv")
@@ -125,13 +137,19 @@ class DevicePickerMenu(FloatLayout):
         # GATT Button
         # -----------------------------
         b_gatt = Button(
-            text=f"[font=FA]\uf0c1[/font]  GATT channel",  # \uf0c1 = fa-link
+            text=f"[font=FA]\uf0c1[/font]  GATT channel",
             font_size=sp_scaled(20),
-            markup=True,                # unbedingt für FA
+            markup=True,
             size_hint_y=None,
             height=dp_scaled(50),
+        
             background_color=(0.25, 0.20, 0.30, 0.55),
-            color=(0.95, 0.95, 0.98, 1)
+            color=(0.95, 0.95, 0.98, 1),
+        
+            halign="left",
+            valign="middle",
+            padding=(dp_scaled(14), 0),
+            text_size=(self.panel_width, None),
         )
         def activate_gatt():
             idx = self._current_idx if self._current_idx is not None else 0

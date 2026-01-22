@@ -224,9 +224,28 @@ class ChartTile(ButtonBehavior, BoxLayout):
         # Render Label + Graph (nur Floats)
         # -------------------------
         if render:
+            self.lbl_trend.text = self._calc_trend(buf)
             self.lbl_value.text = f"{display_value:.2f} {self.unit}"
             self._render_buffer(buf)  # nur Floats
-      
+
+    def _calc_trend(self, buf):
+        n = len(buf)
+        if n < 4:
+            return ""
+    
+        span = min(n, self.window)
+        start = buf[-span]
+        end = buf[-1]
+    
+        diff = end - start
+        threshold = max(0.01, abs(start) * 0.002)
+    
+        if diff > threshold:
+            return "\uf062"
+        elif diff < -threshold:
+            return "\uf063"
+        else:
+            return "\uf061"  
     def _render_buffer(self, buf):
         pts = [(i, val) for i, val in enumerate(buf)]
         self.plot.points = pts

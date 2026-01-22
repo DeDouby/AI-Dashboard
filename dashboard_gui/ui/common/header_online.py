@@ -264,11 +264,16 @@ class HeaderBar(BoxLayout):
         
         self.lbl_dev = Button(
             text="---",
+  
+            markup=True,
             font_size=sp_scaled(20),
             size_hint=(0.22, 1),
             background_color=(0, 0, 0, 0),
             color=(0.95, 0.95, 0.98, 1),
-            halign="left"
+            halign="left",
+            valign="middle",
+            padding=(dp_scaled(6), 0),
+            text_size=(None, None),
         )
         self.lbl_dev.bind(on_release=lambda *_: self._open_device_menu())
         
@@ -540,4 +545,5 @@ class HeaderBar(BoxLayout):
         # bewusst kurz & ruhig
         tag = "GATT" if ch == "gatt" else "ADV"
     
-        return f"{name} · {tag}"        
+        icon = "[font=FA]\uf2c7[/font]"
+        return f"{icon}  {name} · {tag}"

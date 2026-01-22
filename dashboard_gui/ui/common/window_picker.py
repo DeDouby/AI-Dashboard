@@ -29,7 +29,7 @@ class WindowPicker(FloatLayout):
         # -----------------------------
         # 2) Panel für Buttons
         # -----------------------------
-        w, h = dp(160), dp(200)
+        w, h = dp(160), dp(220)
         self.panel = BoxLayout(
             orientation="vertical",
             size_hint=(None, None),
@@ -89,8 +89,15 @@ class WindowPicker(FloatLayout):
                 text=f"[font=FA]{icon}[/font]  {I18N.t(label)}",
                 markup=True,
                 font_size=sp(18),
+            
                 background_color=(0.22, 0.25, 0.30, 0.55),
-                color=(0.95, 0.95, 0.98, 1)
+                color=(0.95, 0.95, 0.98, 1),
+            
+                halign="left",
+                valign="middle",
+                padding=(dp(14), 0),
+            
+                text_size=(dp(200), None),   # FEST, kein Binding
             )
             b.bind(on_release=lambda _, f=cb: (f(), self.close()))
             self.panel.add_widget(b)
