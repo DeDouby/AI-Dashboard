@@ -1,6 +1,6 @@
 [
   {
-    "timestamp": 1769102045.6426592,
+    "timestamp": 1769118185.179351,
     "device_id": "C898B4F2-B452-7502-1A67-0536E77D49EA",
     "name": null,
     "adv": {
@@ -37,6 +37,14 @@
         "value": null,
         "unit": "kPa"
       },
+      "dew_point_internal": {
+        "value": null,
+        "unit": "\u00b0C"
+      },
+      "dew_point_external": {
+        "value": null,
+        "unit": "\u00b0C"
+      },
       "coord": {
         "internal": {
           "x": null,
@@ -82,6 +90,14 @@
         "value": null,
         "unit": "kPa"
       },
+      "dew_point_internal": {
+        "value": null,
+        "unit": "\u00b0C"
+      },
+      "dew_point_external": {
+        "value": null,
+        "unit": "\u00b0C"
+      },
       "coord": {
         "internal": {
           "x": null,
@@ -95,7 +111,7 @@
     },
     "bridge_alive": true,
     "bridge_status": "OK",
-    "bridge_last_seen": null,
+    "bridge_last_seen": 0.0,
     "alive": false,
     "status": "offline",
     "health": {
@@ -115,51 +131,59 @@
     }
   },
   {
-    "timestamp": 1769102045.6426592,
+    "timestamp": "2026-01-22T21:42:49.968+0000",
     "device_id": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
-    "name": null,
+    "name": "ThermoBeacon2",
     "adv": {
-      "alive": false,
-      "status": "offline",
+      "alive": true,
+      "status": "active",
       "packet_counter": null,
-      "raw": null,
+      "raw": "190019060000F1F076117301DE026C01FC0219A40900",
       "internal": {
         "temperature": {
-          "value": null,
+          "value": 23.1875,
           "unit": "\u00b0C"
         },
         "humidity": {
-          "value": null,
+          "value": 45.875,
           "unit": "%"
         }
       },
       "external": {
-        "present": false,
+        "present": true,
         "temperature": {
-          "value": null,
+          "value": 22.75,
           "unit": "\u00b0C"
         },
         "humidity": {
-          "value": null,
+          "value": 47.75,
           "unit": "%"
         }
       },
       "vpd_internal": {
-        "value": null,
+        "value": 1.538,
         "unit": "kPa"
       },
       "vpd_external": {
-        "value": null,
+        "value": 1.446,
         "unit": "kPa"
+      },
+      "dew_point_internal": {
+        "value": 10.88,
+        "unit": "\u00b0C"
+      },
+      "dew_point_external": {
+        "value": 11.09,
+        "unit": "\u00b0C"
       },
       "coord": {
         "internal": {
-          "x": null,
-          "y": null
+          "x": 45.875,
+          "y": 23.1875
         },
         "external": {
-          "x": null,
-          "y": null
+          "x": 47.75,
+          "y": 22.75
         }
       }
     },
@@ -197,6 +221,14 @@
         "value": null,
         "unit": "kPa"
       },
+      "dew_point_internal": {
+        "value": null,
+        "unit": "\u00b0C"
+      },
+      "dew_point_external": {
+        "value": null,
+        "unit": "\u00b0C"
+      },
       "coord": {
         "internal": {
           "x": null,
@@ -210,12 +242,12 @@
     },
     "bridge_alive": true,
     "bridge_status": "OK",
-    "bridge_last_seen": null,
-    "alive": false,
-    "status": "offline",
+    "bridge_last_seen": 0.0,
+    "alive": true,
+    "status": "active",
     "health": {
       "uptime": {
-        "value": null,
+        "value": 959.3528151512146,
         "unit": "s"
       },
       "battery": {
@@ -224,7 +256,7 @@
         "voltage": null
       },
       "signal": {
-        "rssi": null,
+        "rssi": -65,
         "quality": null
       }
     }

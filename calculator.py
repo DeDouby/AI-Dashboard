@@ -90,3 +90,29 @@ def vpd_coord_external(T_e, H_e):
         return None, None
     leaf_off = config.get_leaf_offset()
     return H_e, T_e + leaf_off
+
+# ------------------------------------------------------------
+# Dew Point / Taupunkt (°C)
+# ------------------------------------------------------------
+def _dew_point(temp_c, rh):
+    if temp_c is None or rh is None:
+        return None
+    if rh <= 0.0 or rh > 100.0:
+        return None
+
+    a = 17.62
+    b = 243.12
+    gamma = math.log(rh / 100.0) + (a * temp_c) / (b + temp_c)
+    return round((b * gamma) / (a - gamma), 2)
+
+
+def dew_point_internal(T_i, H_i):
+    if T_i is None or H_i is None:
+        return None
+    return _dew_point(T_i, H_i)
+
+
+def dew_point_external(T_e, H_e):
+    if T_e is None or H_e is None:
+        return None
+    return _dew_point(T_e, H_e)

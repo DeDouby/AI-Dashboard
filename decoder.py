@@ -285,14 +285,25 @@ def decode_channel(entry, raw_key, profile_name,
             "temperature": {"value": calculator.to_unit(T_e), "unit": unit},
             "humidity": {"value": H_e, "unit": "%"},
         },
+
         "vpd_internal": {"value": calculator.vpd_internal(T_i, H_i), "unit": "kPa"},
         "vpd_external": {"value": calculator.vpd_external(T_e, H_e), "unit": "kPa"},
+
+        "dew_point_internal": {
+            "value": calculator.dew_point_internal(T_i, H_i),
+            "unit": unit
+        },
+        "dew_point_external": {
+            "value": calculator.dew_point_external(T_e, H_e),
+            "unit": unit
+        },
 
         "coord": {
             "internal": {"x": xi, "y": yi},
             "external": {"x": xe, "y": ye},
         }
     }
+
 
 def offline_channel_frame(raw_hex=None):
     return {
@@ -311,11 +322,20 @@ def offline_channel_frame(raw_hex=None):
         },
         "vpd_internal": {"value": None, "unit": "kPa"},
         "vpd_external": {"value": None, "unit": "kPa"},
+
+        "dew_point_internal": {
+            "value": None,
+            "unit": f"°{config.get_temperature_unit().upper()}"
+        },
+        "dew_point_external": {
+            "value": None,
+            "unit": f"°{config.get_temperature_unit().upper()}"
+        },
+
         "coord": {
             "internal": {"x": None, "y": None},
             "external": {"x": None, "y": None},
-        },
-
+        }
     }
 
 
