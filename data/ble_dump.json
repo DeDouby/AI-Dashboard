@@ -1,1 +1,312 @@
-[]
+[
+  {
+    "timestamp": "2026-01-25T22:51:38.502+0000",
+    "name": "sps",
+    "address": "C898B4F2-B452-7502-1A67-0536E77D49EA",
+    "rssi": -66,
+    "adv_raw": "C7081A1400BD764808",
+    "gat_raw": null,
+    "log_raw": "C7081A1400BD764808",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T22:51:29.656+0000",
+    "name": "ThermoBeacon2",
+    "address": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
+    "rssi": -58,
+    "adv_raw": "190019060000F1F05E115C0134035A015303D2370100",
+    "gat_raw": null,
+    "log_raw": "190019060000F1F05E115C0134035A015303D2370100",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T20:23:04.737+0000",
+    "name": "(unknown)",
+    "address": "D2EE3AB1-17FC-B329-93EF-0B64B7B416FD",
+    "rssi": -89,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T20:35:09.489+0000",
+    "name": "(unknown)",
+    "address": "DF43DDC9-9B5A-C092-9CEC-DFB126F5C011",
+    "rssi": -62,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T22:42:32.045+0000",
+    "name": "TP351S (987A)",
+    "address": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
+    "rssi": -68,
+    "adv_raw": "C2D90031213301",
+    "gat_raw": null,
+    "log_raw": "C2D90031213301",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T20:36:59.160+0000",
+    "name": "(unknown)",
+    "address": "93B4CD6F-917E-53EF-0CB8-5F9B15F64C36",
+    "rssi": -58,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T20:41:47.756+0000",
+    "name": "(unknown)",
+    "address": "090174AD-1A1C-E947-DA29-59C8E32E867A",
+    "rssi": -63,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T20:53:32.954+0000",
+    "name": "(unknown)",
+    "address": "4552FF96-5766-BE0D-13DE-5F104CAC09CC",
+    "rssi": -87,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T20:59:09.131+0000",
+    "name": "(unknown)",
+    "address": "0473546D-8E66-3592-3F88-9D8B090BC93E",
+    "rssi": -77,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T21:09:56.394+0000",
+    "name": "(unknown)",
+    "address": "11059621-959D-83DF-7DA9-BBF349DF1E1A",
+    "rssi": -78,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T21:12:35.869+0000",
+    "name": "(unknown)",
+    "address": "640FB752-70FD-46E4-ED75-AF8ACF2A9B7F",
+    "rssi": -74,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T21:12:50.871+0000",
+    "name": "(unknown)",
+    "address": "58EBE354-0CCF-44BC-6145-A06424B9EF6D",
+    "rssi": -73,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T21:24:54.695+0000",
+    "name": "(unknown)",
+    "address": "D778D631-3990-A383-DB59-01DFFACE6C7A",
+    "rssi": -80,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T21:26:43.807+0000",
+    "name": "(unknown)",
+    "address": "E62572B2-624C-6A1F-56C8-5DA9187734B6",
+    "rssi": -82,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T21:38:54.070+0000",
+    "name": "(unknown)",
+    "address": "CB4C18CB-4C04-9235-B99C-AF11CDB6C81F",
+    "rssi": -90,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T21:39:04.484+0000",
+    "name": "(unknown)",
+    "address": "CAB088B9-F025-1D73-3423-605ADA96382C",
+    "rssi": -89,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T21:49:09.812+0000",
+    "name": "(unknown)",
+    "address": "E01CE80E-764D-62F1-CE69-F68BCB46F7D3",
+    "rssi": -62,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T22:00:09.594+0000",
+    "name": "(unknown)",
+    "address": "5EEF951B-012A-1C9F-486C-747F6D313816",
+    "rssi": -62,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T21:49:15.910+0000",
+    "name": "(unknown)",
+    "address": "9DAB829E-BA05-F8B9-33A1-942D5AFB0CB0",
+    "rssi": -55,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T22:02:19.045+0000",
+    "name": "(unknown)",
+    "address": "FB0B9F25-C6CD-C524-1C77-F961973DED70",
+    "rssi": -55,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T22:02:22.224+0000",
+    "name": "(unknown)",
+    "address": "C0081A9F-4F8C-001F-392B-95909EEE0610",
+    "rssi": -71,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T22:15:09.912+0000",
+    "name": "(unknown)",
+    "address": "D19DB9B3-3672-476C-CB92-06ABD92D66A9",
+    "rssi": -54,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T22:16:33.109+0000",
+    "name": "(unknown)",
+    "address": "D4CD4E0B-9422-AAE4-5220-71DCB132DCE2",
+    "rssi": -50,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T22:16:34.630+0000",
+    "name": "(unknown)",
+    "address": "39904621-4AAF-9FB7-8933-8D2150A63C18",
+    "rssi": -64,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T22:30:09.637+0000",
+    "name": "(unknown)",
+    "address": "744371EF-548F-19D2-C1BD-61A73071B15F",
+    "rssi": -60,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T22:31:03.008+0000",
+    "name": "(unknown)",
+    "address": "FF65690D-B685-59D2-441C-14A82934154B",
+    "rssi": -56,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T22:37:11.117+0000",
+    "name": "(unknown)",
+    "address": "6C640031-9BC2-C3D9-1FF0-1DA32EAAAEFD",
+    "rssi": -57,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T22:37:34.676+0000",
+    "name": "(unknown)",
+    "address": "54E5DF4C-F222-B95E-058B-7F99DD5B8918",
+    "rssi": -74,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T22:37:58.856+0000",
+    "name": "(unknown)",
+    "address": "0696C007-AD02-537D-830B-0E238162ADA8",
+    "rssi": -63,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T22:50:05.989+0000",
+    "name": "(unknown)",
+    "address": "820F2223-345F-925C-B050-D1F2FE0438DF",
+    "rssi": -55,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-25T22:51:36.355+0000",
+    "name": "(unknown)",
+    "address": "5DA1BF9C-39A4-B346-98F2-7287CB286AFC",
+    "rssi": -57,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  }
+]

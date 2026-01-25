@@ -30,7 +30,9 @@ class GlobalStateManager:
         self.csv_viewer_ref = None
         self.cam_viewer_ref = None
         self.device_picker_ref = None
-
+        self.sensor_mixed_mode_ref = None
+        self.mixed_mode_active = False
+        self.mixed_selected_buffers = set()
         # Aktives Gerät (Index)
         self.active_index = 0
         self.active_channel = "adv"
@@ -213,6 +215,8 @@ class GlobalStateManager:
         self.cam_viewer_ref = scr        
     def attach_device_picker(self, scr):
         self.device_picker_ref = scr
+    def attach_sensor_mixed_mode(self, scr):
+        self.sensor_mixed_mode_ref = scr
     # ---------------------------------------------------------
     # LED Helpers
     # ---------------------------------------------------------
@@ -237,6 +241,8 @@ class GlobalStateManager:
             self.cam_viewer_ref.header.set_led(self.led_state)            
         if self.device_picker_ref:
             self.device_picker_ref.header.set_led(self.led_state)
+        if self.sensor_mixed_mode_ref:
+            self.sensor_mixed_mode_ref.header.set_led(self.led_state)
     def _led_offline(self):
         self.led_state = {"alive": False, "status": "offline"}
         self._push_led()
@@ -406,7 +412,8 @@ class GlobalStateManager:
             self.cam_viewer_ref.update_from_global(out)            
         if self.device_picker_ref:
             self.device_picker_ref.update_from_global(out)
-
+        if self.sensor_mixed_mode_ref:
+            self.sensor_mixed_mode_ref.update_from_global(out)
     # ---------------------------------------------------------
     # Active Keys – MULTI-CHANNEL (adv + gatt, ohne Vorrang)
     # ---------------------------------------------------------
@@ -512,6 +519,15 @@ class GlobalStateManager:
             json.dump(gatt_cfg, f, indent=2)
     
         print(f"[GSM] gatt_config.json geschrieben für {device_id}")
+
+    def set_mixed_mode(self, state: bool):
+        self.mixed_mode_active = state
+    
+    def toggle_mixed_buffer(self, buf_key):
+        if buf_key in self.mixed_selected_buffers:
+            self.mixed_selected_buffers.remove(buf_key)
+        else:
+            self.mixed_selected_buffers.add(buf_key)
     # ---------------------------------------------------------
     # APPLY NEW CONFIG – globaler Refresh
     # ---------------------------------------------------------

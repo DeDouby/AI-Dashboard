@@ -1,0 +1,542 @@
+Perfekt.
+Jetzt kommt Kapitel 4: decoder.py – DAS Herzstück
+Und hier beschreibe ich es richtig krank sauber, so dass es für deine Doku sofort druckfähig ist und alles sauber erklärt – inklusive:
+
+Decoder Pipeline
+
+Watchdog-Durchreichung
+
+Offline-Frames
+
+Profile-System
+
+Calculator-Integration
+
+Warum ein einziger Fehler hier das gesamte Dashboard killen kann
+
+
+Ich schreibe das jetzt in genau dem Stil wie gerade beim Watchdog:
+technisch korrekt, klar strukturiert, absolut dokumentationsreif.
+
+
+---
+
+Kapitel 4 – decoder.py
+
+Die zentrale Sensor-Engine – Decoding, Profiles, Alive-Status & Systemgesundheit
+
+© 2025 Dominik Rosenthal (Hackintosh1980)
+
+
+---
+
+4.1 Aufgabe des Decoders
+
+Der decoder.py ist das Herzstück deiner gesamten Sensorplattform.
+Er nimmt das einzige Rohmaterial, das der Bridge liefert:
+
+> ble_dump.json
+
+
+
+und macht daraus:
+
+> decoded.json – die einzige offizielle Wahrheitsschicht für dein Dashboard.
+
+
+
+Alles, was du siehst (Graphen, Tiles, Statusanzeigen, LED-Farben, VPD, Offsets, Units, UI usw.) kommt immer ausschließlich aus decoded.json.
+
+Der Decoder macht:
+
+1. RAW-Pakete pro MAC zu echten Temperatur/Humidity/VPD-Werten
+
+
+2. Profile korrekt anwenden
+
+
+3. Offsets & Fahrenheit/Celsius
+
+
+4. alive/offline/stale korrekt übernehmen → vom Watchdog
+
+
+5. Offline-Frames generieren, wenn kein Gerät sendet
+
+
+6. CSV-Logging für Langzeitauswertung
+
+
+7. Atomare Schreib-Operation (kein Datenverlust bei Crash)
+
+
+8. Multi-Device voll nativ (Session40-Struktur)
+
+
+
+
+---
+
+4.2 Position in der Pipeline
+
+Die Live-Kette ist:
+
+Android Bridge (Java)
+   ↓  ble_dump.json
+Watchdog → alive/stale/offline
+   ↓
+Decoder → decoded.json  ← Calculator (Offsets, Units, VPD)
+   ↓
+Dashboard UI
+
+Der Decoder ist also genau die Stelle, an der:
+
+Watchdog-Status (BRIDGE_ALIVE / STALE / OFFLINE)
+
+Konfigurationsdaten (devices, offsets, units)
+
+Profile (tb2, tpro, inkbird, oqimax …)
+
+Berechnungen (VPD,°C→°F, offsets)
+
+
+zusammenfließen.
+
+Wenn hier ein Fehler drin ist → gesamte App „blind“.
+
+
+---
+
+4.3 Watchdog-Durchreichung – der neuralgische Punkt
+
+Das ist der kritische Mechanismus, den du heute wieder erlebt hast:
+
+Watchdog schreibt NICHT in decoded.json
+
+Der Watchdog ruft Core → Core ruft:
+
+update_bridge_state(alive, status, last_seen)
+
+Diese drei Werte landen in globalen Variablen im Decoder:
+
+BRIDGE_ALIVE
+BRIDGE_STATUS
+BRIDGE_LAST_SEEN
+
+Diese globalen Variablen werden bei jedem Frame in decoded.json geschrieben:
+
+"bridge_alive": true/false,
+"bridge_status": "OK/STALE/OFFLINE",
+"bridge_last_seen": 0.0 / X
+
+→ Wenn das kaputt ist, laufen Graphen trotz totem Sensor weiter.
+Genau das war dein „Supergau-Moment“.
+Und genau deshalb ist Decoder + Watchdog gekoppelt.
+
+
+---
+
+4.4 Datei-Handling & Pfade
+
+Dekodierer nutzt exakt dieselben Pfade wie Watchdog & Core.
+Android-Mode:
+
+ble_dump.json → /files/ble_dump.json
+
+decoded.json → /files/app/data/decoded.json
+
+decoder_profiles → /files/app/data/decoder_profiles
+
+
+Desktop:
+
+./data/*
+
+
+Damit ist plattformunabhängiges Verhalten 100 % identisch.
+
+
+---
+
+4.5 Profile-System – die offenste & mächtigste Schicht
+
+Jedes Gerät in config.json hat:
+
+"devices": {
+  "MAC": { "profile": "tb2" }
+}
+
+Der Decoder lädt das Profil:
+
+data/decoder_profiles/tb2.json
+oder
+./decoder_profiles/tb2.json
+
+Ein Profil besteht aus:
+
+{
+  "company_id": 25,
+  "mac_len": 6,
+  "skip_after_mac": 2,
+  "fields": {
+    "T_i": 0,
+    "H_i": 2,
+    "T_e": 4,
+    "H_e": 6,
+    "packet": 8
+  },
+  "scale_temperature": 16,
+  "scale_humidity": 16,
+  "vendor": "ThermoBeacon",
+  "model": "TB2"
+}
+
+Warum ist das so wichtig?
+
+→ Weil deine Plattform ALLE BLE-Tags verarbeiten soll:
+
+Inkbird
+
+Oqimax
+
+Govee
+
+ThermoPro
+
+ELA BLE
+
+VIVOSUN
+
+OEM NoName
+
+
+Du bist damit offen kompatibel für jeden Sensor der Welt.
+
+
+---
+
+4.6 RAW-Decode – das Herz der Decodierlogik
+
+Pipeline:
+
+1. Roh-HEX lesen
+
+
+2. Bytes extrahieren
+
+
+3. Prüfen ob Hersteller-ID passt
+
+
+4. ggf. MSD injizieren
+
+
+5. Positionen errechnen:
+
+
+
+pos = 2 + prof.mac_len + prof.skip_after_mac
+
+6. Felder über _le16() decodieren
+
+
+7. Scaling (divide by 16 oder Profilangabe)
+
+
+8. Offsets anwenden:
+
+
+
+T_i, H_i, T_e, H_e = calculator.apply_offsets(...)
+
+9. Unit-Conversion:
+
+
+
+out_Ti = calculator.to_unit(T_i)
+
+10. VPD:
+
+
+
+calculator.vpd_internal(...)
+
+Ergebnis:
+
+absolut saubere Sensorkarte
+
+universeller Decoder
+
+Nullwerte, defekte Sensoren, Herstellerfehler → sauber gefiltert
+
+
+
+---
+
+4.7 Offline-Frames – dein Lebensretter
+
+Offline-Frames sind die Notbremse, die verhindern:
+
+dass decoded.json leer bleibt
+
+dass UI crasht
+
+dass du „Geisterwerte“ siehst
+
+
+Ein Offline-Frame enthält:
+
+alive=False
+status="offline"
+temperature=None
+humidity=None
+external.present=False
+bridge_alive=BRIDGE_ALIVE
+bridge_status=BRIDGE_STATUS
+
+OHNE Offline-Frames würdest du:
+
+graphische Ausreißer bekommen
+
+UI freezen
+
+keine Logik für „zombie“ vs „offline“ haben
+
+
+Offline-Frames sind also Pflicht, aber dürfen NIEMALS echte Daten überschreiben.
+Deshalb ist die Logik extrem vorsichtig umgesetzt.
+
+
+---
+
+4.8 Der wichtigste Punkt: BRIDGE_ALIVE beeinflusst Decoding
+
+Der Decoder startet mit:
+
+if not BRIDGE_ALIVE:
+    offline_all()
+    return
+
+Bedeutung:
+
+Wenn Watchdog sagt: „Bridge tot“
+→ Decoder liefert sofort Offline-Frames
+
+Wenn Watchdog sagt: „Zombie (Stale)“
+→ Decoder decodiert weiter, setzt aber alive=False
+
+
+Damit erhältst du:
+
+Zustand	Watchdog	Decoder-Verhalten
+
+OK	alive=True	normale Frames
+STALE	alive=False, status="STALE"	echte Werte, aber als „zombie“ markiert
+OFFLINE	alive=False, status="OFFLINE"	nur Offline-Frames
+
+
+→ Das ist dein komplettes Living/Zombie/Offline-Modell.
+
+
+---
+
+4.9 Atomare Dateioperation – absoluter Schutz bei Abstürzen
+
+Der Decoder schreibt NIE direkt in decoded.json.
+
+Sondern:
+
+tmp = DEC_FILE + ".tmp"
+json.dump(...)
+os.replace(tmp, DEC_FILE)
+
+os.replace() = atomar
+→ keine Chance für korrupte JSON nach Crash
+→ kein einziges Frame verloren
+→ UI bekommt IMMER gültige Datei
+
+Viele Programme scheitern genau an dieser Stelle – du nicht.
+
+
+---
+
+4.10 CSV-Logging (Langzeitarchiv)
+
+Hier kommen die Rohdaten rein:
+
+timestamp
+
+T_i, H_i, T_e, H_e
+
+packet_counter
+
+alive
+
+
+CSV läuft immer weiter – egal, was die UI macht.
+Perfekt für:
+
+Gassi-Tracking
+
+Wachstumsanalysen
+
+Langzeittests
+
+Home-Lab Monitoring
+
+Fehlersuche
+
+KI-Modelle in Zukunft
+
+
+
+---
+
+4.11 Multi-Device – native Unterstützung
+
+Decoder liest:
+
+targets = list(cfg["devices"].keys())
+
+Für jeden Eintrag kommt:
+
+Offline-Frame oder
+
+Profil-Decode
+
+
+Dies ermöglicht dir:
+
+10 Geräte
+
+100 Geräte
+
+1.000 Geräte
+
+
+→ gleiche Logik, gleiche Stabilität.
+
+
+---
+
+4.12 Warum ein einziger Fehler im Decoder fatal ist
+
+Weil hier ALLES zusammenläuft:
+
+Stale-Handling
+
+Bridge-Status
+
+RAW-Decode
+
+Profilauflösung
+
+Scaling
+
+Offsets
+
+Übergabe zur UI
+
+Offline-Frames
+
+Atomare Writes
+
+
+Wenn eine Zeile verrutscht →
+Graphen laufen trotz totem Sensor weiter.
+
+Genau das ist dein Albtraum-Szenario.
+Deshalb haben wir Decoder auf Session40 eingefroren.
+
+
+---
+
+4.13 Calculator-Utils – die mathematische Wahrheitsschicht
+
+Der Decoder delegiert:
+
+apply_offsets()
+
+T_i, H_i, T_e, H_e
+→ addiert temperature_offset, humidity_offset, leaf_offset
+
+
+to_unit()
+
+Celsius ↔ Fahrenheit
+
+
+vpd_internal(), vpd_external()
+
+Berechnet echte VPD nach wissenschaftlicher Formel
+
+extrem präzise für Grower (du!)
+
+essenziell fürs Dashboard
+
+
+Decoder bleibt damit „dumm“ – nur stur JSON rein → JSON raus.
+Alle mathematische Logik gehört zu calculator.py.
+
+Trennung → Wartbarkeit → Fehlerfreiheit.
+
+
+---
+
+4.14 Decoder-Thread
+
+Der Thread macht:
+
+while running:
+    step_decode()
+    sleep(refresh_interval)
+
+→ Deine Plattform ist echtzeitfähig
+→ CPU-optimiert
+→ absolut deterministisch (jede Sekunde ein Frame)
+
+
+---
+
+4.15 Zusammenfassung – Decoder als Herz der Maschine
+
+Der Decoder ist:
+
+Verständnis der physikalischen Welt (Sensoren)
+
+Interpretation (Profile)
+
+Validierung (Watchdog)
+
+Transformation (Offsets, Units, VPD)
+
+Identität (MAC → Device)
+
+Datensicherheit (atomar, CSV)
+
+Stabilität (Offline Frames)
+
+Realtime-System (Thread)
+
+
+Er ist die wichtigste Datei der gesamten Plattform.
+Darum wird er ab jetzt:
+
+> NIE wieder geändert.
+Session40 = Goldstatus.
+Nur Profile & UI dürfen sich ändern.
+
+
+
+
+---
+
+Wenn du willst, kommt als nächstes:
+
+Kapitel 5 – calculator.py (Offsets, Unit-Conversion, VPD)
+
+oder
+
+Kapitel 6 – core.py (Orchestrierung aller Module)
+
+Du sagst einfach: „weiter mit Calculator“ oder „weiter mit Core“.

@@ -320,6 +320,18 @@ class ChartTile(ButtonBehavior, BoxLayout):
 
         print("❌ ERROR: Tile-Key nicht gefunden!")
 
+    def get_mixed_buffer(self):
+        from dashboard_gui.global_state_manager import GLOBAL_STATE
+    
+        merged = []
+    
+        for key in GLOBAL_STATE.mixed_selected_buffers:
+            buf = self.buffers.get(key)
+            if buf:
+                merged.extend(buf)
+    
+        merged.sort(key=lambda x: x if isinstance(x, float) else x["value"])
+        return merged[-self.window:]
     def apply_graph_window(self, new_window: int):
         if new_window <= 0:
             return

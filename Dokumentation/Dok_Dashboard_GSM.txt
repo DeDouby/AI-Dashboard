@@ -1,0 +1,334 @@
+Alles klar — jetzt kommt die Dashboard-Dokumentation, komplett sauber, modulweise, so dass du es 1:1 in dein Handbuch übernehmen kannst.
+Dies ist einer der wichtigsten Teile deines gesamten Projekts, weil hier alle Core-Systeme (Decoder, Watchdog, Bridge, Config, Buffer) sichtbar werden.
+
+
+---
+
+📘 DASHBOARD – Das Herzstück der App
+
+Das Dashboard ist die Hauptanzeige deiner Sensorwelt.
+Hier verschmelzen:
+
+decoded.json
+
+watchdog-Status
+
+Device-Profile
+
+Temperature/Humidity/VPD
+
+LED-Statusanzeige
+
+HeaderBar (Online/Offline)
+
+Tile Layout
+
+GSM / Screenmanager
+
+Live-Refresh
+
+
+Alle Logik ist read-only – Dashboard schreibt NIE etwas zurück.
+Es konsumiert nur die Daten aus deinem System.
+
+
+---
+
+🧱 1. Architekturüberblick (Datenfluss)
+
+🔸 BLE → RAW
+
+(Android-Bridge schreibt ble_dump.json)
+
+🔸 RAW → DECODER
+
+DecoderThread erzeugt jedes Intervall eine neue:
+
+data/decoded.json
+
+🔸 DECODER + WATCHDOG
+
+Für jedes Gerät im Config:
+
+alive = True → neue Daten
+
+alive = False + status="STALE" → Zombie
+
+alive = False + status="OFFLINE" → Tot
+
+
+Diese Flags werden in decoded.json geschrieben.
+Dashboard sieht nur das Resultat.
+
+🔸 DECODING → DataBuffer
+
+Dashboard liest über:
+
+BUFFER.load()
+
+🔸 DataBuffer → GlobalState
+
+Hier werden Mapping + LED Logik entschieden.
+
+🔸 GlobalState → DashboardTiles
+
+Jedes UI-Element bekommt seine Werte & farbliche LED.
+
+
+---
+
+📦 2. DataBuffer – Feed für das Dashboard
+
+DataBuffer ist der Mini-Server innerhalb der UI.
+
+BUFFER = DataBuffer()
+
+Er macht:
+
+prüft, ob decoded.json existiert
+
+lädt die Datei
+
+validiert sie (Liste, Einträge, alive-Feld)
+
+liefert die vollständigen Frames an das Dashboard
+
+
+Wichtig:
+DataBuffer ist der einzige Ort, der direkt auf decoded.json zugreift.
+
+Felder:
+
+file_exists → Datei da oder nicht
+
+data_ok → JSON gültig
+
+alive_flag → erstes Device alive? (für LED)
+
+data → echter Inhalt der Datei
+
+
+Damit ist DataBuffer → Dashboard dein stabiler UI-Pipeline.
+
+
+---
+
+🧿 3. GlobalState – Der Logik-Layer zwischen Buffer & UI
+
+GlobalState (in dashboard) übernimmt die Aufgabe:
+
+✔ Alive/OK/Stale/Offline klassifizieren
+
+Für jedes Gerät wird aus den decoded.json-Feldern:
+
+alive
+
+status ("active" / "offline")
+
+packet_counter
+
+last_seen
+
+rssi
+
+
+der echte UI-Status berechnet.
+
+✔ Farbcodes definieren
+
+Hier entsteht deine LED-Logik:
+
+Zustand	Bedeutung	LED
+
+OK (alive=True)	Daten fließen	🟢 Grün
+STALE	RAW unverändert, > timeout	🟡 Gelb
+OFFLINE	dump fehlt / Gerät fehlt	🔴 Rot
+NO FILE	decoded.json fehlt	🔴 Rot blinkend (optional)
+
+
+GlobalState ist also die Übersetzungsmaschine zwischen systeminternen Flags und UI-Farben.
+
+✔ Mapping der Sensorwerte
+
+Alle Temperatur-, Feuchte- und VPD-Werte werden hier in stabile Werte umgewandelt:
+
+None → "—"
+
+floats → formatiert
+
+Einheiten → aus config übernommen
+
+
+✔ Liefert fertige Strukturen an die Tiles
+
+Ein Tile bekommt:
+
+{
+  "Ti": 21.4,
+  "Hi": 55.1,
+  "Te": None,
+  "He": None,
+  "vpd_i": 0.98,
+  "alive": True,
+  "status_color": (0,1,0,1)  # grün
+}
+
+
+---
+
+🟩 4. LED-STATUS – die entscheidende Logik
+
+Die LED ist der Gesundheitsindikator für jedes Gerät.
+Sie basiert ausschließlich auf den Feldern aus decoded.json:
+
+Entscheidungsreihenfolge:
+
+if data_missing:
+    LED = RED
+
+elif alive == True:
+    LED = GREEN
+
+elif status == "STALE":
+    LED = YELLOW
+
+else:
+    LED = RED
+
+Merke: dead_decode = dead_UI.
+Wenn decoded.json nicht existiert → LED ROT.
+
+Das schützt dich vor "Geisterdaten".
+
+
+---
+
+🧱 5. DashboardScreen – Aufbau
+
+Der Screen besteht aus:
+
+✔ HeaderBar
+
+Zurück zu anderen Screens
+
+Zeigt Online/Offline/STALE
+
+Bekommt Status aus GlobalState
+
+
+✔ MainPanel
+
+GridLayout der Sensor Tiles.
+Alle Werte sind read-only.
+
+✔ Periodic Refresh
+
+Der gesamte Screen wird mit:
+
+config.get_ui_refresh_interval()
+
+alle X Sekunden aktualisiert (standardmäßig 1 Sekunde).
+
+Die Schritte:
+
+1. BUFFER.soft_reload()
+
+
+2. GlobalState.update_from_buffer()
+
+
+3. Tiles refresh()
+
+
+
+Wichtig:
+Dashboard läuft komplett unabhängig von Core, Watchdog, Decoder.
+Es sieht nur decoded.json.
+
+
+---
+
+🎨 6. Tiles – UI-Bausteine pro Gerät
+
+Jedes Gerät hat ein eigenes Tile.
+
+Darstellung:
+
+Name
+
+Profil
+
+Temperatur innen
+
+Temperatur außen
+
+Luftfeuchte
+
+VPD
+
+Signalstärke
+
+LED-Statusanzeige
+
+
+Jede Farbe kommt aus GlobalState → niemals hart verdrahtet.
+
+Wenn ein Gerät tot ist:
+
+Werte = "—"
+
+LED = Rot
+
+Name = "Offline"
+
+Border rot
+
+Keine Werteänderung mehr
+
+
+Das Tile selbst enthält keinerlei Logik – reine Anzeige.
+
+
+---
+
+🔌 7. GSM – der Verbindungsmanager
+
+Dashboard nutzt GSM (Global Screen Manager) für Navigation:
+
+Setup
+
+Debug
+
+Device Picker
+
+Fullscreen Charts
+
+
+Dashboard ist der Default-Screen nach Start.
+
+Wenn der Decoder startet und decoded.json erzeugt, springt das Dashboard automatisch in einen funktionsfähigen Zustand.
+
+
+---
+
+🔄 8. Zusammenfassung des Dashboard-Flows
+
+1️⃣ decoded.json → DataBuffer
+
+2️⃣ DataBuffer → GlobalState
+
+3️⃣ GlobalState → Tiles
+
+4️⃣ Tiles → LED-Anzeige
+
+5️⃣ HeaderBar erhält Online/Offline
+
+6️⃣ Refresh alle 1 Sekunde
+
+Keine seitlichen Effekte.
+Dashboard ist komplett passiv, sicher, stabil.
+
+
+---
+
+💬 Willst du jetzt Fullscreen / Chart-Dokumentation oder die Debug-Module?

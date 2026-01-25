@@ -1,0 +1,289 @@
+Alles klar — jetzt bekommst du die vollständige, druckfertige Dokumentation für das Settings-Modul, exakt in deiner Session-40-Architektur, ohne Abweichungen, ohne eigene Erfindungen.
+Glasklar, technisch, stabil.
+
+
+---
+
+📘 SETTINGS – Konfigurationsmodul der App
+
+Settings gehört zu den kritischsten Modulen, weil es direkt Einfluss auf Core-Systeme hat (Refresh-Intervalle, Stale-Timeout, Einheiten, Offsets).
+Es ist der einzige Ort, an dem die App config.json verändern darf.
+
+
+---
+
+🧱 1. Zweck des Settings-Moduls
+
+Settings erfüllt vier Hauptaufgaben:
+
+✔ 1. Konfigurationswerte aus config.json anzeigen
+
+Beim Öffnen werden die aktuellen Werte aus:
+
+data/config.json
+
+in die UI-Elemente geladen (Slider, Textfelder, Dropdowns).
+
+✔ 2. Werte ändern
+
+Der Nutzer kann folgende Felder anpassen:
+
+refresh_interval
+
+ui_refresh_interval
+
+stale_timeout
+
+temperature_unit (C/F)
+
+temperature_offset
+
+humidity_offset
+
+leaf_offset
+
+
+✔ 3. Änderungen sicher speichern
+
+Settings ruft ausschließlich:
+
+config.save(cfg)
+config.reload()
+
+auf.
+
+✔ 4. Laufzeitwerte aktualisieren
+
+Damit Änderungen sofort wirken, setzt Settings z. B.:
+
+Watchdog timeout neu
+
+UI-Refresh verwendet neuen Wert beim nächsten Zyklus
+
+Decoder nutzt neues refresh_interval beim nächsten Start
+
+
+
+---
+
+🧱 2. Aufbau des Settings-Screens
+
+SettingsScreen besteht aus:
+
+1. HeaderBar
+
+
+2. SettingsMainPanel (Eingabefelder)
+
+
+3. Save / Cancel Buttons
+
+
+4. Rücksprunglogik zum Dashboard
+
+
+
+
+---
+
+📦 3. SettingsMainPanel – Eingabeoberfläche
+
+Das Panel enthält die echten UI-Widgets:
+
+TextInput/Slider für Zeiten
+
+Dropdown für temperature_unit
+
+TextInputs für Offsets
+
+
+Diese Felder werden als values: dict zurückgegeben, sobald der Nutzer auf SAVE drückt.
+
+
+---
+
+🔧 4. Save-Logik – Der kritische Pfad
+
+Der Save-Handler:
+
+def _save(self, values: dict):
+
+führt exakt folgende Schritte aus:
+
+
+---
+
+Schritt 1 – Config in den Speicher holen
+
+cfg = config._init()
+
+Dies lädt immer die aktuelle config.json oder erstellt defaults.
+
+
+---
+
+Schritt 2 – Werte überschreiben
+
+cfg["refresh_interval"] = float(values["refresh_interval"])
+cfg["ui_refresh_interval"] = float(values["ui_refresh_interval"])
+cfg["stale_timeout"] = float(values["stale_timeout"])
+
+cfg["temperature_offset"] = float(values["temperature_offset"])
+cfg["humidity_offset"] = float(values["humidity_offset"])
+cfg["leaf_offset"] = float(values["leaf_offset"])
+
+cfg["temperature_unit"] = values["temperature_unit"]
+
+Wichtig:
+Settings verändert NICHT:
+
+devices
+
+profiles
+
+device_profiles
+
+uuid/macs
+
+irgendetwas über Sensoren
+
+
+
+---
+
+Schritt 3 – Atomar speichern
+
+config.save(cfg)
+config.reload()
+
+save() schreibt config.json .tmp → atomar
+
+reload() holt die Werte frisch zurück
+
+
+Warum wichtig?
+Damit Decoder, Watchdog, Core und UI konsistent werden.
+
+
+---
+
+🔥 5. Live-Update: Watchdog Timeout
+
+Das war früher ein problematischer Punkt.
+Jetzt ist es sauber:
+
+Settings erkennt, ob eine Watchdog-Instanz existiert:
+
+if hasattr(decoder, "watchdog") and decoder.watchdog:
+
+Wenn ja:
+
+decoder.watchdog.timeout = float(cfg["stale_timeout"])
+
+Damit ist der Stale-Mechanismus sofort aktiv, ohne App-Neustart.
+
+Das ist extrem wichtig für:
+
+Live-Tests
+
+Multi-Device
+
+Zombie-Detection
+
+Debugging
+
+Batterietest
+
+Langzeit-Messungen
+
+
+💡 Dieser Schritt ist Teil der Session-40-„Golden Build“-Regel:
+runtime-update safe, keine Core-Eingriffe nötig.
+
+
+---
+
+↩ 6. Cancel-Logik
+
+def _cancel(self, *_):
+    self.manager.current = "dashboard"
+
+Cancel verwirft alles in der UI, weil nichts gespeichert wurde.
+
+
+---
+
+🧩 7. Settings und die komplette Pipeline
+
+Settings beeinflusst die folgenden Systeme:
+
+Setting	Effekt auf
+
+refresh_interval	Decoder-Thread-Intervall
+ui_refresh_interval	Dashboard-Refresh
+stale_timeout	Watchdog-Time-Out & Stale-Detektion
+offsets	Calculator → Decoder → Dashboard
+temp_unit	Ausgabe im Dashboard (°C/°F)
+
+
+
+---
+
+💡 8. Warum Settings so sicher ist
+
+Settings ist absolut stabil, weil:
+
+read → modify → atomic write
+
+niemals andere Module berührt
+
+niemals neue Keys erzeugt
+
+keine Migration
+
+keine Side-Effects
+
+Decoder/Watchdog/Buffer arbeiten ab Sekunde 2 mit den neuen Werten
+
+
+Settings ist kein Risiko-Modul mehr.
+Es ist transparent, kontrolliert und simpel — genauso wie es sein muss.
+
+
+---
+
+🎯 9. Kurzzusammenfassung zum Einkleben
+
+Settings-Modul
+
+Einziger Schreibzugang zu config.json
+
+Macht Runtime-Updates an Watchdog möglich
+
+UI-Refresh passt sich ohne Neustart an
+
+Absolut keine Eingriffe in Device-Konfiguration
+
+Normalisiert Unit/Offset-Einstellungen für den Decoder
+
+Arbeitet 100 % innerhalb Session-40-Regeln
+
+Kein eigenes I/O außer config.json
+
+
+
+---
+
+Wenn du willst, mache ich jetzt direkt weiter mit:
+
+✔ Setup-Screen
+
+✔ Device Picker
+
+✔ Fullscreen Charts
+
+✔ Debug-Screen
+
+✔ Alle UI-Common-Module (Header, Buttons, TileBases)
+
+Sag einfach: Weiter mit XYZ.

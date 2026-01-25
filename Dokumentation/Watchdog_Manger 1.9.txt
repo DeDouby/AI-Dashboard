@@ -1,0 +1,413 @@
+Jawoll, jetzt kommt der heilige Gral: dein watchdog_manager.py.
+Das Ding ist die Instanz, die aus „schönen Graphen“ verlässliche Realität macht.
+
+Ich schreibe wieder so, dass du es 1:1 in deine Doku kopieren kannst.
+
+
+---
+
+Kapitel 3 – watchdog_manager.py
+
+Lebende Sensoren, Zombies und der Schutz vor Fake-Daten
+
+© 2025 Dominik Rosenthal (Hackintosh1980)
+
+
+---
+
+3.1 Aufgabe des Watchdogs
+
+Der DumpWatchdog ist dein persönlicher Wahrheitsprüfer.
+
+Er beantwortet permanent nur eine Frage:
+
+> „Sind meine Daten noch lebendig, oder schaue ich nur noch auf eingefrorenen Müll?“
+
+
+
+Dazu überwacht er die Datei ble_dump.json und alle darin vorkommenden RAW-Pakete
+für alle in config.get_devices() eingetragenen Geräte.
+
+Er entscheidet für jedes Gerät:
+
+OK → Daten fließen, RAW ändert sich
+
+STALE (Zombie) → RAW ist zu lange unverändert
+
+OFFLINE → Gerät gar nicht mehr im Dump / kein Dump vorhanden
+
+
+Und er liefert zusätzlich einen globalen Status, den Core & Decoder verstehen:
+
+alive (bool)
+
+status ("OK", "STALE", "OFFLINE")
+
+last_seen (Sekunden seit letztem echten Lebenszeichen)
+
+
+Damit wird verhindert, dass Graphen einfach weiterlaufen, obwohl der Sensor längst tot ist.
+
+
+---
+
+3.2 Position in der Daten-Pipeline
+
+Deine Pipeline sieht so aus:
+
+Bridge (Android/Desktop) → ble_dump.json → Watchdog
+                                  ↓
+                               Decoder → decoded.json → BUFFER → GLOBAL_STATE → UI
+
+Wichtige Erkenntnis:
+Der Watchdog greift NICHT in decoded.json ein
+und schreibt auch NICHT in config.json.
+
+Er arbeitet rein lesend auf:
+
+ble_dump.json
+
+config.get_devices()
+
+
+Seine Aufgabe ist Beobachtung und Status-Meldung – nicht Modifikation.
+
+
+---
+
+3.3 Pfadlogik – gleicher Ursprung wie Decoder/Core
+
+Damit es keine Schiefstände gibt, nutzt der Watchdog denselben Pfad wie der Rest:
+
+Android:
+/data/data/<pkg>/files/ble_dump.json
+(über PythonActivity.getFilesDir())
+
+Desktop:
+<Projektroot>/data/ble_dump.json
+
+
+Die Funktion _get_raw_path() sorgt dafür, dass Android und Desktop denselben RAW-Strom sehen wie Decoder und Core.
+Der Pfad wird in RAW_PATH gespeichert und von der gesamten Watchdog-Klasse genutzt.
+
+
+---
+
+3.4 Globale Status-Variablen
+
+Oben im Modul liegen drei globale Variablen:
+
+WD_ALIVE
+
+WD_STATUS
+
+WD_LAST_SEEN
+
+
+Sie spiegeln immer den aktuellen globalen Aggregat-Zustand wider:
+
+OK → WD_ALIVE = True, WD_STATUS = "OK"
+
+STALE → WD_ALIVE = False, WD_STATUS = "STALE"
+
+OFFLINE → WD_ALIVE = False, WD_STATUS = "OFFLINE"
+
+
+Diese Infos werden über den Callback nach Core → Decoder durchgereicht und dort via update_bridge_state() in den Decoder-Status integriert.
+So weiß der Decoder: „Die Bridge steht, oder ist Stale, oder tot.“
+
+
+---
+
+3.5 Die Klasse DumpWatchdog im Detail
+
+Konstruktor
+
+DumpWatchdog(timeout, interval, callback)
+
+timeout → dein Stale-Timeout (Sekunden) aus config.get_stale_timeout()
+
+interval → Prüfintervall (Sekunden) aus config.get_refresh_interval()
+
+callback → Funktion, die nach jedem Check den Status bekommt (kommt aus core._wd_callback)
+
+
+Interne Strukturen:
+
+_last_raw → pro MAC der letzte gesehene RAW-String
+
+_last_ts → Zeitstempel, wann sich der RAW zuletzt geändert hat
+
+_stale_reported → Flag, ob für dieses Gerät bereits „STALE“ gemeldet wurde
+
+running → steuert die Thread-Schleife
+
+
+set_timeout()
+
+Erlaubt es dir, während der Laufzeit den Timeout zu ändern –
+z. B. aus dem Settings-Screen, ohne Core-Neustart:
+
+watchdog.set_timeout(new_timeout)
+
+Das ist die Basis dafür, dass dein Stale-Timeout live anpassbar ist.
+
+
+---
+
+3.6 Laden & Finden im Dump
+
+_load()
+
+öffnet RAW_PATH
+
+lädt JSON
+
+akzeptiert nur gültige Listen
+
+gibt None bei Fehlern zurück
+
+
+_find(dump, mac)
+
+sucht im Dump nach einem Eintrag mit address == mac
+
+liefert das passende Dict oder None
+
+
+Damit funktioniert die gesamte Logik MAC-basiert – exakt so, wie deine config["devices"] aufgebaut ist.
+
+
+---
+
+3.7 Die eigentliche Magie: check_status()
+
+Das ist der Kern deines „Living/Zombie“-Konzepts.
+
+Ablauf:
+
+1. Geräteliste holen
+
+devices = config.get_devices()
+
+Liefert eine Liste aller konfigurierten MAC-Adressen
+
+Wenn leer → sofort OFFLINE (kein Gerät konfiguriert)
+
+
+
+2. Dump laden
+
+Kein Dump oder ungültig → global OFFLINE
+
+
+
+3. Pro-Gerät-Analyse
+
+Für jede MAC:
+
+Eintrag im Dump fehlt →
+→ Gerät = OFFLINE
+
+Eintrag vorhanden → RAW lesen:
+
+raw = entry.get("raw", "")
+last_raw = self._last_raw.get(mac)
+last_ts  = self._last_ts.get(mac)
+
+
+a) Erster Kontakt
+
+Wenn last_raw None:
+
+last_raw = raw, last_ts = now, stale_flag = False
+
+Gerät = alive=True, status="OK", last_seen=0.0
+
+
+→ Gerät gilt sofort als lebendig.
+
+b) Neue Daten
+
+Wenn raw != last_raw:
+
+neue Daten → echte Bewegung
+
+last_raw = raw, last_ts = now, stale_flag=False
+
+Gerät = alive=True, status="OK"
+
+
+→ Sensor sendet, alles gut.
+
+c) Gleiche Daten (potenziell Zombie)
+
+Wenn raw == last_raw:
+
+delta = now - last_ts
+
+max_delta wird aktualisiert
+
+Wenn delta < timeout → weiterhin OK
+
+Wenn delta >= timeout → Gerät wird zu STALE:
+
+per_dev[mac] = {
+    "alive": False,
+    "last_seen": delta,
+    "status": "STALE",
+}
+
+
+→ Wichtig: Stale bedeutet:
+
+Daten sind alt
+
+es kommt nichts Neues
+
+aber es ist kein Hard-Offline (Dump existiert ja noch)
+
+
+
+4. Globales Aggregat bauen
+
+mindestens ein Gerät OK?
+→ global: alive=True, status="OK"
+
+kein Gerät ok, aber mindestens eins STALE?
+→ global: alive=False, status="STALE", last_seen=max_delta
+
+sonst: alles Offline
+→ global: alive=False, status="OFFLINE"
+
+
+
+5. Rückgabe
+
+Die Funktion liefert ein Dict mit:
+
+{
+    "alive": WD_ALIVE,
+    "last_seen": WD_LAST_SEEN,
+    "status": WD_STATUS,
+    "devices": per_dev,   # optionales Detail pro MAC
+}
+
+
+
+Der Core schickt genau dieses Dict an _wd_callback(), und von dort geht es in:
+
+decoder.update_bridge_state(alive, status, last_seen)
+
+→ beeinflusst BRIDGE_ALIVE, BRIDGE_STATUS, BRIDGE_LAST_SEEN
+
+→ diese Werte fließen in jede decoded.json-Frame als bridge_*-Felder ein
+
+→ GSM + UI reagieren über LED/Status darauf
+
+
+Damit wird aus einem einfachen Dump-File eine lebendige Systemdiagnose.
+
+
+---
+
+3.8 Der Thread-Loop: start() & stop()
+
+start()
+
+startet einen Daemon-Thread
+
+solange self.running True ist:
+
+st = self.check_status()
+callback(st)
+time.sleep(self.interval)
+
+callback ist die Core-Funktion _wd_callback, die:
+
+ins Log schreibt:
+"[Core] Watchdog: STATUS | alive=X | last_seen=Y"
+
+update_bridge_state() im Decoder aufruft
+
+
+
+stop()
+
+setzt self.running = False
+
+der Thread läuft sauber aus
+
+
+
+---
+
+3.9 Was der Watchdog bewusst nicht macht
+
+Ganz wichtig für deine Dokumentation:
+
+Er schreibt niemals in config.json
+
+Er passt keine devices an
+
+Er löscht weder decoded.json noch ble_dump.json
+
+Er entscheidet nicht, welche Geräte decodiert werden
+
+
+→ Das sind Aufgaben von:
+
+core.py (Cleanup von Files beim Start)
+
+decoder.py (Offline-Frames, alive-Flags, VPD, etc.)
+
+setup_screen/config (Konfiguration der Devices)
+
+
+Der Watchdog ist deshalb:
+
+> „die reine Realitätsschicht zwischen Funkwelt und deiner Auswertung“
+
+
+
+
+---
+
+3.10 Warum das dein „Heiliger Gral“ ist
+
+Weil ohne diese Logik:
+
+dein Dashboard auch bei abgezogenem Akku noch „träumen“ würde
+
+Graphen weiterlaufen, obwohl die Welt schon längst stillsteht
+
+du niemals wüsstest, ob ein Wert gerade live ist – oder von vor 10 Minuten
+
+
+Mit diesem Watchdog hast du:
+
+lebende vs. zombie Geräte
+
+hartes OFFLINE
+
+konfigurierbares Stale-Fenster
+
+Multi-Device-Fähigkeit
+
+klare Trennung: Beobachten, nicht Eingreifen
+
+
+Damit steht das ganze Living-Sensor-Prinzip auf einem soliden, dokumentierten Fundament.
+
+
+---
+
+Wenn du möchtest, gehe ich im nächsten Schritt genauso tief rein in:
+
+decoder.py – Session40 (nach dem Config-Umzug)
+oder
+
+core.py – Start/Stop, Decoder/Watchdog-Orchestrierung
+
+
+Du kannst dir raussuchen, welches Kapitel deine Doku als Nächstes bekommt.

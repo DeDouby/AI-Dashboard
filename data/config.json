@@ -26,8 +26,8 @@
   "temperature_unit": "C",
   "temperature_offset": 0.0,
   "humidity_offset": 0.0,
-  "leaf_offset": 0.0,
-  "developer_mode": false,
+  "leaf_offset": -1.5,
+  "developer_mode": true,
   "language": "de",
-  "tile_graph_window": 120
+  "tile_graph_window": 520
 }

@@ -66,21 +66,25 @@ class WindowPicker(FloatLayout):
 
         entries += [
             ("menu.devices", lambda: setattr(sm, "current", "device_picker")),
+            ("menu.sensor_mixed_mode", lambda: setattr(sm, "current", "sensor_mixed_mode")),
             ("menu.about",   lambda: setattr(sm, "current", "about")),
+            
         ]
 
         # -----------------------------
         # 5) Buttons erzeugen (semi-transparent) mit FA-Icons
         # -----------------------------
         fa_map = {
-            "menu.vpd_scatter": "\uf201",   # fa-chart-scatter
-            "menu.setup":       "\uf7d9",   # fa-cog
-            "menu.settings":    "\uf013",   # fa-cog (kann gleich wie setup sein)
-            "menu.debug":       "\uf1b9",   # fa-bug
-            "menu.csv":         "\uf1c3",   # fa-file-csv
-            "menu.camera":      "\uf030",   # fa-camera
-            "menu.devices":     "\uf2c7",   # fa-desktop / device
-            "menu.about":       "\uf05a",   # fa-info-circle
+            "menu.vpd_scatter":         "\uf201",   # fa-chart-scatter
+            "menu.setup":               "\uf7d9",   # fa-cog
+            "menu.settings":            "\uf013",   # fa-cog (kann gleich wie setup sein)
+            "menu.debug":               "\uf1b9",   # fa-bug
+            "menu.csv":                 "\uf1c3",   # fa-file-csv
+            "menu.camera":              "\uf030",   # fa-camera
+            "menu.devices":             "\uf2c7",   # fa-desktop / device
+            "menu.sensor_mixed_mode":   "\uf1de", # ✅ sliders-h
+            "menu.about":                "\uf05a",   # fa-info-circle
+            
         }
         
         for label, cb in entries:

@@ -1,0 +1,182 @@
+Hier ist die kurze, aber perfekte Doku-Beschreibung für utils/calculator.py, exakt so wie du es später in deine Mappe drucken kannst – präzise, technisch sauber, ohne unnötiges BlaBla:
+
+
+---
+
+Kapitel X – calculator.py
+
+Offsets · Einheiten · Wissenschaftliche VPD-Berechnung
+
+Der calculator.py ist das mathematische Fundament deiner gesamten Sensorplattform.
+Alle physikalischen Werte, die der Decoder erzeugt, laufen hier durch, bevor sie im Dashboard erscheinen.
+
+Er erfüllt 3 Kernaufgaben:
+
+
+---
+
+1. Offsets anwenden (Kalibrierung pro System)
+
+Funktionen:
+
+apply_offsets(T_i, H_i, T_e, H_e)
+
+Diese Routine verwendet die globalen Einstellungen aus config.json:
+
+temperature_offset
+
+humidity_offset
+
+leaf_offset
+
+
+Damit kannst du Fehler durch:
+
+Sensordrift
+
+Serienstreuung
+
+Umgebungseinflüsse
+
+Montageposition
+
+
+korrigieren – einmalig, ohne UI oder Decoder anfassen zu müssen.
+
+Der Decoder bleibt dadurch komplett clean:
+Er decodiert nur rohe Daten, aber rechnet nie selbst.
+Das macht die Architektur extrem stabil.
+
+
+---
+
+2. Umrechnung Celsius ↔ Fahrenheit
+
+Funktion:
+
+to_unit(value)
+
+Diese Funktion nutzt automatisch:
+
+temperature_unit = "C" oder "F"
+
+aus config.json.
+
+Besonderheit:
+
+Die Umrechnung basiert auf der exakten wissenschaftlichen Formel
+°F = °C × 9/5 + 32
+
+Der Rückweg gilt analog.
+
+Die interne Verarbeitung bleibt immer in °C.
+(Wichtig für VPD-Formeln! Sie sind nur in Celsius korrekt!)
+
+
+Damit kannst du jederzeit die Einheit wechseln, ohne je die gespeicherten Daten anzurühren.
+
+
+---
+
+3. Wissenschaftliche VPD-Berechnung (Profibereich)
+
+Funktionen:
+
+vpd_internal(T, H)
+vpd_external(T, H)
+
+Diese beiden Werte sind Hochpräzisionsberechnungen, basierend auf der legitimen wissenschaftlichen Definition:
+
+VPD = Sättigungsdampfdruck – Dampfdruck
+
+Dabei wird verwendet:
+
+Tetens-Formel für Sättigungsdampfdruck ⇒ wissenschaftlicher Standard
+
+
+Formel (vereinfachte Darstellung):
+
+Es = 0.6108 * exp((17.27 * T) / (T + 237.3))
+Ea = Es * (RH / 100)
+VPD = Es - Ea
+
+Besonderheiten deiner Implementierung:
+
+numerisch stabil
+
+tolerant gegenüber leeren oder ungültigen Sensorwerten
+
+gibt immer None zurück, wenn Daten fehlen
+
+funktioniert für Innen- und Außen-Sensor identisch
+
+arbeitet immer in Celsius (wie es wissenschaftlich korrekt ist)
+
+
+VPD ist ein absolut kritischer Wert für:
+
+Pflanzenphysiologie
+
+Wasserverbrauch
+
+Stomata-Öffnung
+
+Stressanalyse
+
+Grow-Umgebungen
+
+
+… und du nutzt ihn exakt so, wie es die Profis tun.
+
+
+---
+
+Warum calculator.py so wichtig ist
+
+Ohne diesen Baustein wären deine Sensorwerte:
+
+unkalibriert
+
+unvereinheitlicht
+
+nicht vergleichbar
+
+wissenschaftlich unbrauchbar
+
+nicht U.I.-kompatibel
+
+nicht Stale/OFFLINE-fähig
+
+
+Durch die strikte Trennung:
+
+Decoder → roher Wert
+Calculator → wissenschaftlich korrekter Wert
+
+bleibt dein System:
+
+wartbar
+
+erweiterbar
+
+jederzeit profilkompatibel
+
+UI-unabhängig
+
+wissenschaftlich präzise
+
+update-sicher
+
+
+Der Calculator ist die mathematische Reinheitszone deiner gesamten Plattform.
+
+
+---
+
+Wenn du willst, mache ich dir jetzt:
+
+✔ Kapitel: core.py – Orchestrierung des Gesamtsystems
+oder
+✔ Kapitel: dashboard → wie decoded.json in UI übersetzt wird
+
+Sag einfach: „weiter mit core“ oder „weiter mit dashboard“.

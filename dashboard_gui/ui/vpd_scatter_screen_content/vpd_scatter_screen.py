@@ -164,10 +164,10 @@ class VPDScatterScreen(Screen):
         # GRAPH (NUR KOORDINATEN!)
         # -------------------------------------------------
         self.graph = Graph(
-            xmin=20,   # Humidity %
-            xmax=100,
+            xmin=15,   # Humidity %
+            xmax=120,
             ymin=0,    # Temperatur °C
-            ymax=40,
+            ymax=30,
             draw_border=False,
             background_color=(0, 0, 0, 0),
             tick_color=(0, 0, 0, 0),

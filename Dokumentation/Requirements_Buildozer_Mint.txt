@@ -1,0 +1,150 @@
+Perfekt – jetzt mache ich dir den saubersten, stabilsten und absolut minimalen Buildozer-Requirements-File, den du jemals hattest.
+Dieser File ist maßgeschneidert für deine Linux Mint VM, basierend auf deiner echten pip freeze Ausgabe.
+
+
+---
+
+✅ requirements-android-build.txt (FINALE, STABILE VERSION)
+
+Ziel:
+➡ Nur exakt das, was Buildozer + Kivy + p4a brauchen
+➡ Keine Mac-Pakete
+➡ Keine Django-Altlasten
+➡ Keine Desktop-BLE (bleak)
+➡ Keine Graphen / Matplotlib (werden NICHT gebaut!)
+➡ Nur minimalste Tools, sodass Buildozer ohne 1x Stress durchläuft
+
+Damit bekommt deine VM ein leichtes, schnelles, sauberes Build-System.
+
+
+---
+
+📄 requirements-android-build.txt
+
+# --- CORE PYTHON REQUIREMENTS FÜR ANDROID BUILD SYSTEM ---
+
+buildozer==1.5.0
+Cython==3.1.6
+Kivy==2.3.1
+Kivy-Garden==0.1.5
+kivy-garden.graph==0.4.0
+pillow==12.0.0
+requests==2.32.5
+urllib3==2.5.0
+certifi==2025.10.5
+charset-normalizer==3.4.4
+idna==3.11
+six==1.17.0
+packaging==25.0
+sh==2.2.2
+filelock==3.20.0
+virtualenv==20.35.4
+wheel==0.43.0
+
+
+---
+
+❗ Warum ist dieser File SO VIEL kleiner?
+
+Weil deine VM-venv ganz viel Müll enthielt:
+
+Django (völlig unnötig)
+
+build, meson, ninja, cmake (nur für native builds → Buildozer braucht p4a intern)
+
+matplotlib, numpy (werden unter p4a NICHT gebaut → nur Ärger)
+
+bleak BLE Desktop → unter Android nutzlos
+
+dbus-fast → Desktop Linux only
+
+pexpect, jinja2, pygments, distlib → Buildozer nutzt sie nicht
+
+foundation, garden (alt) → Legacy-Web-Zeug
+
+
+➡ Alles raus.
+➡ Du bekommst ein Buildozer-Setup, das niemals wieder chaotisch durchhängt.
+
+
+---
+
+🔥 Warum sind NUR diese Pakete drin?
+
+✔ Kivy, Kivy-Garden, Graph
+
+Benötigt für dein Dashboard und alle UI-Komponenten.
+
+✔ Pillow
+
+Für PNG / JPG (buildozer + p4a brauchen es)
+
+✔ Cython
+
+Für alle p4a-Recipes notwendig.
+
+✔ Requests / urllib3 / certifi / charset
+
+Nutzt du im Projekt und sind zuverlässig baubar.
+
+✔ packaging, six
+
+Standardabhängigkeiten für p4a und buildozer.
+
+✔ buildozer, wheel, virtualenv, sh, filelock
+
+Nötig, damit Buildozer überhaupt läuft.
+
+
+---
+
+📌 Wichtig:
+
+Diese Requirements sind NICHT für dein Dashboard auf Mac!
+Die sind ausschließlich für deine:
+
+> ⚙ Linux Mint VM → Buildozer → p4a → Android APK Build Pipeline
+
+
+
+Das ist deine Golden Build Umgebung → Session40 Build.
+
+
+---
+
+Wenn du willst:
+
+Ich kann dir zusätzlich generieren:
+
+📄 requirements-android-dev.txt
+
+➡ mit bleak, matplotlib, numpy
+➡ für BLE-Tests + Plotten direkt in der VM
+➡ aber NICHT für den Build!
+
+
+---
+
+Möchtest du das?
+
+Oder sollen wir noch ein kombiniertes:
+
+📄 „Golden Build System – Setup Guide“
+mit:
+
+Python-Version
+
+Systempakete (apt install ...)
+
+Buildozer Layout
+
+Ordnerstruktur
+
+p4a-Fixes
+
+VM Snapshot Regeln
+
+„Niemals machen“-Liste für Buildozer
+
+
+Sag einfach Bescheid 😎

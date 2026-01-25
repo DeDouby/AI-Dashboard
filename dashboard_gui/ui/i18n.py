@@ -26,6 +26,7 @@ class I18N:
             "settings.save": "Save",
             "settings.cancel": "Cancel",
 
+            "menu.sensor_mixed_mode": "Sensor Mix",
             # ControlButtons
             "control.start": "Start",
             "control.stop": "Stop",
@@ -74,6 +75,7 @@ class I18N:
             "settings.save": "Guardar",
             "settings.cancel": "Cancelar",
 
+            "menu.sensor_mixed_mode": "Mezcla Sensor",
             # ControlButtons
             "control.start": "Iniciar",
             "control.stop": "Detener",
@@ -125,6 +127,7 @@ class I18N:
             "settings.save": "Speichern",
             "settings.cancel": "Abbrechen",
 
+            "menu.sensor_mixed_mode": "Sensor Mix",
             # ControlButtons
             "control.start": "Start",
             "control.stop": "Stopp",
