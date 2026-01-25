@@ -25,8 +25,8 @@ class SettingsMainPanel(BoxLayout):
 
         self.on_save = on_save
         self.on_cancel = on_cancel
-        self._reset_clicks = 0
-        self._last_reset_ts = 0.0
+        self._lang_clicks = 0
+        self._last_lang_ts = 0.0
 
         self.cfg = config._init()
         self.inputs = {}
@@ -132,10 +132,7 @@ class SettingsMainPanel(BoxLayout):
 
     def _reset_defaults(self):
         now = time.time()
-        if now - self._last_reset_ts > 2.5:
-            self._reset_clicks = 0
-        self._last_reset_ts = now
-        self._reset_clicks += 1
+       
 
         defaults = {
             "refresh_interval":2.0,
@@ -154,13 +151,7 @@ class SettingsMainPanel(BoxLayout):
             elif k in self.inputs:
                 self.inputs[k].value = v
 
-        # 7x Reset → Toggle DEV Mode
-        if self._reset_clicks==7:
-            new_state = not config.is_developer_mode()
-            config.set_developer_mode(new_state)
-            self._reset_clicks = 0
-            self._update_dev_visibility()
-            print("[DEV] Developer Mode", "activated" if new_state else "deactivated")
+
 
     def _collect(self):
         out = {k:v.value for k,v in self.inputs.items()}
@@ -186,17 +177,35 @@ class SettingsMainPanel(BoxLayout):
 
     def _set_language(self, code):
         import config
-
-        # in Config speichern
+        import time
+    
+        now = time.time()
+    
+        # --- DEV TOGGLE nur bei DE ---
+        if code == "de":
+            if now - self._last_lang_ts > 2.5:
+                self._lang_clicks = 0
+            self._last_lang_ts = now
+            self._lang_clicks += 1
+    
+            if self._lang_clicks == 7:
+                new_state = not config.is_developer_mode()
+                config.set_developer_mode(new_state)
+                self._lang_clicks = 0
+                self._update_dev_visibility()
+                print("[DEV] Developer Mode", "activated" if new_state else "deactivated")
+                return  # ⛔ wichtig: Sprache NICHT wechseln
+        else:
+            self._lang_clicks = 0  # Reset bei EN/ES
+    
+        # --- normale Sprachumschaltung ---
         cfg = config._init()
         cfg["language"] = code
         config.save(cfg)
-
-        # I18N setzen
+    
         I18N.set_language(code)
-
-        # Buttons aktualisieren
+    
         for c, btn in self.lang_buttons.items():
             btn.background_color = (0.4,0.7,1,1) if c==code else (0.3,0.3,0.3,1)
-
+    
         print(f"[SETTINGS] Language switched to {code}")
