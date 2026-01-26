@@ -4,7 +4,7 @@ from kivy.graphics import Rectangle, Color
 from dashboard_gui.ui.dashboard_content.chart_tile import ChartTile
 from dashboard_gui.ui.scaling_utils import dp_scaled
 from kivy.animation import Animation
-
+ASSET_ROOT = os.path.join("dashboard_gui", "assets")
 
 class DashboardMainPanel(GridLayout):
     def __init__(self, **kw):
@@ -14,7 +14,7 @@ class DashboardMainPanel(GridLayout):
         with self.canvas.before:
             self.bg_color = Color(1, 1, 1, 1)
             self.bg_rect = Rectangle(
-                source=os.path.join("assets", "background.png"),
+                source=os.path.join(ASSET_ROOT, "background.png"),
                 pos=self.pos,
                 size=self.size
             )
@@ -209,10 +209,10 @@ class DashboardMainPanel(GridLayout):
         # 🔄 Hintergrund wechseln
         if active_keys:
             # mindestens 1 Tile aktiv → background2
-            self.bg_rect.source = os.path.join("assets", "background2.png")
+            self.bg_rect.source = os.path.join(ASSET_ROOT, "background2.png")
         else:
             # keine Tiles → default background
-            self.bg_rect.source = os.path.join("assets", "background.png")
+            self.bg_rect.source = os.path.join(ASSET_ROOT, "background.png")
     
         # Tiles in gewünschter Reihenfolge hinzufügen
         order = [

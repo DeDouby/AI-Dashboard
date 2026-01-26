@@ -4,24 +4,38 @@ from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
 from kivy.uix.togglebutton import ToggleButton
 from kivy.clock import Clock
-
+import os
+from kivy.graphics import Rectangle, Color
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.common.header_online import HeaderBar
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.ui.i18n import I18N
-
+import config
 class SensorMixedModeScreen(Screen):
     name = "sensor_mixed_mode"
 
     def __init__(self, **kw):
         super().__init__(**kw)
+        ASSET_ROOT = os.path.join("dashboard_gui", "assets")
         self.GS = GLOBAL_STATE
         self.GS.attach_sensor_mixed_mode(self)
-    
+        self.device_modes = {}   # dev_id -> "internal" | "external"
         # ROOT
         root = BoxLayout(orientation="vertical", spacing=dp_scaled(10))
         self.add_widget(root)
-    
+        with root.canvas.before:
+            Color(1, 1, 1, 1)
+            self.bg_rect = Rectangle(
+                source=os.path.join(ASSET_ROOT, "background_mixed.png"),
+                pos=root.pos,
+                size=root.size
+            )
+        
+        root.bind(
+            pos=lambda *_: setattr(self.bg_rect, "pos", root.pos),
+            size=lambda *_: setattr(self.bg_rect, "size", root.size)
+        )        
+
         # HEADER
         self.header = HeaderBar()
         self.header.size_hint_y = None
@@ -162,6 +176,7 @@ class SensorMixedModeScreen(Screen):
             self.GS.mixed_selected_buffers.remove(dev_id)
         else:
             self.GS.mixed_selected_buffers.add(dev_id)
+            self.device_modes.setdefault(dev_id, "internal")
         self.update_values()
 
     def update_values(self):
@@ -201,17 +216,32 @@ class SensorMixedModeScreen(Screen):
                         sensor_values[dev_id]["vpd"] = val
 
                 # Temp/Hum/VPD Pfade (internal/external)
-                for src in ("internal", "external"):
-                    vals = ch.get(src, {})
-                    if not isinstance(vals, dict): continue
-                    
-                    for key, obj in vals.items():
-                        if isinstance(obj, dict) and obj.get("value") is not None:
-                            val = float(obj["value"])
-                            k_low = key.lower()
-                            if "temp" in k_low: sensor_values[dev_id]["temp"] = val
-                            elif "hum" in k_low: sensor_values[dev_id]["hum"] = val
-                            elif "vpd" in k_low: sensor_values[dev_id]["vpd"] = val
+                mode = self.device_modes.get(dev_id)
+                
+                if mode and isinstance(ch.get(mode), dict):
+                    vals = ch.get(mode)
+                else:
+                    # Auto-Fallback: nimm was existiert
+                    if isinstance(ch.get("external"), dict):
+                        vals = ch.get("external")
+                        self.device_modes[dev_id] = "external"
+                    elif isinstance(ch.get("internal"), dict):
+                        vals = ch.get("internal")
+                        self.device_modes[dev_id] = "internal"
+                    else:
+                        continue
+                
+                for key, obj in vals.items():
+                    if isinstance(obj, dict) and obj.get("value") is not None:
+                        val = float(obj["value"])
+                        k_low = key.lower()
+                
+                        if "temp" in k_low:
+                            sensor_values[dev_id]["temp"] = val
+                        elif "hum" in k_low:
+                            sensor_values[dev_id]["hum"] = val
+                        elif "vpd" in k_low:
+                            sensor_values[dev_id]["vpd"] = val
 
         # Sammeln für Durchschnitt
         for dev_id, vals in sensor_values.items():
@@ -245,6 +275,15 @@ class SensorMixedModeScreen(Screen):
 
         self.status_label.text = f"Schnitt aus {len(sensor_values)} Geräten"
 
+    def refresh_after_config(self):
+        # 1) ungültige Selektionen killen
+        valid = set(self.GS.get_device_list())
+        self.GS.mixed_selected_buffers &= valid
+    
+        # 2) Buttons neu aufbauen
+        self.rebuild_device_list()
+    def on_pre_enter(self, *_):
+        self.rebuild_device_list()
     def update_from_global(self, d):
         if hasattr(self, "header"):
             self.header.update_from_global(d)

@@ -7,7 +7,9 @@ from kivy.graphics import Color, Rectangle
 from kivy.uix.scrollview import ScrollView
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.ui.i18n import I18N
-
+from kivy.graphics import Rectangle
+from kivy.uix.image import Image
+from kivy.graphics import Rectangle
 import os
 
 # ------------------------------------------------------------
@@ -45,9 +47,27 @@ class SetupMainPanel(BoxLayout):
         self.on_bridge = on_bridge
 
         # Hintergrund
+        
+        
+        # -----------------------------------
+        # Hintergrund mit Fallback
+        # -----------------------------------
+        bg_path = os.path.join(
+            os.path.dirname(__file__),
+            "..", "..", "assets", "background_setup.png"
+        )
+        bg_path = os.path.abspath(bg_path)
+        
         with self.canvas.before:
-            Color(0.08, 0.08, 0.08, 1)
-            self.bg = Rectangle()
+            if os.path.exists(bg_path):
+                self.bg_img = Image(source=bg_path, allow_stretch=True, keep_ratio=False)
+                self.bg = Rectangle(texture=self.bg_img.texture)
+            else:
+                # Fallback: einfache Farbe
+                Color(0.08, 0.08, 0.08, 1)
+                self.bg = Rectangle()
+        
+        # Bind für Resize / Position
         self.bind(size=self._update_bg, pos=self._update_bg)
 
         # --------------------------------------------------------

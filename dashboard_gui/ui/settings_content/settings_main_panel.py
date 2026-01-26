@@ -15,6 +15,11 @@ import time
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 import config
 from dashboard_gui.ui.i18n import I18N
+from kivy.graphics import Rectangle, Color
+from kivy.core.image import Image as CoreImage
+import os
+from kivy.uix.image import Image
+from kivy.graphics import Color, Rectangle
 
 class SettingsMainPanel(BoxLayout):
     def __init__(self, on_save, on_cancel, **kw):
@@ -28,6 +33,26 @@ class SettingsMainPanel(BoxLayout):
         self._lang_clicks = 0
         self._last_lang_ts = 0.0
 
+        # --- Background mit Fallback ---
+        bg_path = os.path.join(
+            os.path.dirname(__file__),
+            "..", "..", "assets", "background_settings.png"
+        )
+        bg_path = os.path.abspath(bg_path)
+
+        with self.canvas.before:
+            
+            
+            if os.path.exists(bg_path):
+                tex = CoreImage(bg_path).texture
+                self.bg = Rectangle(texture=tex, pos=self.pos, size=self.size)
+            else:
+                Color(0.08,0.08,0.08,1)
+                self.bg = Rectangle(pos=self.pos, size=self.size)
+            
+            self.bind(pos=self._update_bg, size=self._update_bg)
+
+        # --- Rest deines bisherigen __init__ ---
         self.cfg = config._init()
         self.inputs = {}
         self.is_dev = config.is_developer_mode()
@@ -41,6 +66,8 @@ class SettingsMainPanel(BoxLayout):
             size_hint_y=None
         )
         container.bind(minimum_height=container.setter("height"))
+
+        # ... der Rest bleibt unverändert ...
 
         # Helper: add slider
         def add_slider(label_text, key, min_v, max_v, step):
@@ -152,7 +179,9 @@ class SettingsMainPanel(BoxLayout):
                 self.inputs[k].value = v
 
 
-
+    def _update_bg(self, *_):
+        self.bg.size = self.size
+        self.bg.pos = self.pos
     def _collect(self):
         out = {k:v.value for k,v in self.inputs.items()}
         out["temperature_unit"] = self.temp_unit

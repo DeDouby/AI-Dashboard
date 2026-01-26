@@ -5,12 +5,14 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
 from kivy.uix.scrollview import ScrollView
+import os
+from kivy.graphics import Rectangle, Color
 import webbrowser
 
 from dashboard_gui.ui.common.header_online import HeaderBar
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.ui.i18n import I18N
-
+ASSET_ROOT = os.path.join("dashboard_gui", "assets")
 
 class AboutScreen(Screen):
     name = "about"
@@ -22,7 +24,18 @@ class AboutScreen(Screen):
         GLOBAL_STATE.attach_about(self)
 
         root = BoxLayout(orientation="vertical")
-
+        with root.canvas.before:
+            Color(1, 1, 1, 1)
+            self.bg_rect = Rectangle(
+                source=os.path.join(ASSET_ROOT, "background_about.png"),
+                pos=root.pos,
+                size=root.size
+            )
+        
+        root.bind(
+            pos=lambda *_: setattr(self.bg_rect, "pos", root.pos),
+            size=lambda *_: setattr(self.bg_rect, "size", root.size)
+        )
         # HEADER
         self.header = HeaderBar()
 

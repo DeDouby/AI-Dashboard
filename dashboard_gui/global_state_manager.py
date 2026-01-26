@@ -33,6 +33,7 @@ class GlobalStateManager:
         self.sensor_mixed_mode_ref = None
         self.mixed_mode_active = False
         self.mixed_selected_buffers = set()
+        self.mixed_device_modes = {}
         # Aktives Gerät (Index)
         self.active_index = 0
         self.active_channel = "adv"
@@ -520,6 +521,8 @@ class GlobalStateManager:
     
         print(f"[GSM] gatt_config.json geschrieben für {device_id}")
 
+
+    ###### Mixed Mode 
     def set_mixed_mode(self, state: bool):
         self.mixed_mode_active = state
     
@@ -528,6 +531,15 @@ class GlobalStateManager:
             self.mixed_selected_buffers.remove(buf_key)
         else:
             self.mixed_selected_buffers.add(buf_key)
+
+
+    def get_mixed_mode(self, dev_id):
+        return self.mixed_device_modes.get(str(dev_id), "mixed")
+    
+    def set_mixed_mode_for_device(self, dev_id, mode):
+        self.mixed_device_modes[str(dev_id)] = mode
+
+
     # ---------------------------------------------------------
     # APPLY NEW CONFIG – globaler Refresh
     # ---------------------------------------------------------
@@ -569,7 +581,8 @@ class GlobalStateManager:
             "device_picker",
             "debug",
             "filemanager",
-            "setup"
+            "setup",
+            "sensor_mixed_mode",
         ]:
             try:
                 scr = sm.get_screen(screen_name)
