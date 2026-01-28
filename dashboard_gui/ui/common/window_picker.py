@@ -29,7 +29,7 @@ class WindowPicker(FloatLayout):
         # -----------------------------
         # 2) Panel für Buttons
         # -----------------------------
-        w, h = dp(160), dp(220)
+        w, h = dp(200), dp(280)
         self.panel = BoxLayout(
             orientation="vertical",
             size_hint=(None, None),
@@ -53,22 +53,22 @@ class WindowPicker(FloatLayout):
         # -----------------------------
         entries = [
             ("menu.vpd_scatter", lambda: setattr(sm, "current", "vpd_scatter")),
-            ("menu.setup",       lambda: setattr(sm, "current", "setup")),
-            ("menu.settings",    lambda: setattr(sm, "current", "settings")),
+            ("menu.sensor_mixed_mode", lambda: setattr(sm, "current", "sensor_mixed_mode")),
         ]
 
         if dev:
             entries += [
                 ("menu.debug",  lambda: setattr(sm, "current", "debug")),
-                ("menu.csv",    lambda: setattr(sm, "current", "csv_viewer")),
-                ("menu.camera", lambda: setattr(sm, "current", "cam_viewer")),
             ]
 
         entries += [
+            ("menu.camera", lambda: setattr(sm, "current", "cam_viewer")),
+            ("menu.grow_rooms", lambda: setattr(sm, "current", "grow_rooms")),
+            ("menu.csv",    lambda: setattr(sm, "current", "csv_viewer")),  
             ("menu.devices", lambda: setattr(sm, "current", "device_picker")),
-            ("menu.sensor_mixed_mode", lambda: setattr(sm, "current", "sensor_mixed_mode")),
+            ("menu.settings",    lambda: setattr(sm, "current", "settings")),
+            ("menu.setup",       lambda: setattr(sm, "current", "setup")),
             ("menu.about",   lambda: setattr(sm, "current", "about")),
-            
         ]
 
         # -----------------------------
@@ -83,8 +83,8 @@ class WindowPicker(FloatLayout):
             "menu.camera":              "\uf030",   # fa-camera
             "menu.devices":             "\uf2c7",   # fa-desktop / device
             "menu.sensor_mixed_mode":   "\uf1de", # ✅ sliders-h
-            "menu.about":                "\uf05a",   # fa-info-circle
-            
+            "menu.about":               "\uf05a",   # fa-info-circle
+            "menu.grow_rooms":          "\uf015", # fa-home / grow room symbol
         }
         
         for label, cb in entries:

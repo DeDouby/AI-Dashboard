@@ -218,6 +218,8 @@ class GlobalStateManager:
         self.device_picker_ref = scr
     def attach_sensor_mixed_mode(self, scr):
         self.sensor_mixed_mode_ref = scr
+    def attach_grow_rooms(self, scr):
+        self.grow_rooms_ref = scr
     # ---------------------------------------------------------
     # LED Helpers
     # ---------------------------------------------------------
@@ -244,6 +246,9 @@ class GlobalStateManager:
             self.device_picker_ref.header.set_led(self.led_state)
         if self.sensor_mixed_mode_ref:
             self.sensor_mixed_mode_ref.header.set_led(self.led_state)
+        if self.grow_rooms_ref:                # 🔥 NEU: GrowRooms exakt wie alle anderen
+            self.grow_rooms_ref.header.set_led(self.led_state)
+
     def _led_offline(self):
         self.led_state = {"alive": False, "status": "offline"}
         self._push_led()
@@ -415,6 +420,8 @@ class GlobalStateManager:
             self.device_picker_ref.update_from_global(out)
         if self.sensor_mixed_mode_ref:
             self.sensor_mixed_mode_ref.update_from_global(out)
+        if self.grow_rooms_ref: # 🔥 NEU: GrowRooms update_from_global
+            self.grow_rooms_ref.update_from_global(out)
     # ---------------------------------------------------------
     # Active Keys – MULTI-CHANNEL (adv + gatt, ohne Vorrang)
     # ---------------------------------------------------------
@@ -583,6 +590,7 @@ class GlobalStateManager:
             "filemanager",
             "setup",
             "sensor_mixed_mode",
+            "grow_rooms",
         ]:
             try:
                 scr = sm.get_screen(screen_name)

@@ -248,15 +248,25 @@ class HeaderBar(BoxLayout):
         self.btn_back.size_hint_x = None
         self.btn_back.bind(on_release=lambda *_: self._go_back())
 
-
         # LOGO
-        logo = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "Logo.png")
-        self.device_icon = Image(source=logo, size_hint=(None, 1))
-        self.device_icon.width = dp_scaled(30)
-
+        logo = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "logo.png")
+        self.device_icon = Image(
+            source=logo,
+            size_hint=(None, None),   # absolute Größe
+            allow_stretch=True,
+            keep_ratio=True
+        )
+        self.device_icon.height = self.height
+        
+        # Logo an Header-Höhe binden
+        def _update_logo_size(*_):
+            self.device_icon.height = self.height
+            # Breite proportional, automatisch wegen keep_ratio
+        self.bind(height=_update_logo_size)
+        
         # TEXT & ICONS
         self.lbl_title = Label(
-            text="Mano Verde Panel",
+            text="Living Grow Sensors",
             font_size=sp_scaled(22),
             halign="left",
             size_hint=(0.28, 1)

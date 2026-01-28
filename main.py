@@ -26,6 +26,7 @@ from dashboard_gui.ui.cam_viewer_content.cam_viewer_screen import CamViewerScree
 from dashboard_gui.ui.about_content.about_screen import AboutScreen
 from dashboard_gui.ui.vpd_scatter_screen_content.vpd_scatter_screen import VPDScatterScreen
 from dashboard_gui.ui.sensor_mixed_mode_content.sensor_mixed_mode import SensorMixedModeScreen
+from dashboard_gui.ui.grow_rooms_content.grow_room_screen import GrowRoomScreen
 from dashboard_gui.ui.i18n import I18N
 
 import core
@@ -78,6 +79,7 @@ class DashboardApp(App):
         sm.add_widget(AboutScreen(name="about"))
         sm.add_widget(VPDScatterScreen(name="vpd_scatter"))
         sm.add_widget(SensorMixedModeScreen(name="sensor_mixed_mode"))
+        sm.add_widget(GrowRoomScreen(name="grow_rooms"))
         return sm
 
     # Core starten nach UI-Init

@@ -1,6 +1,6 @@
 [app]
-title = ManoVerde Panel
-package.name = manoverde
+title = Living Sensors
+package.name = livingsensor
 package.domain = org.hackintosh1980
 
 source.include_exts = py,kv,png,jpg,json,ttf

@@ -41,16 +41,16 @@ class I18N:
             "menu.camera": "Camera",
             "menu.devices": "Devices",
             "menu.about": "About",
-
+            "menu.grow_rooms": "Grow-Room",
             # --- About Screen ---
-            "about.version": "ManoVerde Panel 1.24",
+            "about.version": "LivingGrowSensors 1.24",
             "about.description": (
-                "Manoverde is a monitoring and analysis system for Bluetooth Low Energy (BLE) sensors.\n\n"
+                "LivingGrowSensors is a monitoring and analysis system for Bluetooth Low Energy (BLE) sensors.\n\n"
                 "It unifies data from different manufacturers and protocols (ADV, GATT, hybrid devices) "
                 "into a single, consistent model.\n\n"
                 "Focus is on real-time signals, explicit control, and transparent configuration — "
                 "no hidden automations.\n\n"
-                "Manoverde interprets devices as they behave, without forcing simplified abstractions.\n\n"
+                "LivingGrowSensors interprets devices as they behave, without forcing simplified abstractions.\n\n"
                 "Bluetooth is required to detect and read sensors. "
                 "Please enable it and grant requested permissions."
             ),
@@ -90,17 +90,18 @@ class I18N:
             "menu.camera": "Cámara",
             "menu.devices": "Dispositivos",
             "menu.about": "Acerca de",
-
+             "menu.grow_rooms": "Grow-Rooms",
+           
             # --- About Screen ---
-            "about.version": "Panel ManoVerde 1.24",
+            "about.version": "LivingGrowSensors 1.24",
             "about.description": (
-                "Manoverde es un sistema de monitorización y análisis para sensores "
+                "LivingGrowSensors es un sistema de monitorización y análisis para sensores "
                 "Bluetooth Low Energy (BLE).\n\n"
                 "Unifica datos de diferentes fabricantes y protocolos (ADV, GATT, dispositivos híbridos) "
                 "en un modelo único y consistente.\n\n"
                 "Se centra en señales en tiempo real, control explícito y configuración transparente — "
                 "sin automatizaciones ocultas.\n\n"
-                "Manoverde interpreta los dispositivos tal como se comportan, "
+                "LivingGrowSensorsinterpreta los dispositivos tal como se comportan, "
                 "sin forzarlos a abstracciones simplificadas.\n\n"
                 "Bluetooth es necesario para detectar y leer los sensores. "
                 "Actívalo y concede los permisos solicitados."
@@ -142,16 +143,17 @@ class I18N:
             "menu.camera": "Kamera",
             "menu.devices": "Geräte",
             "menu.about": "Über",
+            "menu.grow_rooms": "Grow-Rooms",
 
             # --- About Screen ---
-            "about.version": "ManoVerde Panel 1.24",
+            "about.version": "LivingGrowSensors 1.24",
             "about.description": (
-                "Manoverde ist ein Überwachungs- und Analysesystem für Bluetooth Low Energy (BLE)-Sensoren.\n\n"
+                "LivingGrowSensors ist ein Überwachungs- und Analysesystem für Bluetooth Low Energy (BLE)-Sensoren.\n\n"
                 "Es vereint Daten von verschiedenen Herstellern und Protokollen (ADV, GATT, hybride Geräte) "
                 "in einem einheitlichen, konsistenten Modell.\n\n"
                 "Fokus liegt auf Echtzeitsignalen, expliziter Steuerung und transparenter Konfiguration — "
                 "keine versteckten Automatismen.\n\n"
-                "Manoverde interpretiert Geräte so, wie sie sich verhalten, "
+                "LivingGrowSensors interpretiert Geräte so, wie sie sich verhalten, "
                 "ohne sie in vereinfachte Abstraktionen zu zwingen.\n\n"
                 "Bluetooth ist erforderlich, um Sensoren zu erkennen und auszulesen. "
                 "Bitte aktiviere es und gewähre die angeforderten Berechtigungen."

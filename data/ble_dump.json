@@ -1,68 +1,28 @@
 [
   {
-    "timestamp": "2026-01-26T23:08:37.052+0000",
+    "timestamp": "2026-01-28T00:10:27.633+0000",
+    "name": "TP351S (987A)",
+    "address": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
+    "rssi": -68,
+    "adv_raw": "C2D2002F213301",
+    "gat_raw": null,
+    "log_raw": "C2D2002F213301",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-28T00:12:40.468+0000",
     "name": "sps",
     "address": "C898B4F2-B452-7502-1A67-0536E77D49EA",
-    "rssi": -78,
-    "adv_raw": "6608231700D0524D08",
+    "rssi": -76,
+    "adv_raw": "6308841300AF714E08",
     "gat_raw": null,
-    "log_raw": "6608231700D0524D08",
+    "log_raw": "6308841300AF714E08",
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-26T22:00:09.033+0000",
+    "timestamp": "2026-01-27T21:14:28.557+0000",
     "name": "(unknown)",
-    "address": "5F94F4B4-7B00-0AF0-7758-EA8D1E53D830",
-    "rssi": -73,
-    "adv_raw": "",
-    "gat_raw": null,
-    "log_raw": "",
-    "note": "raw"
-  },
-  {
-    "timestamp": "2026-01-26T23:08:34.354+0000",
-    "name": "ThermoBeacon2",
-    "address": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
-    "rssi": -62,
-    "adv_raw": "190019060000F1F05411580182035201BD03588D0200",
-    "gat_raw": null,
-    "log_raw": "190019060000F1F05411580182035201BD03588D0200",
-    "note": "raw"
-  },
-  {
-    "timestamp": "2026-01-26T22:04:02.440+0000",
-    "name": "(unknown)",
-    "address": "D17B83CA-ACAE-AFBB-A860-C07072FE3B72",
-    "rssi": -74,
-    "adv_raw": "",
-    "gat_raw": null,
-    "log_raw": "",
-    "note": "raw"
-  },
-  {
-    "timestamp": "2026-01-26T22:04:39.971+0000",
-    "name": "(unknown)",
-    "address": "6276C26B-F733-952E-411D-ACCCA2FAA65A",
-    "rssi": -63,
-    "adv_raw": "",
-    "gat_raw": null,
-    "log_raw": "",
-    "note": "raw"
-  },
-  {
-    "timestamp": "2026-01-26T22:05:55.674+0000",
-    "name": "(unknown)",
-    "address": "FDAEF4FF-973F-503E-F111-FBFF5D652228",
-    "rssi": -72,
-    "adv_raw": "",
-    "gat_raw": null,
-    "log_raw": "",
-    "note": "raw"
-  },
-  {
-    "timestamp": "2026-01-26T22:19:55.987+0000",
-    "name": "(unknown)",
-    "address": "B60B62B3-5D80-EA82-C964-ABF43F83A984",
+    "address": "E36E5DA1-75EA-CB83-582A-28FFDCBE9EFA",
     "rssi": -79,
     "adv_raw": "",
     "gat_raw": null,
@@ -70,19 +30,99 @@
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-26T22:34:21.241+0000",
+    "timestamp": "2026-01-27T21:25:08.846+0000",
     "name": "(unknown)",
-    "address": "F5D3693A-DAD4-A2BC-5A73-7D7C6BDDB9B1",
-    "rssi": -75,
+    "address": "EB4C7A98-CBE6-0E70-356A-6118572B558A",
+    "rssi": -57,
     "adv_raw": "",
     "gat_raw": null,
     "log_raw": "",
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-26T22:34:37.442+0000",
+    "timestamp": "2026-01-27T21:14:34.031+0000",
     "name": "(unknown)",
-    "address": "4B17446C-B519-64A3-6C3D-4C52B0320B9B",
+    "address": "A36E257C-3AC8-0FD4-E148-1D228D87A00E",
+    "rssi": -52,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-28T00:12:40.153+0000",
+    "name": "ThermoBeacon2",
+    "address": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
+    "rssi": -65,
+    "adv_raw": "190019060000F1F051115101160350013403E3ED0300",
+    "gat_raw": null,
+    "log_raw": "190019060000F1F051115101160350013403E3ED0300",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-27T21:29:19.416+0000",
+    "name": "(unknown)",
+    "address": "8F11884B-05CE-8165-4007-099D7DD480CD",
+    "rssi": -58,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-27T21:29:54.418+0000",
+    "name": "(unknown)",
+    "address": "CA8C620C-A85A-94EF-BA4F-A0CAFB77DADE",
+    "rssi": -60,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-27T21:29:55.928+0000",
+    "name": "(unknown)",
+    "address": "27F03A4E-A530-7CF8-2C6A-A2B2631426EC",
+    "rssi": -63,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-27T21:39:53.974+0000",
+    "name": "(unknown)",
+    "address": "F02C023D-8D0C-5468-E063-425B47D9717B",
+    "rssi": -77,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-27T21:48:06.715+0000",
+    "name": "(unknown)",
+    "address": "4972AAFC-1832-38E8-75B0-DE64E25C4D45",
+    "rssi": -79,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-27T21:51:11.064+0000",
+    "name": "(unknown)",
+    "address": "A4465F9C-CBD7-A1D4-0F64-91B7E4FCB43F",
+    "rssi": -71,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-27T21:51:12.599+0000",
+    "name": "(unknown)",
+    "address": "4795A9FB-6203-E86B-1038-A7FA1DEEA04B",
     "rssi": -62,
     "adv_raw": "",
     "gat_raw": null,
@@ -90,59 +130,19 @@
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-26T22:44:31.918+0000",
+    "timestamp": "2026-01-27T22:03:00.577+0000",
     "name": "(unknown)",
-    "address": "B2FF924C-E2DA-4A8A-B7D2-07F739738F54",
-    "rssi": -73,
+    "address": "CDEBEAAF-C9BC-7D73-C8E7-1321130AFBC2",
+    "rssi": -55,
     "adv_raw": "",
     "gat_raw": null,
     "log_raw": "",
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-26T22:46:21.128+0000",
+    "timestamp": "2026-01-27T22:03:05.179+0000",
     "name": "(unknown)",
-    "address": "97E61D82-A182-71D8-0E0F-84A67CA19A6B",
-    "rssi": -85,
-    "adv_raw": "",
-    "gat_raw": null,
-    "log_raw": "",
-    "note": "raw"
-  },
-  {
-    "timestamp": "2026-01-26T22:53:18.241+0000",
-    "name": "(unknown)",
-    "address": "7AAD724D-EEF2-F10A-56E7-9B2E211788E6",
-    "rssi": -83,
-    "adv_raw": "",
-    "gat_raw": null,
-    "log_raw": "",
-    "note": "raw"
-  },
-  {
-    "timestamp": "2026-01-26T23:05:08.106+0000",
-    "name": "(unknown)",
-    "address": "2FD35B86-3B6D-3640-D2FF-049D0956DBF6",
-    "rssi": -56,
-    "adv_raw": "",
-    "gat_raw": null,
-    "log_raw": "",
-    "note": "raw"
-  },
-  {
-    "timestamp": "2026-01-26T23:05:01.786+0000",
-    "name": "TP351S (987A)",
-    "address": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
-    "rssi": -73,
-    "adv_raw": "C2D30039213301",
-    "gat_raw": null,
-    "log_raw": "C2D30039213301",
-    "note": "raw"
-  },
-  {
-    "timestamp": "2026-01-26T23:06:25.771+0000",
-    "name": "(unknown)",
-    "address": "F0E92D8E-F4C9-B0AE-EB65-0126CE6643B8",
+    "address": "4FC51E5D-6051-72E8-41AB-AD30CD3F14E3",
     "rssi": -61,
     "adv_raw": "",
     "gat_raw": null,
@@ -150,10 +150,120 @@
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-26T23:08:32.421+0000",
+    "timestamp": "2026-01-27T22:09:51.149+0000",
     "name": "(unknown)",
-    "address": "B76A0E13-8425-EA02-E845-027DD35D1CDB",
-    "rssi": -63,
+    "address": "545D1740-7354-E4B8-5F1D-4A434BF254CB",
+    "rssi": -82,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-27T22:20:08.780+0000",
+    "name": "(unknown)",
+    "address": "1F241090-AD17-3BD7-8259-F84B2B6A52B4",
+    "rssi": -60,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-27T22:23:05.865+0000",
+    "name": "(unknown)",
+    "address": "805E1DED-DA59-B8CF-D69F-17BDC8A41AE6",
+    "rssi": -62,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-27T22:23:07.397+0000",
+    "name": "(unknown)",
+    "address": "78E82923-533B-CD9C-DC68-00C2A6F5DC23",
+    "rssi": -67,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-27T22:32:10.432+0000",
+    "name": "(unknown)",
+    "address": "C64F40F5-71FC-D372-5CE8-BAFD613C600F",
+    "rssi": -73,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-27T23:25:53.007+0000",
+    "name": "(unknown)",
+    "address": "777A6E08-71C4-F635-2456-756BB318E2C1",
+    "rssi": -75,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-27T23:38:15.010+0000",
+    "name": "(unknown)",
+    "address": "6A036170-D4A8-C37E-7BC8-9C15C3A9E8FF",
+    "rssi": -60,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-27T23:50:08.103+0000",
+    "name": "(unknown)",
+    "address": "4A88401A-6B34-1199-1AC1-556197645D74",
+    "rssi": -58,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-27T23:53:03.928+0000",
+    "name": "(unknown)",
+    "address": "1FB82FBB-360D-F291-F4D0-76E0FD7B2B2E",
+    "rssi": -65,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-28T00:05:08.142+0000",
+    "name": "(unknown)",
+    "address": "557466A3-A760-1234-E4D3-2FC03DEDAE96",
+    "rssi": -59,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-28T00:08:05.048+0000",
+    "name": "(unknown)",
+    "address": "C78B76DA-F731-D028-44A4-698250E7D4F8",
+    "rssi": -59,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-28T00:12:43.474+0000",
+    "name": "(unknown)",
+    "address": "EF2B59EB-E4DA-BC91-F193-1EA4B2ECAAA0",
+    "rssi": -55,
     "adv_raw": "",
     "gat_raw": null,
     "log_raw": "",
