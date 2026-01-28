@@ -14,9 +14,13 @@ from dashboard_gui.ui.cam_viewer_content.cam_player_widget import CamPlayerWidge
 DEFAULT_RTSP_PORT = 554
 DEFAULT_LIVE_PATH = "stream1"
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(_ROOT)), "data")
-CAM_CFG = os.path.join(DATA_DIR, "cam_config.json")
+import os, json, subprocess, threading, shutil
+from kivy.utils import platform
+
+import config
+import os
+
+CAM_CFG = os.path.join(config.DATA, "cam_config.json")
 
 
 def _which(x): return shutil.which(x)
@@ -87,7 +91,7 @@ class CamViewerPanel(BoxLayout):
     # -----------------------------------------------------
 
     def _load(self):
-        os.makedirs(DATA_DIR, exist_ok=True)
+        os.makedirs(config.DATA, exist_ok=True)
         if not os.path.exists(CAM_CFG):
             return {}
         try:
@@ -96,13 +100,13 @@ class CamViewerPanel(BoxLayout):
             return {}
 
     def _save(self):
-        os.makedirs(DATA_DIR, exist_ok=True)
-        json.dump({
-            "ip": self.inp_ip.text.strip(),
-            "user": self.inp_user.text.strip(),
-            "pwd": self.inp_pwd.text.strip(),
-        }, open(CAM_CFG,"w"), indent=2)
-
+        os.makedirs(os.path.dirname(CAM_CFG), exist_ok=True)
+        with open(CAM_CFG, "w", encoding="utf-8") as f:
+            json.dump({
+                "ip": self.inp_ip.text.strip(),
+                "user": self.inp_user.text.strip(),
+                "pwd": self.inp_pwd.text.strip(),
+            }, f, indent=2, ensure_ascii=False)
     # -----------------------------------------------------
 
     def _log(self, msg):
