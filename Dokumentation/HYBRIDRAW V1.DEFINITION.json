@@ -1,0 +1,169 @@
+Ja. Klar, ruhig, präzise, ohne neue Ideen.
+Ich extrahiere dir GENAU das HYBRID_RAW_V1, so wie es JETZT real in der Bridge gebaut wird – nicht interpretiert, nicht verschönert.
+
+Ich nehme die letzte funktionierende Bridge, konkret diese Funktion:
+
+private static String buildPseudoAdvRaw(String mac, byte[] payload)
+
+und extrahiere das effektive Frame.
+
+
+---
+
+📦 HYBRID_RAW_V1 – Ist-Zustand aus der Bridge
+
+🔒 Status
+
+Eingefroren – exakt so produziert die Bridge es aktuell.
+
+
+---
+
+🧱 Byte-Layout (absolut, fix)
+
+[0–1]   COMPANY_ID        uint16  little-endian
+[2–13]  DEVICE_ID        6 bytes MAC ohne ":" (12 hex chars)
+[14–15] SKIP             2 bytes immer 0x0000
+[16]    PACKET_COUNTER   uint8   rollend (0–255)
+[17–…]  PAYLOAD          raw GATT payload (opaque)
+
+
+---
+
+🔍 Detailbeschreibung Feld für Feld
+
+1️⃣ COMPANY_ID
+
+Quelle: COMPANY_ID
+
+Endian: little-endian
+
+Beispiel:
+
+0x0019 → 19 00
+
+
+
+String cidLe = String.format("%02X%02X",
+    (cid & 0xFF),
+    ((cid >> 8) & 0xFF)
+);
+
+➡️ Decoder erwartet LE, immer.
+
+
+---
+
+2️⃣ DEVICE_ID (MAC)
+
+Quelle: BluetoothDevice.getAddress()
+
+Format: MAC ohne Doppelpunkte
+
+Länge: exakt 6 Bytes / 12 Hex-Zeichen
+
+
+String macHex = mac.replace(":", "");
+
+Beispiel:
+
+E7:86:CB:B9:98:7A → E786CBB9987A
+
+➡️ Keine Verkürzung, kein Hashing, kein Mapping.
+
+
+---
+
+3️⃣ SKIP
+
+Länge: 2 Bytes
+
+Wert: immer 00 00
+
+Bedeutung: strukturelles Padding / Legacy-Kompatibilität
+
+
+String skip = "0000";
+
+➡️ Decoder muss diese Bytes überspringen.
+
+
+---
+
+4️⃣ PACKET_COUNTER
+
+Länge: 1 Byte
+
+Quelle: globaler Counter
+
+Verhalten: rollend 0x00 → 0xFF → 0x00
+
+
+gattCounter = (gattCounter + 1) & 0xFF;
+String pkt = String.format("%02X", gattCounter);
+
+➡️ Nicht zeitbasiert, nicht device-basiert.
+
+
+---
+
+5️⃣ PAYLOAD
+
+Quelle: BluetoothGattCharacteristic.getValue()
+
+Format: roh, unverändert
+
+Interpretation: ausschließlich Decoder-Sache
+
+
+String pay = toHex(payload);
+
+➡️ Bridge fasst Payload niemals an.
+
+
+---
+
+🧪 Gesamtkonstruktion (1:1)
+
+HYBRID_RAW_V1 =
+    COMPANY_ID_LE
+  + DEVICE_ID
+  + SKIP
+  + PACKET_COUNTER
+  + PAYLOAD
+
+
+---
+
+📌 Wichtige Invarianten (Doku-reif)
+
+❌ Kein ADV
+
+❌ Kein echtes GATT
+
+❌ Kein Vendor-Frame
+
+✔ Kanonisches Transportformat
+
+✔ Decoder-Eingang
+
+✔ Quelle egal (ADV / GATT / was auch immer)
+
+
+
+---
+
+🧠 Entscheidender Satz (bitte fett in die Doku)
+
+> HYBRID_RAW_V1 darf sich niemals ändern.
+Jede Änderung erzeugt eine neue Version.
+
+
+
+
+---
+
+Wenn du willst, gebe ich dir das als fertige HYBRID_RAW_V1.md,
+oder als JSON-Schema, oder als Decoder-Checkliste.
+
+Sag nur welches Format du speichern willst.

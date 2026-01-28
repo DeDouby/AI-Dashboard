@@ -1,6 +1,6 @@
 [
   {
-    "timestamp": 1769559126.858918,
+    "timestamp": 1769561044.097582,
     "device_id": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
     "name": null,
     "adv": {
@@ -109,9 +109,9 @@
         }
       }
     },
-    "bridge_alive": true,
-    "bridge_status": "OK",
-    "bridge_last_seen": 0.0,
+    "bridge_alive": false,
+    "bridge_status": "STALE",
+    "bridge_last_seen": 22.05131697654724,
     "alive": false,
     "status": "offline",
     "health": {
@@ -131,21 +131,21 @@
     }
   },
   {
-    "timestamp": "2026-01-28T00:11:55.344+0000",
+    "timestamp": 1769561044.097582,
     "device_id": "C898B4F2-B452-7502-1A67-0536E77D49EA",
-    "name": "sps",
+    "name": null,
     "adv": {
-      "alive": true,
-      "status": "active",
+      "alive": false,
+      "status": "offline",
       "packet_counter": null,
-      "raw": "63088713005F714E08",
+      "raw": null,
       "internal": {
         "temperature": {
-          "value": 21.47,
+          "value": null,
           "unit": "\u00b0C"
         },
         "humidity": {
-          "value": 46.99,
+          "value": null,
           "unit": "%"
         }
       },
@@ -161,7 +161,7 @@
         }
       },
       "vpd_internal": {
-        "value": 1.237,
+        "value": null,
         "unit": "kPa"
       },
       "vpd_external": {
@@ -169,7 +169,7 @@
         "unit": "kPa"
       },
       "dew_point_internal": {
-        "value": 9.68,
+        "value": null,
         "unit": "\u00b0C"
       },
       "dew_point_external": {
@@ -178,8 +178,8 @@
       },
       "coord": {
         "internal": {
-          "x": 46.99,
-          "y": 19.97
+          "x": null,
+          "y": null
         },
         "external": {
           "x": null,
@@ -240,14 +240,14 @@
         }
       }
     },
-    "bridge_alive": true,
-    "bridge_status": "OK",
-    "bridge_last_seen": 0.0,
-    "alive": true,
-    "status": "active",
+    "bridge_alive": false,
+    "bridge_status": "STALE",
+    "bridge_last_seen": 22.05131697654724,
+    "alive": false,
+    "status": "offline",
     "health": {
       "uptime": {
-        "value": 126.99504899978638,
+        "value": null,
         "unit": "s"
       },
       "battery": {
@@ -256,65 +256,65 @@
         "voltage": null
       },
       "signal": {
-        "rssi": -75,
+        "rssi": null,
         "quality": null
       }
     }
   },
   {
-    "timestamp": "2026-01-28T00:12:01.184+0000",
+    "timestamp": 1769561044.097582,
     "device_id": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
-    "name": "ThermoBeacon2",
+    "name": null,
     "adv": {
-      "alive": true,
-      "status": "active",
+      "alive": false,
+      "status": "offline",
       "packet_counter": null,
-      "raw": "190019060000F1F04D115101160350013603BCED0300",
+      "raw": null,
       "internal": {
         "temperature": {
-          "value": 21.0625,
+          "value": null,
           "unit": "\u00b0C"
         },
         "humidity": {
-          "value": 46.375,
+          "value": null,
           "unit": "%"
         }
       },
       "external": {
-        "present": true,
+        "present": false,
         "temperature": {
-          "value": 21.0,
+          "value": null,
           "unit": "\u00b0C"
         },
         "humidity": {
-          "value": 48.375,
+          "value": null,
           "unit": "%"
         }
       },
       "vpd_internal": {
-        "value": 1.22,
+        "value": null,
         "unit": "kPa"
       },
       "vpd_external": {
-        "value": 1.17,
+        "value": null,
         "unit": "kPa"
       },
       "dew_point_internal": {
-        "value": 9.11,
+        "value": null,
         "unit": "\u00b0C"
       },
       "dew_point_external": {
-        "value": 9.68,
+        "value": null,
         "unit": "\u00b0C"
       },
       "coord": {
         "internal": {
-          "x": 46.375,
-          "y": 19.5625
+          "x": null,
+          "y": null
         },
         "external": {
-          "x": 48.375,
-          "y": 19.5
+          "x": null,
+          "y": null
         }
       }
     },
@@ -371,14 +371,14 @@
         }
       }
     },
-    "bridge_alive": true,
-    "bridge_status": "OK",
-    "bridge_last_seen": 0.0,
-    "alive": true,
-    "status": "active",
+    "bridge_alive": false,
+    "bridge_status": "STALE",
+    "bridge_last_seen": 22.05131697654724,
+    "alive": false,
+    "status": "offline",
     "health": {
       "uptime": {
-        "value": 126.99504899978638,
+        "value": null,
         "unit": "s"
       },
       "battery": {
@@ -387,7 +387,7 @@
         "voltage": null
       },
       "signal": {
-        "rssi": -69,
+        "rssi": null,
         "quality": null
       }
     }

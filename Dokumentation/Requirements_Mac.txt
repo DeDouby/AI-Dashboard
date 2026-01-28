@@ -1,0 +1,124 @@
+Perfekt — dann mache ich dir zwei absolut saubere, minimalistische und 100 % passende requirements-Sets, sobald du mir die VM-venv gibst.
+
+Damit du aber sofort eine Grundlage hast, bekommst du jetzt schon die optimalen Requirements für macOS, basierend auf deiner geposteten Liste und deinem realen Projekt-Setup.
+
+
+---
+
+✅ Requirements für macOS – „Dashboard Runtime“ (sauber & minimal)
+
+Ziel:
+Nur das, was das Dashboard wirklich braucht:
+
+GUI (Kivy)
+
+Graphen
+
+CoreBluetooth (über PyObjC)
+
+PNG/JPG usw.
+
+Optionale Desktop-Bridge
+
+Keine Buildozer-Abhängigkeiten
+
+Kein vollständiges BLE per bleak
+
+Kein Matplotlib-Ballast
+
+
+📄 requirements-mac.txt
+
+Kivy==2.3.1
+Kivy-Garden==0.1.5
+kivy-garden.graph==0.4.0
+
+pillow==12.0.0
+
+# Apple BLE (CoreBluetooth)
+pyobjc-core==12.0
+pyobjc-framework-Cocoa==12.0
+pyobjc-framework-CoreBluetooth==12.0
+pyobjc-framework-libdispatch==12.0
+
+# HTTP / Utilities
+requests==2.32.5
+certifi==2025.11.12
+charset-normalizer==3.4.4
+idna==3.11
+urllib3==2.5.0
+six==1.17.0
+packaging==25.0
+platformdirs==4.5.0
+
+❗Was hier bewusst fehlt:
+
+buildozer
+
+cython
+
+pyjnius
+
+bleak
+
+matplotlib + numpy
+
+pyinstaller
+
+psutil (optional, du nutzt es selten)
+
+
+Dieser File garantiert dir:
+👉 Mac-Dashboard läuft supersauber, leicht, schnell, ohne Buildozer-Müll.
+
+
+---
+
+🔜 Requirements für das Linux-VM-System (Buildozer / p4a)
+
+Sobald du mir deine pip freeze aus der Linux-VM gibst, mache ich dir:
+
+📄 requirements-android-build.txt
+
+exakt für Buildozer optimiert
+
+ohne PyObjC
+
+mit pyjnius
+
+mit den passenden Kivy-Versionen
+
+optional mit bleak wenn du es fürs Debug brauchst
+
+hochstabil für arm64 builds
+
+
+Und dazu kann ich:
+✔ Build-Empfehlungen
+✔ Setup-Empfehlungen für Python-Version
+✔ p4a-Patch oder Fixes
+✔ richtige Reihenfolge im Setup
+
+
+---
+
+Wenn du willst:
+
+Ich kann dir auch
+requirements-mac.txt → als GENAU deine aktuelle venv bereinigt
+oder
+requirements-mac-development.txt → mit Debug-Tools usw.
+
+Sag einfach Runtime oder Development.
+
+
+---
+
+Bereit, wenn du bereit bist
+
+➡ Schick einfach pip freeze aus der VM, und ich baue dir dein zweites File.
+Dann hast du deine ultimative 2-Umgebungen-Trennung:
+Mac = Dashboard
+VM = Android Build Engineering.
+
+So arbeitet man wie ein Profi-Team.

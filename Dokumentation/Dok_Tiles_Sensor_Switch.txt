@@ -1,0 +1,314 @@
+Genau da sitzt die Magie – lass uns das einmal sauber aufdröseln, wie Tiles, Fullscreen und GSM zusammenhängen, und warum „1 Sensorwert = 1 Tile“ so brutal flexibel ist.
+
+Ich fasse das in drei Ebenen:
+
+1. Datenseite (Frame / GSM)
+
+
+2. Tiles im Dashboard
+
+
+3. Fullscreen umschalten
+
+
+
+
+---
+
+1. Datenseite – was GSM pro Tick liefert
+
+Der GlobalStateManager bekommt pro Tick genau EIN Frame für das aktuell aktive Gerät:
+
+{
+    "device_id": "AA:BB:CC:00:30:02",
+    "internal": {
+        "temperature": {"value": 24.3, "unit": "°C"},
+        "humidity":    {"value": 55.0, "unit": "%"},
+    },
+    "external": {
+        "present": True,
+        "temperature": {"value": 21.0, "unit": "°C"},
+        "humidity":    {"value": 60.0, "unit": "%"},
+    },
+    "vpd_internal": {"value": 1.2, "unit": "kPa"},
+    "vpd_external": {"value": 0.9, "unit": "kPa"},
+    "alive": True,
+    "status": "active",
+    ...
+    "_active_keys": ["temp_in", "hum_in", "vpd_in", "temp_ex", "hum_ex", "vpd_ex"]
+}
+
+Wichtig dabei:
+
+GSM baut _active_keys:
+
+def extract_active_keys(self, d):
+    active = []
+    if d["internal"]["temperature"]["value"] is not None:
+        active.append("temp_in")
+    if d["internal"]["humidity"]["value"] is not None:
+        active.append("hum_in")
+    if d["vpd_internal"]["value"] is not None:
+        active.append("vpd_in")
+
+    if d["external"]["present"]:
+        if d["external"]["temperature"]["value"] is not None:
+            active.append("temp_ex")
+        if d["external"]["humidity"]["value"] is not None:
+            active.append("hum_ex")
+        if d["vpd_external"]["value"] is not None:
+            active.append("vpd_ex")
+
+    return active
+
+Das ist schon der erste Flex-Punkt:
+
+Gerät ohne Außensensor → keine temp_ex, hum_ex, vpd_ex in _active_keys.
+
+Gerät ohne VPD → keine vpd-Keys.
+
+Künftige Sensoren (z.B. Leaf-Temp, Battery, Bodenfeuchte) → einfach neue Keys definieren (z.B. "leaf", "soil") und Tiles, die diese Keys verstehen.
+
+
+
+Der GSM ist also die einzige Instanz, die entscheidet:
+
+Welche Sensorwerte existieren?
+
+Welche davon sind „aktiv“?
+
+
+Und nur das geht weiter an Dashboard & Fullscreen.
+
+
+---
+
+2. Dashboard-Tiles – 1 Sensorwert = 1 Tile
+
+Im Dashboard hast du sechs Haupt-Tiles (Session40):
+
+tile_temp_in
+
+tile_hum_in
+
+tile_vpd_in
+
+tile_temp_ex
+
+tile_hum_ex
+
+tile_vpd_ex
+
+
+Die Mechanik:
+
+def update_from_global(self, d):
+    self.header.set_device_label(mac)
+    ...
+    self.content.update_from_data(d)
+
+DashboardMainPanel.update_from_data(d) macht in etwa:
+
+Für jeden bekannten Key (temp_in, hum_in, …):
+
+Hole Wert aus d
+
+Update genau ein Tile dafür
+
+Falls Key nicht in _active_keys → Tile im „ghost/off“-Zustand (z.B. grau, keine Kurve)
+
+
+
+👉 Ergebnis:
+Jeder Sensorwert existiert maximal ein Mal im UI.
+Kein Tile zeigt zwei verschiedene Sensoren, keine Doppelbelegung.
+
+Das ist dein „Ultimate IV flexibel“-Prinzip:
+
+Willst du eine neue Sensorart anzeigen → du definierst:
+
+einen neuen Key (z.B. "battery")
+
+ein neues Tile-Objekt im Panel
+
+eine simple Mapping-Regel: Key ➜ Tile
+
+
+Alles andere (GSM, Buffer, Core, Decoder) bleibt identisch.
+
+
+Dadurch:
+
+Kein Spaghetti: kein Tile muss wissen, welche Kombination von Sensoren gerade „Mode 1“ oder „Mode 2“ ist.
+
+Immer 1:1-Zuordnung: Key ↔ Tile ↔ Fullscreen-Graph.
+
+
+
+---
+
+3. Fullscreen – Umschalten welches Sensor-Signal groß gezeigt wird
+
+Jetzt der interessante Teil: Tile → Fullscreen.
+
+Im Dashboard:
+
+def open_fullscreen(self, tile_id):
+    fs = self.manager.get_screen("fullscreen")
+    fs.activate_tile(tile_id)
+    self.manager.current = "fullscreen"
+
+tile_id ist z.B. "temp_in", "hum_in", "vpd_ex"
+
+Diese ID ist gleich dem Key, den GSM in _active_keys benutzt → kein Sondermapping, kein extra Modus.
+
+
+Im Fullscreen-Screen passiert dann:
+
+activate_tile(tile_id) speichert:
+
+self.current_key = tile_id
+
+
+Beim nächsten Tick vom GSM:
+
+def update_from_global(self, d):
+    key = self.current_key          # z.B. "temp_in"
+    value = ... aus d anhand key ...  # z.B. d["internal"]["temperature"]["value"]
+    self.chart.append_point(timestamp, value)
+    self.header.set_device_label(d["device_id"])
+
+
+Mechanik dahinter:
+
+1. Dashboard-Tile wird angeklickt
+→ tile_id geht 1:1 als Key in den Fullscreen.
+
+
+2. Fullscreen ist NICHT eigene Logik, sondern:
+
+Hängt am gleichen GSM-Tick
+
+Liest das gleiche Frame d
+
+Nutzt nur einen einzigen Key (self.current_key)
+
+
+
+3. Ein Gerät mit weniger Sensoren:
+
+_active_keys enthält z.B. nur ["temp_in", "hum_in"]
+
+Wenn du versuchst "temp_ex" fullscreen zu öffnen → Graph kriegt ständig None → Kurve bleibt leer oder UI blendet es aus.
+
+
+
+
+Dadurch ist Fullscreen:
+
+Ultra-stabil:
+Kein eigener Timer, keine eigene Datei, kein eigener Decoder – nur eine andere „Ansicht“ auf denselben Daten.
+
+Ultra-flexibel:
+Neue Sensoren → neuer Key → neuer Tile → Fullscreen bekommt den Key automatisch mit.
+
+
+
+---
+
+4. Warum das „1 Wert = 1 Tile = 1 Fullscreen“ so mächtig ist
+
+Vorteile:
+
+1. Keine Mehrfachlogik
+
+Du musst nie rätseln: „Na wo rechnet jetzt die VPD-Kurve, Dashboard oder Fullscreen?“
+
+Alles kommt aus dem Frame (decoded.json → BUFFER → GSM → d).
+
+
+
+2. Beliebig erweiterbar
+
+Später: Battery-Tile, RSSI-Tile, Leaf-Temp-Tile, Bodenfeuchte-Tile, Health-Tile …
+
+Du hängst nur:
+
+einen Key in _active_keys
+
+ein passendes Tile
+
+einen Fullscreen-Graph, der exakt denselben Key nutzt
+
+
+
+
+3. Volle Multi-Device-Unterstützung
+
+GSM wählt Device-Index (active_index)
+
+Alle Tiles + Fullscreen zeigen immer nur das eine aktive Gerät.
+
+Wechsel im Device-Picker → GSM wechselt Index → alles (Header, Tiles, Fullscreen) springt synchron um.
+
+
+
+4. Keine Doppelbelegung
+
+Ein Wert = ein UI-Element
+
+Kein „Temp_in in zwei Kacheln“, kein „extern im inneren Tile“. Alles sauber.
+
+
+
+
+
+---
+
+5. Zusammengefasst in einem Mini-Flow
+
+1. Decoder → decoded.json
+2. DataBuffer lädt decoded.json in BUFFER.data
+3. GSM holt BUFFER.get() → wählt aktives Device → baut _active_keys
+4. GSM tickt:
+
+dashboard.update_from_global(d)
+
+fullscreen.update_from_global(d)
+
+setup.update_from_global(d) (für Header/LED)
+
+
+5. Dashboard:
+
+Tiles lesen immer „ihren“ Key: temp_in, hum_ex, …
+
+Layout & Sichtbarkeit abhängig von _active_keys.
+
+
+6. Fullscreen:
+
+Bekommt tile_id = Key
+
+Zeichnet nur diese Zeitreihe groß.
+
+
+
+---
+
+Wenn du möchtest, kann ich dir als nächsten Schritt noch so eine Key-Tabelle machen:
+
+temp_in → d["internal"]["temperature"]["value"]
+
+hum_in → d["internal"]["humidity"]["value"]
+
+vpd_in → d["vpd_internal"]["value"]
+
+temp_ex → d["external"]["temperature"]["value"]
+
+hum_ex → d["external"]["humidity"]["value"]
+
+vpd_ex → d["vpd_external"]["value"]
+
+
+Dann kannst du das direkt mit ins Doku-Heft kleben.

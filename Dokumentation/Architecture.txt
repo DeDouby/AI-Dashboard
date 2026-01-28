@@ -1,0 +1,271 @@
+Alles klar Dominik — hier kommt eine einzige, klare, kompakte, perfekt saubere Zusammenfassung NUR für den Dashboard-Screen.
+Keine Fullscreen-Details, keine globale Architektur — nur der Dashboard-Screen, komplett und final.
+
+Das ist genau das Dokument, das du separat speichern kannst.
+
+
+---
+
+📘 Dashboard – Komplettzusammenfassung (Final, Session 8)
+
+🎯 ZIEL DES DASHBOARDS
+
+Der Dashboard-Screen ist die Hauptansicht der App.
+Er zeigt 6 Sensor-Tiles, einen Header und die globalen Control Buttons.
+
+Der Dashboard hat keine eigene Logik, keinen Timer, keinen eigenen Buffer.
+Er ist zu 100 % passive UI, die der GlobalStateManager mit Daten füttert.
+
+
+---
+
+🏗 AUFBAU DES DASHBOARDS
+
+Der Screen besteht aus genau 3 Elementen:
+
+┌────────────────────────────────────────┐
+│ HeaderBar                              │
+├────────────────────────────────────────┤
+│ DashboardMainPanel (6 Tiles)           │
+├────────────────────────────────────────┤
+│ ControlButtons (Start/Stop/Reset)      │
+└────────────────────────────────────────┘
+
+
+---
+
+1️⃣ HEADER
+
+Der Header zeigt immer:
+
+Device Label
+
+RSSI
+
+External Sensor Status
+
+Uhrzeit
+
+LED (vom GlobalState gesteuert)
+
+Navigation Buttons (Setup / Debug)
+
+
+Der Header erhält seine Daten nur aus:
+
+update_from_global(d)
+
+
+GLOBAL_STATE.set_led_*()
+
+Er hat keine eigene Logik und ist kein Sensor-Lieferant.
+
+
+---
+
+2️⃣ DASHBOARD MAIN PANEL
+
+Das Hauptpanel enthält 6 Tiles:
+
+temp_in
+
+hum_in
+
+vpd_in
+
+temp_ex
+
+hum_ex
+
+vpd_ex
+
+
+Jedes Tile ist ein ChartTile-Objekt und besitzt:
+
+Titel
+
+Einheit
+
+Farbe
+
+PNG-Hintergrund
+
+aktiven Wert
+
+History-Buffer (DIE zentrale Datenquelle für Fullscreen)
+
+
+Wichtig:
+
+✔ Die Tiles sind die einzige Stelle, an der History gebaut wird.
+
+✔ Tiles glätten die Werte leicht (smoothing).
+
+✔ Tiles speichern ~60–300 Werte.
+
+✔ Fullscreen nutzt EXAKT dieselbe History.
+
+
+---
+
+3️⃣ CONTROL BUTTONS
+
+Die Buttons sind identisch zu allen Screens:
+
+Start
+
+Stop
+
+Reset
+
+
+Sie tun selbst nichts, sondern rufen:
+
+GLOBAL_STATE.start()
+GLOBAL_STATE.stop()
+GLOBAL_STATE.reset()
+
+Der GlobalStateManager spiegelt den Zustand zurück in:
+
+controls.refresh_state(running)
+
+Somit:
+
+✔ Buttons im Dashboard sind immer synchron
+
+✔ Dashboard kann Start/Stop NICHT selbst auslösen
+
+✔ Keine lokale Logik → 100 % global
+
+
+---
+
+🌀 Datenfluss IM Dashboard
+
+Das Dashboard lädt niemals selbst Daten.
+Es hat keinen Timer.
+Es pollt nicht.
+Es liest nicht decoded.json.
+
+Alles kommt über:
+
+🔽 GLOBAL_STATE._global_update()
+
+→ Dashboard.update_from_global(d)
+
+Dort passieren 2 Dinge:
+
+1. HEADER aktualisieren (Clock, RSSI, External, Label)
+
+2. Tiles aktualisieren (tile.update(value))
+
+Genau in diesem Schritt:
+
+✔ Tile schreibt Wert
+✔ Tile berechnet Trend
+✔ Tile glättet Wert
+✔ Tile schiebt Wert in History-Buffer
+✔ Tile rendert Mini-Graph im Tile
+
+Dashboard selbst macht nichts davon selbst.
+
+
+---
+
+🔁 RESET im Dashboard
+
+Reset löscht:
+
+Alle Tile-Werte
+
+Alle Tile-History
+
+Uhrzeit
+
+RSSI
+
+Min/Max/Avg
+
+
+Der Reset kommt immer über:
+
+GLOBAL_STATE.reset()
+→ dashboard.reset_from_global()
+
+Dashboard führt NIE eigenen Reset aus.
+Dashboard startet NIE von sich aus neu.
+
+
+---
+
+🔍 FULLSCREEN-BEZUG
+
+Der Dashboard-Screen ist der Datenlieferant für Fullscreen:
+
+Fullscreen zieht NICHT selber History
+
+Fullscreen misst NICHT selbst Sensorwerte
+
+Fullscreen glättet NICHT selbst
+
+Fullscreen hat KEINEN eigenen Graph-Buffer
+
+
+Stattdessen:
+
+Fullscreen holt das Tile-Objekt aus:
+
+dashboard.content.tile_map[tile_id]
+und nutzt
+tile.buffer & tile.color & tile.bg.
+
+Dashboard ist also der Master aller Trends.
+
+
+---
+
+🧩 Module, die Teil des Dashboards sind
+
+dashboard.py
+
+Hauptklasse, erzeugt den kompletten Screen
+
+ui/dashboard_content/dashboard_main_panel.py
+
+Erzeugt die 6 Tiles, organisiert Layout und Mapping
+
+ui/dashboard_content/chart_tile.py
+
+Das einzelne Tile, inklusive Mini-Graph, Trend, History, Hintergrund
+
+ui/common/header.py
+
+HeaderBar
+
+ui/common/control_buttons.py
+
+Start/Stop/Reset Buttons
+
+
+---
+
+🧠 Kerndefinition (als Satz)
+
+Der Dashboard-Screen ist eine Passive View, die Daten ausschließlich vom GlobalStateManager erhält und sie in 6 ChartTiles rendert, wobei die ChartTiles die einzige Quelle der Sensor-History darstellen, die Fullscreen und zukünftige Screens verwenden.
+
+
+---
+
+🎯 Perfekt zum Abspeichern
+
+Dieses Dokument ist clean, vollständig, ohne Überladung.
+Du kannst es direkt als:
+
+Dashboard.md oder
+
+Dashboard_Architecture_v1.txt
+
+
+speichern.
+
+Wenn du willst, mache ich eine saubere Markdown/README-Version oder eine visuelle PNG-Architekturgrafik.

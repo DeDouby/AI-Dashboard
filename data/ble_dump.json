@@ -1,6 +1,6 @@
 [
   {
-    "timestamp": "2026-01-28T00:10:27.633+0000",
+    "timestamp": "2026-01-28T00:22:59.289+0000",
     "name": "TP351S (987A)",
     "address": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
     "rssi": -68,
@@ -10,13 +10,13 @@
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-28T00:12:40.468+0000",
+    "timestamp": "2026-01-28T00:43:40.125+0000",
     "name": "sps",
     "address": "C898B4F2-B452-7502-1A67-0536E77D49EA",
-    "rssi": -76,
-    "adv_raw": "6308841300AF714E08",
+    "rssi": -84,
+    "adv_raw": "5A088C1300B2B64E08",
     "gat_raw": null,
-    "log_raw": "6308841300AF714E08",
+    "log_raw": "5A088C1300B2B64E08",
     "note": "raw"
   },
   {
@@ -50,13 +50,13 @@
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-28T00:12:40.153+0000",
+    "timestamp": "2026-01-28T00:43:42.883+0000",
     "name": "ThermoBeacon2",
     "address": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
-    "rssi": -65,
-    "adv_raw": "190019060000F1F051115101160350013403E3ED0300",
+    "rssi": -64,
+    "adv_raw": "190019060000F1F04D1151011E034F013F032AF50300",
     "gat_raw": null,
-    "log_raw": "190019060000F1F051115101160350013403E3ED0300",
+    "log_raw": "190019060000F1F04D1151011E034F013F032AF50300",
     "note": "raw"
   },
   {
@@ -260,10 +260,50 @@
     "note": "raw"
   },
   {
-    "timestamp": "2026-01-28T00:12:43.474+0000",
+    "timestamp": "2026-01-28T00:20:08.961+0000",
     "name": "(unknown)",
     "address": "EF2B59EB-E4DA-BC91-F193-1EA4B2ECAAA0",
-    "rssi": -55,
+    "rssi": -81,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-28T00:22:12.073+0000",
+    "name": "(unknown)",
+    "address": "B802DE11-FDD5-24CB-9F4F-14CFAC794B31",
+    "rssi": -60,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-28T00:34:33.623+0000",
+    "name": "(unknown)",
+    "address": "E8813B71-9A70-C6A0-02DF-71653AB51E49",
+    "rssi": -54,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-28T00:43:51.792+0000",
+    "name": "(unknown)",
+    "address": "A1718248-9D96-6105-5A60-B8D9B41F32EA",
+    "rssi": -53,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-01-28T00:34:36.073+0000",
+    "name": "(unknown)",
+    "address": "BD18DCEF-3030-D323-BA15-EAEF51A40DA2",
+    "rssi": -58,
     "adv_raw": "",
     "gat_raw": null,
     "log_raw": "",

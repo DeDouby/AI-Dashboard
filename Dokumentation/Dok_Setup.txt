@@ -1,0 +1,272 @@
+Alles klar — jetzt dokumentieren wir das Setup-Modul, also den Screen, der die komplette Multi-Device-Konfiguration & ZOMBIE-Handling bereitstellt.
+
+Das ist ein absolut zentrales Stück deiner Architektur, weil:
+
+Hier entscheidet der User, welche Geräte aktiv sind
+
+Hier wird das Profil pro MAC gesetzt
+
+Hier entsteht deine „Living Sensor World“
+
+Setup bestimmt, welche Geräte überhaupt im Watchdog + Decoder existieren
+
+Setup bildet den Lebenszyklus eines Geräts ab:
+
+Living
+
+Zombie
+
+Offline
+
+
+
+
+---
+
+📘 SETUP-SCREEN – Überblick
+
+🎯 Hauptaufgabe
+
+Der SetupScreen erlaubt dir:
+
+Geräte aus deiner Multi-Device-Liste zu verwalten
+
+MAC-Adressen hinzuzufügen oder zu löschen
+
+PRO Profile pro Gerät zu wählen (tb2 / tpro / oqimax / unknown / …)
+
+ZOMBIES zu identifizieren, also Geräte die zwar im Dump sind, aber keine RAW-Änderung zeigen
+
+mit einem Klick zwischen „Living“ und „Zombie“ zu unterscheiden
+
+die Config sauber zu speichern
+
+
+Er ist der Administrator-Modus deines Systems.
+
+
+---
+
+🌋 Was sind Zombies?
+
+Zombies sind Geräte im BLE-Dump, die:
+
+1. zwar gefunden werden
+
+
+2. aber keine RAW-Änderung mehr zeigen
+
+
+3. und deren last_raw == aktuelles RAW bleibt
+
+
+4. deren last_ts über stale_timeout hinaus geht
+
+
+
+Sie leben BLE-technisch, aber sie senden keine neuen Messwerte → klassische Firmware-Hänger.
+
+Setup markiert solche Geräte visuell:
+
+⚪ Living → aktive RAW-Änderungen
+
+🟡 Zombie → RAW unverändert, aber sichtbar
+
+🔴 Offline → nicht im Dump
+
+
+Das ist einer der größten Vorteile deiner Architektur:
+Du erkennst nicht nur OFFLINE, sondern ZOMBIE-Zustände.
+
+
+---
+
+📘 UI / Bedienlogik im Setup
+
+✔ 1) Geräteliste
+
+Setup zeigt eine tabellarische Ansicht:
+
+MAC-Adresse
+
+Profil-Auswahl
+
+aktueller Status (Living / Zombie / Offline)
+
+Löschen-Button
+
+
+Datenquelle ist ausschließlich:
+
+config.get_all_devices()
+
+Setup zeigt also NICHT alle gefundenen Geräte in der Umgebung —
+nur die, die der User explizit konfiguriert hat.
+
+
+---
+
+✔ 2) Profilauswahl
+
+Jede Zeile hat ein Dropdown:
+
+tb2
+
+tpro
+
+oqimax
+
+unknown
+
+…
+
+
+Wenn geändert, wird sofort im RAM gesetzt — erst Save schreibt in config.json.
+
+
+---
+
+✔ 3) Zombie-Erkennung in Setup
+
+Setup selbst entscheidet nicht, ob ein Gerät Zombie ist.
+Es liest den Watchdog:
+
+watchdog_status = GLOBAL_STATE.last_watchdog_status
+
+Dann zeigt es pro MAC:
+
+status="OK"   → Living
+
+status="STALE" → Zombie
+
+status="OFFLINE" → Tot
+
+
+Setup ist also passiv, rein UI — die Intelligenz kommt vom Watchdog.
+
+
+---
+
+✔ 4) Geräte hinzufügen
+
+Ein Feld + Button:
+
+MAC eingeben
+
+Profil wählen
+
+Gerät erscheint in der Liste
+
+
+
+---
+
+✔ 5) Geräte entfernen
+
+Löschen entfernt den Eintrag aus config.devices.
+Decoder überschreibt sofort decoded.json → OFFLINE.
+Dashboard zeigt sofort OFFLINE / leer.
+
+
+---
+
+✔ 6) Speichern
+
+Der „SAVE“-Button tut exakt das:
+
+1. cfg = config._init()
+
+
+2. alle geänderten Werte in cfg["devices"] schreiben
+
+
+3. config.save(cfg) (atomar)
+
+
+4. config.reload()
+
+
+5. Watchdog-Timeout übernehmen
+
+
+6. zurück ins Dashboard
+
+
+
+Wichtig:
+Setup speichert NIE Statisches über RAW oder last_seen.
+Das ist Aufgabe des Watchdogs.
+
+
+---
+
+🧠 Warum ist Setup so wichtig für Zombies?
+
+Weil das gesamte ZOMBIE-Konzept so funktioniert:
+
+1️⃣ Setup definiert die Targets:
+
+Nur Geräte in config["devices"] sind wichtig.
+
+2️⃣ Watchdog überwacht NUR diese Geräte.
+
+Er entscheidet: Living / Zombie / Offline.
+
+3️⃣ Decoder schreibt Frames abhängig vom Watchdog.
+
+Damit Dashboard und Grafiken korrekt sind.
+
+4️⃣ Setup zeigt den Status visuell.
+
+Damit du in Echtzeit erkennst:
+
+ob ein Gerät richtig sendet
+
+ob es abgestürzt ist (Zombie)
+
+ob es komplett weg ist (Offline)
+
+
+
+---
+
+📦 Wichtigster Punkt für Dokumentation
+
+> Der gesamte ZOMBIE-Lebenszyklus entsteht aus dem Zusammenspiel Setup → Watchdog → Decoder → Dashboard.
+
+
+
+Setup ist der Startpunkt:
+Es definiert, welche Geräte überhaupt leben dürfen.
+
+Watchdog bestimmt, ob sie wirklich leben.
+
+Decoder erschafft die Frames, die der UI sagen, wie sie aussehen.
+
+Dashboard visualisiert, wie es den Geräten geht.
+
+
+---
+
+📘 Bereit für Dashboard?
+
+Wenn du magst, machen wir jetzt:
+
+➜ DashboardScreen – Die Lebensanzeige
+
+incl.
+
+GSM
+
+Tiles
+
+Fullscreen
+
+Control Buttons
+
+LED Logik
+
+Statusmapping OK / STALE / OFFLINE
+
+
+Sag einfach: „Dashboard jetzt“.

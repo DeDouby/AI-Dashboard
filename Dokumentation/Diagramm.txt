@@ -1,0 +1,118 @@
+┌────────────────────────────────────┐
+             │              ANDROID                │
+             └────────────────────────────────────┘
+                         ▲               ▲
+                         │               │
+                         │ BLE           │ Permissions
+                         │ Scan          │ Check
+                         │               │
+       ┌───────────────┐ │  ┌──────────────────────────────┐
+       │ Java Bridge   │◄───┤ permission_fix.py            │
+       │ (BleBridge)   │    └──────────────────────────────┘
+       └──────┬────────┘
+              │ writes
+              ▼
+     ┌──────────────────┐
+     │   ble_dump.json  │  (RAW Frames)
+     └──────────────────┘
+              │
+              ▼
+ ┌──────────────────────────┐
+ │  Decoder Thread (Python) │
+ │  - liest RAW             │
+ │  - erkennt Profile       │
+ │  - erzeugt DECODED       │
+ └─────────────┬────────────┘
+               │ writes
+               ▼
+      ┌───────────────────┐
+      │ decoded.json      │ (1 Array pro Sensor-Frame)
+      └───────────────────┘
+               │
+               ▼
+   ┌──────────────────────────────┐
+   │     DataBuffer Singleton     │
+   │  - lädt decoded.json         │
+   │  - liefert Werte an UI       │
+   └───────────────┬──────────────┘
+                   │
+                   ▼
+         ┌──────────────────────┐
+         │ GLOBAL STATE MANAGER │
+         │  (alive, status, ts) │
+         └───────────┬──────────┘
+                     │
+                     ▼
+        ┌────────────────────────┐
+        │     DASHBOARD UI       │
+        │  Tiles, Graphs, LED    │
+        └────────────────────────┘
+
+
+
+
+                ┌────────────────────────────────┐
+                │  ble_dump.json (RAW)           │
+                └───────────────┬────────────────┘
+                                │ read every X sec
+                                ▼
+                   ┌─────────────────────────────┐
+                   │ DumpWatchdog                │
+                   │ - vergleicht RAW            │
+                   │ - erkennt STALE             │
+                   │ - alive/false               │
+                   └──────────────┬──────────────┘
+                                  │ callback
+                                  ▼
+                   ┌─────────────────────────────┐
+                   │ core.update_bridge_state    │
+                   └──────────────┬──────────────┘
+                                  │ sets globals
+                                  ▼
+                   ┌─────────────────────────────┐
+                   │ GLOBAL STATE (alive, ts)    │
+                   └──────────────┬──────────────┘
+                                  │
+                                  ▼
+                          LED Status / UI
+
+
+
+decoded.json
+               │
+               ▼
+        DataBuffer.load()
+               │
+               ├──> alive_flag
+               ├──> Werte
+               │
+               ▼
+      GlobalStateManager.update()
+               │
+               ▼
+   Dashboard ↔ Tiles ↔ Graphs ↔ Fullscreen View
+               │
+               ▼
+          LED Status Logik
+
+
+
+BLE Scanner (Android / Desktop Sim)
+       │
+       ▼
+ Alle RAW Frames + MACs
+       │
+       ▼
+Setup-Screen zeigt:
+  - Living Sensoren
+  - Zombies (keine RAW Änderung)
+  - Unbekannte Profile
+       │
+       ▼
+User klickt → Profil zuweisen
+       │
+       ▼
+config.json updated
+
+
+

@@ -1,0 +1,147 @@
+Hier kommt die saubere, druckfertige Beschreibung zu deinem
+permission_fix.py – kurz, aber absolut fachlich klar.
+Perfekt für deine Doku-Mappe:
+
+
+---
+
+Kapitel – permission_fix.py
+
+Android-Berechtigungen zuverlässig erzwingen
+
+permission_fix.py ist ein kleines, aber essenzielles Hilfsmodul in deinem Android-Stack.
+Es stellt sicher, dass die App alle erforderlichen Systemrechte besitzt, bevor die BLE-Bridge aktiviert wird.
+
+Ohne diese Rechte würde:
+
+kein BLE-Scan laufen
+
+kein RAW-Dump entstehen
+
+das Dashboard sofort „tot“ starten
+
+der Watchdog permanent OFFLINE melden
+
+
+Darum ruft core.py → check_permissions() direkt beim Start auf.
+
+
+---
+
+Warum dieses Modul existiert
+
+Android verschärft seit Version 12/13/14 die Regeln für:
+
+BLUETOOTH_SCAN
+
+BLUETOOTH_CONNECT
+
+Standortrechte beim Scannen
+
+Hintergrundausführung
+
+
+Wenn nur eine einzige dieser Berechtigungen fehlt, bricht der gesamte BLE-Stack zusammen.
+
+Darum erzwingt dein Modul aktiv:
+
+Permission.BLUETOOTH
+Permission.BLUETOOTH_ADMIN
+Permission.BLUETOOTH_CONNECT
+Permission.BLUETOOTH_SCAN
+Permission.ACCESS_FINE_LOCATION
+Permission.ACCESS_COARSE_LOCATION
+
+Das ist exakt der Satz, den moderne Android-BLE-APIs verlangen.
+
+
+---
+
+Wie das Modul arbeitet
+
+1. Plattformtest
+
+if platform != "android":
+    return True
+
+→ Auf Desktop wird das Modul komplett übersprungen.
+→ Keine Dummy-Abfragen, keine Fehler.
+
+Reines Android-Modul.
+
+
+---
+
+2. Check + Request
+
+Das Modul nutzt:
+
+check_permission(...)
+request_permissions([...])
+
+vom offiziellen android.permissions-Package.
+
+Ablauf:
+
+1. Alle wichtigen BLE/Location-Permissions zusammenstellen
+
+
+2. Prüfen, welche fehlen
+
+
+3. Fehlende sofort vom System anfordern
+
+
+4. Rückmeldung geben (True/False)
+
+
+
+Das sorgt dafür, dass die App sofort sauber starten kann –
+oder der User klar erkennt, warum BLE gerade nicht funktioniert.
+
+
+---
+
+Besondere Eigenschaften
+
+✔ minimalistisch und stabil
+✔ keine UI-Interaktion nötig – Android zeigt den Dialog selbst
+✔ verhindert „Silent Failure“ (der schlimmste Fehler bei BLE-Apps)
+✔ arbeitet perfekt mit deiner BleBridgePersistent Java-Bridge zusammen
+✔ nicht gekoppelt an Config, Core oder Decoder – Eigenmodul
+✔ lässt sich jederzeit erweitern (z. B. Foreground-Service-Permission später)
+
+
+---
+
+Warum es kritisch für die gesamte Plattform ist
+
+Ohne permission_fix.py riskierst du:
+
+kein BLE → kein Dump → kein Decoded → kein Dashboard
+
+Stale/OFFLINE permanent aktiv
+
+Watchdog tickt ins Leere
+
+Decoder schreibt nur OFFLINE-Frames
+
+Dashboard zeigt „NO DATA“
+
+der Nutzer denkt „App kaputt“
+
+
+Mit diesem Modul passiert exakt das nicht.
+
+Es ist also die erste Sicherheitsprüfung im gesamten Startprozess.
+
+
+---
+
+Wenn du willst, können wir als Nächstes:
+
+👉 „core.py“ dokumentieren – das Herzstück, das alles zusammenführt
+oder
+👉 „decoder.py“ – die Königsdisziplin
+
+Sag einfach „weiter mit core“.

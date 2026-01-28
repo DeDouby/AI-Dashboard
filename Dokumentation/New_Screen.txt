@@ -1,0 +1,70 @@
+😄 vollkommen verständlich – **heiliger About-Screen**, er lebe!
+Dann hier **kurz, trocken, dokumentationsreif**, **ohne Schnickschnack**:
+
+---
+
+## 🧭 Neuen Screen im Dashboard registrieren (Standard-Pattern)
+
+### 1️⃣ Screen erstellen
+
+* Datei unter `dashboard_gui/`
+* Klasse erbt von `Screen`
+* **`name` fest vergeben**
+
+```python
+class ExampleScreen(Screen):
+    name = "example"
+```
+
+---
+
+### 2️⃣ Screen in `main.py` registrieren
+
+```python
+from dashboard_gui.example_screen import ExampleScreen
+
+sm.add_widget(ExampleScreen(name="example"))
+```
+
+---
+
+### 3️⃣ Screen im Menü anbieten (WindowPicker)
+
+* **WindowPicker bekommt nur Callbacks**
+* **Keine Navigation im Picker selbst**
+
+```python
+("Example", goto_example)
+```
+
+---
+
+### 4️⃣ Callback im Header übergeben
+
+```python
+picker = WindowPicker(
+    parent_header=self,
+    goto_example=lambda: setattr(sm, "current", "example"),
+)
+```
+
+---
+
+## ❌ Verboten (führt garantiert zu Chaos)
+
+* ❌ `sm` im `WindowPicker`
+* ❌ `setattr(sm, ...)` **im Picker**
+* ❌ direkter Config-Zugriff im Screen
+* ❌ Sonderlogik „nur für diesen Screen“
+
+---
+
+## ✅ Merksatz (Goldregel)
+
+> **Ein Screen ist dumm.
+> Navigation gehört in den Header.
+> Der Picker kennt nur Callbacks.**
+
+---
+
+

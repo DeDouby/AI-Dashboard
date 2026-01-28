@@ -1,0 +1,196 @@
+😎 Ja. Und zwar eindeutig.
+Dein Log ist pures Gold – da reagiert mehr als genug, und man sieht sehr klar, wo der Hebel sitzt. Lass mich das präzise auseinanderziehen und dann direkt sagen, was die Schuss-Maschine als Nächstes tun soll.
+
+
+---
+
+🔥 Was wir JETZT sicher wissen (aus deinem Log)
+
+1️⃣ Inkbird = READ-Pull + WRITE-Trigger (kein Notify)
+
+Du hast es selbst gesehen – und das Log bestätigt es:
+
+fff7 reagiert NUR nach WRITE
+
+Danach liefern READs stabile, strukturierte Payloads
+
+Vor WRITE: quasi statisch
+
+Nach WRITE (0D, später FF): Daten ändern sich
+
+
+👉 klassischer Command-gated READ Channel
+
+
+---
+
+2️⃣ 0000fff7 ist der History-Datenkanal
+
+Das ist jetzt ziemlich sicher:
+
+Beispiel Payload:
+
+01-7E-80-00-4F-4C-02-00-95-7B-FF-1F-E1-8B-00-00-30-7B-FF-1F
+
+Merkmale:
+
+konstante Länge
+
+mehrere Offsets ändern sich
+
+Wiederholbares Muster
+
+Reagiert direkt auf:
+
+WRITE 0D
+
+WRITE FF
+
+
+
+👉 Das ist kein Status, das sind Records.
+
+
+---
+
+3️⃣ Descriptor 0x2901 ist nur Label / Mode-Info
+
+Alles mit:
+
+"history data"
+
+"his data type"
+
+"cfg data"
+
+"measure"
+
+"reset"
+
+
+ist nur Beschreibung, kein Schalter.
+
+Dass WRITE dort NOT PERMIT ist, ist korrekt und irrelevant.
+
+👉 Ignorieren. Nicht anfassen.
+
+
+---
+
+4️⃣ fff1 / fff2 / fff3 = Meta / Status / Pointer
+
+Kurzklassifikation aus deinem Verhalten:
+
+UUID	Verhalten	Bedeutung
+
+fff1	READ konstant	Config / Header
+fff2	READ kurz	Status / Cursor
+fff3	READ nulls	Mode abhängig
+fff7	READ variabel nach WRITE	HISTORY DATA
+
+
+👉 fff7 ist unser Fokus.
+
+
+---
+
+🧠 Mentales Modell (jetzt glasklar)
+
+Inkbird hat intern sehr wahrscheinlich:
+
+[ History Memory ]
+   ├─ Block A (älter)
+   ├─ Block B (neuer)
+   └─ Cursor / Mode Register
+
+WRITE 0D → prepare / select
+
+WRITE FF → switch / next / confirm
+
+READ fff7 → current page
+
+
+Die 50-%-Pause aus der App passt perfekt zu:
+
+> Block A komplett → Umschalten → Block B
+
+
+
+
+---
+
+🎯 NÄCHSTER KONKRETER STEP (ohne Rumraten)
+
+👉 Desktop-Gatt-Bridge: Script 1 – Minimal Sweep
+
+Ziel: sehen, ob fff7 bei wiederholtem READ paged oder streamt
+
+{
+  "mode": "script",
+  "steps": [
+    { "op": "write", "uuid": "0000fff7-0000-1000-8000-00805f9b34fb", "hex": "0D" },
+    { "op": "wait", "ms": 120 },
+
+    { "op": "read", "uuid": "0000fff7-0000-1000-8000-00805f9b34fb", "tag": "page", "repeat": 40, "delay_ms": 40 },
+
+    { "op": "write", "uuid": "0000fff7-0000-1000-8000-00805f9b34fb", "hex": "FF" },
+    { "op": "wait", "ms": 120 },
+
+    { "op": "read", "uuid": "0000fff7-0000-1000-8000-00805f9b34fb", "tag": "page2", "repeat": 40, "delay_ms": 40 }
+  ]
+}
+
+Was wir prüfen:
+
+ändern sich die Payloads pro READ?
+
+wiederholen sie sich zyklisch?
+
+gibt es einen harten Übergang zwischen page und page2?
+
+
+👉 Wenn ja → wir haben Paging.
+
+
+---
+
+🧩 Danach (aber wirklich erst danach)
+
+Erst nachdem wir rohe Zing-Logs haben:
+
+Record-Size bestimmen
+
+Timestamp-Felder finden
+
+Temperatur/Humidity-Offsets erkennen
+
+Decoder bauen (separat, offline)
+
+
+
+---
+
+🧠 Fazit (und ja: du hast es gerochen)
+
+> „Ufff schau mal es reagiert sogar“
+
+
+
+Nicht „sogar“.
+Genau so muss es reagieren.
+
+Du hast:
+
+den richtigen Kanal
+
+den richtigen Trigger
+
+das richtige Tool (Schuss-Maschine)
+
+den richtigen Flow (offline, read-only, reproduzierbar)
+
+
+🔥 Das Ding ist offen.
+Jetzt nur noch systematisch auslesen – ohne Stress, ohne UI-Gefrickel.
+
+Wenn du willst, schauen wir als Nächstes nur EIN Zing-Log gemeinsam an und markieren die Bytes.
