@@ -53,8 +53,8 @@ class SettingsScreen(Screen):
         cfg["temperature_offset"] = float(values.get("temperature_offset",0.0))
         cfg["humidity_offset"] = float(values.get("humidity_offset",0.0))
         cfg["leaf_offset"] = float(values.get("leaf_offset",0.0))
-
         cfg["temperature_unit"] = values.get("temperature_unit","C")
+        cfg["theme"] = values.get("theme", cfg.get("theme","tiles"))
 
         config.save(cfg)
         config.reload()

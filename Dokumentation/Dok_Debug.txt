@@ -1,0 +1,322 @@
+Alles klar — jetzt bekommst du die präzise, vollständige und druckfertige Dokumentation für den Debug-Screen, inklusive der echten Probleme, die du im Projekt erlebt hast:
+
+Fake-Pfad-Fehler
+
+Unterschiedliche Android/Desktop-Pfade
+
+leere decoded.json
+
+Fehler bei RAW-Dump-Anzeige
+
+Watchdog-/Decoder-Asynchronität
+
+„ich sehe keine Daten, Debug zeigt Müll“
+
+JSON-Load-Crashes
+
+
+Diese Debug-Doku erklärt alles, wie dein echtes System aufgebaut ist und warum der Debug-Screen für dich unverzichtbar ist.
+
+
+---
+
+📘 DEBUG-SCREEN – Das Diagnosezentrum des gesamten Systems
+
+Der Debug-Screen ist in deiner Architektur kein optionales Zusatzmodul, sondern ein kritischer Bestandteil der Pipeline:
+
+(Android Java Bridge) → ble_dump.json → Watchdog
+                                     → Decoder → decoded.json
+                                                → DataBuffer → Dashboard
+                                                               ↓
+                                                           DEBUG Screen
+
+Der Debug-Screen zeigt also alles an, was zwischen BLE-Bridge, Watchdog, Decoder und Dashboard passieren kann.
+
+Er ist die einzige Stelle in der UI, bei der du roh siehst:
+
+Was kommt wirklich im RAW-Dump an?
+
+Was schreibt der Decoder wirklich in decoded.json?
+
+Welche MACs sind im System?
+
+Welche Profile wurden geladen?
+
+Welche Statuswerte liefert der Watchdog?
+
+Stimmen die Pfade?
+
+Stimmt das Timing?
+
+
+
+---
+
+🧱 1. Hauptzweck des Debug-Screens
+
+✔ 1. Transparente Darstellung der Rohdaten
+
+Debug zeigt:
+
+den kompletten Inhalt von ble_dump.json (wenn vorhanden)
+
+den kompletten Inhalt von decoded.json
+
+die Liste der aktiven Devices aus config.json
+
+Alive/Offline/Stale-Status
+
+Bridge-Status
+
+Zeitstempel
+
+
+Keine Berechnung, keine UI-Kosmetik, nur Echtzustand.
+
+
+---
+
+✔ 2. Problemerkennung in Sekunden
+
+Der Debug-Screen ist dein Röntgengerät für:
+
+🔥 „Fake-Pfad-Fehler“
+
+Das war früher eine Katastrophe:
+
+Auf Android lagen die echten Daten in /data/data/<pkg>/files/ble_dump.json
+
+Du hattest aber in Debug Desktop-Pfade hardcodiert → es wurden alte Dateien angezeigt
+
+Teilweise hattest du 2 verschiedene decoded.json im Projekt
+
+Debug las die falsche Datei → Dashboard sah „Daten“ → aber nix war real
+
+
+Debug hat dir diese Fehler sichtbar gemacht, weil:
+
+decoded.json unerwartete Timestamps hatte
+
+RAW-Dump nie aktualisiert wurde
+
+Watchdog trotzdem OK zeigte
+
+
+Heute ist das gelöst, weil Debug immer dieselben Pfade nutzt wie Decoder/Watchdog.
+
+
+---
+
+✔ 3. Live-Fehleranalyse ohne Neustart
+
+Du siehst sofort:
+
+ob decoded.json geschrieben wird
+
+ob der Decoder hängt
+
+ob die Bridge Input liefert
+
+ob Watchdog delta-Werte korrekt steigen
+
+ob Profile geladen wurden
+
+
+
+---
+
+🧱 2. Was Debug genau anzeigt
+
+Der Debug-Screen besteht aus 3 Säulen:
+
+1. Bridge-Status
+
+Beispiel:
+
+Bridge: running=True, bt_enabled=True, source=android
+
+Probleme, die du hier oft hattest:
+
+Bridge nicht gestartet (Permissions, Bluetooth aus)
+
+Android zeigte running=True, aber der Pfad zum Dump war leer
+
+Desktop-Bridge wurde nicht erkannt (immer BridgeInterface)
+
+
+Debug zeigt alles in Echtzeit.
+
+
+---
+
+2. Watchdog-Status
+
+Die gefürchtete Zeile:
+
+[Core] Watchdog: OK | alive=True | last_seen=0.0
+
+Oder früher:
+
+[Core] Watchdog: OFFLINE | alive=False | last_seen=None
+
+Oder — das Schlimmste — der „Zombie-Bug“:
+
+[Core] Watchdog: OK / alive=True / last_seen=0.0
+
+obwohl dein Sensor TOT war.
+
+Debug hat das früher nicht gezeigt, weil die falsche decoded.json geladen wurde.
+
+Heute zeigt Debug korrekt:
+
+last_seen wächst
+
+alive=False wenn stale
+
+status="STALE", wenn die Daten alt sind
+
+
+Debug ist der einzige Screen, wo du die Stale-Mechanik überprüfst.
+
+
+---
+
+3. Raw Dump + Decoded Frame
+
+🔧 raw_dump.json (Android vs Desktop)
+
+Debug zeigt exakt die Datei, die auch der Decoder benutzt:
+
+Android: /data/data/<pkg>/files/ble_dump.json
+
+Desktop: data/ble_dump.json
+
+
+Früherer Fehler:
+Debug zeigte Desktop-Pfad, Decoder nutzte Android-Pfad → völliges Chaos.
+
+🔧 decoded.json
+
+Debug zeigt:
+
+1 Frame pro Device
+
+alive, stale, offline
+
+Timestamps
+
+Packet Counter
+
+Profile
+
+Werte (T_i, H_i, VPD etc.)
+
+
+Früherer Fehler:
+Decoder schrieb offline-Frames nie → Debug zeigte „alte Daten weiterlaufen“ → Dashboard auch → Panik.
+
+Heute korrigiert.
+
+
+---
+
+🧱 3. Warum Debug unverzichtbar ist
+
+🔥 Debug erkennt ALLE typischen Fehler:
+
+Problem	Dashboard	Debug
+
+Falscher Pfad zur decoded.json	❌ zeigt noch alte Werte	✔ zeigt real keinen Inhalt
+Kein RAW-Dump	❌ zeigt offline, aber warum?	✔ RAW fehlt sichtbar
+Profile fehlen	❌ seltsame Werte	✔ Profil = None
+Watchdog läuft nicht	❌ Dashboard hängt	✔ keine Updates
+Decoder hängt	❌ Werte eingefroren	✔ timestamp ändert sich nicht
+Fake MACs	❌ Dashboard zeigt Müll	✔ Dump zeigt keine solche MAC
+
+
+Debug ist die Wahrheit.
+
+
+---
+
+🧱 4. Wie Debug intern arbeitet
+
+Simplifiziert:
+
+load ble_dump.json
+load decoded.json
+zeige die Rohdaten 1:1
+zeige config.get_devices()
+zeige config.get_device_profile()
+zeige watchdog-status
+zeige decoder-bridge-status
+
+Kein Rechnen.
+Kein Buffer.
+Keine Ersetzung.
+
+Debug = reiner Zustand.
+
+
+---
+
+🧱 5. Die echten Probleme, die Debug für dich gelöst hat
+
+🧨 1. „Dashboard zeigt noch Daten obwohl Sensor tot ist“
+
+Debug zeigte: decoded.json wurde nicht überschrieben → Fehler lag im Decoder.
+
+🧨 2. „Watchdog stale funktioniert nicht“
+
+Debug zeigte: Dump unverändert, aber Decoder lieferte alive=True weiter → Bug im Decoder.
+
+🧨 3. „Android schreibt in /files, Debug liest ./data“
+
+→ Monate lang falsche Dateien gesehen.
+
+🧨 4. „zwei decoded.json im Projekt“
+
+→ Debug wies als Einziger darauf hin.
+
+🧨 5. „RAW wird nicht geschrieben wegen Permission“
+
+→ Debug zeigte leere RAW-Datei, statt Dashboard-Stille.
+
+🧨 6. „Config wurde nicht reloaded“
+
+→ Debug zeigte falsche timeout-Werte.
+
+
+---
+
+🧩 6. Warum Debug den Golden-Build (Session 40) absichert
+
+Es validiert die ganze Pipeline auf Echtzeit-Basis
+
+Es macht unsichtbare Fehler sichtbar
+
+Es deckt sofort Path-Misconfig und Format-Fehler auf
+
+Es zeigt sauber, ob der Watchdog korrekt stale meldet
+
+Es sorgt dafür, dass wir NIE wieder blind im Dashboard raten müssen
+
+
+Ohne Debug wäre das Projekt nicht beherrschbar.
+
+
+---
+
+Wenn du willst, können wir jetzt direkt weiter mit:
+
+✔ Device Picker
+
+✔ Setup-Screen
+
+✔ LED-Status / Dashboard-Header
+
+✔ Fullscreen-Charts
+
+✔ Die Tile-Engine
+
+Sag einfach: weiter mit XYZ

@@ -29,6 +29,7 @@ DEFAULTS = {
     "humidity_offset": 0.0,
     "leaf_offset": 0.0,
     "developer_mode": False,
+    "theme": "tiles",   # tiles | tiles2 | tiles3
 
     # 🧩 SPRACHE
     "language": "en",  # "en", "es", "de"
@@ -103,6 +104,13 @@ def set_devices_full(dev_dict):
     cfg["devices"] = dev_dict
     save(cfg)
 
+def get_theme():
+    return _init().get("theme", "tiles")
+
+def set_theme(theme: str):
+    cfg = _init()
+    cfg["theme"] = theme
+    save(cfg)
 
 def get_refresh_interval():
     return float(_init().get("refresh_interval"))

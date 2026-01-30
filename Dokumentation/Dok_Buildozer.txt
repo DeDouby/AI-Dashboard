@@ -1,0 +1,321 @@
+Buildozer / Android-Build – die Diva im System
+(warum man Ordner nicht einfach „mal eben“ verschiebt)
+
+
+---
+
+1. Rolle von Buildozer im Projekt
+
+Buildozer ist in unserem Setup der Android-Packager für das komplette Dashboard:
+
+nimmt das Python-Projekt (source.dir = .)
+
+zieht alle Abhängigkeiten aus requirements = ...
+
+baut mit python-for-android (p4a) eine APK
+
+integriert unsere eigene Java-Bridge (BleBridgePersistent) aus android.add_src = src/main/java
+
+
+Damit ist Buildozer die Verpackungsmaschine zwischen:
+
+Python/Kivy-Code
+
+unserer BLE-Java-Bridge
+
+Android-SDK/NDK/Gradle
+
+
+Genau deshalb verhält es sich wie eine Diva:
+Wenn Pfade, Ordnernamen oder Caches nicht stimmen → alles fliegt uns um die Ohren.
+
+
+---
+
+2. Pfad- und Ordner-Disziplin (Diva-Regeln)
+
+Wichtige Grundregel:
+
+> Keine fertige Buildozer-Umgebung verschieben.
+Lieber das komplette Projekt in ein bereits funktionierendes Buildozer-Verzeichnis kopieren.
+
+
+
+Warum?
+
+Buildozer legt im Projektkontext einen .buildozer/-Ordner an:
+
+dort liegen:
+
+Build-Cashes
+
+heruntergeladene p4a-Rezepte
+
+temporäre Gradle-/SDK-Artefakte
+
+
+diese enthalten absolute Pfade auf das Projektverzeichnis.
+
+
+Wenn man danach das Projekt oder den darüberliegenden Ordner verschiebt/umbenennt:
+
+zeigen diese Pfade ins Nichts
+
+Builds schlagen dann mit kryptischen Fehlern fehl (oft irgendwo bei Gradle oder p4a).
+
+
+
+Stabiler Workflow dafür:
+
+Es gibt einen festen Buildozer-Workspace (z. B. /home/domi/builds/thermotest/).
+
+In diesen Workspace kommt das ganze Projekt:
+
+main.py
+
+core.py
+
+dashboard_gui/
+
+data/
+
+garden/
+
+assets/
+
+src/main/java/
+
+buildozer.spec
+
+
+Dort wird gebaut – und dieser Pfad bleibt konstant.
+
+Neue Version?
+→ Projekt neu reinkopieren oder überschreiben, aber nicht den Workspace selbst verschieben.
+
+
+
+---
+
+3. Wichtige Punkte aus deiner buildozer.spec
+
+App-Meta:
+
+[app]
+title = thermotest
+package.name = thermotest
+package.domain = org.hackintosh1980
+version = 1.1
+package.version_code = 1
+
+title ist der Anzeigename auf dem Gerät.
+
+package.name + package.domain ergeben das Android-Paket:
+
+org.hackintosh1980.thermotest
+
+
+version + package.version_code:
+
+version = menschlich lesbare Version
+
+version_code = interne, monotone Zahl für Updates
+
+
+
+
+---
+
+Quellen & Assets:
+
+source.dir = .
+source.include_exts = py,kv,png,jpg,json,ttf
+include_patterns = garden/**/*
+source.include_dirs = garden
+icon.filename = assets/Logo.png
+presplash.filename = assets/pre_splash.png
+presplash.color = black
+orientation = landscape
+fullscreen = 1
+android.add_assets = assets/fonts/fa-solid-900.ttf
+
+source.dir = .
+→ Projektroot = Buildozerroot (wichtig, deswegen nicht verschieben).
+
+source.include_exts
+→ Nur diese Endungen werden ins APK gepackt.
+
+include_patterns + source.include_dirs
+→ sorgt dafür, dass kivy_garden.graph und Co. aus garden/ auch wirklich mitkommen.
+
+icon / presplash
+→ Branding: Logo & Splashscreen aus assets/.
+
+
+
+---
+
+Python-Dependencies & Garden:
+
+requirements = python3,kivy,pyjnius,pillow,certifi,six,kivy_garden.graph
+
+pyjnius → notwendig für Java-Bridge (BleBridgePersistent / Permission-Fix).
+
+kivy_garden.graph → dein Graph-Widget (ChartTile).
+
+
+Wichtig:
+Sobald hier etwas geändert wird (neuer Eintrag, wegnehmen etc.), ist Buildozer gerne zickig → dann im Zweifel:
+
+buildozer android clean
+
+und noch einmal neu bauen
+(aber im gleichen Projektpfad!)
+
+
+
+---
+
+Custom Java & Berechtigungen:
+
+android.add_src = src/main/java
+android.permissions = INTERNET, ACCESS_NETWORK_STATE, BLUETOOTH, BLUETOOTH_ADMIN, ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION, BLUETOOTH_SCAN, BLUETOOTH_CONNECT, BLUETOOTH_ADVERTISE, FOREGROUND_SERVICE, POST_NOTIFICATIONS
+
+android.add_src = src/main/java
+
+dort liegt deine BleBridgePersistent-Implementierung (Java)
+
+muss exakt zum Package-Namen im Java-Code passen (org.hackintosh1980.blebridge)
+
+
+android.permissions:
+
+alles drin, was moderne BLE-Scanner benötigen:
+
+klassisches BLUETOOTH / BLUETOOTH_ADMIN
+
+neue 12+ Rechte: BLUETOOTH_SCAN, BLUETOOTH_CONNECT, BLUETOOTH_ADVERTISE
+
+Standortrechte: ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION
+
+FOREGROUND_SERVICE / POST_NOTIFICATIONS für saubere Hintergrund-/Status-Integration
+
+
+
+
+Das spielt direkt mit deinem permission_fix.py zusammen, der diese Rechte zur Laufzeit abfragt.
+
+
+---
+
+Android-Toolchain & p4a:
+
+android.minapi = 29
+android.ndk_api = 29
+android.debug = True
+android.archs = arm64-v8a
+
+android.sdk_path = /home/domi/.buildozer/android/platform/android-sdk
+android.ndk_path = /home/domi/.buildozer/android/platform/android-ndk-r28c
+
+p4a.source_dir = ~/python-for-android
+p4a.build_threads = 6
+p4a.extra_args = --allow-minsdk-ndkapi-mismatch
+
+android.minapi / android.ndk_api:
+
+beides 29 → stabil, und mit --allow-minsdk-ndkapi-mismatch bist du tolerant, falls p4a an der Stelle rummosert.
+
+
+android.archs = arm64-v8a:
+
+baut nur für 64-bit, was bei modernen Geräten völlig ausreicht.
+
+
+android.sdk_path / android.ndk_path:
+
+harte Pfade → wieder der Grund, warum der Workspace nicht verschoben werden sollte.
+
+
+p4a.source_dir:
+
+eigenes python-for-android-Checkout
+
+sinnvoll, weil du damit die Kontrolle über die p4a-Version hast.
+
+
+
+
+---
+
+Gradle & Log:
+
+android.gradle_dependencies = com.android.support:support-v4:28.0.0, com.google.android.material:material:1.9.0
+android.gradle_version = 8.0.2
+android.build_tools_version = 34.0.0
+android.logcat_filters = *:I python:D
+
+Gradle-/Build-Tools-Versionen sind fest verdrahtet – das gibt dir Reproduzierbarkeit.
+
+android.logcat_filters:
+
+reduziert Log-Spam und hebt Python-Output (python:D) hervor → gut für Debug.
+
+
+
+
+---
+
+4. Best Practices für deinen Build-Workflow (zusammengefasst)
+
+1. Fester Build-Workspace
+
+Ein Verzeichnis, in dem Buildozer und alle SDK/NDK-Pfadkonfigurationen stabil bleiben.
+
+Projekt kommt dort rein – nicht umgekehrt.
+
+
+
+2. Nie nachträglich verschieben
+
+Weder den Workspace, noch das Projekt, solange .buildozer/ existiert.
+
+Wenn doch nötig → .buildozer/ löschen und wirklich neu bauen.
+
+
+
+3. Änderungen an requirements mit Vorsicht
+
+Danach mindestens:
+
+buildozer android clean
+
+neuen Build laufen lassen.
+
+
+
+
+4. Java-Bridge & Permissions nicht anfassen, solange es läuft
+
+Pfad android.add_src
+
+Package-Namen in Java
+
+Permissions in buildozer.spec + permission_fix.py
+→ das Dreieck muss konsistent bleiben.
+
+
+
+5. Backups vom kompletten Session-Ordner
+
+Golden Build (Session40) als ZIP + auf Sticks archiviert.
+
+Für neue Experimente lieber Kopie des Session40-Ordners → dort weiterbauen.
+
+
+
+
+
+---
+
+Wenn du willst, kann ich dir als nächstes noch einen kleinen „Buildozer Trouble-Guide“ schreiben (typische Fehlerbilder + was zu prüfen ist), den du direkt daneben in deinen Ordner kleben kannst.

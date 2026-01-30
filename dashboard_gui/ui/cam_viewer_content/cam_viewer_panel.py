@@ -1,30 +1,21 @@
-# dashboard_gui/ui/cam_viewer_content/cam_viewer_panel.py
-
-import os, json, subprocess, threading, shutil
+import os, json
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 from kivy.uix.scrollview import ScrollView
-from kivy.utils import platform
 
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.ui.cam_viewer_content.cam_player_widget import CamPlayerWidget
+import config
 
 DEFAULT_RTSP_PORT = 554
 DEFAULT_LIVE_PATH = "stream1"
-
-import os, json, subprocess, threading, shutil
-from kivy.utils import platform
-
-import config
-import os
-
 CAM_CFG = os.path.join(config.DATA, "cam_config.json")
 
 
-def _which(x): return shutil.which(x)
-def build_rtsp_url(ip,u,p,path): return f"rtsp://{u}:{p}@{ip}:{DEFAULT_RTSP_PORT}/{path}"
+def build_rtsp_url(ip, u, p, path):
+    return f"rtsp://{u}:{p}@{ip}:{DEFAULT_RTSP_PORT}/{path}"
 
 
 class CamViewerPanel(BoxLayout):
@@ -86,8 +77,6 @@ class CamViewerPanel(BoxLayout):
         scroll.add_widget(self.log)
         self.add_widget(scroll)
 
-        self.proc = None
-
     # -----------------------------------------------------
 
     def _load(self):
@@ -107,56 +96,29 @@ class CamViewerPanel(BoxLayout):
                 "user": self.inp_user.text.strip(),
                 "pwd": self.inp_pwd.text.strip(),
             }, f, indent=2, ensure_ascii=False)
+
     # -----------------------------------------------------
 
     def _log(self, msg):
         self.log.text += "\n" + msg
 
+    # -----------------------------------------------------
+
     def start(self):
         self._save()
-
+    
         ip = self.inp_ip.text.strip()
         u  = self.inp_user.text.strip()
         p  = self.inp_pwd.text.strip()
-
+    
         if not ip or not u or not p:
             self._log("❌ IP/User/Pass fehlen.")
             return
-
+    
         url = build_rtsp_url(ip,u,p,DEFAULT_LIVE_PATH)
         self.player.show_starting(url)
-
-        if platform == "android":
-            self._log("📱 Android: kein interner RTSP Player.\nNur Platzhalter.")
-            return
-
-        # Desktop → ffplay
-        ff = _which("ffplay")
-        if not ff:
-            self._log("❌ ffplay nicht gefunden.")
-            return
-
-        self._log(f"▶ ffplay: {url}")
-        try:
-            self.proc = subprocess.Popen([ff, "-rtsp_transport","tcp", url],
-                                         stdout=subprocess.PIPE,
-                                         stderr=subprocess.STDOUT,
-                                         text=True)
-            threading.Thread(target=self._pump, daemon=True).start()
-        except Exception as e:
-            self._log(f"❌ Fehler: {e}")
+    
+        self._log(f"🌐 Browser: {url} wird geöffnet.")
 
     def stop(self):
-        if self.proc:
-            self._log("■ Stoppe ffplay…")
-            try: self.proc.terminate()
-            except: pass
-            self.proc = None
         self.player.show_stopped()
-
-    def _pump(self):
-        try:
-            for line in self.proc.stdout:
-                self._log(line.strip())
-        except:
-            pass

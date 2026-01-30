@@ -1,0 +1,253 @@
+Alles klar — jetzt dokumentieren wir die Common-Module, also dein berühmtes „Dreigestirn“:
+
+HeaderBar (oben)
+
+ControlButtons (unten)
+
+DevicePicker-Button + Back-Button-System
+
+
+Das sind zentrale UI-Bausteine, die in jeder Ansicht gleich funktionieren.
+Absolut wichtig für Stabilität, UX und Wiedererkennung.
+
+
+---
+
+📘 Modul: ui/common/header_online.py – Die HeaderBar
+
+🎯 Aufgabe
+
+Der Header ist das Navigations- und Statuszentrum des ganzen Dashboards.
+
+Er hat vier Kernbereiche:
+
+1. Links: Zurück-Button (konteextabhängig gesteuert)
+
+
+2. Mitte: Device-Label, Uhrzeit
+
+
+3. Rechts:
+
+Debug
+
+Setup
+
+Device-Picker
+
+
+
+4. Rechts außen: LED-Status (OK / STALE / OFFLINE)
+
+
+
+Der Header ist rein UI — alles, was er anzeigt, kommt von GSM.
+
+
+---
+
+🧬 Funktionen (öffentliche API)
+
+✔ update_back_button(mode)
+
+Bestimmt, ob der Back-Button sichtbar ist und wohin er führt:
+
+mode="dashboard" → kein Back
+
+mode="settings" → zurück zum Dashboard
+
+mode="setup" → ebenfalls zurück
+
+mode="fullscreen" → zurück auf Dashboard
+
+
+Der Header entscheidet nie selbst, wohin — das gibt der Screen vor.
+
+
+---
+
+✔ set_device_label(text)
+
+Zeigt den aktuellen Sensor an:
+
+Beispiele:
+
+"AA:BB:CC:00:30:02"
+
+"NO-DEVICE"
+
+
+Kommt von GSM (device_id).
+
+
+---
+
+✔ set_clock(timestamp)
+
+Wird einmal pro UI-Tick gesetzt.
+
+
+---
+
+✔ set_rssi(value)
+
+Zeigt die gemessene Signalstärke aus decoded.json an.
+
+Falls kein Wert: "--"
+
+
+---
+
+✔ set_led(state)
+
+Nimmt einen der drei Strings:
+
+"OK"
+
+"STALE"
+
+"OFFLINE"
+
+
+Der Header kümmert sich NUR um Farbe/Style.
+
+
+---
+
+🧩 Navigation-Buttons
+
+Der Header ruft immer nur Callbacks:
+
+goto_setup()
+
+goto_debug()
+
+goto_device_picker()
+
+
+Dadurch bleibt er zu 100 % dumm und safe.
+
+Er kennt weder GSM noch Decoder noch Config.
+
+
+---
+
+📘 Modul: ui/common/control_buttons.py – Die 3 Steuerbuttons unten
+
+🎯 Aufgabe
+
+Das untere Control-Panel ist die Hauptsteuerung des Systems.
+
+Besteht aus drei Buttons:
+
+1. Start
+
+
+2. Stop
+
+
+3. Reset
+
+
+
+Alle Buttons rufen NUR die Callbacks des DashboardScreens auf:
+
+on_start
+
+on_stop
+
+on_reset
+
+
+Der Screen reicht es weiter:
+
+GLOBAL_STATE.start()
+
+GLOBAL_STATE.stop()
+
+GLOBAL_STATE.reset()
+
+
+💡 Wichtig:
+Die Buttons haben selbst keinen Status, sie lesen keine Daten und steuern nichts.
+Reine Event-Trigger für GSM.
+
+
+---
+
+📘 Modul: DevicePicker-Button / Inline-Auswahl
+
+(Der „⇅“ Button im Header)
+
+Dieser Button öffnet:
+
+den DevicePicker-Screen
+
+dort kann man den aktiven Sensor wählen
+
+GSM übernimmt die Auswahl
+
+
+Der Header selbst macht NUR:
+
+goto_device_picker() → ScreenManager.current="device_picker"
+
+Er entscheidet NICHT, welches Device aktiv ist.
+
+
+---
+
+🧠 Warum „Dreigestirn“?
+
+Weil diese drei Common-Module die stabile, unveränderbare UI-Welt sind:
+
+Header = Kopf
+
+Dashboard Main Panel = Körper
+
+Control Buttons = Beine
+
+
+Sie bleiben identisch über alle Screens hinweg.
+
+Dadurch ist die UX:
+
+sauber
+
+konsistent
+
+fehlersicher
+
+intuitiv
+
+
+Und du hast sie perfekt gekapselt:
+Keine globale Logik, keine Core-Änderungen, nur UI.
+
+
+---
+
+📦 Was dokumentieren wir als Nächstes?
+
+Du kannst wählen:
+
+1. Tiles (Temp/Hum/VPD) + deren Fullscreen-Modus
+
+
+2. DevicePicker-Modul
+
+
+3. DashboardMainPanel Aufbau
+
+
+4. SetupScreen + SetupMainPanel
+
+
+5. SettingsScreen + SettingsMainPanel
+
+
+6. UI-Scaling / dp_scaled / sp_scaled
+
+
+
+Sag einfach: „Tiles“, „Picker“, „Setup“, „Settings“ oder „Scaling“.

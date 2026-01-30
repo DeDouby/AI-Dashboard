@@ -1,0 +1,454 @@
+Dominik — hier kommt Deep-Dokumentation Level 🧬,
+konkret, sauber, technisch glasklar, Modul für Modul.
+
+
+---
+
+📚 DashboardGUI – Modulübersicht & Funktionsbeschreibung (Deep Doku)
+
+(Stand: Session 7 – Global-Tick Architektur)
+
+Ich gehe jede relevante Datei im dashboard_gui/-Ordner durch.
+Alles Unwichtige (Caches, Icons, PNGs) wird ignoriert.
+
+
+---
+
+1) ROOT-MODULE (dashboard_gui/*.py)
+
+
+---
+
+✔ dashboard.py
+
+Der Haupt-Screen der App.
+
+Aufgaben:
+
+Erstellt den Dashboard-Screen
+
+Registriert sich beim GLOBAL_STATE
+
+Enthält Header, Tiles und ControlButtons
+
+Empfängt Daten ausschließlich über: update_from_global(d)
+
+Leitet Tile-Klicks weiter an: open_fullscreen(tile_id)
+
+Implementiert globalen Reset-Hook: reset_from_global()
+
+
+Wichtig:
+
+Dashboard hat keinen eigenen Timer mehr → 100% global gesteuert.
+
+
+---
+
+✔ data_buffer.py
+
+Zwischenspeicher & Datenvalidierungs-Schicht.
+
+Aufgaben:
+
+Liest decoded.json ein
+
+Hält:
+
+file_exists
+
+data_ok
+
+alive_flag
+
+data (die aktuelle Liste mit 1 Datensatz)
+
+
+Methoden:
+
+load() → initial
+
+soft_reload() → im GlobalTick
+
+get() → Rückgabe der Daten
+
+
+
+Wichtig:
+
+BUFFER ist single-source-of-truth für Sensordaten.
+
+
+---
+
+✔ global_state_manager.py
+
+Das Herz des Systems – zentrale State-Machine.
+
+Aufgaben:
+
+Globaler Loop (_tick)
+
+LED-Status setzen (blau/rot/grün)
+
+Start/Stop/Reset verwalten
+
+Dashboard & Fullscreen aktualisieren
+
+Buttons synchronisieren
+
+Running-Flag steuern
+
+
+Entscheidet über:
+
+running → darf UI updaten oder nicht
+data_ok → LED rot/grün
+alive_flag → lebende Sensoren
+
+Wichtig:
+
+Alle Screens sind „Dumb Views“.
+Nur GlobalState denkt.
+
+
+---
+
+✔ debug_screen.py
+
+Debug-Screen für Entwickler.
+
+Aufgaben:
+
+Zeigt Rohdaten, Debug-Infos
+
+Navigation von Header
+
+
+Wird später evtl. erweitert.
+
+
+---
+
+✔ setup_screen.py
+
+Setup/Diagnose-Ansicht.
+
+Aufgaben:
+
+Basis für Geräteauswahl / Info
+
+Navigierbar über Header
+
+
+
+---
+
+
+---
+
+2) UI COMMON MODULES (ui/common/*)
+
+Diese sind die Bausteine (dein „Baukasten“).
+
+
+---
+
+✔ header.py – HeaderBar
+
+Der komplette obere Rahmen.
+
+Enthält:
+
+LED (via LEDDot)
+
+Device Label
+
+RSSI
+
+External Sensor Status
+
+Uhrzeit
+
+Buttons:
+
+Setup
+
+Debug
+
+
+
+Methoden:
+
+set_device_label()
+set_rssi()
+set_external()
+set_clock()
+set_led()
+
+Alles, was im Kopfbereich sichtbar ist, kommt von hier.
+
+
+---
+
+✔ control_buttons.py – Start/Stop/Reset
+
+Zentrale globale Buttons – identisch für alle Screens.
+
+Aufgaben:
+
+Zeigt Start/Stop als TOGGLE (ein Button!)
+
+Zeigt Reset als zweiten Button
+
+Führt bei Klick aus:
+
+GLOBAL_STATE.start()
+
+GLOBAL_STATE.stop()
+
+GLOBAL_STATE.reset()
+
+
+
+hat:
+
+refresh_state(running)  → Update aus GlobalState
+sync_with_global()      → Initialer Status
+_toggle()                → auf Klick
+
+Das dreigestirn. Pflichtmodul.
+
+
+---
+
+✔ base_screen.py
+
+Basisklasse für Screens (Fall-Back).
+
+
+---
+
+✔ leddot.py
+
+LED-Kreis-Control.
+
+Aufgaben:
+
+Kreis-Widget mit Farbe
+
+Wird von Header verwendet
+
+
+
+---
+
+✔ panel.py / footer_buttons.py
+
+Generelle Layout-Unterstützung, Footer-Varianten, etc.
+
+Nicht mehr super relevant, aber Teil der Struktur.
+
+
+---
+
+
+---
+
+3) DASHBOARD CONTENT MODULE (ui/dashboard_content/*)
+
+Diese betreffen nur den Dashboard-Hauptscreen.
+
+
+---
+
+✔ chart_tile.py – ChartTile
+
+Das einzelne Sensorfeld im Dashboard.
+
+Enthält:
+
+Titel
+
+Einheit
+
+Wert (ein großes Label)
+
+Hintergrundbild
+
+On-Click → öffnet Fullscreen
+
+
+Methoden:
+
+update(value)
+reset()
+on_release() → dashboard.open_fullscreen(tile_key)
+
+Wichtig:
+
+Mapping funktioniert über tile_key:
+
+temp_in
+hum_in
+vpd_in
+temp_ex
+hum_ex
+vpd_ex
+
+
+---
+
+✔ dashboard_main_panel.py
+
+Das Grid mit allen Tiles.
+
+Aufgaben:
+
+3×? Gridlayout
+
+Entscheidet welche Tiles sichtbar sind
+
+Aktualisiert deren Werte
+
+Enthält Mapping aller Tiles
+
+
+Methoden:
+
+update_from_data()
+_apply_tile_visibility()
+
+
+---
+
+
+---
+
+4) FULLSCREEN MODULE (ui/fullscreen/*)
+
+
+---
+
+✔ fullscreen_view.py – FullScreenView
+
+Vollbild-Graph für einen Sensor.
+
+Enthält:
+
+Header
+
+ControlButtons
+
+Graph (Kivy Garden)
+
+Plot (Linienplot)
+
+Buffer (60 Werte)
+
+Smoothing
+
+
+Abläufe:
+
+activate_tile(tile_id) → initialisiert Ansichtsmodus
+
+reset_from_global() → reset durch GlobalState
+
+update_from_global(d) → Graph Draw pro Tick
+
+
+Wichtig:
+
+Kein Timer → ausschließlich globaler Tick.
+
+
+---
+
+
+---
+
+5) ASSETS
+
+Alles grafische:
+
+PNGs für Tiles
+
+Logos
+
+FontAwesome Font (fa-solid-900.ttf)
+
+Icons
+
+
+Keine Logik → pure Unterstützung.
+
+
+---
+
+
+---
+
+6) garden / kivy_garden/graph
+
+Die vollständige Graph-Bibliothek.
+
+Wichtig für Fullscreen-Graph:
+
+Graph
+
+LinePlot
+
+Scale-Handling
+
+Events
+
+
+Keine eigene Änderung — ist lib.
+
+
+---
+
+
+---
+
+📘 QUICK-REFERENCE / Map (Ultra-Short Version)
+
+dashboard_gui/
+│
+├── dashboard.py           → Hauptscreen
+├── fullscreen_view.py     → Fullscreen-Sensoransicht
+├── data_buffer.py         → JSON-Lade- und Validierungsschicht
+├── global_state_manager.py→ Master-State, Timer & Logic
+├── debug_screen.py        → Developer Debug
+├── setup_screen.py        → Setup / Info
+│
+└── ui/
+    ├── common/
+    │   ├── header.py          → Kopfbereich
+    │   ├── control_buttons.py → Start/Stop/Reset (global)
+    │   └── leddot.py          → LED-Indikator
+    │
+    ├── dashboard_content/
+    │   ├── chart_tile.py      → Kachel einzeln
+    │   └── dashboard_main_panel.py → Dashboard-Grid
+    │
+    └── fullscreen/
+        └── fullscreen_view.py → Graph-View
+
+
+---
+
+🔥 Wenn du möchtest, generiere ich daraus:
+
+✔ Eine PDF-Dokumentation
+
+✔ Eine Markdown-Dokumentation (README.md-ready)
+
+✔ Ein vollständiges UML-Klassendiagramm
+
+✔ Ein Architektur-Flowchart (PNG)
+
+✔ Eine Dev-Doku + How-To für neue Screens
+
+Sag an.

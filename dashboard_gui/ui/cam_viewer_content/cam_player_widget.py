@@ -1,18 +1,14 @@
-# dashboard_gui/ui/cam_viewer_content/cam_player_widget.py
-
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
-from kivy.utils import platform
 import webbrowser
+import sys
+import os
 
 class CamPlayerWidget(BoxLayout):
     """
-    Desktop:
-        - Kein eigenes Video, ffplay öffnet extern
-        - Hier im Panel nur Text "Live wird extern angezeigt"
-
-    Android:
-        - Öffnet die angegebene Kamera-Adresse direkt im Browser
+    Player-Widget für Kamera:
+    - Öffnet immer den Link im Browser
+    - macOS: explizit Safari/Chrome statt VLC
     """
 
     def __init__(self, **kw):
@@ -28,17 +24,22 @@ class CamPlayerWidget(BoxLayout):
         self.add_widget(self.label)
 
     def show_starting(self, url):
-        if platform == "android":
-            self.label.text = f"Öffne Kamera im Browser:\n{url}"
-            try:
-                webbrowser.open(url)
-            except Exception as e:
-                self.label.text = f"❌ Fehler beim Öffnen im Browser:\n{e}"
-        else:
-            self.label.text = f"▶ Live-Stream startet im externen Fenster (ffplay)\n{url}"
+        self.label.text = f"🌐 Öffne Kamera im Browser:\n{url}"
+        try:
+            if sys.platform == "darwin":  # macOS
+                # Safari bevorzugt, wenn nicht möglich → Chrome → fallback Default
+                for browser_name in ["safari", "chrome"]:
+                    try:
+                        b = webbrowser.get(browser_name)
+                        b.open(url)
+                        return
+                    except:
+                        continue
+                webbrowser.open(url)  # fallback
+            else:
+                webbrowser.open(url)  # Windows / Linux / Android
+        except Exception as e:
+            self.label.text = f"❌ Fehler beim Öffnen im Browser:\n{e}"
 
     def show_stopped(self):
-        if platform == "android":
-            self.label.text = "📷 Kein Live-Stream aktiv."
-        else:
-            self.label.text = "Live-Stream gestoppt."
+        self.label.text = "📷 Kein Live-Stream aktiv."

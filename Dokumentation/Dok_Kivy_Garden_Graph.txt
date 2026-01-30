@@ -1,0 +1,469 @@
+Oh ja, die Kivy-Garden-Graph-Nacht™ – die gehört definitiv in die Doku.
+Ich mach dir daraus ein richtig klares Kapitel, das du direkt in dein PDF kleben kannst.
+
+
+---
+
+Kapitel X – Kivy Garden Graph: Reproduktion & Lessons Learned
+
+1. Ausgangslage
+
+Ziel:
+Dein Dashboard braucht saubere Live-Kurven für Temperatur/Feuchtigkeit/VPD.
+Technische Basis:
+
+Kivy App (Desktop & Android)
+
+Charts über kivy_garden.graph
+→ from kivy_garden.graph import Graph, LinePlot
+
+
+Klingt simpel – war es aber nicht.
+Auf Desktop lief es irgendwann, auf Android knallte es regelmäßig mit:
+
+ModuleNotFoundError: No module named 'kivy_garden'
+
+oder die App startete ohne sichtbare Kurven.
+
+
+---
+
+2. Das eigentliche Problem
+
+Die Probleme mit kivy_garden.graph hatten mehrere Schichten:
+
+1. Desktop vs. Android
+
+Desktop: pip install kivy_garden.graph → funktioniert
+
+Android (Buildozer/p4a): modulares Packaging, Garden wird nicht automatisch eingebunden
+
+
+
+2. Wo liegt graph.py überhaupt?
+Du warst im Blindflug auf der Suche nach:
+
+graph/__init__.py
+
+graph.py
+
+und den zugehörigen Garden-Ressourcen
+
+
+
+3. Mismatch zwischen „import Pfad“ und Dateisystem
+
+Import: from kivy_garden.graph import Graph, LinePlot
+
+Realer Pfad hängt davon ab, wie Garden installiert wurde (pip vs garden-Tool vs manuell kopiert).
+
+
+
+
+Ergebnis:
+Auf Desktop alles ok, auf Android lief die App ohne Graph oder brach direkt beim Import ab.
+
+
+---
+
+3. Die „Graph.py-Jagd“ – Reproduktion im Blindflug
+
+3.1 Schritt 1 – Wo liegt graph.py wirklich?
+
+Du bist systematisch vorgegangen:
+
+Im venv/Global-Python gesucht nach:
+
+site-packages/kivy_garden/graph/graph.py
+
+bzw. kivy_garden/graph/__init__.py
+
+
+Verifiziert, dass das Python-Modul tatsächlich existiert und Graph / LinePlot dort definiert sind.
+
+Damit war klar:
+
+Das Problem ist nicht Kivy selbst
+
+Es ist Packaging / Pfad / Buildozer
+
+
+
+
+---
+
+3.2 Schritt 2 – Buildozer: Garden wird nicht automatisch gebündelt
+
+Deine buildozer.spec enthält inzwischen:
+
+requirements = python3,kivy,pyjnius,pillow,certifi,six,kivy_garden.graph
+
+source.include_exts = py,kv,png,jpg,json,ttf
+include_patterns = garden/**/*
+source.include_dirs = garden
+
+Das war aber nicht von Anfang an so sauber.
+
+Die Stolpersteine waren:
+
+1. kivy_garden.graph in requirements alleine reicht nicht immer
+→ p4a muss das richtige Rezept finden oder selber bauen
+
+
+2. Garden-Pakete bringen teilweise eigene Ressourcen/Struktur mit
+→ ohne include_patterns = garden/**/* wurden Dateien nicht in die APK gepackt
+
+
+3. Unterschiedliche Installationswege (z.B. mit dem alten garden-Tool) haben andere Pfade erzeugt.
+
+
+
+
+---
+
+3.3 Schritt 3 – Lokale Reproduktion im Projekt
+
+Du hast es letztlich robust gemacht, indem du:
+
+Das relevante Garden-Verzeichnis (z. B. kivy_garden/graph/...)
+in dein Projekt eingehängt hast (unter garden/ oder ähnlichem)
+
+Buildozer so konfiguriert hast, dass dieses Verzeichnis garantiert mit in die APK kommt:
+
+source.include_dirs = garden
+
+include_patterns = garden/**/*
+
+
+Den Import beibehalten konntest:
+
+from kivy_garden.graph import Graph, LinePlot
+
+weil die Package-Struktur im Build so nachgebildet war, wie Python sie erwartet.
+
+
+Damit hattest du:
+
+1:1 die gleiche Implementierung wie auf Desktop
+
+aber unter deiner eigenen Kontrolle im Projektbaum.
+
+
+
+---
+
+4. Typische Fehlersymptome & wie du sie gefixt hast
+
+4.1 ModuleNotFoundError: No module named 'kivy_garden'
+
+Bedeutung:
+Python findet das Package nicht im sys.path, weder auf Desktop noch in der APK.
+
+Fix-Punkte bei dir:
+
+Sicherstellen, dass:
+
+im venv: pip install kivy_garden.graph ausgeführt ist
+
+in buildozer.spec:
+
+requirements = python3,kivy,pyjnius,pillow,certifi,six,kivy_garden.graph
+
+Garden-Code in garden/** im Projekt liegt
+
+include_patterns = garden/**/* aktiv ist
+
+
+
+
+---
+
+4.2 App läuft, aber keine Graphen sichtbar
+
+Die „stillen“ Probleme:
+
+Graph-Widget existiert, aber:
+
+keine Daten (LinePlot.points leer)
+
+falsche Größe (0x0, Layout-Probleme)
+
+falscher Hintergrund (z.B. Bild überdeckt Graph)
+
+
+
+In deinem Dashboard:
+
+ChartTile initialisiert Graph + LinePlot
+
+GlobalStateManager füttert über update_from_global neue Datenpunkte
+
+Wenn decoded.json nicht korrekt war, sah es zuerst nach einem Graph-Problem aus, obwohl es Datenquelle oder Stale-Handling war.
+
+
+Du hast mit:
+
+Debug-Prints in ChartTile
+
+Kontrolle von decoded.json
+
+und dem Kühlschranktest + Stale-Test
+
+
+sichergestellt, dass der Graph nur noch UI ist, und nicht heimlich die Datenlogik kaputt macht.
+
+
+---
+
+5. Warum dir dasselbe mit Kivy Maps drohen kann
+
+Deine Befürchtung ist berechtigt:
+Kivy-Maps wird ganz ähnliche Anforderungen haben wie Garden-Graph:
+
+Externe Abhängigkeit (evtl. weiterer Garden-Namespace oder Drittbibliothek)
+
+Zusätzliche Ressourcen (Tiles, Images, Provider-Code)
+
+Unterschiedliche Verhalten auf Desktop vs. Android
+
+
+Der große Vorteil:
+Du hast jetzt ein Muster:
+
+1. Bibliothek identifizieren
+
+Wo liegt der Code? (site-packages, garden, externes Repo)
+
+
+
+2. Lokal ins Projekt ziehen (unter garden/ oder libs/)
+
+
+3. Buildozer so konfigurieren, dass:
+
+die Dateien sicher in die APK kommen
+
+der Importpfad identisch ist wie am Desktop
+
+
+
+4. Mit einem Minimalbeispiel testen:
+
+from kivy_garden.graph import Graph
+# später: from kivy_garden.map import MapView (o.ä.)
+
+
+
+Damit vermeidest du beim nächsten Mal „blindfliegen“ – du kennst den gesamten Pfad:
+von requirements → Projektstruktur → Buildozer → Import → Laufzeit.
+
+
+---
+
+6. Best Practices, die aus der Graph-Nacht entstanden sind
+
+Für deine Doku (und dein zukünftiges Ich) lohnt sich eine kleine Checkliste:
+
+1. Einmal „Quelle sichern“
+
+wenn eine Fremdbiblio wichtig ist (Graph, später Maps),
+→ immer eine Projekt-Kopie anlegen (/garden, /libs)
+
+
+
+2. Check: Desktop vs. Android
+
+Auf Desktop: im venv normal mit pip install testen
+
+Auf Android:
+
+requirements= in buildozer.spec
+
+include_patterns & source.include_dirs setzen
+
+
+
+
+3. Minimal-App zum Testen
+
+Eine kleine Test-App nur mit dem neuen Widget (Graph/Map)
+
+Startet schnell, kein Dashboard-Overhead
+
+Wenn das läuft → erst dann ins große Projekt übernehmen
+
+
+
+4. Keine Logik im Vendor-Code
+
+Garden-Graph bleibt „dumme Anzeige“
+
+deine Logik bleibt in:
+
+decoder.py
+
+calculator.py
+
+global_state_manager.py
+
+
+
+
+
+So bleibt dein System stabil, auch wenn du z.B. den Graph später durch ein anderes Chart-Widget austauschst.
+
+
+---
+
+Wenn du möchtest, mache ich dir als nächstes ein Mini-Kapitel „Kivy Maps – Erwartete Stolpersteine“, damit du später beim ersten Maps-Experiment genau weißt, an welchen Schrauben du drehen musst und wo garantiert wieder Garten-/Pfad-Chaos lauern kann.
+
+
+
+Kurzversion:
+Es liegt fast nie daran, dass es „kein Graph-Modul gibt“, sondern daran, wie Kivy-Garden es verteilt.
+Der Klassiker: alte Garden-Infrastruktur kaputt / umgezogen + falsches Install-Werkzeug = nix lädt.
+
+Ich pack dir die Hintergründe sortiert hin:
+
+
+---
+
+1. Historisches Chaos: das alte garden-Tool
+
+Früher war der offizielle Weg:
+
+garden install graph
+
+Das Tool hat dann:
+
+bei kivy-garden.org oder einem alten Index nachgeschaut
+
+das Repo (z. B. von GitHub) gezogen
+
+die Dateien ins lokale kivy_garden/graph/ gelegt
+
+
+Probleme heute:
+
+1. Der alte Garden-Server / Index ist quasi tot oder unzuverlässig.
+→ garden install graph findet das Paket oft nicht mehr oder bricht mit SSL/404/etc. ab.
+
+
+2. Das Tool selbst ist halb-legacy:
+
+wenig gepflegt
+
+teilweise nicht an moderne Python / Pip / TLS / Git-Versionen angepasst
+
+
+
+
+Ergebnis aus Sicht des Users:
+
+> „graph Modul ist nicht herunterzuladen“
+In Wirklichkeit:
+Der alte Verteilkanal ist Schrott, nicht das Modul an sich.
+
+
+
+
+---
+
+2. Namensverwirrung: graph, garden.graph, kivy_garden.graph
+
+Du hast mehrere Ebenen:
+
+Import in Python:
+
+from kivy_garden.graph import Graph, LinePlot
+
+Paketname für pip / Buildozer requirements:
+
+kivy_garden.graph
+
+Garden-Tool Syntax:
+
+garden install graph
+
+
+Typische Fehler:
+
+pip install graph → installiert irgendein anderes Paket (oder nichts Sinnvolles)
+
+pip install kivy-garden → bringt nicht automatisch kivy_garden.graph mit
+
+garden install graph → schlägt fehl, weil der alte Garden-Index nicht mehr sauber funktioniert
+
+
+Dann sieht es so aus, als gäbe es das Modul nicht – in echt hast du nur den falschen „Türöffner“ benutzt oder der alte Server ist hinüber.
+
+
+---
+
+3. Android / Buildozer erschwert das nochmal
+
+Selbst wenn du auf dem Desktop:
+
+pip install kivy_garden.graph
+
+erfolgreich gemacht hast, heißt das nicht, dass Buildozer es automatisch im Android-Image:
+
+findet
+
+runterladen darf
+
+oder als fertige Library für ARM64 kriegt.
+
+
+Typische Stolpersteine:
+
+1. Kein fertiges Wheel für ARM → p4a versucht Source-Build, braucht aber Git / Netzwerk / extra Args.
+
+
+2. Offline / eingeschränktes Colab-Umfeld → keine externen Downloads während des Builds.
+
+
+3. Fehler in requirements → kivy_garden.graph fehlt oder ist falsch geschrieben, p4a ignoriert es still.
+
+
+
+Dann erscheint es so:
+
+„Graph Modul kann nicht geladen / heruntergeladen werden“
+
+obwohl es z. B. als Source auf GitHub existiert.
+
+
+Deshalb hast du ja am Ende den robusten Weg gewählt:
+
+Garden-Graph lokal ins Projekt hängen
+
+include_patterns = garden/**/*
+
+Import so lassen: from kivy_garden.graph import Graph, LinePlot
+
+
+Damit bist du unabhängig von:
+
+Garden-Server
+
+PyPI-Wheel-Status
+
+p4a-Rezept-Chaos
+
+Netzwerkproblemen bei Buildozer
+
+
+
+---
+
+4. Auf einen Satz runtergebrochen
+
+> Das Graph-Modul ist nicht wirklich „weg“ – die alte Garden-Infrastruktur zum automatischen Download ist kaputt bzw. legacy.
+Mit pip+manueller Projektkopie und sauberer Buildozer-Config umgehst du dieses Loch komplett.
+
+
+
+Wenn du magst, formuliere ich dir noch einen kleinen „Hinweiskasten“ für die Doku im Stil:
+
+> Warum garden install graph heute nicht mehr zuverlässig funktioniert – mit 3 Bullet-Points, die du einfach so ins PDF kleben kannst.

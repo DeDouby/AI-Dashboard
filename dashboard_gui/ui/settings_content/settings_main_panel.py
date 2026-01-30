@@ -20,6 +20,7 @@ from kivy.core.image import Image as CoreImage
 import os
 from kivy.uix.image import Image
 from kivy.graphics import Color, Rectangle
+from kivy.uix.togglebutton import ToggleButton
 
 class SettingsMainPanel(BoxLayout):
     def __init__(self, on_save, on_cancel, **kw):
@@ -135,7 +136,32 @@ class SettingsMainPanel(BoxLayout):
             lang_row.add_widget(btn)
 
         container.add_widget(lang_row)
-
+        # --- Theme Row ---
+        theme_row = BoxLayout(size_hint_y=None, height=dp_scaled(48), spacing=dp_scaled(10))
+        theme_row.add_widget(Label(
+            text="Theme",
+            size_hint=(0.35,1),
+            font_size=sp_scaled(16)
+        ))
+        
+        self.theme_buttons = {}
+        current_theme = self.cfg.get("theme", "tiles")
+        
+        for theme_id, label in [
+            ("tiles",  "Theme 1"),
+            ("tiles2", "Theme 2"),
+            ("tiles3", "Theme 3"),
+        ]:
+            btn = Button(
+                text=label,
+                font_size=sp_scaled(16),
+                background_color=(0.4,0.7,1,1) if current_theme==theme_id else (0.3,0.3,0.3,1)
+            )
+            btn.bind(on_release=lambda inst, t=theme_id: self._set_theme(t))
+            self.theme_buttons[theme_id] = btn
+            theme_row.add_widget(btn)
+        
+        container.add_widget(theme_row)
         # --- Bottom Buttons ---
         btn_row = BoxLayout(size_hint_y=None, height=dp_scaled(36), spacing=dp_scaled(10))
         btn_reset = Button(text=I18N.t("settings.reset_defaults"), font_size=sp_scaled(16), background_color=(0.45,0.45,0.45,1))
@@ -185,6 +211,7 @@ class SettingsMainPanel(BoxLayout):
     def _collect(self):
         out = {k:v.value for k,v in self.inputs.items()}
         out["temperature_unit"] = self.temp_unit
+        out["theme"] = config.get_theme()
         return out
 
     def _update_dev_visibility(self):
@@ -203,6 +230,17 @@ class SettingsMainPanel(BoxLayout):
                 row.disabled = True
                 row.opacity = 0
                 row.height = 0
+
+    def _set_theme(self, theme):
+        import config
+        cfg = config._init()
+        cfg["theme"] = theme
+        config.save(cfg)
+    
+        for t, btn in self.theme_buttons.items():
+            btn.background_color = (0.4,0.7,1,1) if t==theme else (0.3,0.3,0.3,1)
+    
+        print(f"[SETTINGS] Theme switched to {theme}")
 
     def _set_language(self, code):
         import config

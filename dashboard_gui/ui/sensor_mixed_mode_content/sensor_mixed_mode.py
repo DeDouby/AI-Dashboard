@@ -60,8 +60,8 @@ class SensorMixedModeScreen(Screen):
         )
         self.details_label = Label(
             text="",
-            font_size=sp_scaled(22),
-            color=(0.8, 0.8, 0.8, 1),
+            font_size=sp_scaled(30),
+            color=(0.2,1,0.6,1),
             halign="left",
             valign="top",
             markup=True
@@ -76,11 +76,18 @@ class SensorMixedModeScreen(Screen):
             spacing=dp_scaled(12)
         )
         self.lbl_avg_temp = Label(text="--", font_size=sp_scaled(54), bold=True, markup=True)
-        self.lbl_avg_hum  = Label(text="--", font_size=sp_scaled(50), color=(0.2,0.8,1,1), markup=True)
-        self.lbl_avg_vpd  = Label(text="--", font_size=sp_scaled(48), color=(0.2,1,0.6,1), markup=True)
+        self.lbl_avg_hum  = Label(text="--", font_size=sp_scaled(54), color=(0.2,0.8,1,1), markup=True)
+        self.lbl_avg_vpd  = Label(text="--", font_size=sp_scaled(54), color=(0.2,1,0.6,1), markup=True)
+        self.lbl_avg_dew  = Label(
+            text="--",
+            font_size=sp_scaled(54),
+            color=(0.7,0.7,0.9,1),
+            markup=True
+        )
         self.right_column.add_widget(self.lbl_avg_temp)
         self.right_column.add_widget(self.lbl_avg_hum)
         self.right_column.add_widget(self.lbl_avg_vpd)
+        self.right_column.add_widget(self.lbl_avg_dew)   # 🔥 NEU
 
         self.center_zone.add_widget(self.left_column)
         self.center_zone.add_widget(self.right_column)
@@ -251,14 +258,23 @@ class SensorMixedModeScreen(Screen):
         data = BUFFER.get() or []
     
         sensor_values = {}
-        averaging_map = {"temp": [], "hum": [], "vpd": []}
+        averaging_map = {
+            "temp": [],
+            "hum": [],
+            "vpd": [],
+            "dew": []   # 🔥 NEU
+        }
     
         for frame in data:
             dev_id = norm_id(frame.get("device_id"))
             if dev_id not in selected:
                 continue
-            sensor_values.setdefault(dev_id, {"temp": [], "hum": [], "vpd": []})
-    
+            sensor_values.setdefault(dev_id, {
+                "temp": [],
+                "hum": [],
+                "vpd": [],
+                "dew": []   # 🔥 NEU
+            })    
             active_modes = self.device_modes.get(dev_id, {"internal"})
             if not isinstance(active_modes, set):
                 active_modes = {active_modes}
@@ -287,7 +303,18 @@ class SensorMixedModeScreen(Screen):
                         val = float(hum_obj["value"])
                         sensor_values[dev_id]["hum"].append(val)
                         averaging_map["hum"].append(val)
-    
+
+                    # Dew Point – strikt aus decoded
+                    for mode in active_modes:
+                        dp_key = "dew_point_internal" if mode == "internal" else "dew_point_external"
+                        dp_obj = ch.get(dp_key)
+                    
+                        if isinstance(dp_obj, dict) and dp_obj.get("value") is not None:
+                            val = float(dp_obj["value"])
+                            unit = dp_obj.get("unit", "°C")
+                            sensor_values[dev_id]["dew"].append((val, unit))
+                            averaging_map["dew"].append((val, unit))
+
                     # VPD – nur aus decoded lesen, LISTE füllen
                     vpd_key = "vpd_internal" if "internal" in active_modes else "vpd_external"
                     vpd_obj = ch.get(vpd_key)
@@ -309,6 +336,10 @@ class SensorMixedModeScreen(Screen):
                 parts.append(f"T: {avg_val:.1f}{unit}")
             if vals["hum"]:
                 parts.append(f"H: {sum(vals['hum'])/len(vals['hum']):.1f}%")
+            if vals["dew"]:
+                val, unit = vals["dew"][0]
+                avg_val = sum(v for v, u in vals["dew"]) / len(vals["dew"])
+                parts.append(f"D: {avg_val:.1f}{unit}")
             if vals["vpd"]:
                 parts.append(f"V: {sum(vals['vpd'])/len(vals['vpd']):.2f} kPa")
             detail_lines.append(f"[b]{name}:[/b] {' | '.join(parts)}")
@@ -324,7 +355,12 @@ class SensorMixedModeScreen(Screen):
     
         self.lbl_avg_hum.text = f"{sum(averaging_map['hum'])/len(averaging_map['hum']):.2f} %" if averaging_map['hum'] else "-- %"
         self.lbl_avg_vpd.text = f"{sum(averaging_map['vpd'])/len(averaging_map['vpd']):.2f} kPa" if averaging_map['vpd'] else "-- kPa"
-    
+        if averaging_map["dew"]:
+            val, unit = averaging_map["dew"][0]
+            avg_val = sum(v for v, u in averaging_map["dew"]) / len(averaging_map["dew"])
+            self.lbl_avg_dew.text = f"{avg_val:.2f} {unit}"
+        else:
+            self.lbl_avg_dew.text = "-- °C"
         # Status
         self.status_label.text = f"Schnitt aus {len(sensor_values)} Geräten"
 

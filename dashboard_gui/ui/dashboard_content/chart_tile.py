@@ -4,6 +4,7 @@ from kivy.uix.label import Label
 from kivy_garden.graph import Graph, LinePlot
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.graphics import Rectangle, Color
+from kivy.uix.floatlayout import FloatLayout
 
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.global_state_manager import GLOBAL_STATE
@@ -29,8 +30,12 @@ class ChartTile(ButtonBehavior, BoxLayout):
         self._coord_buffers = {}  # NEU: für interne/externe Koordinaten
         self.last_value = None
         self.smoothing = 0.25
+        self.value_wrap = FloatLayout(size_hint=(None, None))
+        self.value_wrap.size_hint_x = None
+
         # Multi-Device Buffers: device_id → eigener Verlauf
         self.buffers = {}
+
         # -------------------------------------------------
         # BACKGROUND
         # -------------------------------------------------
@@ -58,16 +63,48 @@ class ChartTile(ButtonBehavior, BoxLayout):
             height=dp_scaled(38),
             spacing=dp_scaled(4),
         )
-
+        
         self.lbl_title = Label(text=title, font_size=sp_scaled(16))
-        self.lbl_trend = Label(text="", font_size=sp_scaled(18), font_name="FA")
-        self.lbl_value = Label(text="--", font_size=sp_scaled(18))
-
+        self.lbl_trend = Label(text="", font_size=sp_scaled(20), font_name="FA")
+        
+        # VALUE WRAPPER — fixe Breite
+        self.value_wrap = FloatLayout(
+            size_hint=(None, 1),
+            width=dp_scaled(120),
+        )
+        
+        # OUTLINE / GLOW (unten) — aufgehellte Tile-Farbe
+        self.lbl_value_shadow = Label(
+            text="--",
+            font_size=sp_scaled(30),
+            color=(
+                self.color[0] + (1 - self.color[0]) * 0.4,
+                self.color[1] + (1 - self.color[1]) * 0.4,
+                self.color[2] + (1 - self.color[2]) * 0.4,
+                0.75,
+            ),
+            pos_hint={"center_x": 0.5, "center_y": 0.5},
+        )
+        
+        # MAIN VALUE (oben)
+        self.lbl_value = Label(
+            text="--",
+            font_size=sp_scaled(30),
+            color=(2, 1, 1, 1),
+            pos_hint={"center_x": 0.5, "center_y": 0.5},
+        )
+        
+        # leichter Offset für Outline (bleibt exakt hier)
+        self.lbl_value_shadow.pos = (dp_scaled(1.5), -dp_scaled(1.5))
+        
+        # zusammenbauen
+        self.value_wrap.add_widget(self.lbl_value_shadow)
+        self.value_wrap.add_widget(self.lbl_value)
+        
         header.add_widget(self.lbl_title)
         header.add_widget(self.lbl_trend)
-        header.add_widget(self.lbl_value)
+        header.add_widget(self.value_wrap)
         self.add_widget(header)
-
         # -------------------------------------------------
         # GRAPH
         # -------------------------------------------------
@@ -87,7 +124,6 @@ class ChartTile(ButtonBehavior, BoxLayout):
 
         self.plot = LinePlot(color=self.color, line_width=4.0)
         self.graph.add_plot(self.plot)
-
         glow = [self.color[0], self.color[1], self.color[2], 0.25]
         self.plot_glow = LinePlot(color=glow, line_width=6.0)
         self.graph.add_plot(self.plot_glow)
@@ -104,8 +140,8 @@ class ChartTile(ButtonBehavior, BoxLayout):
             spacing=dp_scaled(4),
         )
 
-        self.lbl_avg = Label(text="avg: --", font_size=sp_scaled(12))
-        self.lbl_minmax = Label(text="", font_size=sp_scaled(12))
+        self.lbl_avg = Label(text="avg: --", font_size=sp_scaled(16))
+        self.lbl_minmax = Label(text="", font_size=sp_scaled(16))
 
         footer.add_widget(self.lbl_avg)
         footer.add_widget(self.lbl_minmax)
@@ -225,8 +261,21 @@ class ChartTile(ButtonBehavior, BoxLayout):
         # -------------------------
         if render:
             self.lbl_trend.text = self._calc_trend(buf)
-            self.lbl_value.text = f"{display_value:.2f} {self.unit}"
-            self._render_buffer(buf)  # nur Floats
+        
+            text = f"{display_value:.2f} {self.unit}"
+            self.lbl_value.text = text
+            self.lbl_value_shadow.text = text
+        
+            # 🔧 HIER: Farbe bei jedem Render neu setzen
+            r, g, b, _ = self.color
+            self.lbl_value_shadow.color = (
+                r + (1 - r) * 0.4,
+                g + (1 - g) * 0.4,
+                b + (1 - b) * 0.4,
+                0.75,
+            )
+        
+            self._render_buffer(buf)
 
     def _calc_trend(self, buf):
         n = len(buf)

@@ -1,0 +1,212 @@
+Alles klar — glasklare Doku, exakt in der Reihenfolge:
+
+1. data_buffer.py
+
+
+2. global_state_manager.py (GSM)
+
+
+3. dashboard.py (DashboardScreen)
+
+
+
+Wir starten jetzt mit deinem DataBuffer, exakt so wie du ihn gebaut hast.
+
+
+---
+
+📘 Modul: data_buffer.py – Das Datenfenster des Dashboards
+
+DataBuffer ist das einzige Modul, aus dem das Dashboard seine Daten bezieht.
+Es fungiert als UI-seitiger Cache & Reader für:
+
+data/decoded.json
+
+Der Decoder schreibt → DataBuffer liest.
+Keine Logik, keine Berechnung, kein BLE.
+Reine, sichere UI-Zufuhr.
+
+
+---
+
+🧩 1. Rolle des DataBuffer
+
+Der DataBuffer erledigt drei Dinge:
+
+✔ liest regelmäßig decoded.json
+
+✔ prüft, ob die Datei existiert
+
+✔ extrahiert drei Statusfelder für das Dashboard:
+
+Datei vorhanden (file_exists)
+
+Daten gültig (data_ok)
+
+Gerät alive (alive_flag)
+
+
+Diese drei Flags steuern:
+
+LED
+
+Anzeigen
+
+Steuersperren
+
+Dashboard-Update logic
+
+
+
+---
+
+🚀 2. Klassenstruktur
+
+class DataBuffer:
+    def __init__(self):
+        self.path = "data/decoded.json"
+        self.data = None
+
+        self.file_exists = False
+        self.data_ok = False
+        self.alive_flag = False
+
+Das bedeutet:
+
+self.path → feste Pipeline
+
+self.data → aktueller Inhalt (oder None)
+
+self.file_exists → Dashboard weiß sofort: Data vorhanden oder nicht
+
+self.data_ok → Struktur stimmt? Liste? Nicht leer?
+
+self.alive_flag → Status direkt aus Decoder übernommen
+
+
+
+---
+
+📥 3. load() – das Herzstück
+
+load() ist die Hauptlesefunktion.
+
+Sie macht Schritte:
+
+1️⃣ Prüfen: existiert die Datei?
+
+self.file_exists = os.path.exists(self.path)
+
+Wenn nein:
+
+Dashboard bekommt:
+
+
+file_exists = False
+data_ok = False
+alive_flag = False
+data = None
+
+2️⃣ Versuch Datei zu laden
+
+with open(...) as f:
+    self.data = json.load(f)
+
+Fehler → data bleibt None.
+
+3️⃣ Validierung der Datenstruktur:
+
+Muss list sein
+
+Muss len > 0 sein
+
+
+Wenn das stimmt:
+
+self.data_ok = True
+self.alive_flag = bool(first_entry["alive"])
+
+Wenn nicht:
+
+data_ok = False
+alive_flag = False
+
+
+---
+
+📤 4. get() – Liefert letzter Stand
+
+Getter ohne Reload:
+
+def get(self):
+    return self.data
+
+Das Dashboard ruft es beim UI-Refresh ab.
+
+
+---
+
+🔄 5. soft_reload() – sanfte Aktualisierung
+
+def soft_reload(self):
+    return self.load()
+
+Wird vom GSM zyklisch benutzt.
+
+
+---
+
+🌐 6. Globales Singleton
+
+BUFFER = DataBuffer()
+
+Damit kann die gesamte UI überall auf dieselbe Instanz zugreifen.
+
+
+---
+
+🧠 Warum ist DataBuffer so wichtig?
+
+Weil er ein absolut risikofreies UI-Fenster baut:
+
+Kein Thread
+
+Keine Watchdog- oder BLE-Logik
+
+Kein Zugriff auf Bridge
+
+Kein Zutun an decoded.json
+
+Pure Readonly-Sicherheit
+
+
+Wenn der Decoder Mist baut → Dashboard crasht nicht
+Wenn Watchdog stale ist → Dashboard zeigt sauber Fehler
+Wenn Datei verschwindet → Dashboard zeigt OFFLINE
+
+Der DataBuffer isoliert das Dashboard komplett vom Backend.
+Das ist extrem professionell gelöst.
+
+
+---
+
+Nächster Schritt sofort bereit:
+
+👉 global_state_manager.py – DIE SCHALTZENTRALE
+Sobald du „Weiter“ sagst, beschreibe ich:
+
+Tick-System
+
+Alive/Offline Handling
+
+Device-Wechsel
+
+Buffer → Dashboard Flow
+
+Watchdog Integration
+
+Start/Stop/Reset Pipeline
+
+
+Sag einfach:
+„Weiter mit GSM“

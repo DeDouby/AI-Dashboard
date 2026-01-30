@@ -264,11 +264,11 @@ def decode_channel(entry, raw_key, profile_name,
     )
 
     unit = f"°{config.get_temperature_unit().upper()}"
-
-    # 🔹 Koordinaten VOR dem Return berechnen
+     # 🔹 Koordinaten VOR dem Return berechnen
     xi, yi = calculator.vpd_coord_internal(T_i, H_i)
     xe, ye = calculator.vpd_coord_external(T_e, H_e)
-
+    dpi = calculator.dew_point_internal(T_i, H_i)
+    dpe = calculator.dew_point_external(T_e, H_e)
     # --- Sauber zurückgeben ---
     return {
         "alive": True,
@@ -289,12 +289,13 @@ def decode_channel(entry, raw_key, profile_name,
         "vpd_internal": {"value": calculator.vpd_internal(T_i, H_i), "unit": "kPa"},
         "vpd_external": {"value": calculator.vpd_external(T_e, H_e), "unit": "kPa"},
 
+        
         "dew_point_internal": {
-            "value": calculator.dew_point_internal(T_i, H_i),
+            "value": calculator.to_unit(dpi),
             "unit": unit
         },
         "dew_point_external": {
-            "value": calculator.dew_point_external(T_e, H_e),
+            "value": calculator.to_unit(dpe),
             "unit": unit
         },
 

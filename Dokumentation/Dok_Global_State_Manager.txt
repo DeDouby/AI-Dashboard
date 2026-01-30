@@ -1,0 +1,374 @@
+Perfekt — wir gehen jetzt GSM → Dashboard in absolut klaren, druckfertigen Modulen.
+Beide gehören zusammen wie Motorsteuergerät und Cockpit.
+
+
+---
+
+📘 Modul: global_state_manager.py (GSM)
+
+Die Schaltzentrale des gesamten Dashboards.
+
+Der GSM ist der Taktgeber, der Manager, der Router.
+Alle Datenflüsse laufen hier durch:
+
+Decoder → decoded.json → DataBuffer → GSM → Dashboard
+                   ↑
+              Watchdog
+
+Er hält das Dashboard stabil, egal was im Backend passiert.
+
+
+---
+
+🧩 1. Hauptaufgaben des GSM
+
+Der GlobalStateManager übernimmt:
+
+✔ periodisches UI-Update („Tick“)
+
+✔ Device-Steuerung (Device Picker)
+
+✔ LED-Status (alive/stale/offline)
+
+✔ Datenvalidierung
+
+✔ Reset-Logik
+
+✔ Start/Stop des gesamten Systems (via Core)
+
+Er ist die einzige Instanz, die das Dashboard befüllt.
+
+
+---
+
+🏗 2. Interne Struktur
+
+Du hast drei UI-Kanäle:
+
+DashboardScreen (Hauptansicht)
+
+SetupScreen
+
+DevicePickerScreen
+
+
+Alle rufen dieselbe Instanz:
+
+GLOBAL_STATE = GlobalStateManager()
+
+Der GSM verknüpft alle Screens miteinander und versorgt die UI mit Daten.
+
+
+---
+
+🔄 3. Tick-System
+
+Der GSM setzt einen UI-Timer:
+
+alle ui_refresh_interval Sekunden
+
+ruft BUFFER.soft_reload()
+
+verarbeitet die neuen Daten
+
+ruft Dashboard.update_from_global(d)
+
+
+Damit ist das Dashboard komplett event-driven durch den GSM.
+Der Decoder ruft das Dashboard niemals direkt an → robuste Architektur.
+
+
+---
+
+🧬 4. Alive / Stale / Offline Logik
+
+Der GSM kombiniert:
+
+alive_flag vom DataBuffer
+
+Watchdog-Status (via update_bridge_state)
+
+
+Daraus erzeugt er das LED-Signal:
+
+Grün → alive
+
+Orange → stale
+
+Blau → offline
+
+Grau → keine Daten
+
+
+Diese LED ist zu 100 % GSM-driven.
+
+
+---
+
+📦 5. Beispiel eines UI-Datenpakets an Dashboard
+
+Dashboard bekommt immer ein einziges dict:
+
+{
+    "device_id": mac,
+    "alive": True/False,
+    "status": "OK" / "STALE" / "OFFLINE",
+    "last_seen": Sekunden,
+    "external": {"present": bool},
+    "temperature": float,
+    "humidity": float,
+    "vpd": float,
+    "rssi": int
+}
+
+Alles zentralisiert.
+Dashboard muss nichts wissen über Watchdog, Decoder oder BLE.
+
+
+---
+
+🧯 6. Reset-Funktion
+
+Der Reset macht:
+
+LED zurücksetzen
+
+Header zurücksetzen
+
+Tiles zurücksetzen (Dashboard ruft reset_from_global())
+
+
+Keine Backend-Änderung.
+Reiner UI-Reset.
+
+
+---
+
+🛠 7. Start/Stop Pipeline
+
+Wenn Dashboard „Start“ klickt:
+
+GLOBAL_STATE.start()
+    → core.start()
+    → Watchdog starten
+    → Decoder starten
+    → Bridge starten (Android)
+
+Bei Stop:
+
+GLOBAL_STATE.stop()
+    → core.stop()
+    → Threads sauber runterfahren
+
+Dashboard ruft nie direkt core an → nur GSM.
+
+
+---
+
+🟩 8. Device Picker Integration
+
+Wenn mehrere Geräte existieren:
+
+GSM hält current_device_id
+
+Dashboard zeigt es oben
+
+Der Picker meldet dem GSM: neues Gerät
+
+GSM setzt das um:
+
+neues device_id
+
+neue Werte aus BUFFER lesen
+
+Dashboard sofort aktualisieren
+
+
+
+
+---
+
+
+---
+
+📘 Modul: dashboard.py – Die Cockpit-Oberfläche
+
+Das Dashboard ist rein visuell.
+Keine Logik.
+Kein BLE.
+Kein Decoder.
+Kein Watchdog.
+
+Es ist ein Render-Receiver vom GSM.
+
+
+---
+
+🧩 1. Aufbau
+
+DashboardScreen besteht aus:
+
+✔ HeaderBar
+
+Uhrzeit
+
+RSSI
+
+LED
+
+Device Name
+
+Buttons Setup / Debug / Picker
+
+
+✔ DashboardMainPanel
+
+6 Haupt-Tiles
+
+Temperatur innen
+
+Luftfeuchte innen
+
+VPD innen
+
+Temperatur außen
+
+Luftfeuchte außen
+
+VPD außen
+
+
+
+✔ ControlButtons
+
+Start
+
+Stop
+
+Reset
+
+
+
+---
+
+🔌 2. Datenfluss: update_from_global()
+
+Das Dashboard bekommt alle UI-Daten über eine einzige Funktion:
+
+def update_from_global(self, d)
+
+Beispiel:
+
+d["temperature_in"]
+d["humidity_in"]
+d["vpd_in"]
+
+oder das aktuelle Device:
+
+d["device_id"]
+
+Das Dashboard rendert nur.
+
+
+---
+
+🌡 3. Fullscreen-Modus
+
+Wenn ein Tile geklickt wird:
+
+open_fullscreen(tile_id)
+
+Dashboard übergibt an ScreenManager → FullscreenScreen.
+
+Der GSM bleibt Taktgeber.
+
+
+---
+
+🔁 4. Reset-Funktion
+
+def reset_from_global(self):
+    tile_temp_in.reset()
+    tile_hum_in.reset()
+    tile_vpd_in.reset()
+    ...
+
+Nur optische Werte zurücksetzen, niemals funktional.
+
+
+---
+
+🚦 5. Led, RSSI, External Geräteanzeige
+
+Kommt alles aus GSM, nie aus Dashboard.
+
+Dashboard zeigt:
+
+green → OK
+orange → STALE
+blue → OFFLINE
+
+
+---
+
+🎬 6. Start/Stop/Reset Buttons
+
+Dashboard gibt nur weiter:
+
+GLOBAL_STATE.start()
+GLOBAL_STATE.stop()
+GLOBAL_STATE.reset()
+
+Es startet nie selbst die Bridge oder den Decoder.
+
+
+---
+
+🧱 7. Stabilitätsprinzip
+
+Dashboard ist so gebaut, dass:
+
+kein Crash möglich ist, selbst wenn decoded.json Schrott ist
+
+kein Crash bei stale/offline
+
+kein Crash bei leerer Datei
+
+kein Crash bei fehlenden Feldern
+
+
+Warum?
+
+Weil DataBuffer + GSM alles abfangen.
+
+
+---
+
+🧠 Gesamtfluss (Endgegner-Diagramm)
+
+Android Bridge → BLE → dump.json
+                          ↓
+                    Watchdog
+                          ↓
+                     Decoder
+                          ↓
+                   decoded.json
+                          ↓
+                    DataBuffer
+                          ↓
+                   GlobalState
+                          ↓
+                   Dashboard UI
+
+Jedes Element ist getrennt.
+Du hast eine extrem robuste, modulare Architektur gebaut.
+
+
+---
+
+Wenn du willst, machen wir als Nächstes:
+✔ kleine Übersicht als Schaubild
+✔ eine druckfertige Dokumentation für deine Ordner
+✔ oder komplette technische Fußnoten / API-Referenz
+
+Sag einfach „Weiter“.
