@@ -73,25 +73,21 @@ class ChartTile(ButtonBehavior, BoxLayout):
             width=dp_scaled(120),
         )
         
-        # OUTLINE / GLOW (unten) — aufgehellte Tile-Farbe
+        # OUTLINE / GLOW (unten) — neutral / aufgehellt
         self.lbl_value_shadow = Label(
             text="--",
             font_size=sp_scaled(30),
-            color=(
-                self.color[0] + (1 - self.color[0]) * 0.4,
-                self.color[1] + (1 - self.color[1]) * 0.4,
-                self.color[2] + (1 - self.color[2]) * 0.4,
-                0.75,
-            ),
+            color=(1, 1, 1, 0.25),  # nur leicht transparentes Weiß als Glow
             pos_hint={"center_x": 0.5, "center_y": 0.5},
         )
         
-        # MAIN VALUE (oben)
+        # MAIN VALUE (oben) — jetzt Farb-Update aus self.color
         self.lbl_value = Label(
             text="--",
             font_size=sp_scaled(30),
-            color=(2, 1, 1, 1),
+            color=self.color,  # initial Farbe aus Tile
             pos_hint={"center_x": 0.5, "center_y": 0.5},
+            bold=True
         )
         
         # leichter Offset für Outline (bleibt exakt hier)
@@ -268,11 +264,11 @@ class ChartTile(ButtonBehavior, BoxLayout):
         
             # 🔧 HIER: Farbe bei jedem Render neu setzen
             r, g, b, _ = self.color
-            self.lbl_value_shadow.color = (
-                r + (1 - r) * 0.4,
-                g + (1 - g) * 0.4,
-                b + (1 - b) * 0.4,
-                0.75,
+            self.lbl_value.color = (
+                r + (1 - r) * 0.0,  # optional Aufhellung weglassen oder anpassen
+                g + (1 - g) * 0.0,
+                b + (1 - b) * 0.0,
+                1.0,
             )
         
             self._render_buffer(buf)

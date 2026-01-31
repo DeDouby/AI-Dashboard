@@ -6,6 +6,9 @@ from kivy.uix.togglebutton import ToggleButton
 from kivy.clock import Clock
 import os
 from kivy.graphics import Rectangle, Color
+from kivy.uix.widget import Widget
+from kivy.graphics import Rectangle, Color, Line
+import config
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.common.header_online import HeaderBar
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
@@ -21,7 +24,20 @@ class SensorMixedModeScreen(Screen):
         self.GS = GLOBAL_STATE
         self.GS.attach_sensor_mixed_mode(self)
         self.device_modes = {}          # dev_id -> set("internal", "external")
+        # Trend Buffer für gemittelte Werte
+        self._trend_buf = {
+            "temp": [],
+            "hum": [],
+            "vpd": [],
+            "dew": [],
+        }
+        self._trend_window = 120 
         self.active_device_id = None    # aktuell ausgewähltes Gerät für Modus-Auswahl
+        # Avg-Temp Hintergrundgraph
+        self._avg_graph_temp = []
+        self._avg_graph_len = 60
+         
+        self._trend_window = config.get_tile_graph_window()
 
         # ROOT
         root = BoxLayout(orientation="vertical", spacing=dp_scaled(10))
@@ -75,13 +91,14 @@ class SensorMixedModeScreen(Screen):
             size_hint_x=0.55,
             spacing=dp_scaled(12)
         )
-        self.lbl_avg_temp = Label(text="--", font_size=sp_scaled(54), bold=True, markup=True)
-        self.lbl_avg_hum  = Label(text="--", font_size=sp_scaled(54), color=(0.2,0.8,1,1), markup=True)
-        self.lbl_avg_vpd  = Label(text="--", font_size=sp_scaled(54), color=(0.2,1,0.6,1), markup=True)
+        self.lbl_avg_temp = Label(text="--", font_size=sp_scaled(54), color=(0.2,0.8,1,1), bold=True, markup=True)
+        self.lbl_avg_hum  = Label(text="--", font_size=sp_scaled(54), color=(0.2,0.8,1,1), bold=True, markup=True)
+        self.lbl_avg_vpd  = Label(text="--", font_size=sp_scaled(54), color=(0.2,1,0.6,1), bold=True, markup=True)
         self.lbl_avg_dew  = Label(
             text="--",
             font_size=sp_scaled(54),
             color=(0.7,0.7,0.9,1),
+            bold=True,
             markup=True
         )
         self.right_column.add_widget(self.lbl_avg_temp)
@@ -102,6 +119,9 @@ class SensorMixedModeScreen(Screen):
             height=dp_scaled(24)
         )
         root.add_widget(self.status_label)
+        
+        self.avg_graph_widget = Widget(size_hint=(1, None), height=dp_scaled(60))
+        self.right_column.add_widget(self.avg_graph_widget, index=0)  # hinter Labels
 
         # DEVICE BUTTONS
         self.device_box = BoxLayout(
@@ -165,6 +185,55 @@ class SensorMixedModeScreen(Screen):
     def _update_btn_color(self, btn, state):
         btn.background_color = (0.12,0.20,0.45,1) if state=="down" else (0.15,0.15,0.18,1)
 
+    def _calc_trend_arrow(self, key, value):
+        buf = self._trend_buf[key]
+        buf.append(value)
+        if len(buf) > self._trend_window:
+            buf.pop(0)
+
+        if len(buf) < 3:
+            return ""
+
+        start = buf[0]
+        end = buf[-1]
+        diff = end - start
+
+        threshold = max(0.01, abs(start) * 0.002)
+
+        if diff > threshold:
+            return "[font=FA]\uf062[/font]"   # arrow-up
+        elif diff < -threshold:
+            return "[font=FA]\uf063[/font]"   # arrow-down
+        else:
+            return "[font=FA]\uf061[/font]"   # arrow-right
+
+    def _draw_avg_temp_bg(self, *_):
+        if not self._avg_graph_temp or len(self._avg_graph_temp) < 2:
+            return
+    
+        # Größe aktuell holen
+        w, h = self.avg_graph_widget.width, self.avg_graph_widget.height
+        if w == 0 or h == 0:
+            # noch nicht laid out → wieder versuchen später
+            Clock.schedule_once(self._draw_avg_temp_bg, 0.1)
+            return
+    
+        buf = self._avg_graph_temp
+        vmin = min(buf)
+        vmax = max(buf)
+        span = max(vmax - vmin, 0.0001)
+        step_x = w / (len(buf) - 1)
+        points = []
+    
+        for i, v in enumerate(buf):
+            x = i * step_x
+            y = (v - vmin) / span * h
+            points.extend([x, y])
+    
+        self.avg_graph_widget.canvas.before.clear()
+        with self.avg_graph_widget.canvas.before:
+            Color(1, 1, 1, 0.06)
+            Line(points=points, width=1)
     # ─────────────────────────────
     # DEVICE SELECTION / MIXED MODE
     # ─────────────────────────────
@@ -345,24 +414,51 @@ class SensorMixedModeScreen(Screen):
             detail_lines.append(f"[b]{name}:[/b] {' | '.join(parts)}")
         self.details_label.text = "\n".join(detail_lines)
     
-        # Durchschnittswerte
+        # ─────────────────────────────
+        # DURCHSCHNITTSWERTE + TREND
+        # ─────────────────────────────
+        
+        # Temperatur
         if averaging_map["temp"]:
             val, unit = averaging_map["temp"][0]
-            avg_val = sum(v for v, u in averaging_map["temp"])/len(averaging_map["temp"])
-            self.lbl_avg_temp.text = f"{avg_val:.2f} {unit}"
+            avg_val = sum(v for v, u in averaging_map["temp"]) / len(averaging_map["temp"])
+            arrow = self._calc_trend_arrow("temp", avg_val)
+            self.lbl_avg_temp.text = f"{arrow} {avg_val:.2f} {unit}"
+        
+            # Avg-Temp in Graph-Buffer
+            self._avg_graph_temp.append(avg_val)
+            if len(self._avg_graph_temp) > self._avg_graph_len:
+                self._avg_graph_temp.pop(0)
         else:
             self.lbl_avg_temp.text = "-- °C"
-    
-        self.lbl_avg_hum.text = f"{sum(averaging_map['hum'])/len(averaging_map['hum']):.2f} %" if averaging_map['hum'] else "-- %"
-        self.lbl_avg_vpd.text = f"{sum(averaging_map['vpd'])/len(averaging_map['vpd']):.2f} kPa" if averaging_map['vpd'] else "-- kPa"
+        
+        # Luftfeuchte
+        if averaging_map["hum"]:
+            avg_val = sum(averaging_map["hum"]) / len(averaging_map["hum"])
+            arrow = self._calc_trend_arrow("hum", avg_val)
+            self.lbl_avg_hum.text = f"{arrow} {avg_val:.2f} %"
+        else:
+            self.lbl_avg_hum.text = "-- %"
+        
+        # VPD
+        if averaging_map["vpd"]:
+            avg_val = sum(averaging_map["vpd"]) / len(averaging_map["vpd"])
+            arrow = self._calc_trend_arrow("vpd", avg_val)
+            self.lbl_avg_vpd.text = f"{arrow} {avg_val:.2f} kPa"
+        else:
+            self.lbl_avg_vpd.text = "-- kPa"
+        
+        # Taupunkt
         if averaging_map["dew"]:
             val, unit = averaging_map["dew"][0]
             avg_val = sum(v for v, u in averaging_map["dew"]) / len(averaging_map["dew"])
-            self.lbl_avg_dew.text = f"{avg_val:.2f} {unit}"
+            arrow = self._calc_trend_arrow("dew", avg_val)
+            self.lbl_avg_dew.text = f"{arrow} {avg_val:.2f} {unit}"
         else:
             self.lbl_avg_dew.text = "-- °C"
         # Status
         self.status_label.text = f"Schnitt aus {len(sensor_values)} Geräten"
+        self._draw_avg_temp_bg()
 
     # ─────────────────────────────
     # REFRESH / GLOBAL UPDATE

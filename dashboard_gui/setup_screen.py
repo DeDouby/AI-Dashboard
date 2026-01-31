@@ -131,7 +131,7 @@ class SetupScreen(Screen):
                 if not (
                     "sps" in lname
                     or "thermobeacon" in lname
-                    or "tp351" in lname
+                    or "tp35" in lname
                     or "thermopro" in lname
                 ):
                     continue
@@ -201,7 +201,7 @@ class SetupScreen(Screen):
                         "bridge": "ThermoBeacon2_Bridge"
                     }
             
-                elif "tp351" in lname or "thermopro" in lname:
+                elif "tp35" in lname or "thermopro" in lname:
                     sel = {
                         "gatt": "ThermoPro_GATT",
                         "bridge": "ThermoPro_Bridge"
