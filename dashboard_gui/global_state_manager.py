@@ -53,7 +53,6 @@ class GlobalStateManager:
         if channel not in ("adv", "gatt"):
             return
     
-        # nichts tun, wenn gleich
         if channel == self.active_channel:
             return
     
@@ -63,27 +62,33 @@ class GlobalStateManager:
     
         print(f"[GSM] Channel -> {channel}")
     
-        # -----------------------------------------
-        # 🔥 ADV → GATT: Config schreiben + Restart
-        # -----------------------------------------
-        if prev == "adv" and channel == "gatt":
-            try:
-                import config
-                import core
+        try:
+            import core
+            import config
     
-                item = self.get_device_list()[self.active_index]
-                device_id = item.get("device_id") if isinstance(item, dict) else item
+            item = self.get_device_list()[self.active_index]
+            device_id = item.get("device_id") if isinstance(item, dict) else item
     
-                cfg = config._init()
-                dev = cfg.get("devices", {}).get(device_id, {})
-                bridge_profile = dev.get("bridge_profile", "")
+            cfg = config._init()
+            dev = cfg.get("devices", {}).get(device_id, {})
+            bridge_profile = dev.get("bridge_profile", "")
     
+            # -----------------------------------------
+            # ADV → GATT
+            # -----------------------------------------
+            if prev == "adv" and channel == "gatt":
                 if bridge_profile:
                     self.write_gatt_bridge_config(device_id)
-                    core.restart_bridge()
+                    core.restart_gatt_bridge()
     
-            except Exception as e:
-                print("[GSM] adv→gatt switch failed:", e)
+            # -----------------------------------------
+            # GATT → ADV
+            # -----------------------------------------
+            elif prev == "gatt" and channel == "adv":
+                core.restart_adv_bridge()
+    
+        except Exception as e:
+            print("[GSM] channel switch failed:", e)
     
     def get_active_channel(self):
         return self.active_channel
@@ -93,47 +98,43 @@ class GlobalStateManager:
     # ---------------------------------------------------------
 
     def set_active_index(self, idx):
-        idx = int(idx)
-        if idx < 0:
-            idx = 0
+        idx = max(0, int(idx))
     
-        # nichts tun, wenn gleiches Gerät
         if idx == self.active_index:
             return
     
         self.active_index = idx
+        self._last_counter = None
     
-        # -----------------------------------------
-        # 🔥 IMMER Bridge restart bei Device-Wechsel
-        # -----------------------------------------
+        print(f"[GSM] Active device -> {idx}")
+    
         try:
             import core
-            core.restart_bridge()
-        except Exception as e:
-            print("[GSM] bridge restart failed:", e)
+            import config
     
-        # -----------------------------------------
-        # 🔧 GATT: zusätzlich Config schreiben
-        # -----------------------------------------
-        if self.active_channel == "gatt":
-            try:
-                import config
+            item = self.get_device_list()[self.active_index]
+            device_id = item.get("device_id") if isinstance(item, dict) else item
     
-                item = self.get_device_list()[self.active_index]
-                device_id = item.get("device_id") if isinstance(item, dict) else item
+            # -----------------------------------------
+            # ADV: Gerät gewechselt → ADV restart
+            # -----------------------------------------
+            if self.active_channel == "adv":
+                core.restart_adv_bridge()
     
+            # -----------------------------------------
+            # GATT: Gerät gewechselt → Config + GATT restart
+            # -----------------------------------------
+            elif self.active_channel == "gatt":
                 cfg = config._init()
                 dev = cfg.get("devices", {}).get(device_id, {})
                 bridge_profile = dev.get("bridge_profile", "")
     
                 if bridge_profile:
                     self.write_gatt_bridge_config(device_id)
+                    core.restart_gatt_bridge()
     
-            except Exception as e:
-                print("[GSM] auto-gatt switch failed:", e)
-    
-        self._last_counter = None
-        print(f"[GSM] Active device -> {idx}")
+        except Exception as e:
+            print("[GSM] device switch failed:", e)
     
         # Header sofort aktualisieren
         data = BUFFER.get()
@@ -146,6 +147,7 @@ class GlobalStateManager:
                 self.fullscreen_ref.header.set_device_label(frame)
             if self.setup_ref:
                 self.setup_ref.header.set_device_label(frame)
+                
     def get_device_list(self):
         import config
         cfg = config._init()
@@ -165,9 +167,6 @@ class GlobalStateManager:
     def attach_dashboard(self, scr):
         self.dashboard_ref = scr
     
-        # -------------------------------------------------
-        # BOOTSTRAP: aktives Device + Channel + Bridge
-        # -------------------------------------------------
         try:
             import config
             import core
@@ -188,9 +187,10 @@ class GlobalStateManager:
             if bridge_profile:
                 self.write_gatt_bridge_config(device_id)
                 core.restart_bridge()
-                self.set_active_channel("gatt")
+                self.active_channel = "gatt"
             else:
-                self.set_active_channel("adv")
+                core.restart_adv_bridge()
+                self.active_channel = "adv"
     
             print(f"[GSM] Bootstrap device={device_id} channel={self.active_channel}")
     

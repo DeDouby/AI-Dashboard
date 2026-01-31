@@ -41,6 +41,8 @@ class SetupMainPanel(BoxLayout):
         self.on_refresh = on_refresh
         self.on_save = on_save
         self.on_back = on_back
+        self.on_restart_gatt = on_restart_gatt # <- optional, falls du es brauchst
+        self.on_restart_adv = on_restart_adv 
         self.on_restart_bridge = on_restart_bridge
         self.on_adv = on_adv
         self.on_gatt = on_gatt
@@ -159,8 +161,8 @@ class SetupMainPanel(BoxLayout):
         def _refresh_and_restart(*_):
             if self.on_refresh:
                 self.on_refresh()
-            if self.on_restart_bridge:
-                self.on_restart_bridge()
+            if self.on_restart_adv:
+                self.on_restart_adv()
         
         b.bind(on_release=_refresh_and_restart)
         btns.add_widget(b)

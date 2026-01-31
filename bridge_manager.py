@@ -31,50 +31,63 @@ class BridgeInterface:
 # ------------------------------------------------------------
 class BleBridgeAndroid(BridgeInterface):
     def __init__(self):
-        self.running = False
+        self.running_adv = False
+        self.running_gatt = False
         self.bt_enabled = False
 
-    def start(self):
-        try:
-            from jnius import autoclass
-            import os
-            import config
-    
-            PythonActivity = autoclass("org.kivy.android.PythonActivity")
-            ctx = PythonActivity.mActivity
-    
-            AdvBridge = autoclass("org.hackintosh1980.blebridge.AdvBridge")
-            GattBridge = autoclass("org.hackintosh1980.blebridge.GattBridge")
-    
-            gatt_cfg = os.path.join(config.DATA, "gatt_config.json")
-    
-            ret_adv = AdvBridge.start(ctx)
-            ret_gatt = GattBridge.start(ctx, gatt_cfg)
-    
-            print("[BridgeAndroid] ADV start →", ret_adv)
-            print("[BridgeAndroid] GATT start (cfg) →", gatt_cfg)
-    
-            self.running = True
-            self.bt_enabled = True
-    
-        except Exception as e:
-            print("[BridgeAndroid] error:", e)
-            self.bt_enabled = False
-    def stop(self):
-        try:
-            from jnius import autoclass
-            autoclass("org.hackintosh1980.blebridge.AdvBridge").stop()
-            autoclass("org.hackintosh1980.blebridge.GattBridge").stop()
-            self.running = False
-        except Exception:
-            pass
+    # -------------------------
+    # ADV
+    # -------------------------
+    def start_adv(self):
+        from jnius import autoclass
+        PythonActivity = autoclass("org.kivy.android.PythonActivity")
+        ctx = PythonActivity.mActivity
+        AdvBridge = autoclass("org.hackintosh1980.blebridge.AdvBridge")
 
-    def get_status(self):
-        return {
-            "running": self.running,
-            "bt_enabled": self.bt_enabled,
-            "source": "android"
-        }
+        ret = AdvBridge.start(ctx)
+        print("[BridgeAndroid] ADV start →", ret)
+        self.running_adv = True
+        self.bt_enabled = True
+
+    def stop_adv(self):
+        from jnius import autoclass
+        autoclass("org.hackintosh1980.blebridge.AdvBridge").stop()
+        self.running_adv = False
+
+    # -------------------------
+    # GATT
+    # -------------------------
+    def start_gatt(self):
+        from jnius import autoclass
+        import os, config
+
+        PythonActivity = autoclass("org.kivy.android.PythonActivity")
+        ctx = PythonActivity.mActivity
+        GattBridge = autoclass("org.hackintosh1980.blebridge.GattBridge")
+
+        gatt_cfg = os.path.join(config.DATA, "gatt_config.json")
+        ret = GattBridge.start(ctx, gatt_cfg)
+
+        print("[BridgeAndroid] GATT start →", gatt_cfg)
+        self.running_gatt = True
+        self.bt_enabled = True
+
+    def stop_gatt(self):
+        from jnius import autoclass
+        autoclass("org.hackintosh1980.blebridge.GattBridge").stop()
+        self.running_gatt = False
+
+    # -------------------------
+    # Backward compatibility
+    # -------------------------
+    def start(self):
+        self.start_adv()
+        self.start_gatt()
+
+    def stop(self):
+        self.stop_adv()
+        self.stop_gatt()
+
 # ------------------------------------------------------------
 # 🖥️ Plattformwahl
 # ------------------------------------------------------------

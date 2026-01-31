@@ -67,7 +67,52 @@ public class AdvBridge {
         }
         return bos.toString("UTF-8");
     }
-
+    // -------------------- Watchdog / Scan-Stabilität --------------------
+    private static Thread scanWatchdog;
+    
+    private static void startScanWatchdog(Context ctx, BluetoothAdapter adapter) {
+        if (scanWatchdog != null && scanWatchdog.isAlive()) return;
+    
+        scanWatchdog = new Thread(() -> {
+            while (running) {
+                try {
+                    if (scanner == null || callback == null) {
+                        scanner = adapter.getBluetoothLeScanner();
+                        if (scanner == null) {
+                            Log.w(TAG, "Scanner not available, retrying...");
+                            Thread.sleep(1000);
+                            continue;
+                        }
+                    }
+    
+                    // Prüfen, ob Scan noch läuft – einfacher Ansatz:
+                    // Bei Android gibt es keine direkte isScanning(), also wir stoppen & starten sicherheitshalber
+                    try {
+                        scanner.stopScan(callback);
+                    } catch (Throwable ignore) {}
+    
+                    // ScanSettings wie vorher
+                    ScanSettings settings = new ScanSettings.Builder()
+                            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+                            .setReportDelay(0)
+                            .build();
+    
+                    try {
+                        scanner.startScan(null, settings, callback);
+                    } catch (Throwable t) {
+                        Log.e(TAG, "Watchdog startScan failed", t);
+                    }
+    
+                    Thread.sleep(5000); // Watchdog prüft alle 5 Sekunden
+                } catch (Throwable t) {
+                    Log.e(TAG, "ScanWatchdog error", t);
+                }
+            }
+        }, "AdvScanWatchdog");
+    
+        scanWatchdog.setDaemon(true);
+        scanWatchdog.start();
+    }
     // Pre-seed Store aus bestehender Datei → Dump schrumpft NICHT mehr nach Restart
     private static void loadExistingSnapshot() {
         try {
@@ -207,6 +252,8 @@ public class AdvBridge {
             }
         };
 
+        startScanWatchdog(ctx, adapter);
+
         try {
             scanner.startScan(null, settings, callback);
         } catch (Throwable t) {
@@ -234,6 +281,11 @@ public class AdvBridge {
         try {
             if (scanner != null && callback != null) scanner.stopScan(callback);
         } catch (Throwable ignore) {}
+    
+        try {
+            if (scanWatchdog != null) scanWatchdog.interrupt();
+        } catch (Throwable ignore) {}
+    
         Log.i(TAG, "ADV stopped");
     }
 

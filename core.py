@@ -109,34 +109,77 @@ def start():
     print("[Core] System läuft.")
 
 # ------------------------------------------------------------
-# BRIDGE ONLY CONTROL
+# ADV ONLY
+# ------------------------------------------------------------
+def restart_adv_bridge():
+    from kivy.clock import Clock
+    if not is_android():
+        return
+    Clock.schedule_once(_restart_adv_safe, 0)
+
+def _restart_adv_safe(dt):
+    global _bridge
+    try:
+        _bridge = get_bridge()        # 🔒 IMMER neu holen
+        try:
+            _bridge.stop_adv()        # darf scheitern
+        except Exception:
+            pass
+
+        _bridge.start_adv()           # MUSS laufen
+        print("[Core] ADV Bridge restarted")
+
+    except Exception as e:
+        print("[Core] ADV restart failed:", e)
+
+
+# ------------------------------------------------------------
+# GATT ONLY
+# ------------------------------------------------------------
+def restart_gatt_bridge():
+    from kivy.clock import Clock
+    if not is_android():
+        return
+    Clock.schedule_once(_restart_gatt_safe, 0)
+
+def _restart_gatt_safe(dt):
+    global _bridge
+    try:
+        _bridge = get_bridge()        # 🔒 IMMER neu holen
+        try:
+            _bridge.stop_gatt()
+        except Exception:
+            pass
+
+        _bridge.start_gatt()
+        print("[Core] GATT Bridge restarted")
+
+    except Exception as e:
+        print("[Core] GATT restart failed:", e)
+# ------------------------------------------------------------
+# LEGACY / BOTH
 # ------------------------------------------------------------
 def restart_bridge():
     from kivy.clock import Clock
-
     if not is_android():
         return
-
-    # BLE-Operationen verzögert & im Mainloop
     Clock.schedule_once(_restart_bridge_safe, 0)
 
 def _restart_bridge_safe(dt):
     global _bridge
-
     try:
-        if _bridge:
+        _bridge = get_bridge()        # 🔒 neu holen
+
+        try:
             _bridge.stop()
-            print("[Core] Bridge gestoppt (safe)")
-    except Exception as e:
-        print("[Core] Bridge stop failed:", e)
+        except Exception:
+            pass
 
-    try:
-        _bridge = get_bridge(prefer_mock=False)
         _bridge.start()
-        print("[Core] Bridge neu gestartet (safe)")
-    except Exception as e:
-        print("[Core] Bridge start failed:", e)
+        print("[Core] ADV + GATT Bridges restarted")
 
+    except Exception as e:
+        print("[Core] Bridge restart failed:", e)
 
 
 # ------------------------------------------------------------
