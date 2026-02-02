@@ -100,7 +100,8 @@ class DashboardApp(App):
         try:
             import core
             print("[APP] resume → bridge restart")
-            core.restart_adv_bridge()
+            pass
+            #core.restart_adv_bridge()
         except Exception as e:
             print("[APP] bridge restart failed:", e)
 

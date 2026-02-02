@@ -84,7 +84,12 @@ def start():
         _bridge = get_bridge(prefer_mock=False)
         _bridge.start()
         print("[Core] Android-Bridge gestartet")
-
+        # ----------------- LogBridge sofort starten -----------------
+        try:
+            _bridge.start_log()
+            print("[Core] LogBridge automatisch gestartet")
+        except Exception as e:
+            print("[Core] LogBridge Start fehlgeschlagen:", e)
     else:
         print("[Core] Desktop Mode – externe blebridge_desktop benutzen")
         _bridge = None
@@ -132,7 +137,38 @@ def _restart_adv_safe(dt):
     except Exception as e:
         print("[Core] ADV restart failed:", e)
 
+# LogBridge
 
+def start_log_bridge():
+    from kivy.clock import Clock
+    if not is_android():
+        return
+    Clock.schedule_once(_start_log_safe, 0)
+
+def _start_log_safe(dt):
+    global _bridge
+    try:
+        _bridge = get_bridge()
+        _bridge.start_log()
+        print("[Core] LOG Bridge started")
+    except Exception as e:
+        print("[Core] LOG start failed:", e)
+
+
+def stop_log_bridge():
+    from kivy.clock import Clock
+    if not is_android():
+        return
+    Clock.schedule_once(_stop_log_safe, 0)
+
+def _stop_log_safe(dt):
+    global _bridge
+    try:
+        _bridge = get_bridge()
+        _bridge.stop_log()
+        print("[Core] LOG Bridge stopped")
+    except Exception as e:
+        print("[Core] LOG stop failed:", e)
 # ------------------------------------------------------------
 # GATT ONLY
 # ------------------------------------------------------------
@@ -181,6 +217,47 @@ def _restart_bridge_safe(dt):
     except Exception as e:
         print("[Core] Bridge restart failed:", e)
 
+# ------------------------------------------------------------
+# LOG ONLY – Restart Semantik
+# ------------------------------------------------------------
+def restart_log_bridge():
+    from kivy.clock import Clock
+    if not is_android():
+        return
+    Clock.schedule_once(_restart_log_safe, 0)
+
+def _restart_log_safe(dt):
+    global _bridge
+    try:
+        _bridge = get_bridge()  # 🔒 Immer neu holen
+
+        try:
+            _bridge.stop_log()  # darf fehlschlagen, wenn nicht läuft
+        except Exception:
+            pass
+
+        _bridge.start_log()  # MUSS laufen
+        print("[Core] LOG Bridge restarted")
+
+    except Exception as e:
+        print("[Core] LOG restart failed:", e)
+# ------------------------------------------------------------
+# LOG ONLY – Stop
+# ------------------------------------------------------------
+def stop_log_bridge():
+    from kivy.clock import Clock
+    if not is_android():
+        return
+    Clock.schedule_once(_stop_log_safe, 0)
+
+def _stop_log_safe(dt):
+    global _bridge
+    try:
+        _bridge = get_bridge()        # 🔒 Immer frische Instanz
+        _bridge.stop_log()
+        print("[Core] LOG Bridge stopped")
+    except Exception as e:
+        print("[Core] LOG stop failed:", e)
 
 # ------------------------------------------------------------
 # STOP

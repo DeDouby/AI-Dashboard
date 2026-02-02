@@ -85,7 +85,8 @@ class GlobalStateManager:
             # GATT → ADV
             # -----------------------------------------
             elif prev == "gatt" and channel == "adv":
-                core.restart_adv_bridge()
+                pass
+                #core.restart_adv_bridge()
     
         except Exception as e:
             print("[GSM] channel switch failed:", e)
@@ -119,7 +120,8 @@ class GlobalStateManager:
             # ADV: Gerät gewechselt → ADV restart
             # -----------------------------------------
             if self.active_channel == "adv":
-                core.restart_adv_bridge()
+                pass   # ⛔ ADV bewusst NICHT neu starten
+                #core.restart_adv_bridge()
     
             # -----------------------------------------
             # GATT: Gerät gewechselt → Config + GATT restart
@@ -189,7 +191,8 @@ class GlobalStateManager:
                 core.restart_bridge()
                 self.active_channel = "gatt"
             else:
-                core.restart_adv_bridge()
+                pass
+                #core.restart_adv_bridge()
                 self.active_channel = "adv"
     
             print(f"[GSM] Bootstrap device={device_id} channel={self.active_channel}")

@@ -118,10 +118,10 @@ class ChartTile(ButtonBehavior, BoxLayout):
             size_hint=(1, 1),
         )
 
-        self.plot = LinePlot(color=self.color, line_width=4.0)
+        self.plot = LinePlot(color=self.color, line_width=3.0)
         self.graph.add_plot(self.plot)
         glow = [self.color[0], self.color[1], self.color[2], 0.25]
-        self.plot_glow = LinePlot(color=glow, line_width=6.0)
+        self.plot_glow = LinePlot(color=glow, line_width=4.0)
         self.graph.add_plot(self.plot_glow)
 
         self.add_widget(self.graph)

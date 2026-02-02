@@ -33,6 +33,7 @@ class BleBridgeAndroid(BridgeInterface):
     def __init__(self):
         self.running_adv = False
         self.running_gatt = False
+        self.running_log = False
         self.bt_enabled = False
 
     # -------------------------
@@ -77,6 +78,31 @@ class BleBridgeAndroid(BridgeInterface):
         autoclass("org.hackintosh1980.blebridge.GattBridge").stop()
         self.running_gatt = False
 
+# LogBridge 
+
+    # -------------------------
+    # LOG
+    # -------------------------
+    def start_log(self):
+        from jnius import autoclass
+        import os, config
+    
+        PythonActivity = autoclass("org.kivy.android.PythonActivity")
+        ctx = PythonActivity.mActivity
+        LogBridge = autoclass("org.hackintosh1980.blebridge.LogBridge")
+    
+        out_name = "ble_log_dump.json"
+        ret = LogBridge.start(ctx, out_name)
+    
+        print("[BridgeAndroid] LOG start →", out_name)
+        self.running_log = True
+        self.bt_enabled = True
+    
+    
+    def stop_log(self):
+        from jnius import autoclass
+        autoclass("org.hackintosh1980.blebridge.LogBridge").stop()
+        self.running_log = False
     # -------------------------
     # Backward compatibility
     # -------------------------

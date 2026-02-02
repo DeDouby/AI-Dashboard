@@ -1,264 +1,1129 @@
-[
-  {
-    "timestamp": 1769896269.23792,
-    "device_id": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
-    "name": null,
-    "adv": {
-      "alive": false,
-      "status": "offline",
-      "packet_counter": null,
-      "raw": null,
-      "internal": {
-        "temperature": {
-          "value": null,
-          "unit": "\u00b0C"
-        },
-        "humidity": {
-          "value": null,
-          "unit": "%"
-        }
+{
+  "49:25:08:23:07:21": {
+    "count": 102,
+    "entries": [
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E800009D70100957BFF1F996E0000307BFF1F",
+        "packet_counter": 1,
+        "timestamp": "2026-02-01T23:40:19.742+0100",
+        "command": null,
+        "command_index": null,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:19.742+0100"
       },
-      "external": {
-        "present": false,
-        "temperature": {
-          "value": null,
-          "unit": "\u00b0C"
-        },
-        "humidity": {
-          "value": null,
-          "unit": "%"
-        }
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000E7BE0000957BFF1FA1B90000307BFF1F",
+        "packet_counter": 2,
+        "timestamp": "2026-02-01T23:40:20.100+0100",
+        "command": "0B",
+        "command_index": 1,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:20.100+0100"
       },
-      "vpd_internal": {
-        "value": null,
-        "unit": "kPa"
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000F2BE0000957BFF1FA1B90000307BFF1F",
+        "packet_counter": 3,
+        "timestamp": "2026-02-01T23:40:20.494+0100",
+        "command": "0C",
+        "command_index": 2,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:20.494+0100"
       },
-      "vpd_external": {
-        "value": null,
-        "unit": "kPa"
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000F1BE0000957BFF1FA1B90000307BFF1F",
+        "packet_counter": 4,
+        "timestamp": "2026-02-01T23:40:20.885+0100",
+        "command": "0D",
+        "command_index": 3,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:20.885+0100"
       },
-      "dew_point_internal": {
-        "value": null,
-        "unit": "\u00b0C"
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000F0BE0000957BFF1FA2B90000307BFF1F",
+        "packet_counter": 5,
+        "timestamp": "2026-02-01T23:40:21.276+0100",
+        "command": "0E",
+        "command_index": 4,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:21.276+0100"
       },
-      "dew_point_external": {
-        "value": null,
-        "unit": "\u00b0C"
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000F1BE0000957BFF1FA0B90000307BFF1F",
+        "packet_counter": 6,
+        "timestamp": "2026-02-01T23:40:21.761+0100",
+        "command": "0F",
+        "command_index": 5,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:21.761+0100"
       },
-      "coord": {
-        "internal": {
-          "x": null,
-          "y": null
-        },
-        "external": {
-          "x": null,
-          "y": null
-        }
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000ECBE0000957BFF1FA8B90000307BFF1F",
+        "packet_counter": 7,
+        "timestamp": "2026-02-01T23:40:22.198+0100",
+        "command": "10",
+        "command_index": 6,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:22.198+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E800095BE0000957BFF1FA7B90000307BFF1F",
+        "packet_counter": 8,
+        "timestamp": "2026-02-01T23:40:22.587+0100",
+        "command": "11",
+        "command_index": 7,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:22.587+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000D3BE0000957BFF1FA7B90000307BFF1F",
+        "packet_counter": 9,
+        "timestamp": "2026-02-01T23:40:22.975+0100",
+        "command": "12",
+        "command_index": 8,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:22.975+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000E4BE0000957BFF1FA6B90000307BFF1F",
+        "packet_counter": 10,
+        "timestamp": "2026-02-01T23:40:23.373+0100",
+        "command": "13",
+        "command_index": 9,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:23.373+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000F5BE0000957BFF1F9EB90000307BFF1F",
+        "packet_counter": 11,
+        "timestamp": "2026-02-01T23:40:23.755+0100",
+        "command": "14",
+        "command_index": 10,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:23.755+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000EBBE0000957BFF1FA8B90000307BFF1F",
+        "packet_counter": 12,
+        "timestamp": "2026-02-01T23:40:24.146+0100",
+        "command": "15",
+        "command_index": 11,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:24.146+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000EBBE0000957BFF1FA8B90000307BFF1F",
+        "packet_counter": 13,
+        "timestamp": "2026-02-01T23:40:24.341+0100",
+        "command": "16",
+        "command_index": 12,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:24.341+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000CEBF0000957BFF1F84B70000307BFF1F",
+        "packet_counter": 14,
+        "timestamp": "2026-02-01T23:40:24.793+0100",
+        "command": "17",
+        "command_index": 13,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:24.793+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE88B0000307BFF1F",
+        "packet_counter": 15,
+        "timestamp": "2026-02-01T23:40:25.167+0100",
+        "command": "18",
+        "command_index": 14,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:25.167+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000434C0200957BFF1FE08B0000307BFF1F",
+        "packet_counter": 16,
+        "timestamp": "2026-02-01T23:40:25.544+0100",
+        "command": "19",
+        "command_index": 15,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:25.544+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000434C0200957BFF1FDF8B0000307BFF1F",
+        "packet_counter": 17,
+        "timestamp": "2026-02-01T23:40:25.927+0100",
+        "command": "1A",
+        "command_index": 16,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:25.927+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE08B0000307BFF1F",
+        "packet_counter": 18,
+        "timestamp": "2026-02-01T23:40:26.293+0100",
+        "command": "1B",
+        "command_index": 17,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:26.293+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000314C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 19,
+        "timestamp": "2026-02-01T23:40:26.669+0100",
+        "command": "1C",
+        "command_index": 18,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:26.669+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE88B0000307BFF1F",
+        "packet_counter": 20,
+        "timestamp": "2026-02-01T23:40:27.049+0100",
+        "command": "1D",
+        "command_index": 19,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:27.049+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000374C0200957BFF1FE88B0000307BFF1F",
+        "packet_counter": 21,
+        "timestamp": "2026-02-01T23:40:27.422+0100",
+        "command": "1E",
+        "command_index": 20,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:27.422+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FEA8B0000307BFF1F",
+        "packet_counter": 22,
+        "timestamp": "2026-02-01T23:40:27.791+0100",
+        "command": "1F",
+        "command_index": 21,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:27.791+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000434C0200957BFF1FDF8B0000307BFF1F",
+        "packet_counter": 23,
+        "timestamp": "2026-02-01T23:40:28.168+0100",
+        "command": "20",
+        "command_index": 22,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:28.168+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E80001C8B0000957BFF1FF38B0000307BFF1F",
+        "packet_counter": 24,
+        "timestamp": "2026-02-01T23:40:28.582+0100",
+        "command": "21",
+        "command_index": 23,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:28.582+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000374C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 25,
+        "timestamp": "2026-02-01T23:40:28.952+0100",
+        "command": "22",
+        "command_index": 24,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:28.952+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 26,
+        "timestamp": "2026-02-01T23:40:29.328+0100",
+        "command": "23",
+        "command_index": 25,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:29.328+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000424C0200957BFF1FE08B0000307BFF1F",
+        "packet_counter": 27,
+        "timestamp": "2026-02-01T23:40:29.743+0100",
+        "command": "24",
+        "command_index": 26,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:29.743+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000314C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 28,
+        "timestamp": "2026-02-01T23:40:30.119+0100",
+        "command": "25",
+        "command_index": 27,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:30.119+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000304C0200957BFF1FE88B0000307BFF1F",
+        "packet_counter": 29,
+        "timestamp": "2026-02-01T23:40:30.488+0100",
+        "command": "26",
+        "command_index": 28,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:30.488+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000384C0200957BFF1FE88B0000307BFF1F",
+        "packet_counter": 30,
+        "timestamp": "2026-02-01T23:40:30.869+0100",
+        "command": "27",
+        "command_index": 29,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:30.869+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000384C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 31,
+        "timestamp": "2026-02-01T23:40:31.244+0100",
+        "command": "28",
+        "command_index": 30,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:31.244+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000414C0200957BFF1FDF8B0000307BFF1F",
+        "packet_counter": 32,
+        "timestamp": "2026-02-01T23:40:31.626+0100",
+        "command": "29",
+        "command_index": 31,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:31.626+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000414C0200957BFF1FDF8B0000307BFF1F",
+        "packet_counter": 33,
+        "timestamp": "2026-02-01T23:40:31.886+0100",
+        "command": "2A",
+        "command_index": 32,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:31.886+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000354C0200957BFF1FE88B0000307BFF1F",
+        "packet_counter": 34,
+        "timestamp": "2026-02-01T23:40:32.253+0100",
+        "command": "2B",
+        "command_index": 33,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:32.253+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000374C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 35,
+        "timestamp": "2026-02-01T23:40:32.669+0100",
+        "command": "2C",
+        "command_index": 34,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:32.669+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000354C0200957BFF1FE08B0000307BFF1F",
+        "packet_counter": 36,
+        "timestamp": "2026-02-01T23:40:33.049+0100",
+        "command": "2D",
+        "command_index": 35,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:33.049+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E80002D4C0200957BFF1FE88B0000307BFF1F",
+        "packet_counter": 37,
+        "timestamp": "2026-02-01T23:40:33.418+0100",
+        "command": "2E",
+        "command_index": 36,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:33.418+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000384C0200957BFF1FEA8B0000307BFF1F",
+        "packet_counter": 38,
+        "timestamp": "2026-02-01T23:40:33.792+0100",
+        "command": "2F",
+        "command_index": 37,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:33.792+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000344C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 39,
+        "timestamp": "2026-02-01T23:40:34.168+0100",
+        "command": "30",
+        "command_index": 38,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:34.168+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000354C0200957BFF1FE88B0000307BFF1F",
+        "packet_counter": 40,
+        "timestamp": "2026-02-01T23:40:34.586+0100",
+        "command": "31",
+        "command_index": 39,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:34.586+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000E6860000957BFF1FF48B0000307BFF1F",
+        "packet_counter": 41,
+        "timestamp": "2026-02-01T23:40:34.997+0100",
+        "command": "32",
+        "command_index": 40,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:34.997+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E80003A4C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 42,
+        "timestamp": "2026-02-01T23:40:35.366+0100",
+        "command": "33",
+        "command_index": 41,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:35.366+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000364C0200957BFF1FE88B0000307BFF1F",
+        "packet_counter": 43,
+        "timestamp": "2026-02-01T23:40:35.744+0100",
+        "command": "34",
+        "command_index": 42,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:35.744+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000364C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 44,
+        "timestamp": "2026-02-01T23:40:36.117+0100",
+        "command": "35",
+        "command_index": 43,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:36.117+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000444C0200957BFF1FE08B0000307BFF1F",
+        "packet_counter": 45,
+        "timestamp": "2026-02-01T23:40:36.491+0100",
+        "command": "36",
+        "command_index": 44,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:36.491+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E80003A4C0200957BFF1FDF8B0000307BFF1F",
+        "packet_counter": 46,
+        "timestamp": "2026-02-01T23:40:36.866+0100",
+        "command": "37",
+        "command_index": 45,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:36.866+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E80002D4C0200957BFF1FE88B0000307BFF1F",
+        "packet_counter": 47,
+        "timestamp": "2026-02-01T23:40:37.241+0100",
+        "command": "38",
+        "command_index": 46,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:37.241+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E80003B4C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 48,
+        "timestamp": "2026-02-01T23:40:37.621+0100",
+        "command": "39",
+        "command_index": 47,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:37.621+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 49,
+        "timestamp": "2026-02-01T23:40:37.990+0100",
+        "command": "3A",
+        "command_index": 48,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:37.990+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000334C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 50,
+        "timestamp": "2026-02-01T23:40:38.367+0100",
+        "command": "3B",
+        "command_index": 49,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:38.367+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000444C0200957BFF1FE08B0000307BFF1F",
+        "packet_counter": 51,
+        "timestamp": "2026-02-01T23:40:38.740+0100",
+        "command": "3C",
+        "command_index": 50,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:38.740+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000384C0200957BFF1FDF8B0000307BFF1F",
+        "packet_counter": 52,
+        "timestamp": "2026-02-01T23:40:39.113+0100",
+        "command": "3D",
+        "command_index": 51,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:39.113+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E80002C4C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 53,
+        "timestamp": "2026-02-01T23:40:39.492+0100",
+        "command": "3E",
+        "command_index": 52,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:39.492+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000384C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 54,
+        "timestamp": "2026-02-01T23:40:39.870+0100",
+        "command": "3F",
+        "command_index": 53,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:39.870+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000364C0200957BFF1FE88B0000307BFF1F",
+        "packet_counter": 55,
+        "timestamp": "2026-02-01T23:40:40.245+0100",
+        "command": "40",
+        "command_index": 54,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:40.245+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E80003D4C0200957BFF1FEA8B0000307BFF1F",
+        "packet_counter": 56,
+        "timestamp": "2026-02-01T23:40:40.617+0100",
+        "command": "41",
+        "command_index": 55,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:40.617+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000414C0200957BFF1FE08B0000307BFF1F",
+        "packet_counter": 57,
+        "timestamp": "2026-02-01T23:40:40.991+0100",
+        "command": "42",
+        "command_index": 56,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:40.991+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E80003C4C0200957BFF1FE08B0000307BFF1F",
+        "packet_counter": 58,
+        "timestamp": "2026-02-01T23:40:41.369+0100",
+        "command": "43",
+        "command_index": 57,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:41.369+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000304C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 59,
+        "timestamp": "2026-02-01T23:40:41.740+0100",
+        "command": "44",
+        "command_index": 58,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:41.740+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 60,
+        "timestamp": "2026-02-01T23:40:42.117+0100",
+        "command": "45",
+        "command_index": 59,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:42.117+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000364C0200957BFF1FE88B0000307BFF1F",
+        "packet_counter": 61,
+        "timestamp": "2026-02-01T23:40:42.492+0100",
+        "command": "46",
+        "command_index": 60,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:42.492+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 62,
+        "timestamp": "2026-02-01T23:40:42.867+0100",
+        "command": "47",
+        "command_index": 61,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:42.867+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E80003C4C0200957BFF1FE08B0000307BFF1F",
+        "packet_counter": 63,
+        "timestamp": "2026-02-01T23:40:43.243+0100",
+        "command": "48",
+        "command_index": 62,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:43.243+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000354C0200957BFF1FDF8B0000307BFF1F",
+        "packet_counter": 64,
+        "timestamp": "2026-02-01T23:40:43.618+0100",
+        "command": "49",
+        "command_index": 63,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:43.618+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000304C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 65,
+        "timestamp": "2026-02-01T23:40:43.993+0100",
+        "command": "4A",
+        "command_index": 64,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:43.993+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000334C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 66,
+        "timestamp": "2026-02-01T23:40:44.371+0100",
+        "command": "4B",
+        "command_index": 65,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:44.371+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000344C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 67,
+        "timestamp": "2026-02-01T23:40:44.743+0100",
+        "command": "4C",
+        "command_index": 66,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:44.743+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000384C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 68,
+        "timestamp": "2026-02-01T23:40:45.117+0100",
+        "command": "4D",
+        "command_index": 67,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:45.117+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000434C0200957BFF1FE08B0000307BFF1F",
+        "packet_counter": 69,
+        "timestamp": "2026-02-01T23:40:45.491+0100",
+        "command": "4E",
+        "command_index": 68,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:45.491+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000424C0200957BFF1FE08B0000307BFF1F",
+        "packet_counter": 70,
+        "timestamp": "2026-02-01T23:40:45.867+0100",
+        "command": "4F",
+        "command_index": 69,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:45.867+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E80002A4C0200957BFF1FEA8B0000307BFF1F",
+        "packet_counter": 71,
+        "timestamp": "2026-02-01T23:40:46.278+0100",
+        "command": "50",
+        "command_index": 70,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:46.278+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 72,
+        "timestamp": "2026-02-01T23:40:46.662+0100",
+        "command": "51",
+        "command_index": 71,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:46.662+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 73,
+        "timestamp": "2026-02-01T23:40:46.958+0100",
+        "command": "52",
+        "command_index": 72,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:46.958+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE88B0000307BFF1F",
+        "packet_counter": 74,
+        "timestamp": "2026-02-01T23:40:47.328+0100",
+        "command": "53",
+        "command_index": 73,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:47.328+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE88B0000307BFF1F",
+        "packet_counter": 75,
+        "timestamp": "2026-02-01T23:40:47.704+0100",
+        "command": "54",
+        "command_index": 74,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:47.704+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000384C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 76,
+        "timestamp": "2026-02-01T23:40:48.076+0100",
+        "command": "55",
+        "command_index": 75,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:48.076+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000414C0200957BFF1FE08B0000307BFF1F",
+        "packet_counter": 77,
+        "timestamp": "2026-02-01T23:40:48.458+0100",
+        "command": "56",
+        "command_index": 76,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:48.458+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FDF8B0000307BFF1F",
+        "packet_counter": 78,
+        "timestamp": "2026-02-01T23:40:48.828+0100",
+        "command": "57",
+        "command_index": 77,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:48.828+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E80002F4C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 79,
+        "timestamp": "2026-02-01T23:40:49.203+0100",
+        "command": "58",
+        "command_index": 78,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:49.203+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000384C0200957BFF1FE88B0000307BFF1F",
+        "packet_counter": 80,
+        "timestamp": "2026-02-01T23:40:49.585+0100",
+        "command": "59",
+        "command_index": 79,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:49.585+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 81,
+        "timestamp": "2026-02-01T23:40:49.961+0100",
+        "command": "5A",
+        "command_index": 80,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:49.961+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 82,
+        "timestamp": "2026-02-01T23:40:51.416+0100",
+        "command": null,
+        "command_index": null,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:51.416+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 83,
+        "timestamp": "2026-02-01T23:40:52.883+0100",
+        "command": null,
+        "command_index": null,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:52.883+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 84,
+        "timestamp": "2026-02-01T23:40:54.349+0100",
+        "command": null,
+        "command_index": null,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:54.349+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 85,
+        "timestamp": "2026-02-01T23:40:55.842+0100",
+        "command": null,
+        "command_index": null,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:55.842+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 86,
+        "timestamp": "2026-02-01T23:40:57.461+0100",
+        "command": null,
+        "command_index": null,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:57.461+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 87,
+        "timestamp": "2026-02-01T23:40:58.954+0100",
+        "command": null,
+        "command_index": null,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:40:58.954+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 88,
+        "timestamp": "2026-02-01T23:41:00.461+0100",
+        "command": null,
+        "command_index": null,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:41:00.461+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 89,
+        "timestamp": "2026-02-01T23:41:01.918+0100",
+        "command": null,
+        "command_index": null,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:41:01.918+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 90,
+        "timestamp": "2026-02-01T23:41:03.387+0100",
+        "command": null,
+        "command_index": null,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:41:03.387+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 91,
+        "timestamp": "2026-02-01T23:41:04.842+0100",
+        "command": null,
+        "command_index": null,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:41:04.842+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 92,
+        "timestamp": "2026-02-01T23:41:06.386+0100",
+        "command": null,
+        "command_index": null,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:41:06.386+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 93,
+        "timestamp": "2026-02-01T23:41:07.841+0100",
+        "command": null,
+        "command_index": null,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:41:07.841+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 94,
+        "timestamp": "2026-02-01T23:41:09.461+0100",
+        "command": null,
+        "command_index": null,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:41:09.461+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 95,
+        "timestamp": "2026-02-01T23:41:10.923+0100",
+        "command": null,
+        "command_index": null,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:41:10.923+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 96,
+        "timestamp": "2026-02-01T23:41:12.388+0100",
+        "command": null,
+        "command_index": null,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:41:12.388+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 97,
+        "timestamp": "2026-02-01T23:41:13.999+0100",
+        "command": null,
+        "command_index": null,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:41:13.999+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 98,
+        "timestamp": "2026-02-01T23:41:15.460+0100",
+        "command": null,
+        "command_index": null,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:41:15.460+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 99,
+        "timestamp": "2026-02-01T23:41:16.920+0100",
+        "command": null,
+        "command_index": null,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:41:16.920+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 100,
+        "timestamp": "2026-02-01T23:41:18.568+0100",
+        "command": null,
+        "command_index": null,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:41:18.568+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 101,
+        "timestamp": "2026-02-01T23:41:19.955+0100",
+        "command": null,
+        "command_index": null,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:41:19.955+0100"
+      },
+      {
+        "address": "49:25:08:23:07:21",
+        "name": "sps",
+        "gat_raw": "017E8000394C0200957BFF1FE98B0000307BFF1F",
+        "packet_counter": 102,
+        "timestamp": "2026-02-01T23:41:21.454+0100",
+        "command": null,
+        "command_index": null,
+        "raw_len": 20,
+        "timestamp_iso": "2026-02-01T23:41:21.454+0100"
       }
-    },
-    "gatt": {
-      "alive": false,
-      "status": "offline",
-      "packet_counter": null,
-      "raw": null,
-      "internal": {
-        "temperature": {
-          "value": null,
-          "unit": "\u00b0C"
-        },
-        "humidity": {
-          "value": null,
-          "unit": "%"
-        }
-      },
-      "external": {
-        "present": false,
-        "temperature": {
-          "value": null,
-          "unit": "\u00b0C"
-        },
-        "humidity": {
-          "value": null,
-          "unit": "%"
-        }
-      },
-      "vpd_internal": {
-        "value": null,
-        "unit": "kPa"
-      },
-      "vpd_external": {
-        "value": null,
-        "unit": "kPa"
-      },
-      "dew_point_internal": {
-        "value": null,
-        "unit": "\u00b0C"
-      },
-      "dew_point_external": {
-        "value": null,
-        "unit": "\u00b0C"
-      },
-      "coord": {
-        "internal": {
-          "x": null,
-          "y": null
-        },
-        "external": {
-          "x": null,
-          "y": null
-        }
-      }
-    },
-    "bridge_alive": true,
-    "bridge_status": "OK",
-    "bridge_last_seen": 0.0,
-    "alive": false,
-    "status": "offline",
-    "health": {
-      "uptime": {
-        "value": null,
-        "unit": "s"
-      },
-      "battery": {
-        "value": null,
-        "unit": "%",
-        "voltage": null
-      },
-      "signal": {
-        "rssi": null,
-        "quality": null
-      }
-    }
-  },
-  {
-    "timestamp": "2026-01-31T21:51:05.278+0000",
-    "device_id": "C898B4F2-B452-7502-1A67-0536E77D49EA",
-    "name": "sps",
-    "adv": {
-      "alive": true,
-      "status": "active",
-      "packet_counter": null,
-      "raw": "4B085F1300BF4C3F08",
-      "internal": {
-        "temperature": {
-          "value": 21.73,
-          "unit": "\u00b0C"
-        },
-        "humidity": {
-          "value": 49.59,
-          "unit": "%"
-        }
-      },
-      "external": {
-        "present": false,
-        "temperature": {
-          "value": null,
-          "unit": "\u00b0C"
-        },
-        "humidity": {
-          "value": null,
-          "unit": "%"
-        }
-      },
-      "vpd_internal": {
-        "value": 1.311,
-        "unit": "kPa"
-      },
-      "vpd_external": {
-        "value": null,
-        "unit": "kPa"
-      },
-      "dew_point_internal": {
-        "value": 10.72,
-        "unit": "\u00b0C"
-      },
-      "dew_point_external": {
-        "value": null,
-        "unit": "\u00b0C"
-      },
-      "coord": {
-        "internal": {
-          "x": 49.59,
-          "y": 21.73
-        },
-        "external": {
-          "x": null,
-          "y": null
-        }
-      }
-    },
-    "gatt": {
-      "alive": false,
-      "status": "offline",
-      "packet_counter": null,
-      "raw": null,
-      "internal": {
-        "temperature": {
-          "value": null,
-          "unit": "\u00b0C"
-        },
-        "humidity": {
-          "value": null,
-          "unit": "%"
-        }
-      },
-      "external": {
-        "present": false,
-        "temperature": {
-          "value": null,
-          "unit": "\u00b0C"
-        },
-        "humidity": {
-          "value": null,
-          "unit": "%"
-        }
-      },
-      "vpd_internal": {
-        "value": null,
-        "unit": "kPa"
-      },
-      "vpd_external": {
-        "value": null,
-        "unit": "kPa"
-      },
-      "dew_point_internal": {
-        "value": null,
-        "unit": "\u00b0C"
-      },
-      "dew_point_external": {
-        "value": null,
-        "unit": "\u00b0C"
-      },
-      "coord": {
-        "internal": {
-          "x": null,
-          "y": null
-        },
-        "external": {
-          "x": null,
-          "y": null
-        }
-      }
-    },
-    "bridge_alive": true,
-    "bridge_status": "OK",
-    "bridge_last_seen": 0.0,
-    "alive": true,
-    "status": "active",
-    "health": {
-      "uptime": {
-        "value": 331.47068214416504,
-        "unit": "s"
-      },
-      "battery": {
-        "value": null,
-        "unit": "%",
-        "voltage": null
-      },
-      "signal": {
-        "rssi": -69,
-        "quality": null
-      }
-    }
+    ]
   }
-]
+}
