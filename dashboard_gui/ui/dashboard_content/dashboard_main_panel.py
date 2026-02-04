@@ -10,15 +10,6 @@ class DashboardMainPanel(GridLayout):
     def __init__(self, **kw):
         super().__init__(**kw)
 
-        # --- Hintergrund ---
-        with self.canvas.before:
-            self.bg_color = Color(1, 1, 1, 1)
-            self.bg_rect = Rectangle(
-                source=os.path.join(ASSET_ROOT, "background.png"),
-                pos=self.pos,
-                size=self.size
-            )
-        self.bind(pos=self._update_bg, size=self._update_bg)
 
         self.cols = 3
         self.spacing = dp_scaled(12)
@@ -196,24 +187,12 @@ class DashboardMainPanel(GridLayout):
                         render=(device_id == active_device_id)
                     )
 
-    def _update_bg(self, *args):
-        self.bg_rect.pos = self.pos
-        self.bg_rect.size = self.size
-
     # ============================================================
     # Sichtbarkeit
     # ============================================================
     def _apply_tile_visibility(self, active_keys):
         self.clear_widgets()
-    
-        # 🔄 Hintergrund wechseln
-        if active_keys:
-            # mindestens 1 Tile aktiv → background2
-            self.bg_rect.source = os.path.join(ASSET_ROOT, "background2.png")
-        else:
-            # keine Tiles → default background
-            self.bg_rect.source = os.path.join(ASSET_ROOT, "background.png")
-    
+      
         # Tiles in gewünschter Reihenfolge hinzufügen
         order = [
             "temp_in", "hum_in", "vpd_in",

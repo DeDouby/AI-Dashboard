@@ -31,6 +31,7 @@ class GlobalStateManager:
         self.cam_viewer_ref = None
         self.device_picker_ref = None
         self.sensor_mixed_mode_ref = None
+        self.grow_rooms_ref = None  # 🔥 HIER init
         self.mixed_mode_active = False
         self.mixed_selected_buffers = set()
         self.mixed_device_modes = {}

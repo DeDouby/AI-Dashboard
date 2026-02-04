@@ -1,8 +1,7 @@
 {
   "devices": {
-    "49:25:08:23:07:21": {
-      "bridge_profile": "inkbird_log_bridge"
+    "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21": {
+      "bridge_profile": "inkbird_log_bridge_ff6_ff8"
     }
   }
 }
-

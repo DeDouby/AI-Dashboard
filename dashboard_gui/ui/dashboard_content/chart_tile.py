@@ -30,8 +30,7 @@ class ChartTile(ButtonBehavior, BoxLayout):
         self._coord_buffers = {}  # NEU: für interne/externe Koordinaten
         self.last_value = None
         self.smoothing = 0.25
-        self.value_wrap = FloatLayout(size_hint=(None, None))
-        self.value_wrap.size_hint_x = None
+
 
         # Multi-Device Buffers: device_id → eigener Verlauf
         self.buffers = {}
@@ -64,42 +63,37 @@ class ChartTile(ButtonBehavior, BoxLayout):
             spacing=dp_scaled(4),
         )
         
-        self.lbl_title = Label(text=title, font_size=sp_scaled(16))
-        self.lbl_trend = Label(text="", font_size=sp_scaled(20), font_name="FA")
-        
-        # VALUE WRAPPER — fixe Breite
-        self.value_wrap = FloatLayout(
-            size_hint=(None, 1),
-            width=dp_scaled(120),
+        # Titel (nimmt den restlichen Platz ein)
+        self.lbl_title = Label(
+            text=title, 
+            font_size=sp_scaled(16),
+            halign="left",
+            valign="middle"
+        )
+        self.lbl_title.bind(size=self.lbl_title.setter('text_size')) # Linksbündig fixieren
+
+        # Trend Icon
+        self.lbl_trend = Label(
+            text="", 
+            font_size=sp_scaled(20), 
+            font_name="FA",
+            size_hint_x=None,
+            width=dp_scaled(30)
         )
         
-        # OUTLINE / GLOW (unten) — neutral / aufgehellt
-        self.lbl_value_shadow = Label(
-            text="--",
-            font_size=sp_scaled(30),
-            color=(1, 1, 1, 0.25),  # nur leicht transparentes Weiß als Glow
-            pos_hint={"center_x": 0.5, "center_y": 0.5},
-        )
-        
-        # MAIN VALUE (oben) — jetzt Farb-Update aus self.color
+        # MAIN VALUE — Sauber und ohne Schatten
         self.lbl_value = Label(
             text="--",
-            font_size=sp_scaled(30),
-            color=self.color,  # initial Farbe aus Tile
-            pos_hint={"center_x": 0.5, "center_y": 0.5},
-            bold=True
+            font_size=sp_scaled(26), # Leicht reduziert für bessere Proportionen
+            color=self.color,
+            bold=True,
+            size_hint_x=None,
+            width=dp_scaled(140) # Fixe Breite für stabiles Layout
         )
-        
-        # leichter Offset für Outline (bleibt exakt hier)
-        self.lbl_value_shadow.pos = (dp_scaled(1.5), -dp_scaled(1.5))
-        
-        # zusammenbauen
-        self.value_wrap.add_widget(self.lbl_value_shadow)
-        self.value_wrap.add_widget(self.lbl_value)
         
         header.add_widget(self.lbl_title)
         header.add_widget(self.lbl_trend)
-        header.add_widget(self.value_wrap)
+        header.add_widget(self.lbl_value)
         self.add_widget(header)
         # -------------------------------------------------
         # GRAPH
@@ -118,7 +112,7 @@ class ChartTile(ButtonBehavior, BoxLayout):
             size_hint=(1, 1),
         )
 
-        self.plot = LinePlot(color=self.color, line_width=3.0)
+        self.plot = LinePlot(color=self.color, line_width=4.0)
         self.graph.add_plot(self.plot)
         glow = [self.color[0], self.color[1], self.color[2], 0.25]
         self.plot_glow = LinePlot(color=glow, line_width=4.0)
@@ -260,16 +254,11 @@ class ChartTile(ButtonBehavior, BoxLayout):
         
             text = f"{display_value:.2f} {self.unit}"
             self.lbl_value.text = text
-            self.lbl_value_shadow.text = text
+            # self.lbl_value_shadow.text = text  <-- DIESE ZEILE WAR DER FEHLER (GELÖSCHT)
         
-            # 🔧 HIER: Farbe bei jedem Render neu setzen
+            # Farbe bei jedem Render setzen
             r, g, b, _ = self.color
-            self.lbl_value.color = (
-                r + (1 - r) * 0.0,  # optional Aufhellung weglassen oder anpassen
-                g + (1 - g) * 0.0,
-                b + (1 - b) * 0.0,
-                1.0,
-            )
+            self.lbl_value.color = (r, g, b, 1.0)
         
             self._render_buffer(buf)
 

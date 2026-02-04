@@ -46,6 +46,21 @@ def _cleanup_decoded():
     except:
         pass
 
+# ------------------------------------------------------------
+# ble_log_dump.json löschen / clean
+# ------------------------------------------------------------
+def _cleanup_ble_log_dump():
+    try:
+        import json
+        path = os.path.join(config.DATA, "ble_log_dump.json")
+
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump([], f)
+
+        print(f"[Core] ble_log_dump.json geleert: {path}")
+
+    except Exception as e:
+        print("[Core] ble_log_dump cleanup failed:", e)
 
 
 def _cleanup_ble_dump():
@@ -71,6 +86,7 @@ def start():
 
     _cleanup_decoded()
     _cleanup_ble_dump()
+    _cleanup_ble_log_dump() 
     # -----------------------------------------------------
     # Bridge starten
     # -----------------------------------------------------
@@ -84,15 +100,6 @@ def start():
         _bridge = get_bridge(prefer_mock=False)
         _bridge.start()
         print("[Core] Android-Bridge gestartet")
-        # ----------------- LogBridge sofort starten -----------------
-        try:
-            _bridge.start_log()
-            print("[Core] LogBridge automatisch gestartet")
-        except Exception as e:
-            print("[Core] LogBridge Start fehlgeschlagen:", e)
-    else:
-        print("[Core] Desktop Mode – externe blebridge_desktop benutzen")
-        _bridge = None
 
     # -----------------------------------------------------
     # Decoder starten (liefert decoded.json)

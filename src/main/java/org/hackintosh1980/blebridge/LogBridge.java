@@ -1,13 +1,6 @@
 package org.hackintosh1980.blebridge;
 
-import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothGatt;
-import android.bluetooth.BluetoothGattCallback;
-import android.bluetooth.BluetoothGattCharacteristic;
-import android.bluetooth.BluetoothGattDescriptor;
-import android.bluetooth.BluetoothGattService;
-import android.bluetooth.BluetoothProfile;
+import android.bluetooth.*;
 import android.content.Context;
 import android.os.Build;
 import android.os.Handler;
@@ -17,749 +10,350 @@ import android.util.Log;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.Locale;
-import java.util.Map;
-import java.util.TimeZone;
 import java.util.UUID;
 
-public class LogBridge {
+public final class LogBridge {
 
-    private static final String TAG = "GattBridge";
-    private static final long WRITE_INTERVAL_MS = 1200L;
+    private static final String TAG = "LogBridge";
 
-    private static int COMPANY_ID = 0x0019;
-
-    private static final UUID CCCD_UUID =
-            UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
-
-    private static final Handler mainHandler = new Handler(Looper.getMainLooper());
-
-    // direkt unter
-    private static volatile boolean running = false;
-    
-    // --- add this ---
-    private static final Object LOG_LOCK = new Object();
-    private static final Map<String, JSONArray> LOG_STORE = new java.util.HashMap<>();
-    // POLL mode
-    private static boolean pollEnabled = false;
-    private static long pollIntervalMs = 1500;
-
-    // GATT State
+    // ---- runtime ----
+    private static boolean running = false;
+    private static Context app;
     private static BluetoothGatt gatt;
-    private static BluetoothDevice gattDevice;
-    private static boolean gattActive = false;
+    private static BluetoothDevice device;
 
-    // config/profile driven
-    private static String targetMac = null;
-    private static String profileName = null;
+    // ---- profile driven ----
+    private static String targetMac;
+    private static UUID serviceUuid;
+    private static UUID notifyUuid;
+    private static UUID commandUuid; // <--- NEU
+    private static boolean pollMode = false;
+    private static long pollIntervalMs = 1500;
+    private static byte[][] commandSeq;
 
-    private static UUID serviceUuid = null;
-    private static UUID notifyUuid = null;      // required
-    private static UUID commandUuid = null;     // optional
-    private static byte[] commandBytes = null;  // optional
-    private static long lastGattRx = 0;
+    // ---- state ----
+    private static BluetoothGattCharacteristic notifyChar;
+    private static int commandIndex = 0;
 
-    private static BluetoothGattCharacteristic notifyChar = null;
-    private static BluetoothGattCharacteristic cmdChar = null;
+    private static BluetoothGattCharacteristic commandChar;
 
-    private static int gattCounter = 0;
-    private static Context appContext;
-
-    private static byte[][] commandQueue = null; // jede Zeile = 1 Write-Befehl
-    private static int commandIndex = 0;         // aktuell auszuführender Befehl
-    private static boolean commandInProgress = false;
-    // --- command context for logging ---
-    private static volatile byte[] currentCommand = null;
-    private static volatile int currentCommandIndex = -1;
-
-
+    // ---- logging ----
+    private static JSONArray log = new JSONArray();
     private static File outFile;
-    private static File getAppDataDir(Context ctx) {
-        // EINZIGE WAHRHEIT für Android-Pipeline-Daten
-        return new File(ctx.getFilesDir(), "app/data");
-    }
-    // poll thread guard
-    private static Thread pollThread = null;
 
-    // ---------------------------------------------------------------------
-    // Timestamp + Hex helpers
-    // ---------------------------------------------------------------------
-    private static String ts() {
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ", Locale.US);
-        sdf.setTimeZone(TimeZone.getDefault());
-        return sdf.format(new Date());
-    }
+    private static final Handler main = new Handler(Looper.getMainLooper());
 
-    private static String toHex(byte[] v) {
-        if (v == null) return "";
-        StringBuilder sb = new StringBuilder();
-        for (byte b : v) sb.append(String.format("%02X", b));
-        return sb.toString();
-    }
+    // =========================================================
+    // PUBLIC API
+    // =========================================================
 
-    private static byte[] parseHex(String hex) {
-        if (hex == null) return null;
-        hex = hex.replace(" ", "").trim();
-        if (hex.isEmpty()) return null;
-        if ((hex.length() % 2) != 0) return null;
+    public static synchronized String start(Context ctx, String outName) {
+        if (running) return "ALREADY";
+        running = true;
 
-        byte[] out = new byte[hex.length() / 2];
-        for (int i = 0; i < out.length; i++) {
-            int hi = Character.digit(hex.charAt(i * 2), 16);
-            int lo = Character.digit(hex.charAt(i * 2 + 1), 16);
-            if (hi < 0 || lo < 0) return null;
-            out[i] = (byte) ((hi << 4) | lo);
-        }
-        return out;
+        app = ctx.getApplicationContext();
+        outFile = new File(app.getFilesDir(), "app/data/" + outName);
+
+        JSONObject cfg = loadConfig();
+        if (cfg == null) return fail("NO_CONFIG");
+
+        if (!loadProfile(cfg)) return fail("NO_PROFILE");
+
+        BluetoothAdapter ad = BluetoothAdapter.getDefaultAdapter();
+        if (ad == null || !ad.isEnabled()) return fail("BT_OFF");
+
+        device = ad.getRemoteDevice(targetMac);
+
+        gatt = (Build.VERSION.SDK_INT >= 23)
+                ? device.connectGatt(app, false, cb, BluetoothDevice.TRANSPORT_LE)
+                : device.connectGatt(app, false, cb);
+
+        Log.i(TAG, "started for " + targetMac);
+        return "OK";
     }
 
-    private static String readTextFile(File f) throws Exception {
-        ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        FileInputStream fis = new FileInputStream(f);
+    public static synchronized void stop() {
+        running = false;
+
         try {
-            byte[] buf = new byte[4096];
-            int n;
-            while ((n = fis.read(buf)) > 0) bos.write(buf, 0, n);
-        } finally {
-            try { fis.close(); } catch (Throwable ignore) {}
-        }
-        return bos.toString("UTF-8");
-    }
-
-    private static String cleanNullableString(JSONObject p, String key) {
-        try {
-            String v = p.optString(key, null);
-            if (v == null) return null;
-            v = v.trim();
-            if (v.isEmpty()) return null;
-            if ("null".equalsIgnoreCase(v)) return null;
-            return v;
-        } catch (Throwable ignore) {
-            return null;
-        }
-    }
-
-    // -----------------------------------------------------------------------
-    // CONFIG + PROFILE
-    // -----------------------------------------------------------------------
-    private static JSONObject loadConfig(Context ctx) {
-        try {
-            File cfg = new File(getAppDataDir(ctx), "log_config.json");
-            if (!cfg.exists()) {
-                Log.w(TAG, "config.json not found: " + cfg.getAbsolutePath());
-                return null;
+            if (gatt != null) {
+                gatt.disconnect();
+                gatt.close();
             }
-            return new JSONObject(readTextFile(cfg));
+        } catch (Throwable ignored) {}
+
+        gatt = null;
+        device = null;
+        notifyChar = null;
+        commandIndex = 0;
+
+        Log.i(TAG, "stopped");
+    }
+
+    // =========================================================
+    // CONFIG / PROFILE
+    // =========================================================
+
+    private static JSONObject loadConfig() {
+        try {
+            File f = new File(app.getFilesDir(), "app/data/log_config.json");
+            if (!f.exists()) return null;
+            return new JSONObject(readFile(f));
         } catch (Throwable t) {
             Log.e(TAG, "config load failed", t);
             return null;
         }
     }
 
-    private static JSONObject loadBridgeProfile(Context ctx, String profName) {
-        try {
-            File prof = new File(
-                new File(getAppDataDir(ctx), "bridge_profiles"),
-                profName + ".json"
-            );
-
-            if (!prof.exists()) {
-                Log.w(TAG, "bridge profile not found: " + prof.getAbsolutePath());
-                return null;
-            }
-            return new JSONObject(readTextFile(prof));
-        } catch (Throwable t) {
-            Log.e(TAG, "bridge profile load", t);
-            return null;
-        }
-    }
-
-    private static void parseBridgeProfile(JSONObject p) {
-        serviceUuid = null;
-        notifyUuid = null;
-        commandUuid = null;
-        commandBytes = null;
-    
-        commandQueue = null;
-        commandIndex = 0;
-        commandInProgress = false;
-    
-        pollEnabled = false;
-        pollIntervalMs = 1500;
-    
-        COMPANY_ID = 0x0019;
-    
-        if (p == null) return;
-    
-        try {
-            String su = cleanNullableString(p, "service_uuid");
-            String nu = cleanNullableString(p, "notify_uuid");
-            String cu = cleanNullableString(p, "command_uuid");
-            String cmd = cleanNullableString(p, "command");
-    
-            if (su != null) serviceUuid = UUID.fromString(su);
-            if (nu != null) notifyUuid = UUID.fromString(nu);
-            if (cu != null) commandUuid = UUID.fromString(cu);
-            if (cmd != null) commandBytes = parseHex(cmd);
-    
-            // --- command_sequence ---
-            commandQueue = null;
-            commandIndex = 0;
-            commandInProgress = false;
-            
-            if (p.has("command_sequence")) {
-                try {
-                    Object cs = p.get("command_sequence");
-            
-                    if (cs instanceof JSONArray) {
-                        JSONArray arr = (JSONArray) cs;
-                        commandQueue = new byte[arr.length()][];
-            
-                        for (int i = 0; i < arr.length(); i++) {
-                            String hex = arr.optString(i, null);
-                            commandQueue[i] = parseHex(hex);
-                        }
-            
-                    } else if (cs instanceof String) {
-                        // fallback: "0D,0E,0F"
-                        String[] arr = ((String) cs).split(",");
-                        commandQueue = new byte[arr.length][];
-            
-                        for (int i = 0; i < arr.length; i++) {
-                            commandQueue[i] = parseHex(arr[i]);
-                        }
-                    }
-            
-                } catch (Throwable t) {
-                    Log.e(TAG, "command_sequence parse failed", t);
-                    commandQueue = null;
-                }
-            }
-    
-            String rm = cleanNullableString(p, "read_mode");
-            pollEnabled = "poll".equalsIgnoreCase(rm);
-    
-            if (p.has("read_interval_ms")) {
-                pollIntervalMs = Math.max(200, p.optLong("read_interval_ms", 1500));
-            }
-    
-            if (p.has("company_id")) {
-                try {
-                    Object v = p.get("company_id");
-                    if (v instanceof Number) {
-                        COMPANY_ID = ((Number) v).intValue() & 0xFFFF;
-                    } else if (v instanceof String) {
-                        String s = ((String) v).trim().toLowerCase(Locale.US);
-                        if (s.startsWith("0x")) {
-                            COMPANY_ID = Integer.parseInt(s.substring(2), 16) & 0xFFFF;
-                        } else {
-                            COMPANY_ID = Integer.parseInt(s) & 0xFFFF;
-                        }
-                    }
-                } catch (Throwable ignore) {}
-            }
-    
-            if (notifyUuid == null) {
-                Log.e(TAG, "notify_uuid missing in profile!");
-            }
-    
-        } catch (Throwable t) {
-            Log.e(TAG, "profile parse", t);
-        }
-    }
-
-    private static void initFromConfigAndProfile(Context ctx, JSONObject cfg) {
-        targetMac = null;
-        profileName = null;
-
+    private static boolean loadProfile(JSONObject cfg) {
         try {
             JSONObject devs = cfg.getJSONObject("devices");
             Iterator<String> it = devs.keys();
-            if (it.hasNext()) {
-                String mac = it.next();
-                JSONObject devCfg = devs.getJSONObject(mac);
-                targetMac = mac;
-                profileName = devCfg.optString("bridge_profile", null);
-                Log.i(TAG, "Config device: " + targetMac + " bridge_profile=" + profileName);
-            }
-        } catch (Throwable t) {
-            Log.e(TAG, "Config parse error", t);
-        }
+            if (!it.hasNext()) return false;
 
-        if (profileName != null && profileName.trim().length() > 0) {
-            JSONObject prof = loadBridgeProfile(ctx, profileName);
-            parseBridgeProfile(prof);
-        } else {
-            Log.w(TAG, "No bridge_profile set in config (GATT disabled).");
-        }
+            targetMac = it.next();
+            String profName = devs.getJSONObject(targetMac).getString("bridge_profile");
 
-        try {
-            if (targetMac != null) {
-                BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-                if (adapter != null) {
-                    gattDevice = adapter.getRemoteDevice(targetMac);
+            File pf = new File(app.getFilesDir(),
+                    "app/data/bridge_profiles/" + profName + ".json");
+
+            JSONObject p = new JSONObject(readFile(pf));
+
+            serviceUuid = UUID.fromString(p.getString("service_uuid"));
+            notifyUuid  = UUID.fromString(p.getString("notify_uuid"));
+            commandUuid = UUID.fromString(p.getString("command_uuid")); // <--- NEU
+            pollMode = "poll".equalsIgnoreCase(p.optString("read_mode", "notify"));
+            pollIntervalMs = Math.max(200, p.optLong("read_interval_ms", 1500));
+
+            if (p.has("command_sequence")) {
+                JSONArray a = p.getJSONArray("command_sequence");
+                commandSeq = new byte[a.length()][];
+                for (int i = 0; i < a.length(); i++) {
+                    commandSeq[i] = parseHex(a.getString(i));
                 }
-            }
-        } catch (Throwable t) {
-            Log.e(TAG, "getRemoteDevice failed", t);
-            gattDevice = null;
-        }
-    }
-
-    // ---------------------------------------------------------------------
-    // START / STOP
-    // ---------------------------------------------------------------------
-    public static String start(Context ctx, String outName) {
-        if (running) return "ALREADY";
-        running = true;
-        appContext = ctx.getApplicationContext();
-        // runtime reset
-        gatt = null;
-        gattActive = false;
-
-        notifyChar = null;
-        cmdChar = null;
-
-        pollThread = null;
-
-        gattCounter = 0;
-        COMPANY_ID = 0x0019;
-
-        outFile = new File(getAppDataDir(ctx), outName);
-
-
-        JSONObject cfg = loadConfig(ctx);
-        if (cfg == null) {
-            Log.w(TAG, "No config – GATT disabled.");
-            running = false;
-            return "NO_CONFIG";
-        }
-
-        initFromConfigAndProfile(ctx, cfg);
-
-        BluetoothAdapter adapter = BluetoothAdapter.getDefaultAdapter();
-        if (adapter == null || !adapter.isEnabled()) {
-            running = false;
-            return "BT_OFF";
-        }
-
-        if (gattDevice == null || notifyUuid == null) {
-            Log.w(TAG, "GattBridge not started (missing device/notifyUuid)");
-            running = false;
-            return "NO_TARGET";
-        }
-
-        Log.i(TAG, "GattBridge starting… poll=" + pollEnabled + " interval=" + pollIntervalMs + "ms");
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            gatt = gattDevice.connectGatt(ctx, false, gattCallback, BluetoothDevice.TRANSPORT_LE);
-        } else {
-            gatt = gattDevice.connectGatt(ctx, false, gattCallback);
-        }
-
-        gattActive = true;
-
-    // writer thread – schreibt komplette History in Datei
-    new Thread(() -> {
-        while (running && gattActive) {
-            try {
-                JSONArray arr = new JSONArray();
-    
-                synchronized (LOG_LOCK) {
-                    for (Map.Entry<String, JSONArray> entry : LOG_STORE.entrySet()) {
-                        JSONArray deviceHistory = entry.getValue();
-                        if (deviceHistory != null) {
-                            for (int i = 0; i < deviceHistory.length(); i++) {
-                                arr.put(deviceHistory.getJSONObject(i));
-                            }
-                        }
-                    }
-                }
-    
-                File tmp = new File(outFile.getAbsolutePath() + ".tmp");
-                try (FileOutputStream fos = new FileOutputStream(tmp, false)) {
-                    fos.write(arr.toString(2).getBytes("UTF-8"));
-                }
-                //noinspection ResultOfMethodCallIgnored
-                tmp.renameTo(outFile);
-    
-                Thread.sleep(WRITE_INTERVAL_MS);
-            } catch (Throwable t) {
-                Log.e(TAG, "writer", t);
-            }
-        }
-    }, "GattWriter").start();
-    
-    // command keeper – hält Geräte mit command aktiv (notify-mode devices)
-    new Thread(() -> {
-        while (running && gattActive) {
-            try {
-                if (commandBytes != null && commandBytes.length > 0) {
-                    long now = System.currentTimeMillis();
-                    if (now - lastGattRx > 3000 && gatt != null) {
-                        writeCommand(gatt);
-                    }
-                }
-                Thread.sleep(1000);
-            } catch (Throwable ignored) {}
-        }
-    }, "GattCommandKeeper").start();
-    
-    return "OK";
-    }
-    
-    public static void stop() {
-        running = false;
-        gattActive = false;
-    
-        closeGattHard();
-    
-        Log.i(TAG, "GattBridge stopped");
-    }
-
-    // ---------------------------------------------------------------------
-    // internal close + command
-    // ---------------------------------------------------------------------
-    // SOFT close = Reconnect erlaubt (aber sauber!)
-    private static void closeGattSoft(BluetoothGatt g) {
-        // stop loops that depend on gattActive
-        gattActive = false;
-    
-        try {
-            if (g != null) {
-                try { g.disconnect(); } catch (Throwable ignored) {}
-                try { g.close(); } catch (Throwable ignored) {}
-            }
-        } catch (Throwable ignored) {}
-    
-        gatt = null;
-    
-        notifyChar = null;
-        cmdChar = null;
-    
-        // poll thread will naturally exit because gattActive=false
-        pollThread = null;
-    
-        lastGattRx = 0;
-    }
-    // HARD close = Gerätewechsel / kompletter Reset
-    private static void closeGattHard() {
-        try {
-            if (gatt != null) gatt.close();
-        } catch (Throwable ignored) {}
-    
-        gatt = null;
-        gattDevice = null;
-        gattActive = false;
-    
-        notifyChar = null;
-        cmdChar = null;
-        pollThread = null;
-    }
-
-    private static void writeNextCommand(BluetoothGatt g) {
-        if (g == null || notifyChar == null || commandQueue == null) return;
-        if (commandIndex >= commandQueue.length) {
-            commandInProgress = false;
-            Log.i(TAG, "History sequence completed");
-            return;
-        }
-        if (commandInProgress) return;
-    
-        byte[] cmd = commandQueue[commandIndex];
-        if (cmd == null || cmd.length == 0) {
-            commandIndex++;
-            // direkt nächsten Command versuchen
-            mainHandler.post(() -> writeNextCommand(g));
-
-            return;
-        }
-    
-        try {
-            commandInProgress = true;
-            notifyChar.setValue(cmd);
-            currentCommand = cmd;
-            currentCommandIndex = commandIndex;
-            boolean ok = g.writeCharacteristic(notifyChar);    
-            Log.i(TAG,
-                "History write [" + commandIndex + "/" + commandQueue.length + "]: "
-                + toHex(cmd) + " ok=" + ok
-            );
-    
-            if (!ok) {
-                // Write nicht erfolgreich → sofort freigeben, Sequenz nicht hängen lassen
-                commandInProgress = false;
-                mainHandler.postDelayed(() -> writeNextCommand(g), 150);
-            }
-    
-        } catch (Throwable t) {
-            commandInProgress = false;
-            Log.e(TAG, "History write error", t);
-        }
-    }
-    private static void writeCommand(BluetoothGatt g) {
-        if (g == null) return;
-        if (notifyChar == null) return;
-        if (commandQueue == null || commandQueue.length == 0) return;
-    
-        // Sequenz neu starten
-        commandIndex = 0;
-        commandInProgress = false;
-    
-        Log.i(TAG, "History sequence start (" + commandQueue.length + " commands)");
-    
-        writeNextCommand(g);
-    }
-    private static void scheduleReconnect() {
-        if (!running || gattDevice == null) return;
-    
-        Log.i(TAG, "GattBridge: reconnect attempt");
-    
-        mainHandler.postDelayed(() -> {
-            if (!running || gattDevice == null) return;
-    
-            // mark active for loops again (writer/keeper are guarded by running && gattActive)
-            gattActive = true;
-    
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                gatt = gattDevice.connectGatt(
-                        appContext,
-                        false,
-                        gattCallback,
-                        BluetoothDevice.TRANSPORT_LE
-                );
             } else {
-                gatt = gattDevice.connectGatt(appContext, false, gattCallback);
+                commandSeq = null;
             }
-        }, 400);
+
+            return true;
+
+        } catch (Throwable t) {
+            Log.e(TAG, "profile load failed", t);
+            return false;
+        }
     }
-    // ---------------------------------------------------------------------
-    // CENTRAL VALUE HANDLER (write gat_raw + packet_counter)
-    // ---------------------------------------------------------------------
-    private static void handleGattValue(BluetoothGatt g, byte[] v) {
-        if (v == null || v.length == 0) return;
-    
-        BluetoothDevice dev = (g != null) ? g.getDevice() : null;
-        if (dev == null) return;
-    
-        lastGattRx = System.currentTimeMillis();
-    
-        String addr = dev.getAddress();
-        String name = (dev.getName() != null) ? dev.getName() : "(gatt)";
-        String rawNative = toHex(v);
-    
-        gattCounter = (gattCounter + 1) & 0xFF;
-    
-        // ignore warmup / empty payloads (all-zero)
-        boolean allZero = true;
-        for (byte x : v) {
-            if (x != 0x00) {
-                allZero = false;
-                break;
-            }
-        }
-        if (allZero) {
-            // keep alive only – do NOT overwrite last valid payload
-            lastGattRx = System.currentTimeMillis();
-            return;
-        }
-    
-        synchronized (LOG_LOCK) {
-            JSONArray deviceHistory = LOG_STORE.get(addr);
-            if (deviceHistory == null) {
-                deviceHistory = new JSONArray();
-                LOG_STORE.put(addr, deviceHistory);
-            }
-        
-            try {
-                JSONObject obj = new JSONObject();
-                obj.put("address", addr);
-                obj.put("name", name);
-                obj.put("gat_raw", rawNative);
-                obj.put("packet_counter", gattCounter);
-                obj.put("timestamp", ts());
-        
-                // 🔥 Command-Zuordnung (History Decode Key!)
-                if (currentCommand != null) {
-                    obj.put("command", toHex(currentCommand));
-                    obj.put("command_index", currentCommandIndex);
-                } else {
-                    obj.put("command", JSONObject.NULL);
-                    obj.put("command_index", JSONObject.NULL);
-                }
-        
-                // jedes Read als eigenes Objekt hinzufügen
-                deviceHistory.put(obj);
-            } catch (Throwable ignored) {}
-        }
-    } 
-    // -----------------------------------------------------------------------
+
+    // =========================================================
     // GATT CALLBACK
-    // -----------------------------------------------------------------------
-    private static final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
+    // =========================================================
+
+    private static final BluetoothGattCallback cb = new BluetoothGattCallback() {
 
         @Override
-        public void onConnectionStateChange(BluetoothGatt g, int status, int newState) {
-            Log.i(TAG, "onConnectionStateChange: status=" + status + " newState=" + newState);
+        public void onConnectionStateChange(BluetoothGatt g, int s, int ns) {
+            if (!running) return;
 
-            if (newState == BluetoothProfile.STATE_CONNECTED) {
-                Log.i(TAG, "GATT connected → discover services");
-                mainHandler.postDelayed(g::discoverServices, 150);
-                return;
-            }
-            
-            if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                Log.w(TAG, "GATT disconnected → soft close + reconnect");
-                closeGattSoft(g);
-                scheduleReconnect();
+            if (ns == BluetoothProfile.STATE_CONNECTED) {
+                g.discoverServices();
+            } else if (ns == BluetoothProfile.STATE_DISCONNECTED) {
+                stop();
             }
         }
 
         @Override
         public void onServicesDiscovered(BluetoothGatt g, int status) {
-            Log.i(TAG, "onServicesDiscovered: status=" + status);
-        
-            if (status != BluetoothGatt.GATT_SUCCESS || notifyUuid == null) {
-                Log.e(TAG, "Service discovery failed");
-                closeGattSoft(g);
-                scheduleReconnect();
-                return;
-            }
-        
-            notifyChar = null;
-            cmdChar = null;
-        
-            // 1) Characteristic suchen (Service bevorzugt)
-            if (serviceUuid != null) {
-                BluetoothGattService s = g.getService(serviceUuid);
-                if (s != null) {
-                    notifyChar = s.getCharacteristic(notifyUuid);
-                    if (commandUuid != null) {
-                        cmdChar = s.getCharacteristic(commandUuid);
-                    }
-                }
-            }
-        
-            // 2) Fallback: global suchen
-            if (notifyChar == null || (commandUuid != null && cmdChar == null)) {
-                for (BluetoothGattService s : g.getServices()) {
-                    for (BluetoothGattCharacteristic c : s.getCharacteristics()) {
-                        if (notifyChar == null && c.getUuid().equals(notifyUuid)) {
-                            notifyChar = c;
-                        }
-                        if (commandUuid != null && cmdChar == null && c.getUuid().equals(commandUuid)) {
-                            cmdChar = c;
-                        }
-                    }
-                }
-            }
-        
-            if (notifyChar == null) {
-                Log.e(TAG, "Characteristic not found: " + notifyUuid);
-                closeGattSoft(g);
-                scheduleReconnect();
-                return;
-            }
-        
-            // 3) POLL MODE
-            if (pollEnabled) {
-                Log.i(TAG, "POLL mode enabled @" + pollIntervalMs + "ms");
-        
-                if (pollThread == null) {
-                    pollThread = new Thread(() -> {
-                        while (running && gattActive) {
-                            try {
-                                BluetoothGatt gg = gatt;
-                                BluetoothGattCharacteristic cc = notifyChar;
-                                if (gg != null && cc != null) {
-                                    gg.readCharacteristic(cc);
-                                }
-                                Thread.sleep(pollIntervalMs);
-                            } catch (Throwable ignored) {}
-                        }
-                    }, "GattReadPoll");
-                    pollThread.start();
-                }
-                return;
-            }
-        
-            // 4) NOTIFY MODE
-            boolean ok = g.setCharacteristicNotification(notifyChar, true);
-            Log.i(TAG, "setCharacteristicNotification: " + ok);
-        
-            BluetoothGattDescriptor cccd = notifyChar.getDescriptor(CCCD_UUID);
-            if (cccd != null) {
-                byte[] value;
-                int props = notifyChar.getProperties();
-        
-                if ((props & BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0) {
-                    value = BluetoothGattDescriptor.ENABLE_INDICATION_VALUE;
-                } else {
-                    value = BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE;
-                }
-        
-                cccd.setValue(value);
-                boolean dOk = g.writeDescriptor(cccd);
-                Log.i(TAG, "writeDescriptor(CCCD): " + dOk);
-        
-                if (!dOk) writeCommand(g);
+            if (!running || status != BluetoothGatt.GATT_SUCCESS) return;
+
+            BluetoothGattService svc = g.getService(serviceUuid);
+            if (svc == null) return;
+
+            // 1. Lese-Kanal (fff6)
+            notifyChar = svc.getCharacteristic(notifyUuid);
+            
+            // 2. Schreib-Kanal (fff8) - Wir holen die UUID aus dem JSON Profil
+            // Du musst in loadProfile() commandUuid = UUID.fromString(p.getString("command_uuid")) ergänzen!
+            commandChar = svc.getCharacteristic(commandUuid); 
+
+            if (notifyChar == null) return;
+
+            if (pollMode) {
+                startPoll();
+                // Beim Pollen können wir sofort anfangen zu schreiben
+                triggerCommandSequence();
             } else {
-                writeCommand(g);
-            }
-        }
-        @Override
-        public void onDescriptorWrite(BluetoothGatt g, BluetoothGattDescriptor descriptor, int status) {
-            if (descriptor != null && CCCD_UUID.equals(descriptor.getUuid())) {
-                Log.i(TAG, "onDescriptorWrite(CCCD): status=" + status);
-                writeCommand(g);
+                // WICHTIG: Erst Notify einschalten. 
+                // Das Schreiben der Kommandos triggern wir erst im onDescriptorWrite!
+                enableNotify(g);
             }
         }
 
         @Override
-        public void onCharacteristicWrite(BluetoothGatt g, BluetoothGattCharacteristic ch, int status) {
-            if (status != BluetoothGatt.GATT_SUCCESS) {
-                commandInProgress = false;
-                return;
-            }
-        
-            // direkt nach Write → Read
-            if (ch.getUuid().equals(notifyChar.getUuid())) {
-                g.readCharacteristic(notifyChar);
-            }
-        }
-        @Override
-        public void onCharacteristicRead(BluetoothGatt g, BluetoothGattCharacteristic ch, int status) {
-            if (status != BluetoothGatt.GATT_SUCCESS || ch == null) return;
-        
-            handleGattValue(g, ch.getValue()); // schreibt ins LOG_STORE
-            currentCommand = null;
-            currentCommandIndex = -1;
-
-            // Kommando abgeschlossen → Index erhöhen
-            if (commandQueue != null && ch.getUuid().equals(notifyChar.getUuid())) {
-                commandIndex++;
-                commandInProgress = false;
-        
-                if (commandIndex < commandQueue.length) {
-                    // nächster Write nach kurzem Delay
-                    mainHandler.postDelayed(() -> writeNextCommand(g), 80);
-                } else {
-                    Log.i(TAG, "History command sequence finished");
-                }
+        public void onDescriptorWrite(BluetoothGatt g, BluetoothGattDescriptor d, int s) {
+            if (s == BluetoothGatt.GATT_SUCCESS && 
+                d.getUuid().equals(UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"))) {
+                
+                Log.i(TAG, "Notification aktiv, starte Sequenz...");
+                triggerCommandSequence();
             }
         }
 
         @Override
-        public void onCharacteristicChanged(BluetoothGatt g, BluetoothGattCharacteristic ch) {
-            if (ch == null) return;
-            handleGattValue(g, ch.getValue());
+        public void onCharacteristicWrite(BluetoothGatt g, BluetoothGattCharacteristic c, int s) {
+            // Nachdem ein Kommando geschrieben wurde, kurz warten und das nächste senden
+            if (s == BluetoothGatt.GATT_SUCCESS) {
+                main.postDelayed(LogBridge::writeNextCommand, 200); // 200ms Pause zwischen Kommandos
+            }
+        }
+
+        @Override
+        public void onCharacteristicChanged(BluetoothGatt g, BluetoothGattCharacteristic c) {
+            handleValue(c.getValue());
+        }
+
+        @Override
+        public void onCharacteristicRead(BluetoothGatt g, BluetoothGattCharacteristic c, int s) {
+            if (s == BluetoothGatt.GATT_SUCCESS) {
+                handleValue(c.getValue());
+            }
         }
     };
+
+    // =========================================================
+    // MODES
+    // =========================================================
+
+    private static void enableNotify(BluetoothGatt g) {
+        g.setCharacteristicNotification(notifyChar, true);
+
+        BluetoothGattDescriptor d = notifyChar.getDescriptor(
+                UUID.fromString("00002902-0000-1000-8000-00805f9b34fb"));
+
+        if (d != null) {
+            d.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+            g.writeDescriptor(d);
+        }
+    }
+
+    private static void startPoll() {
+        new Thread(() -> {
+            while (running && gatt != null) {
+                try {
+                    gatt.readCharacteristic(notifyChar);
+                    Thread.sleep(pollIntervalMs);
+                } catch (Throwable ignored) {}
+            }
+        }, "GattPoll").start();
+    }
+
+    // =========================================================
+    // COMMAND SEQUENCE
+    // =========================================================
+    private static void triggerCommandSequence() {
+            if (commandSeq != null) {
+                commandIndex = 0;
+                writeNextCommand();
+            }
+        }
+
+    private static void writeNextCommand() {
+        // Sicherheitscheck: Wir brauchen gatt und die SCHREIB-Characteristic (fff8)
+        if (!running || gatt == null || commandChar == null) {
+            Log.w(TAG, "Write abgebrochen: Gatt oder CommandChar nicht bereit");
+            return;
+        }
+        
+        // Prüfen, ob wir am Ende der Liste sind
+        if (commandIndex >= commandSeq.length) {
+            Log.i(TAG, "Alle Kommandos der Sequenz gesendet.");
+            return;
+        }
+    
+        byte[] value = commandSeq[commandIndex];
+        
+        // Wert auf die Schreib-Characteristic setzen
+        commandChar.setValue(value);
+        
+        // WICHTIG: Den Write-Typ explizit auf DEFAULT (With Response) setzen,
+        // damit das onCharacteristicWrite-Event sicher ausgelöst wird.
+        commandChar.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
+    
+        boolean success = gatt.writeCharacteristic(commandChar);
+        
+        if (success) {
+            Log.d(TAG, "Kommando gesendet: (0x) " + toHex(value) + " an index " + commandIndex);
+            commandIndex++;
+        } else {
+            Log.e(TAG, "Gatt.writeCharacteristic fehlgeschlagen bei index " + commandIndex);
+            // Optional: Nach kurzem Delay erneut versuchen oder Index trotzdem erhöhen
+        }
+    }
+
+    // =========================================================
+    // LOGGING
+    // =========================================================
+
+    private static synchronized void handleValue(byte[] v) {
+        try {
+            JSONObject o = new JSONObject();
+            o.put("address", device.getAddress());
+            o.put("name", device.getName());
+            o.put("gat_raw", toHex(v));
+            o.put("ts", System.currentTimeMillis());
+    
+            // HIER DIE ERWEITERUNG:
+            // Wir speichern, welcher Befehl gerade aktiv war.
+            // Da commandIndex nach dem Schreiben erhöht wurde, 
+            // nehmen wir commandIndex - 1 für den aktuell beantworteten Befehl.
+            if (commandSeq != null && commandIndex > 0) {
+                int currentIdx = commandIndex - 1;
+                o.put("cmd_idx", currentIdx);
+                o.put("cmd_hex", toHex(commandSeq[currentIdx]));
+            }
+    
+            log.put(o);
+    
+            FileOutputStream fos = new FileOutputStream(outFile, false);
+            fos.write(log.toString(2).getBytes("UTF-8"));
+            fos.close();
+    
+        } catch (Throwable ignored) {}
+    }
+
+    // =========================================================
+    // UTILS
+    // =========================================================
+
+    private static String readFile(File f) throws Exception {
+        FileInputStream fis = new FileInputStream(f);
+        byte[] b = new byte[(int) f.length()];
+        fis.read(b);
+        fis.close();
+        return new String(b, "UTF-8");
+    }
+
+    private static byte[] parseHex(String s) {
+        s = s.replace(" ", "").toUpperCase(Locale.US);
+        byte[] out = new byte[s.length() / 2];
+        for (int i = 0; i < out.length; i++) {
+            out[i] = (byte) Integer.parseInt(s.substring(i * 2, i * 2 + 2), 16);
+        }
+        return out;
+    }
+
+    private static String toHex(byte[] v) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : v) sb.append(String.format("%02X", b));
+        return sb.toString();
+    }
+
+    private static String fail(String r) {
+        running = false;
+        Log.w(TAG, r);
+        return r;
+    }
 }

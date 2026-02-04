@@ -2,6 +2,7 @@
 
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import os
 
 import time
 from kivy.uix.boxlayout import BoxLayout
@@ -18,6 +19,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.screenmanager import Screen
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.common.header_online import HeaderBar
+ASSET_ROOT = os.path.join("dashboard_gui", "assets")
 
 class DashboardScreen(Screen):
     name = "dashboard"
@@ -26,19 +28,34 @@ class DashboardScreen(Screen):
         super().__init__(**kw)
 
         # ROOT Layout
-        root = BoxLayout(orientation="vertical")
-        self.add_widget(root)
+        self.root_layout = BoxLayout(orientation="vertical")
+        
+        # --- HIER: Hintergrund für den VOLLEN Screen ---
+        with self.root_layout.canvas.before:
+            from kivy.graphics import Rectangle, Color
+            Color(1, 1, 1, 1)
+            self.bg_rect = Rectangle(
+                source=os.path.join(ASSET_ROOT, "background.png"),
+                pos=self.pos,
+                size=self.size
+            )
+        
+        self.root_layout.bind(
+            pos=lambda *_: setattr(self.bg_rect, "pos", self.root_layout.pos),
+            size=lambda *_: setattr(self.bg_rect, "size", self.root_layout.size)
+        )
+        self.add_widget(self.root_layout)
 
         # Global State registrieren
         GLOBAL_STATE.attach_dashboard(self)
 
         # HEADER
         self.header = HeaderBar()
-        root.add_widget(self.header)
+        self.root_layout.add_widget(self.header)
 
-        # MAIN PANEL → nur ein Panel verwenden
+        # MAIN PANEL
         self.content = DashboardMainPanel(size_hint_y=1)
-        root.add_widget(self.content)
+        self.root_layout.add_widget(self.content)
 
         # CONTROL BUTTONS
         self.controls = ControlButtons(
@@ -46,7 +63,7 @@ class DashboardScreen(Screen):
             on_stop=lambda *_: GLOBAL_STATE.stop(),
             on_reset=lambda *_: GLOBAL_STATE.reset()
         )
-        root.add_widget(self.controls)
+        self.root_layout.add_widget(self.controls)
 
         # Tile-Reihenfolge
         self.tile_temp_in = self.content.tile_temp_in
@@ -56,6 +73,10 @@ class DashboardScreen(Screen):
         self.tile_temp_ex = self.content.tile_temp_ex
         self.tile_hum_ex  = self.content.tile_hum_ex
         self.tile_vpd_ex  = self.content.tile_vpd_ex
+
+    # ... (Navigation/Picker bleiben identisch)
+
+
 
     # -----------------------------------------------------
     # Navigation
@@ -83,6 +104,16 @@ class DashboardScreen(Screen):
     # -----------------------------------------------------
     def update_from_global(self, d):
         self.header.update_from_global(d)
+        self.content.update_from_data(d)
+
+        # Hintergrund-Wechsel Logik (analog zum alten Panel Code)
+        if self.content.get_active_tile_keys():
+            new_bg = os.path.join(ASSET_ROOT, "background2.png")
+        else:
+            new_bg = os.path.join(ASSET_ROOT, "background.png")
+        
+        if self.bg_rect.source != new_bg:
+            self.bg_rect.source = new_bg
 
         # PANELS / TILES
         self.content.update_from_data(d)
