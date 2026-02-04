@@ -1,28 +1,58 @@
 [
   {
-    "timestamp": "2026-02-04T12:34:59.890+0000",
+    "timestamp": "2026-02-04T22:31:32.647+0000",
     "name": "sps",
     "address": "C898B4F2-B452-7502-1A67-0536E77D49EA",
-    "rssi": -82,
-    "adv_raw": "00096A150009103A08",
+    "rssi": -75,
+    "adv_raw": "8208DD1700C1B43B08",
     "gat_raw": null,
-    "log_raw": "00096A150009103A08",
+    "log_raw": "8208DD1700C1B43B08",
     "note": "raw"
   },
   {
-    "timestamp": "2026-02-04T12:34:59.881+0000",
+    "timestamp": "2026-02-04T21:38:00.407+0000",
+    "name": "(unknown)",
+    "address": "8B314CC8-C5E6-6A76-29C6-82B90EB4F398",
+    "rssi": -71,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-02-04T21:45:35.200+0000",
+    "name": "TP351S (987A)",
+    "address": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
+    "rssi": -74,
+    "adv_raw": "C2D9003B213301",
+    "gat_raw": null,
+    "log_raw": "C2D9003B213301",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-02-04T22:31:33.833+0000",
     "name": "ThermoBeacon2",
     "address": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
-    "rssi": -74,
-    "adv_raw": "190019060000F1F017116B015E039201240384D60D00",
+    "rssi": -59,
+    "adv_raw": "190019060000F1F01B115A01B3035701D40358620E00",
     "gat_raw": null,
-    "log_raw": "190019060000F1F017116B015E039201240384D60D00",
+    "log_raw": "190019060000F1F01B115A01B3035701D40358620E00",
     "note": "raw"
   },
   {
-    "timestamp": "2026-02-04T12:23:15.498+0000",
+    "timestamp": "2026-02-04T21:38:00.779+0000",
     "name": "(unknown)",
-    "address": "C89DAAAD-9C2C-0EBD-65B7-50388EB6DE4F",
+    "address": "C17ADEB5-C28D-21A6-63FC-37D7FB399DFD",
+    "rssi": -76,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-02-04T21:48:01.309+0000",
+    "name": "(unknown)",
+    "address": "B595A62E-0172-3E6C-D01E-F2E2634CCA3A",
     "rssi": -75,
     "adv_raw": "",
     "gat_raw": null,
@@ -30,9 +60,29 @@
     "note": "raw"
   },
   {
-    "timestamp": "2026-02-04T12:35:01.990+0000",
+    "timestamp": "2026-02-04T21:50:25.767+0000",
     "name": "(unknown)",
-    "address": "F64F9371-6247-0648-8146-F0EC575D3DC7",
+    "address": "58A0E955-87EA-E31C-891A-5B8D85B47464",
+    "rssi": -74,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-02-04T22:03:04.773+0000",
+    "name": "(unknown)",
+    "address": "BA7E1B7D-3400-D1BF-B20F-BD73BC6AB299",
+    "rssi": -62,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-02-04T22:03:48.491+0000",
+    "name": "(unknown)",
+    "address": "A797460B-0280-4A77-0EC1-5BCF02F89DB3",
     "rssi": -58,
     "adv_raw": "",
     "gat_raw": null,
@@ -40,13 +90,53 @@
     "note": "raw"
   },
   {
-    "timestamp": "2026-02-04T12:28:34.800+0000",
-    "name": "TP351S (987A)",
-    "address": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
-    "rssi": -67,
-    "adv_raw": "C205012C213301",
+    "timestamp": "2026-02-04T22:17:50.988+0000",
+    "name": "(unknown)",
+    "address": "7DF53EB4-DE77-E334-6457-EAA220262244",
+    "rssi": -62,
+    "adv_raw": "",
     "gat_raw": null,
-    "log_raw": "C205012C213301",
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-02-04T22:17:52.827+0000",
+    "name": "(unknown)",
+    "address": "99D9CAD7-C9D7-E7B7-14FE-79925BD46189",
+    "rssi": -70,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-02-04T22:18:30.545+0000",
+    "name": "(unknown)",
+    "address": "2FC92575-B1C4-F9C3-B566-1DA4B241BC5B",
+    "rssi": -60,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-02-04T22:18:32.043+0000",
+    "name": "(unknown)",
+    "address": "C6BBA31E-47A3-0478-C38B-4F5E77152454",
+    "rssi": -67,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
+    "note": "raw"
+  },
+  {
+    "timestamp": "2026-02-04T22:31:18.548+0000",
+    "name": "(unknown)",
+    "address": "1DE3F630-6580-FF84-F8AF-8FD753ECC16D",
+    "rssi": -66,
+    "adv_raw": "",
+    "gat_raw": null,
+    "log_raw": "",
     "note": "raw"
   }
 ]

@@ -84,11 +84,11 @@ class ChartTile(ButtonBehavior, BoxLayout):
         # MAIN VALUE — Sauber und ohne Schatten
         self.lbl_value = Label(
             text="--",
-            font_size=sp_scaled(26), # Leicht reduziert für bessere Proportionen
+            font_size=sp_scaled(28), # Leicht reduziert für bessere Proportionen
             color=self.color,
             bold=True,
             size_hint_x=None,
-            width=dp_scaled(140) # Fixe Breite für stabiles Layout
+            width=dp_scaled(120) # Fixe Breite für stabiles Layout
         )
         
         header.add_widget(self.lbl_title)
