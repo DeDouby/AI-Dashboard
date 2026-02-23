@@ -1,0 +1,15 @@
+[
+  {
+    "timestamp": "2026-02-23T03:54:39.784655",
+    "name": "MixedSensor",
+    "address": "MIXED-AVG",
+    "note": "mixed",
+    "avg_temp": 20.9,
+    "avg_hum": 38.0,
+    "avg_vpd": 1.532,
+    "avg_dew": 6.04,
+    "devices": [
+      "FF-FF-A1-00-00-01"
+    ]
+  }
+]

@@ -231,7 +231,7 @@ class SetupMainPanel(BoxLayout):
         row.add_widget(toggle)
 
         # Dev Mode Spinner
-        if adv is not None and gatt is not None and bridge is not None:
+        if gatt is not None and bridge is not None:
             sp_adv = Spinner(text=adv or "---", values=self.adv_profiles, size_hint_x=0.25)
             sp_adv.bind(text=lambda _, val: self.on_adv(mac, val))
             row.add_widget(sp_adv)

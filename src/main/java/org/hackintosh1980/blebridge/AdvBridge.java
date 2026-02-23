@@ -29,7 +29,7 @@ public class AdvBridge {
     private static final int RSSI_MIN = -127; // nicht filtern, sonst verschwinden Geräte “gefühlt”
 
     private static volatile boolean running = false;
-
+    private static volatile long lastPacketTime = 0L; // volatile für Thread-Sicherheit
     private static BluetoothLeScanner scanner;
     private static ScanCallback callback;
 
@@ -74,38 +74,54 @@ public class AdvBridge {
         if (scanWatchdog != null && scanWatchdog.isAlive()) return;
     
         scanWatchdog = new Thread(() -> {
+            // Initialer Zeitstempel, damit er nicht sofort beim Start feuert
+            lastPacketTime = System.currentTimeMillis(); 
+            
             while (running) {
                 try {
-                    if (scanner == null || callback == null) {
-                        scanner = adapter.getBluetoothLeScanner();
-                        if (scanner == null) {
-                            Log.w(TAG, "Scanner not available, retrying...");
-                            Thread.sleep(1000);
-                            continue;
+                    // FINETUNING 1: Intervall auf 2 Sek verkürzen für schnellere Reaktion
+                    Thread.sleep(2000); 
+    
+                    long now = System.currentTimeMillis();
+                    long silenceDuration = now - lastPacketTime;
+    
+                    // FINETUNING 2: Schwellenwert auf 3,5 Sek runter. 
+                    // Das ist kurz genug um "live" zu wirken, aber lang genug um Paketlücken zu atmen.
+                    if (silenceDuration > 3500) {
+                        Log.w(TAG, "Watchdog: SHARP RESTART! Silence: " + silenceDuration + "ms");
+                        
+                        // FINETUNING 3: Direkter Zugriff auf den Adapter für maximale Sicherheit
+                        BluetoothLeScanner freshScanner = adapter.getBluetoothLeScanner();
+                        
+                        if (freshScanner != null && callback != null) {
+                            try {
+                                // Erst hart stoppen
+                                freshScanner.stopScan(callback);
+                            } catch (Throwable ignore) {}
+    
+                            // Kurz warten, damit der BT-Stack Zeit zum Re-Initialisieren hat (wichtig bei Sleep!)
+                            Thread.sleep(150);
+    
+                            ScanSettings settings = new ScanSettings.Builder()
+                                    .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+                                    .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES) // Erzwingt jedes Paket
+                                    .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)      // Nicht filtern
+                                    .setReportDelay(0)
+                                    .build();
+                            
+                            try {
+                                freshScanner.startScan(null, settings, callback);
+                                scanner = freshScanner; // Instanz aktualisieren
+                                lastPacketTime = System.currentTimeMillis(); // Reset
+                            } catch (Throwable t) {
+                                Log.e(TAG, "Watchdog: Start failed", t);
+                            }
                         }
                     }
-    
-                    // Prüfen, ob Scan noch läuft – einfacher Ansatz:
-                    // Bei Android gibt es keine direkte isScanning(), also wir stoppen & starten sicherheitshalber
-                    try {
-                        scanner.stopScan(callback);
-                    } catch (Throwable ignore) {}
-    
-                    // ScanSettings wie vorher
-                    ScanSettings settings = new ScanSettings.Builder()
-                            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-                            .setReportDelay(0)
-                            .build();
-    
-                    try {
-                        scanner.startScan(null, settings, callback);
-                    } catch (Throwable t) {
-                        Log.e(TAG, "Watchdog startScan failed", t);
-                    }
-    
-                    Thread.sleep(5000); // Watchdog prüft alle 5 Sekunden
+                } catch (InterruptedException e) {
+                    break;
                 } catch (Throwable t) {
-                    Log.e(TAG, "ScanWatchdog error", t);
+                    Log.e(TAG, "Watchdog Error", t);
                 }
             }
         }, "AdvScanWatchdog");
@@ -180,10 +196,14 @@ public class AdvBridge {
             @Override
             public void onScanResult(int type, ScanResult r) {
                 if (!running) return;
+                
+                // Lebenszeichen für den Watchdog setzen
+                lastPacketTime = System.currentTimeMillis(); 
+              
                 try {
                     if (r == null || r.getDevice() == null) return;
                     if (r.getRssi() < RSSI_MIN) return;
-
+        
                     BluetoothDevice d = r.getDevice();
                     ScanRecord rec = r.getScanRecord();
                     if (rec == null) return;
@@ -202,7 +222,6 @@ public class AdvBridge {
                             byte[] payload = md.valueAt(i);
                             if (payload == null || payload.length == 0) continue;
                     
-                            // Rebuild Desktop-like RAW: CompanyID (LE) + payload
                             ByteArrayOutputStream bos = new ByteArrayOutputStream();
                             bos.write(companyId & 0xFF);
                             bos.write((companyId >> 8) & 0xFF);
@@ -224,26 +243,42 @@ public class AdvBridge {
                         }
                     }
 
-                    // 3) Fallback: komplette ADV bytes
+                    // 3) Fallback
                     if (raw == null) return;
 
+                    // ------------------------------------------------------------------
+                    // AB HIER: DIE IDENTITÄTS-KORREKTUR
+                    // ------------------------------------------------------------------
                     synchronized (lock) {
-                        JSONObject obj = last.get(mac);
+                        String effectiveMac = mac;
+                        String effectiveName = name;
+                    
+                        // NORMALISIERUNG (Wie im Mac-Script)
+                        if (raw != null && raw.startsWith("5900A1")) {
+                            effectiveMac = "FF:FF:A1:00:00:01"; 
+                            effectiveName = "LGS_BROADCAST"; // Name an Desktop-Version anpassen!
+                    
+                            if (!effectiveMac.equals(mac)) {
+                                last.remove(mac);
+                            }
+                        }
+
+                        // 3. DATEN AKTUALISIEREN
+                        JSONObject obj = last.get(effectiveMac);
                         if (obj == null) {
                             obj = new JSONObject();
-                            obj.put("address", mac);
-                            obj.put("gat_raw", JSONObject.NULL); // niemals anfassen
+                            obj.put("address", effectiveMac);
+                            obj.put("gat_raw", JSONObject.NULL);
                         }
 
                         obj.put("timestamp", ts());
-                        obj.put("name", name);
+                        obj.put("name", effectiveName); // Stabiler Name wird hier gesetzt
                         obj.put("rssi", rssi);
-
                         obj.put("adv_raw", raw);
                         obj.put("log_raw", raw);
-                        obj.put("note", "raw");
+                        obj.put("note", "normalized_broadcast");
 
-                        last.put(mac, obj);
+                        last.put(effectiveMac, obj);
                     }
 
                 } catch (Throwable t) {

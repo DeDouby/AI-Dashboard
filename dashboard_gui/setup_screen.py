@@ -150,17 +150,42 @@ class SetupScreen(Screen):
                     mac=mac,
                     selected=True
                 )
-    
+    # 🔑 Dev-Mode Default: einmal sauber vorbelegen
             else:
-                sel = _selected.get(mac, {})
-                adv = sel.get("adv", config.get_adv_decoder(mac))
-                gatt = sel.get("gatt", config.get_gatt_decoder(mac))
-                bridge = sel.get("bridge", config.get_bridge_profile(mac))
+                if mac not in _selected:
+                    lname = name.lower()
+            
+                    if "sps" in lname:
+                        _selected[mac] = {
+                            "adv": "Inkbird_ADV_Desktop",
+                            "gatt": "Inkbird_GATT",
+                            "bridge": "Inkbird_Bridge"
+                        }
+                    elif "thermobeacon" in lname:
+                        _selected[mac] = {
+                            "adv": "ThermoBeacon2_ADV",
+                            "gatt": "ThermoBeacon2_GATT",
+                            "bridge": "ThermoBeacon2_Bridge"
+                        }
+                    elif "tp35" in lname or "thermopro" in lname:
+                        _selected[mac] = {
+                            "gatt": "ThermoPro_GATT",
+                            "bridge": "ThermoPro_Bridge"
+                        }
+                    else:
+                        _selected[mac] = {
+                            "adv": "",
+                            "gatt": "",
+                            "bridge": ""
+                        }
+            
+                sel = _selected[mac]
+            
                 self.panel.add_device(
                     name=name,
-                    adv=adv,
-                    gatt=gatt,
-                    bridge=bridge,
+                    adv=sel.get("adv"),
+                    gatt=sel.get("gatt"),
+                    bridge=sel.get("bridge"),
                     mac=mac
                 )
     # ---------------------------------------------------------

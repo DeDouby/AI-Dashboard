@@ -4,6 +4,8 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
+from kivy.uix.scrollview import ScrollView
+
 import config
 
 class DevicePickerMenu(FloatLayout):
@@ -28,9 +30,11 @@ class DevicePickerMenu(FloatLayout):
         # 2) Panel für Buttons
         # -----------------------------
         num_buttons = len(device_list) + 2  # + ADV + GATT
-        self.panel_width = dp_scaled(200)
-        panel_height = dp_scaled(120 * len(device_list) + 20)
-
+        self.panel_width = dp_scaled(220)
+        panel_height = min(
+            dp_scaled(360),
+            dp_scaled(50 * (len(device_list) + 3))  # devices + separator + channels
+        )
         # Absolute Window-Position des Buttons
         btn_x, btn_y = parent_header.lbl_dev.to_window(*parent_header.lbl_dev.pos)
 
@@ -41,15 +45,29 @@ class DevicePickerMenu(FloatLayout):
         # Sicherstellen, dass Panel nicht unter Bildschirm fällt
         panel_y = max(panel_y, 0)
 
-        self.panel = BoxLayout(
-            orientation="vertical",
+        self.panel = ScrollView(
             size_hint=(None, None),
             size=(self.panel_width, panel_height),
-            spacing=dp_scaled(8),
-            padding=[dp_scaled(6)]*4,
-            pos=(panel_x, panel_y)
+            pos=(panel_x, panel_y),
+            do_scroll_x=False,
+            do_scroll_y=True,
+            bar_width=dp_scaled(4),
+            scroll_type=["bars", "content"]
         )
         self.add_widget(self.panel)
+        
+        self.panel_content = BoxLayout(
+            orientation="vertical",
+            size_hint_y=None,
+            spacing=dp_scaled(8),
+            padding=[dp_scaled(6)]*4
+        )
+        
+        self.panel_content.bind(
+            minimum_height=self.panel_content.setter("height")
+        )
+        
+        self.panel.add_widget(self.panel_content)
 
 
         # -----------------------------
@@ -68,10 +86,10 @@ class DevicePickerMenu(FloatLayout):
                 markup=True,
                 size_hint_y=None,
                 height=dp_scaled(50),
-            
+        
                 background_color=(0.22, 0.25, 0.30, 0.55),
                 color=(0.95, 0.95, 0.98, 1),
-            
+        
                 halign="left",
                 valign="middle",
                 padding=(dp_scaled(14), 0),
@@ -84,7 +102,8 @@ class DevicePickerMenu(FloatLayout):
                 self.close()
             ))
         
-            self.panel.add_widget(b)
+            self.panel_content.add_widget(b)
+
         # -----------------------------
         # 4) Separator
         # -----------------------------
@@ -95,7 +114,8 @@ class DevicePickerMenu(FloatLayout):
             size_hint_y=None,
             height=dp_scaled(30)
         )
-        self.panel.add_widget(sep)
+        self.panel_content.add_widget(sep)
+
 
         # -----------------------------
         # 5) Channel Buttons (ADV / GATT)
@@ -131,7 +151,8 @@ class DevicePickerMenu(FloatLayout):
             self.close()
         
         b_adv.bind(on_release=lambda *_: activate_adv())
-        self.panel.add_widget(b_adv)
+        self.panel_content.add_widget(b_adv)
+
     
         # -----------------------------
         # GATT Button
@@ -158,7 +179,8 @@ class DevicePickerMenu(FloatLayout):
             self.close()
     
         b_gatt.bind(on_release=lambda *_: activate_gatt())
-        self.panel.add_widget(b_gatt)
+        self.panel_content.add_widget(b_gatt)
+
 
     # -----------------------------
     # Menü schließen

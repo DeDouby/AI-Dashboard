@@ -98,8 +98,11 @@ def start():
             print("[Core] Permission check skipped")
 
         _bridge = get_bridge(prefer_mock=False)
+        
         _bridge.start()
-        print("[Core] Android-Bridge gestartet")
+        _bridge.start_broadcast()
+        
+        print("[Core] Android-Bridges gestartet (ADV + GATT + BROADCAST)")
 
     # -----------------------------------------------------
     # Decoder starten (liefert decoded.json)
@@ -176,6 +179,26 @@ def _stop_log_safe(dt):
         print("[Core] LOG Bridge stopped")
     except Exception as e:
         print("[Core] LOG stop failed:", e)
+
+
+
+# ------------------------------------------------------------
+# GATT ONLY – Stop
+# ------------------------------------------------------------
+def stop_gatt_bridge():
+    from kivy.clock import Clock
+    if not is_android():
+        return
+    Clock.schedule_once(_stop_gatt_safe, 0)
+
+def _stop_gatt_safe(dt):
+    global _bridge
+    try:
+        _bridge = get_bridge()        # 🔒 Immer frische Instanz
+        _bridge.stop_gatt()
+        print("[Core] GATT Bridge stopped")
+    except Exception as e:
+        print("[Core] GATT stop failed:", e)
 # ------------------------------------------------------------
 # GATT ONLY
 # ------------------------------------------------------------
@@ -265,7 +288,78 @@ def _stop_log_safe(dt):
         print("[Core] LOG Bridge stopped")
     except Exception as e:
         print("[Core] LOG stop failed:", e)
+# ------------------------------------------------------------
+# ADV ONLY – Stop
+# ------------------------------------------------------------
+def stop_adv_bridge():
+    from kivy.clock import Clock
+    if not is_android():
+        return
+    Clock.schedule_once(_stop_adv_safe, 0)
 
+def _stop_adv_safe(dt):
+    global _bridge
+    try:
+        _bridge = get_bridge()        # 🔒 Immer frische Instanz
+        _bridge.stop_adv()
+        print("[Core] ADV Bridge stopped")
+    except Exception as e:
+        print("[Core] ADV stop failed:", e)
+
+# ------------------------------------------------------------
+# BROADCAST ONLY – Start / Stop / Restart
+# ------------------------------------------------------------
+
+def start_broadcast_bridge():
+    from kivy.clock import Clock
+    if not is_android():
+        return
+    Clock.schedule_once(_start_broadcast_safe, 0)
+
+def _start_broadcast_safe(dt):
+    global _bridge
+    try:
+        _bridge = get_bridge()
+        _bridge.start_broadcast()
+        print("[Core] BROADCAST Bridge started")
+    except Exception as e:
+        print("[Core] BROADCAST start failed:", e)
+
+
+def stop_broadcast_bridge():
+    from kivy.clock import Clock
+    if not is_android():
+        return
+    Clock.schedule_once(_stop_broadcast_safe, 0)
+
+def _stop_broadcast_safe(dt):
+    global _bridge
+    try:
+        _bridge = get_bridge()
+        _bridge.stop_broadcast()
+        print("[Core] BROADCAST Bridge stopped")
+    except Exception as e:
+        print("[Core] BROADCAST stop failed:", e)
+
+
+def restart_broadcast_bridge():
+    from kivy.clock import Clock
+    if not is_android():
+        return
+    Clock.schedule_once(_restart_broadcast_safe, 0)
+
+def _restart_broadcast_safe(dt):
+    global _bridge
+    try:
+        _bridge = get_bridge()
+        try:
+            _bridge.stop_broadcast()
+        except:
+            pass
+        _bridge.start_broadcast()
+        print("[Core] BROADCAST Bridge restarted")
+    except Exception as e:
+        print("[Core] BROADCAST restart failed:", e)
 # ------------------------------------------------------------
 # STOP
 # ------------------------------------------------------------

@@ -4,6 +4,8 @@ from kivy.uix.button import Button
 from kivy.metrics import dp, sp
 from kivy.core.window import Window
 from kivy.app import App
+from kivy.uix.scrollview import ScrollView
+
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.ui.i18n import I18N
 import config
@@ -29,16 +31,33 @@ class WindowPicker(FloatLayout):
         # -----------------------------
         # 2) Panel für Buttons
         # -----------------------------
-        w, h = dp(200), dp(280)
-        self.panel = BoxLayout(
-            orientation="vertical",
+        w, h = dp(200), dp(300)
+        # ScrollView als Panel
+        self.panel = ScrollView(
             size_hint=(None, None),
             size=(w, h),
-            spacing=dp(6),
-            padding=[dp(4), dp(4), dp(4), dp(4)],
-            pos=(Window.width - w - dp(10), Window.height - dp(50) - h)
+            pos=(Window.width - w - dp(10), Window.height - dp(30) - h),
+            do_scroll_x=False,
+            do_scroll_y=True,
+            bar_width=dp(4),
+            scroll_type=["bars", "content"]
         )
         self.add_widget(self.panel)
+        
+        # Inhalt im ScrollView
+        self.panel_content = BoxLayout(
+            orientation="vertical",
+            size_hint_y=None,
+            spacing=dp(6),
+            padding=[dp(4), dp(4), dp(4), dp(4)]
+        )
+        
+        # WICHTIG: Höhe automatisch aus Content
+        self.panel_content.bind(
+            minimum_height=self.panel_content.setter("height")
+        )
+        
+        self.panel.add_widget(self.panel_content)
 
         # -----------------------------
         # 3) Dev Mode prüfen
@@ -88,23 +107,24 @@ class WindowPicker(FloatLayout):
         }
         
         for label, cb in entries:
-            icon = fa_map.get(label, "\uf128")  # default fa-question-circle
+            icon = fa_map.get(label, "\uf128")
             b = Button(
                 text=f"[font=FA]{icon}[/font]  {I18N.t(label)}",
                 markup=True,
                 font_size=sp(18),
-            
                 background_color=(0.22, 0.25, 0.30, 0.55),
                 color=(0.95, 0.95, 0.98, 1),
-            
                 halign="left",
                 valign="middle",
                 padding=(dp(14), 0),
-            
-                text_size=(dp(200), None),   # FEST, kein Binding
+                text_size=(dp(200), None),
             )
+        
+            b.size_hint_y = None
+            b.height = dp(38)
+        
             b.bind(on_release=lambda _, f=cb: (f(), self.close()))
-            self.panel.add_widget(b)
+            self.panel_content.add_widget(b)
 
     # -----------------------------
     # 6) Overlay schließen

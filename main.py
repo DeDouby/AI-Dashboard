@@ -19,7 +19,6 @@ from dashboard_gui.data_buffer import BUFFER
 from dashboard_gui.ui.fullscreen_content.fullscreen_view import FullScreenView
 from dashboard_gui.ui.scaling_utils import UI_SCALE
 from dashboard_gui.ui.device_picker_content.device_picker import DevicePickerScreen
-from dashboard_gui.ui.debug_content.debug_filemanager import DebugFileManagerScreen
 from dashboard_gui.ui.csv_viewer_content.csv_viewer_screen import CSVViewerScreen
 from dashboard_gui.settings_screen import SettingsScreen
 from dashboard_gui.ui.cam_viewer_content.cam_viewer_screen import CamViewerScreen
@@ -72,7 +71,6 @@ class DashboardApp(App):
         sm.add_widget(DebugScreen(name="debug"))
         sm.add_widget(FullScreenView(name="fullscreen"))
         sm.add_widget(DevicePickerScreen(name="device_picker"))
-        sm.add_widget(DebugFileManagerScreen(name="filemanager"))
         sm.add_widget(CSVViewerScreen(name="csv_viewer"))
         sm.add_widget(SettingsScreen(name="settings"))
         sm.add_widget(CamViewerScreen(name="cam_viewer"))
@@ -100,8 +98,7 @@ class DashboardApp(App):
         try:
             import core
             print("[APP] resume → bridge restart")
-            pass
-            #core.restart_adv_bridge()
+            core.restart_adv_bridge()
         except Exception as e:
             print("[APP] bridge restart failed:", e)
 

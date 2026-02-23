@@ -21,6 +21,7 @@ def check_permissions():
             Permission.BLUETOOTH_ADMIN,
             Permission.BLUETOOTH_CONNECT,
             Permission.BLUETOOTH_SCAN,
+            Permission.BLUETOOTH_ADVERTISE,  # <--- DAS IST DER KEY FÜR ANDROID 13!
             Permission.ACCESS_FINE_LOCATION,
             Permission.ACCESS_COARSE_LOCATION,
         ]
