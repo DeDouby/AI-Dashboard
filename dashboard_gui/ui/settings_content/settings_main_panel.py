@@ -102,7 +102,8 @@ class SettingsMainPanel(BoxLayout):
         add_slider("settings.temp_offset","temperature_offset",-10,10,0.1)
         add_slider("settings.humidity_offset","humidity_offset",-20,20,1)
         add_slider("settings.leaf_offset","leaf_offset",-10,10,0.1)
-
+        add_slider("LGS Send-Kanal", "lgs_mesh_channel_send", 0, 255, 1)
+        add_slider("LGS Recv-Kanal", "lgs_mesh_channel_recv", 0, 255, 1)
         self._update_dev_visibility()
 
         # --- Temperature Unit Toggle ---
@@ -209,9 +210,10 @@ class SettingsMainPanel(BoxLayout):
         self.bg.size = self.size
         self.bg.pos = self.pos
     def _collect(self):
-        out = {k:v.value for k,v in self.inputs.items()}
+        out = {k: v.value for k, v in self.inputs.items()}
         out["temperature_unit"] = self.temp_unit
         out["theme"] = config.get_theme()
+        # Die Kanäle sind durch add_slider bereits in self.inputs[key].value
         return out
 
     def _update_dev_visibility(self):

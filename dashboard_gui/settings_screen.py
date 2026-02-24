@@ -40,45 +40,63 @@ class SettingsScreen(Screen):
 
         self.add_widget(root)
 
+
     # -----------------------------
-    # Save Handler
+    # Save Handler - FINAL VERSION
     # -----------------------------
     def _save(self, values: dict):
         cfg = config._init()
 
-        cfg["refresh_interval"] = float(values.get("refresh_interval",2.0))
-        cfg["ui_refresh_interval"] = float(values.get("ui_refresh_interval",1.0))
-        cfg["stale_timeout"] = float(values.get("stale_timeout",15.0))
-        cfg["tile_graph_window"] = int(values.get("tile_graph_window",120))
-        cfg["temperature_offset"] = float(values.get("temperature_offset",0.0))
-        cfg["humidity_offset"] = float(values.get("humidity_offset",0.0))
-        cfg["leaf_offset"] = float(values.get("leaf_offset",0.0))
-        cfg["temperature_unit"] = values.get("temperature_unit","C")
-        cfg["theme"] = values.get("theme", cfg.get("theme","tiles"))
+        # Standard Parameter
+        cfg["refresh_interval"] = float(values.get("refresh_interval", 2.0))
+        cfg["ui_refresh_interval"] = float(values.get("ui_refresh_interval", 1.0))
+        cfg["stale_timeout"] = float(values.get("stale_timeout", 15.0))
+        cfg["tile_graph_window"] = int(values.get("tile_graph_window", 120))
+        cfg["temperature_offset"] = float(values.get("temperature_offset", 0.0))
+        cfg["humidity_offset"] = float(values.get("humidity_offset", 0.0))
+        cfg["leaf_offset"] = float(values.get("leaf_offset", 0.0))
+        cfg["temperature_unit"] = values.get("temperature_unit", "C")
+        cfg["theme"] = values.get("theme", cfg.get("theme", "tiles"))
 
+        # 🔥 LGS MESH KANÄLE (Neu)
+        cfg["lgs_mesh_channel_send"] = int(values.get("lgs_mesh_channel_send", 17))
+        cfg["lgs_mesh_channel_recv"] = int(values.get("lgs_mesh_channel_recv", 17))
+
+        # Speichern und Reload der Python-Config
         config.save(cfg)
         config.reload()
         
-        # Live Watchdog update
+        # 1. Live Watchdog Update
         from core import _watchdog
-        
         if _watchdog and hasattr(_watchdog, "set_timeout"):
             _watchdog.set_timeout(cfg["stale_timeout"])
             print(f"[SETTINGS] Watchdog stale_timeout live gesetzt → {cfg['stale_timeout']}")
         else:
             print("[SETTINGS] Watchdog live update nicht unterstützt – greift beim Neustart")
         
-        # 🔄 Live Tile Graph-Window Update
+        # 2. 🔄 Live Tile Graph-Window Update
         import config as _config
         new_window = _config.get_tile_graph_window()
         
         dashboard = self.manager.get_screen("dashboard")
-        for tile in dashboard.content.tile_map.values():
-            if hasattr(tile, "apply_graph_window"):
-                tile.apply_graph_window(new_window)
+        if hasattr(dashboard, "content") and hasattr(dashboard.content, "tile_map"):
+            for tile in dashboard.content.tile_map.values():
+                if hasattr(tile, "apply_graph_window"):
+                    tile.apply_graph_window(new_window)
+
+        # 3. 🚀 HARDWARE RESTART (LGS MESH)
+        # Wir nutzen die stabilen Core-Aufrufe wie im Debug-Screen
+        import core
+        from kivy.utils import platform
+        if platform == "android":
+            print("[SETTINGS] Triggere Core-Restart für LGS Mesh Kanäle...")
+            core.restart_adv_bridge()        # Übernimmt neuen Recv-Kanal (Java-Filter)
+            core.restart_broadcast_bridge()  # Übernimmt neuen Send-Kanal (Java-Payload)
         
-        # Back to dashboard
+        # Zurück zum Dashboard
+        print("[SETTINGS] Speichervorgang abgeschlossen.")
         self.manager.current = "dashboard"
+        
     # -----------------------------
     # Cancel Handler
     # -----------------------------
@@ -90,3 +108,4 @@ class SettingsScreen(Screen):
     # -----------------------------
     def update_from_global(self, data):
         self.header.update_from_global(data)
+        self.header._last_frame = data

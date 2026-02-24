@@ -47,6 +47,22 @@ def _cleanup_decoded():
         pass
 
 # ------------------------------------------------------------
+# mixed.json leeren (verhindert Pseudo-Daten beim Start)
+# ------------------------------------------------------------
+def _cleanup_mixed():
+    try:
+        import json
+        path = os.path.join(config.DATA, "mixed.json")
+        
+        # Wir schreiben eine leere Liste, damit der Decoder/Bridge 
+        # keine alten Leichen findet
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump([], f)
+            
+        print(f"[Core] mixed.json geleert: {path}")
+    except Exception as e:
+        print(f"[Core] mixed.json cleanup failed: {e}")
+# ------------------------------------------------------------
 # ble_log_dump.json löschen / clean
 # ------------------------------------------------------------
 def _cleanup_ble_log_dump():
@@ -87,6 +103,7 @@ def start():
     _cleanup_decoded()
     _cleanup_ble_dump()
     _cleanup_ble_log_dump() 
+    _cleanup_mixed()
     # -----------------------------------------------------
     # Bridge starten
     # -----------------------------------------------------
@@ -123,6 +140,21 @@ def start():
 
     print("[Core] System läuft.")
 
+
+_broadcast_active = True  # Da sie beim start() mit gestartet wird
+
+def is_broadcast_active():
+    return _broadcast_active
+
+def toggle_broadcast():
+    global _broadcast_active
+    if _broadcast_active:
+        stop_broadcast_bridge()
+        _broadcast_active = False
+    else:
+        start_broadcast_bridge()
+        _broadcast_active = True
+    return _broadcast_active
 # ------------------------------------------------------------
 # ADV ONLY
 # ------------------------------------------------------------

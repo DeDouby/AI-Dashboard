@@ -238,7 +238,6 @@ class HeaderBar(BoxLayout):
         self.spacing = dp_scaled(10)
         self.padding = [dp_scaled(10), dp_scaled(8)]
         self._signal_overlay = None
-        self._signal_update_event = None  # für auto-refresh
         with self.canvas.before:
             Color(0.1, 0.1, 0.15, 0.65)
             self.bg = Rectangle(pos=self.pos, size=self.size)

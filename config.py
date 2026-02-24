@@ -30,8 +30,8 @@ DEFAULTS = {
     "leaf_offset": 0.0,
     "developer_mode": False,
     "theme": "tiles",   # tiles | tiles2 | tiles3
-
-    # 🧩 SPRACHE
+    "lgs_mesh_channel_send": 17,  # Default Kanal 17
+    "lgs_mesh_channel_recv": 17,  # Default Kanal 17
     "language": "en",  # "en", "es", "de"
 }
 
@@ -189,3 +189,13 @@ def set_developer_mode(state: bool):
 
 def get_tile_graph_window():
     return int(_init().get("tile_graph_window", 120))
+
+def get_lgs_channels():
+    cfg = _init()
+    return int(cfg.get("lgs_mesh_channel_send", 17)), int(cfg.get("lgs_mesh_channel_recv", 17))
+
+def set_lgs_channels(send, recv):
+    cfg = _init()
+    cfg["lgs_mesh_channel_send"] = int(send)
+    cfg["lgs_mesh_channel_recv"] = int(recv)
+    save(cfg)

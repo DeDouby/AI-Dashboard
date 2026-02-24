@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 blebridge_desktop_smooth.py – Stabilisierter RAW BLE Scanner für LGS
+Angepasst auf ID 17780 und Kanal-Config
 """
 
 import json, time, threading, os, sys
@@ -14,6 +15,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
 DATA_DIR = os.path.join(PROJECT_ROOT, "data")
 OUT_FILE = os.path.join(DATA_DIR, "ble_dump.json")
+CONFIG_FILE = os.path.join(DATA_DIR, "config.json")
 
 WRITE_INTERVAL = 3.0
 SCAN_IDLE_SLEEP = 0.20
@@ -21,54 +23,58 @@ SCAN_IDLE_SLEEP = 0.20
 def ts_iso():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "+0000"
 
+def get_target_channel():
+    """Liest den aktuellen Empfangskanal aus der config.json"""
+    try:
+        if os.path.exists(CONFIG_FILE):
+            with open(CONFIG_FILE, "r") as f:
+                cfg = json.load(f)
+                return int(cfg.get("lgs_mesh_channel_recv", 17))
+    except:
+        pass
+    return 17
+
 class Store:
     def __init__(self):
         self.lock = threading.Lock()
         self.last = {}
 
     def update(self, ident, name, rssi, msd):
-        adv_hex = msd.hex().upper() if msd else ""
+        if not msd: return
+        adv_hex = msd.hex().upper()
         
-        # --- LOGIK: LGS NORMALISIERUNG ---
-        # Erkennt deinen Broadcaster am Header 5900 (Company) + A1 (Typ)
-        is_lgs = adv_hex.startswith("5900A1")
-        
-        effective_ident = ident
-        effective_name = name
-
-        if is_lgs:
-            # Wir mappen alle wechselnden Apple-UUIDs auf diese feste ID
-            effective_ident = "FF-FF-A1-00-00-01" 
-            effective_name = "LGS_BROADCAST"
+        # 1. Wenn es unser Vendor ist
+        if adv_hex.startswith("7445"):
+            target_ch = get_target_channel()
+            lgs_pattern = f"7445A1{target_ch:02X}"
             
+            if adv_hex.startswith(lgs_pattern):
+                # Unser Kanal -> Normalisieren
+                effective_ident = "FF-FF-A1-00-00-01"
+                effective_name = f"LGS_NODE_{target_ch}"
+                with self.lock:
+                    if ident in self.last and ident != effective_ident:
+                        del self.last[ident]
+                    dev = self.last.get(effective_ident, {"address": effective_ident, "gat_raw": None})
+                    dev.update({
+                        "timestamp": ts_iso(), "name": effective_name, "rssi": int(rssi),
+                        "adv_raw": adv_hex, "log_raw": adv_hex, "note": f"ch_{target_ch}_active"
+                    })
+                    self.last[effective_ident] = dev
+            else:
+                # Falscher Kanal -> Wegwerfen
+                with self.lock:
+                    if ident in self.last: del self.last[ident]
+                return 
+        else:
+            # 2. Alle anderen Geräte -> Normal speichern
             with self.lock:
-                # Entfernt die ursprüngliche Zufalls-ID, damit die Liste sauber bleibt
-                if ident in self.last and ident != effective_ident:
-                    del self.last[ident]
-
-        with self.lock:
-            # Bestehenden Eintrag (stabil) holen oder neu anlegen
-            dev = self.last.get(effective_ident, {
-                "timestamp": ts_iso(),
-                "name": effective_name,
-                "address": effective_ident,
-                "rssi": int(rssi),
-                "adv_raw": adv_hex,
-                "gat_raw": None,
-                "log_raw": adv_hex,
-                "note": "raw"
-            })
-
-            dev["timestamp"] = ts_iso()
-            dev["name"] = effective_name
-            dev["rssi"] = int(rssi)
-            dev["adv_raw"] = adv_hex
-            dev["log_raw"] = adv_hex
-            
-            if is_lgs:
-                dev["note"] = "lgs_normalized"
-
-            self.last[effective_ident] = dev
+                dev = self.last.get(ident, {"address": ident, "gat_raw": None})
+                dev.update({
+                    "timestamp": ts_iso(), "name": name, "rssi": int(rssi),
+                    "adv_raw": adv_hex, "log_raw": adv_hex, "note": "raw"
+                })
+                self.last[ident] = dev
 
     def snapshot(self):
         with self.lock:
@@ -83,6 +89,7 @@ class CentralDelegate(NSObject):
 
     def centralManagerDidUpdateState_(self, manager):
         if manager.state() == CB.CBManagerStatePoweredOn:
+            # allow_duplicates=True ist wichtig, um Live-Updates der Sensordaten zu kriegen
             manager.scanForPeripheralsWithServices_options_(
                 None, {"kCBScanOptionAllowDuplicatesKey": True}
             )
@@ -91,27 +98,26 @@ class CentralDelegate(NSObject):
 
     def centralManager_didDiscoverPeripheral_advertisementData_RSSI_(self, m, p, adv, rssi):
         try:
-            # Name priorisieren: LocalName -> PeripheralName -> (unknown)
             name = adv.get(CB.CBAdvertisementDataLocalNameKey) or p.name() or "(unknown)"
             msd = adv.get(CB.CBAdvertisementDataManufacturerDataKey)
             ident = str(p.identifier())
             self.store.update(ident, name, rssi, bytes(msd) if msd else None)
         except Exception as e:
-            print(f"Discover Error: {e}", file=sys.stderr)
+            pass
 
 class WriterThread(threading.Thread):
     def __init__(self, store):
         super().__init__(daemon=True)
         self.store = store
         self.run_flag = True
-        os.makedirs(DATA_DIR, exist_ok=True)
 
     def run(self):
         while self.run_flag:
             try:
+                data = self.store.snapshot()
                 tmp = OUT_FILE + ".tmp"
                 with open(tmp, "w", encoding="utf-8") as f:
-                    json.dump(self.store.snapshot(), f, ensure_ascii=False, indent=2)
+                    json.dump(data, f, ensure_ascii=False, indent=2)
                 os.replace(tmp, OUT_FILE)
             except Exception as e:
                 print(f"Write Error: {e}")
@@ -120,30 +126,24 @@ class WriterThread(threading.Thread):
     def stop(self):
         self.run_flag = False
 
-def scan_loop(store):
+def main():
+    print(f"[LGS-Scanner] START (Target Channel: {get_target_channel()})")
+    store = Store()
+    writer = WriterThread(store)
+    writer.start()
+
     delegate = CentralDelegate.alloc().initWithStore_(store)
     central = CB.CBCentralManager.alloc().initWithDelegate_queue_options_(
         delegate, None, None
     )
 
     rl = NSRunLoop.currentRunLoop()
-    print("[LGS-Scanner] Running...")
-
-    while True:
-        try:
+    try:
+        while True:
             rl.runUntilDate_(NSDate.dateWithTimeIntervalSinceNow_(0.1))
             time.sleep(SCAN_IDLE_SLEEP)
-        except KeyboardInterrupt:
-            break
-
-def main():
-    print("[LGS-Scanner] START")
-    store = Store()
-    writer = WriterThread(store)
-    writer.start()
-
-    try:
-        scan_loop(store)
+    except KeyboardInterrupt:
+        pass
     finally:
         writer.stop()
         print("[LGS-Scanner] STOP")

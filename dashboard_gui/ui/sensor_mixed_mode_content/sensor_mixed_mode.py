@@ -348,28 +348,33 @@ class SensorMixedModeScreen(Screen):
     # ─────────────────────────────
     def update_values(self):
         from dashboard_gui.data_buffer import BUFFER
+        import core
     
-        # Normierung Device ID
+        # 1. Auswahl validieren
         def norm_id(dev):
             return str(dev.decode("utf-8")) if isinstance(dev, bytes) else str(dev)
     
         selected = {norm_id(x) for x in self.GS.mixed_selected_buffers}
         
-        # --- FIX: Zugriff auf gelöschtes Label entfernt ---
+        # --- SOFORT-STOPP WENN NICHTS GEWÄHLT ---
         if not selected:
             self.lbl_avg_temp.text = "[color=ff3333]Kein Sensor aktiv[/color]"
             self.lbl_avg_hum.text = ""
             self.lbl_avg_vpd.text = ""
             self.lbl_avg_dew.text = ""
+            self.status_label.text = "Schnitt aus 0 Geräten" # Direkt auf 0 setzen
             self.details_list_body.clear_widgets()
-            self.details_list_body.add_widget(Label(
-                text="Wähle Sensoren unten aus",
-                color=(0.5, 0.5, 0.5, 1),
-                size_hint_y=None,
-                height=dp_scaled(40)
-            ))
-            return
-    
+            
+            # mixed.json sofort leeren
+            try:
+                mixed_path = os.path.join("data", "mixed.json")
+                with open(mixed_path, "w", encoding="utf-8") as f:
+                    json.dump([], f)
+            except:
+                pass
+            return 
+        # ----------------------------------------
+
         data = BUFFER.get() or []
         sensor_values = {}
         averaging_map = {"temp": [], "hum": [], "vpd": [], "dew": []}
@@ -378,7 +383,10 @@ class SensorMixedModeScreen(Screen):
             dev_id = norm_id(frame.get("device_id"))
             if dev_id not in selected:
                 continue
-            sensor_values.setdefault(dev_id, {"temp": [], "hum": [], "vpd": [], "dew": []})    
+            
+            # Initialisiere Gerät in der Map, falls noch nicht geschehen
+            if dev_id not in sensor_values:
+                sensor_values[dev_id] = {"temp": [], "hum": [], "vpd": [], "dew": []}
             
             active_modes = self.device_modes.get(dev_id, {"internal"})
             if not isinstance(active_modes, set):
@@ -422,35 +430,25 @@ class SensorMixedModeScreen(Screen):
                         sensor_values[dev_id]["vpd"].append(v)
                         averaging_map["vpd"].append(v)
     
-# --- Details UI Update (Scroll-Inhalt) ---
+        # Details UI Update
         self.details_list_body.clear_widgets()
-        # Etwas mehr Abstand zwischen den großen Kacheln
         self.details_list_body.spacing = dp_scaled(20) 
 
         for dev_id, vals in sensor_values.items():
             name = self.GS.get_device_label(dev_id)
-            
-            # Höhe auf 85 erhöht, damit die großen Schriften Platz zum Atmen haben
             dev_card = BoxLayout(orientation="vertical", size_hint_y=None, height=dp_scaled(85))
             
-            # Name + Icon
             lbl_name = Label(
                 text=f"[font=FA]\uf2c7[/font]  [b]{name}[/b]",
-                markup=True,
-                font_size=sp_scaled(26),
-                color=(0.2, 1, 0.6, 1),
-                halign="left",
-                valign="bottom",
-                size_hint_y=0.5
+                markup=True, font_size=sp_scaled(26), color=(0.2, 1, 0.6, 1),
+                halign="left", valign="bottom", size_hint_y=0.5
             )
             lbl_name.bind(size=lambda s, w: setattr(s, 'text_size', (w[0], None)))
             
-            # Werte
             parts = []
             if vals["temp"]:
-                v, u = vals["temp"][0]
                 avg_t = sum(x[0] for x in vals["temp"])/len(vals["temp"])
-                parts.append(f"T: {avg_t:.1f}{u}")
+                parts.append(f"T: {avg_t:.1f}°C")
             if vals["hum"]:
                 parts.append(f"H: {sum(vals['hum'])/len(vals['hum']):.1f}%")
             if vals["vpd"]:
@@ -465,78 +463,67 @@ class SensorMixedModeScreen(Screen):
             dev_card.add_widget(lbl_name)
             dev_card.add_widget(lbl_vals)
 
-            # --- Optik-Zuckerl: Trennlinie am Boden jeder Kachel ---
             with dev_card.canvas.after:
-                Color(1, 1, 1, 0.15) # Weiß mit 15% Deckkraft
-                self.line = Line(points=[
-                    dev_card.x, dev_card.y - dp_scaled(10), 
-                    dev_card.x + self.left_column.width * 0.9, dev_card.y - dp_scaled(10)
-                ], width=1)
-
+                Color(1, 1, 1, 0.15)
+                Line(points=[dev_card.x, dev_card.y - dp_scaled(10), 
+                             dev_card.x + self.left_column.width * 0.9, dev_card.y - dp_scaled(10)], width=1)
             self.details_list_body.add_widget(dev_card)
 
-        # --- Durchschnittswerte & Trends ---
-        # Temp
+        # Durchschnittswerte & Trends
+        avg_temp_val = None
         if averaging_map["temp"]:
-            v, u = averaging_map["temp"][0]
             avg_temp_val = sum(x[0] for x in averaging_map["temp"]) / len(averaging_map["temp"])
-            arrow = self._calc_trend_arrow("temp", avg_temp_val)
-            self.lbl_avg_temp.text = f"{arrow} {avg_temp_val:.2f} {u}"
+            self.lbl_avg_temp.text = f"{self._calc_trend_arrow('temp', avg_temp_val)} {avg_temp_val:.2f} °C"
             self._avg_graph_temp.append(avg_temp_val)
-            if len(self._avg_graph_temp) > self._avg_graph_len:
-                self._avg_graph_temp.pop(0)
+            if len(self._avg_graph_temp) > self._avg_graph_len: self._avg_graph_temp.pop(0)
         else:
-            avg_temp_val = None
             self.lbl_avg_temp.text = "-- °C"
         
-        # Hum
         if averaging_map["hum"]:
             avg_hum_val = sum(averaging_map["hum"]) / len(averaging_map["hum"])
             self.lbl_avg_hum.text = f"{self._calc_trend_arrow('hum', avg_hum_val)} {avg_hum_val:.2f} %"
         else:
             avg_hum_val = None
             self.lbl_avg_hum.text = "-- %"
-        
-        # VPD
+
         if averaging_map["vpd"]:
             avg_vpd_val = sum(averaging_map["vpd"]) / len(averaging_map["vpd"])
             self.lbl_avg_vpd.text = f"{self._calc_trend_arrow('vpd', avg_vpd_val)} {avg_vpd_val:.2f} kPa"
         else:
             avg_vpd_val = None
             self.lbl_avg_vpd.text = "-- kPa"
-        
-        # Dew
+
         if averaging_map["dew"]:
-            v, u = averaging_map["dew"][0]
             avg_dew_val = sum(x[0] for x in averaging_map["dew"]) / len(averaging_map["dew"])
-            self.lbl_avg_dew.text = f"{self._calc_trend_arrow('dew', avg_dew_val)} {avg_dew_val:.2f} {u}"
+            self.lbl_avg_dew.text = f"{self._calc_trend_arrow('dew', avg_dew_val)} {avg_dew_val:.2f} °C"
         else:
             avg_dew_val = None
             self.lbl_avg_dew.text = "-- °C"
 
-        # --- JSON Logging für mixed.json ---
+        # mixed.json Update
         mixed_path = os.path.join("data", "mixed.json")
         try:
-            json_data = [
-                {
+            if sensor_values and avg_temp_val is not None:
+                json_data = [{
                     "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%f%z"),
-                    "name": "MixedSensor",
-                    "address": "MIXED-AVG",
-                    "note": "mixed",
-                    "avg_temp": avg_temp_val,
-                    "avg_hum": avg_hum_val,
-                    "avg_vpd": avg_vpd_val,
-                    "avg_dew": avg_dew_val,
-                    "devices": list(selected)  # 🔥 alle gemischten Devices
-                }
-            ]
-            with open(mixed_path, "w", encoding="utf-8") as f:
-                json.dump(json_data, f, ensure_ascii=False, indent=2)
-        except Exception as e:
-            print(f"Fehler beim Schreiben von mixed.json: {e}")
+                    "name": "MixedSensor", "address": "MIXED-AVG", "note": "mixed",
+                    "avg_temp": avg_temp_val, "avg_hum": avg_hum_val,
+                    "avg_vpd": avg_vpd_val, "avg_dew": avg_dew_val,
+                    "devices": list(sensor_values.keys())
+                }]
+                with open(mixed_path, "w", encoding="utf-8") as f:
+                    json.dump(json_data, f, ensure_ascii=False, indent=2)
+            else:
+                with open(mixed_path, "w", encoding="utf-8") as f:
+                    json.dump([], f)
+        except:
+            pass
 
+        # Hier ist die Korrektur für das Status Label: 
+        # Es zählt nur die Geräte, die wirklich DATEN geliefert haben UND selektiert sind.
         self.status_label.text = f"Schnitt aus {len(sensor_values)} Geräten"
         self._draw_avg_temp_bg()
+
     # ─────────────────────────────
     # REFRESH / GLOBAL UPDATE
     # ─────────────────────────────
@@ -551,4 +538,5 @@ class SensorMixedModeScreen(Screen):
     def update_from_global(self, d):
         if hasattr(self, "header"):
             self.header.update_from_global(d)
+        self.header._last_frame = d
         self.update_values()

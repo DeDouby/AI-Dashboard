@@ -1,9 +1,9 @@
 {
-  "name": "LGS BROADCAST (NORMALIZED)",
+  "name": "LGS MESH (NORMALIZED)",
   "vendor": "LGS",
-  "model": "LGS-A1",
+  "model": "LGS-A1-MESH",
 
-  "company_id": 89,
+  "company_id": 17780,
   "mac_len": 0,
   "skip_after_mac": 0,
 
@@ -15,9 +15,10 @@
 
   "fields": {
     "packet_type": 0,
-    "T_i": 1,
-    "H_i": 3,
-    "V_i": 5,
-    "packet": 7
+    "mesh_channel": 1,
+    "T_i": 2,
+    "H_i": 4,
+    "V_i": 6,
+    "packet": 8
   }
 }

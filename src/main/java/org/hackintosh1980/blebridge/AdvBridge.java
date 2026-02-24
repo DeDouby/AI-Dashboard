@@ -20,16 +20,15 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.TimeZone;
-import java.util.UUID;
 
 public class AdvBridge {
 
     private static final String TAG = "AdvBridge";
     private static final long WRITE_INTERVAL_MS = 1200L;
-    private static final int RSSI_MIN = -127; // nicht filtern, sonst verschwinden Geräte “gefühlt”
+    private static final int RSSI_MIN = -127; 
 
     private static volatile boolean running = false;
-    private static volatile long lastPacketTime = 0L; // volatile für Thread-Sicherheit
+    private static volatile long lastPacketTime = 0L;
     private static BluetoothLeScanner scanner;
     private static ScanCallback callback;
 
@@ -38,16 +37,17 @@ public class AdvBridge {
     private static final Object lock = new Object();
     private static final Map<String, JSONObject> last = new HashMap<>();
 
-    // -------------------- helpers --------------------
+    // -------------------- Helpers --------------------
     private static String ts() {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ", Locale.US);
         sdf.setTimeZone(TimeZone.getDefault());
         return sdf.format(new Date());
     }
+
     private static File getAppDataDir(Context ctx) {
-        // EINZIGE WAHRHEIT für Android-Pipeline-Daten
         return new File(ctx.getFilesDir(), "app/data");
     }
+
     private static String toHex(byte[] v) {
         if (v == null || v.length == 0) return null;
         StringBuilder sb = new StringBuilder();
@@ -56,98 +56,66 @@ public class AdvBridge {
     }
 
     private static String readTextFile(File f) throws Exception {
+        if (!f.exists()) return "{}";
         ByteArrayOutputStream bos = new ByteArrayOutputStream();
-        FileInputStream fis = new FileInputStream(f);
-        try {
+        try (FileInputStream fis = new FileInputStream(f)) {
             byte[] buf = new byte[4096];
             int n;
             while ((n = fis.read(buf)) > 0) bos.write(buf, 0, n);
-        } finally {
-            try { fis.close(); } catch (Throwable ignore) {}
         }
         return bos.toString("UTF-8");
     }
-    // -------------------- Watchdog / Scan-Stabilität --------------------
+
+    // -------------------- Watchdog --------------------
     private static Thread scanWatchdog;
     
     private static void startScanWatchdog(Context ctx, BluetoothAdapter adapter) {
         if (scanWatchdog != null && scanWatchdog.isAlive()) return;
     
         scanWatchdog = new Thread(() -> {
-            // Initialer Zeitstempel, damit er nicht sofort beim Start feuert
             lastPacketTime = System.currentTimeMillis(); 
-            
             while (running) {
                 try {
-                    // FINETUNING 1: Intervall auf 2 Sek verkürzen für schnellere Reaktion
                     Thread.sleep(2000); 
-    
                     long now = System.currentTimeMillis();
-                    long silenceDuration = now - lastPacketTime;
-    
-                    // FINETUNING 2: Schwellenwert auf 3,5 Sek runter. 
-                    // Das ist kurz genug um "live" zu wirken, aber lang genug um Paketlücken zu atmen.
-                    if (silenceDuration > 3500) {
-                        Log.w(TAG, "Watchdog: SHARP RESTART! Silence: " + silenceDuration + "ms");
-                        
-                        // FINETUNING 3: Direkter Zugriff auf den Adapter für maximale Sicherheit
+                    if (now - lastPacketTime > 3500) {
+                        Log.w(TAG, "Watchdog: Restarting Scan...");
                         BluetoothLeScanner freshScanner = adapter.getBluetoothLeScanner();
-                        
                         if (freshScanner != null && callback != null) {
-                            try {
-                                // Erst hart stoppen
-                                freshScanner.stopScan(callback);
-                            } catch (Throwable ignore) {}
-    
-                            // Kurz warten, damit der BT-Stack Zeit zum Re-Initialisieren hat (wichtig bei Sleep!)
+                            try { freshScanner.stopScan(callback); } catch (Throwable ignore) {}
                             Thread.sleep(150);
-    
                             ScanSettings settings = new ScanSettings.Builder()
                                     .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-                                    .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES) // Erzwingt jedes Paket
-                                    .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)      // Nicht filtern
-                                    .setReportDelay(0)
+                                    .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
+                                    .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)
                                     .build();
-                            
                             try {
                                 freshScanner.startScan(null, settings, callback);
-                                scanner = freshScanner; // Instanz aktualisieren
-                                lastPacketTime = System.currentTimeMillis(); // Reset
-                            } catch (Throwable t) {
-                                Log.e(TAG, "Watchdog: Start failed", t);
-                            }
+                                scanner = freshScanner;
+                                lastPacketTime = System.currentTimeMillis();
+                            } catch (Throwable t) { Log.e(TAG, "Watchdog Restart failed", t); }
                         }
                     }
-                } catch (InterruptedException e) {
-                    break;
-                } catch (Throwable t) {
-                    Log.e(TAG, "Watchdog Error", t);
-                }
+                } catch (InterruptedException e) { break; }
             }
         }, "AdvScanWatchdog");
-    
         scanWatchdog.setDaemon(true);
         scanWatchdog.start();
     }
-    // Pre-seed Store aus bestehender Datei → Dump schrumpft NICHT mehr nach Restart
+
     private static void loadExistingSnapshot() {
         try {
             if (outFile == null || !outFile.exists()) return;
             String txt = readTextFile(outFile).trim();
-            if (txt.isEmpty()) return;
-
+            if (txt.isEmpty() || txt.equals("{}")) return;
             JSONArray arr = new JSONArray(txt);
             for (int i = 0; i < arr.length(); i++) {
                 JSONObject o = arr.optJSONObject(i);
-                if (o == null) continue;
-                String mac = o.optString("address", null);
-                if (mac == null || mac.trim().isEmpty()) continue;
-                last.put(mac, o);
+                if (o != null && o.has("address")) {
+                    last.put(o.getString("address"), o);
+                }
             }
-            Log.i(TAG, "Preload OK: " + last.size() + " entries from existing ble_dump.json");
-        } catch (Throwable t) {
-            Log.w(TAG, "Preload failed (ignored)", t);
-        }
+        } catch (Throwable t) { Log.w(TAG, "Preload failed", t); }
     }
 
     private static void writeSnapshot() {
@@ -158,15 +126,11 @@ public class AdvBridge {
                 fos.write(arr.toString(2).getBytes("UTF-8"));
                 fos.flush();
             }
-            //noinspection ResultOfMethodCallIgnored
             tmp.renameTo(outFile);
-        } catch (Throwable t) {
-            Log.e(TAG, "writer", t);
-        }
+        } catch (Throwable t) { Log.e(TAG, "writer", t); }
     }
 
     // -------------------- API --------------------
-    // 🔥 EXAKTE SIGNATUR – passt zu bridge_manager.py (AdvBridge.start(ctx))
     public static String start(Context ctx) {
         if (running) return "ALREADY";
 
@@ -178,15 +142,12 @@ public class AdvBridge {
 
         outFile = new File(getAppDataDir(ctx), "ble_dump.json");
 
-
         synchronized (lock) {
-            // NICHT clearen → kumuliert bis du es manuell leerst
             loadExistingSnapshot();
         }
 
         running = true;
-        Log.i(TAG, "ADV started → " + outFile.getAbsolutePath());
-
+        
         ScanSettings settings = new ScanSettings.Builder()
                 .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
                 .setReportDelay(0)
@@ -196,104 +157,102 @@ public class AdvBridge {
             @Override
             public void onScanResult(int type, ScanResult r) {
                 if (!running) return;
-                
-                // Lebenszeichen für den Watchdog setzen
                 lastPacketTime = System.currentTimeMillis(); 
               
                 try {
                     if (r == null || r.getDevice() == null) return;
                     if (r.getRssi() < RSSI_MIN) return;
         
-                    BluetoothDevice d = r.getDevice();
                     ScanRecord rec = r.getScanRecord();
                     if (rec == null) return;
 
-                    String mac  = d.getAddress();
-                    String name = (d.getName() != null) ? d.getName() : "(adv)";
-                    int rssi    = r.getRssi();
-
+                    String mac  = r.getDevice().getAddress();
                     String raw = null;
 
-                    // 1) Manufacturer data (ALLE, erstes brauchbares)
+                    // 1) Manufacturer Data auslesen
                     SparseArray<byte[]> md = rec.getManufacturerSpecificData();
                     if (md != null && md.size() > 0) {
                         for (int i = 0; i < md.size(); i++) {
                             int companyId = md.keyAt(i);
                             byte[] payload = md.valueAt(i);
-                            if (payload == null || payload.length == 0) continue;
-                    
                             ByteArrayOutputStream bos = new ByteArrayOutputStream();
                             bos.write(companyId & 0xFF);
                             bos.write((companyId >> 8) & 0xFF);
-                            bos.write(payload);
-                    
+                            if (payload != null) bos.write(payload);
                             raw = toHex(bos.toByteArray());
                             break;
                         }
                     }
 
-                    // 2) Service data (Inkbird etc.)
-                    if (raw == null) {
-                        Map<android.os.ParcelUuid, byte[]> sd = rec.getServiceData();
-                        if (sd != null && !sd.isEmpty()) {
-                            for (byte[] v : sd.values()) {
-                                raw = toHex(v);
-                                if (raw != null) break;
-                            }
-                        }
-                    }
-
-                    // 3) Fallback
                     if (raw == null) return;
 
-                    // ------------------------------------------------------------------
-                    // AB HIER: DIE IDENTITÄTS-KORREKTUR
-                    // ------------------------------------------------------------------
+                    // --- NEU: Definitionen für den Compiler ---
+                    String devName = rec.getDeviceName();
+                    if (devName == null) devName = r.getDevice().getName();
+                    if (devName == null) devName = "Unknown";
+                    int currentRssi = r.getRssi();
+                    // ------------------------------------------
+
                     synchronized (lock) {
-                        String effectiveMac = mac;
-                        String effectiveName = name;
+                        int recvChannel = 17; 
+                        try {
+                            File cfgFile = new File(getAppDataDir(ctx), "config.json");
+                            JSONObject cfg = new JSONObject(readTextFile(cfgFile));
+                            recvChannel = cfg.optInt("lgs_mesh_channel_recv", 17);
+                        } catch (Exception e) { /* Fallback 17 */ }
                     
-                        // NORMALISIERUNG (Wie im Mac-Script)
-                        if (raw != null && raw.startsWith("5900A1")) {
-                            effectiveMac = "FF:FF:A1:00:00:01"; 
-                            effectiveName = "LGS_BROADCAST"; // Name an Desktop-Version anpassen!
-                    
-                            if (!effectiveMac.equals(mac)) {
+                        if (raw.startsWith("7445")) {
+                            String targetSignature = String.format("7445A1%02X", recvChannel);
+                            
+                            if (raw.startsWith(targetSignature)) {
+                                String effectiveMac = "FF:FF:A1:00:00:01";
+                                if (!effectiveMac.equals(mac)) {
+                                    last.remove(mac);
+                                }
+                                JSONObject obj = last.get(effectiveMac);
+                                if (obj == null) {
+                                    obj = new JSONObject();
+                                    obj.put("address", effectiveMac);
+                                    obj.put("gat_raw", JSONObject.NULL);
+                                }
+                                obj.put("timestamp", ts());
+                                obj.put("name", "LGS_NODE_" + recvChannel);
+                                obj.put("rssi", currentRssi);
+                                obj.put("adv_raw", raw);
+                                obj.put("log_raw", raw);
+                                obj.put("note", "active_mesh_ch_" + recvChannel);
+                                last.put(effectiveMac, obj);
+                            } else {
                                 last.remove(mac);
+                                return; 
                             }
+                        } else {
+                            // FALL C: Ein ganz anderes Gerät (Variablen korrigiert)
+                            JSONObject obj = last.get(mac);
+                            if (obj == null) {
+                                obj = new JSONObject();
+                                obj.put("address", mac);
+                                obj.put("gat_raw", JSONObject.NULL);
+                            }
+                            obj.put("timestamp", ts());
+                            obj.put("name", devName);
+                            obj.put("rssi", currentRssi);
+                            obj.put("adv_raw", raw);
+                            obj.put("log_raw", raw);
+                            obj.put("note", "raw");
+                            last.put(mac, obj);
                         }
-
-                        // 3. DATEN AKTUALISIEREN
-                        JSONObject obj = last.get(effectiveMac);
-                        if (obj == null) {
-                            obj = new JSONObject();
-                            obj.put("address", effectiveMac);
-                            obj.put("gat_raw", JSONObject.NULL);
-                        }
-
-                        obj.put("timestamp", ts());
-                        obj.put("name", effectiveName); // Stabiler Name wird hier gesetzt
-                        obj.put("rssi", rssi);
-                        obj.put("adv_raw", raw);
-                        obj.put("log_raw", raw);
-                        obj.put("note", "normalized_broadcast");
-
-                        last.put(effectiveMac, obj);
                     }
-
-                } catch (Throwable t) {
-                    Log.e(TAG, "scan", t);
-                }
+                    // --- ENDE DES KORREKTUR-BLOCKS ---
+                } catch (Throwable t) { Log.e(TAG, "scan", t); }
             }
         };
 
         startScanWatchdog(ctx, adapter);
-
         try {
             scanner.startScan(null, settings, callback);
         } catch (Throwable t) {
             running = false;
-            Log.e(TAG, "startScan failed", t);
             return "ERR_SCAN";
         }
 
@@ -302,9 +261,7 @@ public class AdvBridge {
                 try {
                     synchronized (lock) { writeSnapshot(); }
                     Thread.sleep(WRITE_INTERVAL_MS);
-                } catch (Throwable t) {
-                    Log.e(TAG, "writerLoop", t);
-                }
+                } catch (Throwable t) { Log.e(TAG, "writerLoop", t); }
             }
         }, "AdvWriter").start();
 
@@ -313,18 +270,17 @@ public class AdvBridge {
 
     public static void stop() {
         running = false;
-        try {
-            if (scanner != null && callback != null) scanner.stopScan(callback);
-        } catch (Throwable ignore) {}
-    
-        try {
-            if (scanWatchdog != null) scanWatchdog.interrupt();
-        } catch (Throwable ignore) {}
-    
+        try { if (scanner != null && callback != null) scanner.stopScan(callback); } catch (Throwable ignore) {}
+        try { if (scanWatchdog != null) scanWatchdog.interrupt(); } catch (Throwable ignore) {}
         Log.i(TAG, "ADV stopped");
     }
 
-    // Optional: wenn du GATT später auf dieselbe Map mergen willst:
-    static Object getLock() { return lock; }
-    static Map<String, JSONObject> getStore() { return last; }
+    // Erforderlich für GattBridge Synchronisation
+    public static Object getLock() { 
+        return lock; 
+    }
+
+    public static Map<String, JSONObject> getStore() { 
+        return last; 
+    }
 }

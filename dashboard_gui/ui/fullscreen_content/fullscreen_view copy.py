@@ -369,6 +369,7 @@ class FullScreenView(Screen):
         self.graph.ymin = mn - margin
         self.graph.ymax = mx + margin
 
+
     def _update_panel(self, buf):
         if not buf:
             self.lbl_value.text = "--"
@@ -448,7 +449,6 @@ class FullScreenView(Screen):
     # ----------------------------------------------------------
     def update_from_global(self, d):
         self.header.update_from_global(d)
-        self.header._last_frame = d
         # Graph + Werte aktualisieren
         self._load_tile()
 

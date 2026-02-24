@@ -103,22 +103,24 @@ class DashboardScreen(Screen):
     # GLOBAL TICK → Dashboard Update
     # -----------------------------------------------------
     def update_from_global(self, d):
+    
+        # Frame für Header speichern (Signal-Overlay / Debug Info)
+        self.header._last_frame = d
+    
         self.header.update_from_global(d)
         self.content.update_from_data(d)
-
+    
         # Hintergrund-Wechsel Logik (analog zum alten Panel Code)
         if self.content.get_active_tile_keys():
             new_bg = os.path.join(ASSET_ROOT, "background2.png")
         else:
             new_bg = os.path.join(ASSET_ROOT, "background.png")
-        
+    
         if self.bg_rect.source != new_bg:
             self.bg_rect.source = new_bg
-
+    
         # PANELS / TILES
         self.content.update_from_data(d)
-
-
     # -----------------------------------------------------
     # GLOBAL RESET
     # -----------------------------------------------------

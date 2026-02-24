@@ -86,14 +86,29 @@ class VPDScatterScreen(Screen):
         )
 
         def mk_bg_btn(txt, key):
-            return Button(
+            btn = Button(
                 text=txt,
                 size_hint=(None, None),
                 size=(dp_scaled(90), dp_scaled(32)),
                 font_size=sp_scaled(14),
-                background_color=(0.2, 0.2, 0.2, 0.85),
+                # background_normal leer lassen, damit unsere background_color wirkt
+                background_normal='',
+                # Standardzustand: 0.45 Alpha
+                background_color=(0.05, 0.05, 0.05, 0.45),
                 on_release=lambda *_: self._set_vpd_bg(key)
             )
+        
+            # Feedback-Logik: Beim Drücken wird der Button etwas heller/weniger transparent
+            def on_state(instance, value):
+                if value == 'down':
+                    # Hellerer Zustand beim Drücken (0.7 Alpha)
+                    instance.background_color = (0.2, 0.2, 0.2, 0.7)
+                else:
+                    # Zurück zum HUD-Style (0.45 Alpha)
+                    instance.background_color = (0.05, 0.05, 0.05, 0.45)
+        
+            btn.bind(state=on_state)
+            return btn
 
         self.bg_menu.add_widget(mk_bg_btn("Default", "default"))
         self.bg_menu.add_widget(mk_bg_btn("Seedling", "seedling"))
@@ -166,8 +181,8 @@ class VPDScatterScreen(Screen):
         self.graph = Graph(
             xmin=15,   # Humidity %
             xmax=120,
-            ymin=0,    # Temperatur °C
-            ymax=30,
+            ymin=10,    # Temperatur °C
+            ymax=25,
             draw_border=False,
             background_color=(0, 0, 0, 0),
             tick_color=(0, 0, 0, 0),
@@ -379,6 +394,7 @@ class VPDScatterScreen(Screen):
     # -------------------------------------------------
     def update_from_global(self, d):
         self.header.update_from_global(d)
+        self.header._last_frame = d
         self.header.set_clock(time.strftime("%H:%M:%S"))
         self._load_points()
 
