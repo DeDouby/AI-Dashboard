@@ -394,7 +394,6 @@ class VPDScatterScreen(Screen):
     # -------------------------------------------------
     def update_from_global(self, d):
         self.header.update_from_global(d)
-        self.header._last_frame = d
         self.header.set_clock(time.strftime("%H:%M:%S"))
         self._load_points()
 

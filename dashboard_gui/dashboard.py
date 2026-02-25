@@ -105,7 +105,6 @@ class DashboardScreen(Screen):
     def update_from_global(self, d):
     
         # Frame für Header speichern (Signal-Overlay / Debug Info)
-        self.header._last_frame = d
     
         self.header.update_from_global(d)
         self.content.update_from_data(d)

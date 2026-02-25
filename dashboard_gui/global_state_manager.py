@@ -41,7 +41,8 @@ class GlobalStateManager:
         # LED Status
         self.led_state = {"alive": False, "status": "offline"}
 
-
+        self.rssi_history = []  # Hier speichern wir die letzten 60 Werte
+        self.max_history = 60
         # Heartbeat
         self._last_state = {}
 
@@ -336,6 +337,21 @@ class GlobalStateManager:
             return
     
         alive = ch.get("alive", False)
+        
+        # NEU: RSSI extrahieren und in History speichern
+        current_rssi = None
+        try:
+            current_rssi = d.get("health", {}).get("signal", {}).get("rssi")
+            if current_rssi is None:
+                current_rssi = ch.get("rssi")
+            
+            if current_rssi is not None:
+                self.rssi_history.append(float(current_rssi))
+                if len(self.rssi_history) > self.max_history:
+                    self.rssi_history.pop(0)
+        except:
+            pass
+
         counter = ch.get("packet_counter")
         raw = ch.get("raw") or ch.get("adv_raw") or ch.get("gat_raw")
         

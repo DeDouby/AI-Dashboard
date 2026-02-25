@@ -21,6 +21,7 @@ import config
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.ui.common.window_picker import WindowPicker
 from dashboard_gui.ui.common.device_picker_menu import DevicePickerMenu
+from dashboard_gui.ui.common.signal_inspector import SignalInspector
 # -------------------------------------------------------
 # IconLabel
 # -------------------------------------------------------
@@ -383,91 +384,36 @@ class HeaderBar(BoxLayout):
         if not widget.collide_point(*touch.pos):
             return False
     
+        # Wenn offen -> zu. Wenn zu -> auf.
         if self._signal_overlay:
-            self._close_signal_overlay()
+            self._signal_overlay.close()
         else:
             self._open_signal_info()
     
         return True
 
     def _open_signal_info(self):
-    
-        frame = getattr(self, "_last_frame", None)
-        if not frame:
-            return
-    
-        # Aktueller Kanal
-        channel = frame.get("channel", "adv")
-        ch = frame.get(channel, {}) or {}
-    
-        # -----------------------------
-        # RSSI: Health bevorzugt, dann Kanal
-        # -----------------------------
-        rssi = frame.get("health", {}).get("signal", {}).get("rssi")
-        if rssi is None:
-            rssi = ch.get("rssi", "--")
-    
-        packets = ch.get("packet_counter", "--")
-        alive = ch.get("alive", "--")
-    
-        raw = ch.get("raw") or ch.get("adv_raw") or ch.get("gat_raw") or "--"
-    
-        screen = App.get_running_app().root.current_screen
-    
-        overlay = FloatLayout()
-    
-   
-        panel = BoxLayout(
-            orientation="vertical",
-            size_hint=(None,None),
-            size=(dp_scaled(340), dp_scaled(200)),
-            pos_hint={"right":0.98,"top":0.98},
-            padding=dp_scaled(14),
-            spacing=dp_scaled(8)
-        )
-    
-        # halbtransparentes Panel
-        with panel.canvas.before:
-            Color(0.02,0.02,0.05,0.75)
-            panel.bg = RoundedRectangle(
-                pos=panel.pos,
-                size=panel.size,
-                radius=[12]
-            )
-    
-        panel.bind(
-            pos=lambda *_: setattr(panel.bg,"pos",panel.pos),
-            size=lambda *_: setattr(panel.bg,"size",panel.size)
-        )
-    
-        # Textblock
-        txt = (
-            f"[b]Signal Inspector[/b]\n\n"
-            f"Device : {frame.get('device_id','?')}\n"
-            f"Channel: {channel.upper()}\n\n"
-            f"[b]RSSI[/b] : {rssi} dBm\n"
-            f"Packets: {packets}\n"
-            f"Alive  : {alive}\n\n"
-            f"RAW: {str(raw)[:40]}"
-        )
-    
-        lbl = Label(
-            text=txt,
-            markup=True,
-            halign="left",
-            valign="top",
-            font_size=sp_scaled(15)
-        )
-    
-        lbl.bind(size=lambda *_: setattr(lbl,"text_size",lbl.size))
-    
-        panel.add_widget(lbl)
-    
-        overlay.add_widget(panel)
-    
-        screen.add_widget(overlay)
-    
-        self._signal_overlay = overlay
+        """Erstellt den Inspector und befüllt ihn sofort aus dem GSM-Speicher"""
+        from dashboard_gui.global_state_manager import GLOBAL_STATE
+        from kivy.core.window import Window
+        
+        # Neu erstellen
+        self._signal_overlay = SignalInspector(parent_header=self)
+        Window.add_widget(self._signal_overlay)
+        
+        # PERSISTENZ: Den Graphen sofort mit den GSM-Daten füllen
+        if hasattr(GLOBAL_STATE, "rssi_history"):
+            for val in GLOBAL_STATE.rssi_history:
+                self._signal_overlay.graph.add_value(val)
+        
+        print("[Header] Signal Inspector opened with history")
+
+    def _close_signal_overlay(self):
+        """Falls extern geschlossen werden muss"""
+        if self._signal_overlay:
+            self._signal_overlay.close()
+
+
     # ---------------------------------------------------
     # Menu overlay
     # ---------------------------------------------------
@@ -509,7 +455,12 @@ class HeaderBar(BoxLayout):
         screen.add_widget(picker)
 
     def _close_signal_overlay(self):
-        if getattr(self, "_signal_overlay", None) and self._signal_overlay.parent:
+        """Stoppt den Timer und entfernt das Fenster"""
+        if getattr(self, "_signal_update_event", None):
+            self._signal_update_event.cancel()
+            self._signal_update_event = None
+            
+        if self._signal_overlay and self._signal_overlay.parent:
             self._signal_overlay.parent.remove_widget(self._signal_overlay)
         self._signal_overlay = None
 
@@ -521,6 +472,7 @@ class HeaderBar(BoxLayout):
         Zentrale Update-Funktion für alle Online-Screens.
         Der Screen ruft nur noch: header.update_from_global(out)
         """
+        self._last_frame = frame  # <--- DIESE ZEILE ERGÄNZEN
         if not frame:
             # safe defaults
             self.set_clock(time.strftime("%H:%M:%S"))

@@ -1,42 +1,42 @@
 [
   {
-    "address": "FF-FF-A1-00-00-01",
+    "address": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
     "gat_raw": null,
-    "timestamp": "2026-02-24T00:57:14.157+0000",
-    "name": "LGS_NODE_24",
-    "rssi": -54,
-    "adv_raw": "7445A118084B12C2EA",
-    "log_raw": "7445A118084B12C2EA",
-    "note": "ch_24_active"
+    "timestamp": "2026-02-25T18:55:37.146+0000",
+    "name": "ThermoBeacon2",
+    "rssi": -67,
+    "adv_raw": "190019060000F1F0B510710100039C01DC0236D80600",
+    "log_raw": "190019060000F1F0B510710100039C01DC0236D80600",
+    "note": "raw"
   },
   {
-    "address": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
+    "address": "FF-FF-A1-00-00-01",
     "gat_raw": null,
-    "timestamp": "2026-02-24T01:48:27.134+0000",
-    "name": "TP351S (987A)",
-    "rssi": -54,
-    "adv_raw": "C2C3002D213301",
-    "log_raw": "C2C3002D213301",
-    "note": "raw"
+    "timestamp": "2026-02-25T18:55:39.674+0000",
+    "name": "LGS_NODE_14",
+    "rssi": -57,
+    "adv_raw": "7445A10E089813EC85",
+    "log_raw": "7445A10E089813EC85",
+    "note": "ch_14_active"
   },
   {
     "address": "C898B4F2-B452-7502-1A67-0536E77D49EA",
     "gat_raw": null,
-    "timestamp": "2026-02-24T01:49:19.259+0000",
+    "timestamp": "2026-02-25T18:55:39.082+0000",
     "name": "sps",
-    "rssi": -80,
-    "adv_raw": "4B085312007EDF3208",
-    "log_raw": "4B085312007EDF3208",
+    "rssi": -77,
+    "adv_raw": "3A091E130092AF2E08",
+    "log_raw": "3A091E130092AF2E08",
     "note": "raw"
   },
   {
-    "address": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
+    "address": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
     "gat_raw": null,
-    "timestamp": "2026-02-24T01:49:21.105+0000",
-    "name": "ThermoBeacon2",
-    "rssi": -58,
-    "adv_raw": "190019060000F1F0BF104801EF024A01FF0225960400",
-    "log_raw": "190019060000F1F0BF104801EF024A01FF0225960400",
+    "timestamp": "2026-02-25T16:19:41.377+0000",
+    "name": "TP351S (987A)",
+    "rssi": -80,
+    "adv_raw": "C2DB003C213301",
+    "log_raw": "C2DB003C213301",
     "note": "raw"
   }
 ]

@@ -192,4 +192,3 @@ class CSVViewerScreen(Screen):
 
     def update_from_global(self, d):
         self.header.update_from_global(d)
-        self.header._last_frame = d

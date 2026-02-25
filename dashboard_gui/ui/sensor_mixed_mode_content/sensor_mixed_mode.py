@@ -538,5 +538,4 @@ class SensorMixedModeScreen(Screen):
     def update_from_global(self, d):
         if hasattr(self, "header"):
             self.header.update_from_global(d)
-        self.header._last_frame = d
         self.update_values()
