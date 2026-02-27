@@ -29,7 +29,7 @@ class DebugScreen(Screen):
         # -----------------------------
         self.header = HeaderBar()
         self.header.size_hint_y = None
-        self.header.height = dp(50)
+        self.header.height = dp(45)
         self.header.enable_back("dashboard")
         root.add_widget(self.header)
         GLOBAL_STATE.attach_debug(self)

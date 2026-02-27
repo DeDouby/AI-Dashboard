@@ -5,12 +5,14 @@ from kivy.graphics import Rectangle, Color, Ellipse
 from kivy.core.image import Image as CoreImage
 from kivy.clock import Clock
 from kivy.app import App
+from kivy.metrics import dp
 from kivy.uix.label import Label
 from kivy.uix.anchorlayout import AnchorLayout
 from kivy_garden.graph import Graph
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.common.header_online import HeaderBar
 from dashboard_gui.ui.common.control_buttons import ControlButtons
+from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from kivy.uix.label import Label
 from kivy.graphics import Color, RoundedRectangle
 import math
@@ -57,6 +59,8 @@ class VPDScatterScreen(Screen):
         sm = app.root if app else None
 
         self.header = HeaderBar()
+        self.header.size_hint_y = None
+        self.header.height = dp(45)
         self.main.add_widget(self.header)
 
         self.header.enable_back("dashboard")

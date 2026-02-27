@@ -8,6 +8,9 @@ from kivy.uix.screenmanager import Screen
 from kivy.uix.boxlayout import BoxLayout
 from kivy.clock import Clock
 from kivy.utils import platform
+from kivy.metrics import dp
+
+from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 
 from dashboard_gui.ui.setup_content.setup_main_panel import SetupMainPanel
 from dashboard_gui.ui.common.header_online import HeaderBar
@@ -29,21 +32,27 @@ class SetupScreen(Screen):
 
     def __init__(self, **kw):
         super().__init__(**kw)
-        self._devices_loaded_once = False   # 🔒 nur einmal
+        self._devices_loaded_once = False
 
-        # -------------------------------------------
-        # Registrierung beim Global State Manager
-        # -------------------------------------------
         from dashboard_gui.global_state_manager import GLOBAL_STATE
         GLOBAL_STATE.attach_setup(self)
 
-        root = BoxLayout(orientation="vertical", spacing=10, padding=10)
+        # 1) ROOT OHNE PADDING (Damit der Header oben klebt)
+        root = BoxLayout(orientation="vertical", spacing=0, padding=0)
         self.add_widget(root)
 
+        # 2) Header (Jetzt perfekt im Gleichtakt)
         self.header = HeaderBar()
+        self.header.size_hint_y = None
+        self.header.height = dp(45)
         self.header.lbl_title.text = "Setup"
         self.header.update_back_button("setup")
         root.add_widget(self.header)
+
+        # 3) CONTENT-CONTAINER MIT PADDING (Nur für das Panel)
+        # Hier packen wir die 10px spacing/padding rein, die du für die Optik willst
+        content_box = BoxLayout(orientation="vertical", spacing=10, padding=10)        
+
 
         self.panel = SetupMainPanel(
             on_refresh=self.update_devices,
@@ -58,7 +67,8 @@ class SetupScreen(Screen):
             on_restart_adv=self._restart_adv,
             on_restart_gatt=self._restart_gatt,
         )
-        root.add_widget(self.panel)
+        content_box.add_widget(self.panel)
+        root.add_widget(content_box) # Die Box kommt UNTER den Header
 
     def on_pre_enter(self, *_):
         if not self._devices_loaded_once:

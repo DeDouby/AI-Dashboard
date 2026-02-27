@@ -1,42 +1,42 @@
 [
   {
-    "address": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
+    "address": "C898B4F2-B452-7502-1A67-0536E77D49EA",
     "gat_raw": null,
-    "timestamp": "2026-02-25T18:55:37.146+0000",
-    "name": "ThermoBeacon2",
-    "rssi": -67,
-    "adv_raw": "190019060000F1F0B510710100039C01DC0236D80600",
-    "log_raw": "190019060000F1F0B510710100039C01DC0236D80600",
+    "timestamp": "2026-02-27T02:10:47.504+0000",
+    "name": "sps",
+    "rssi": -77,
+    "adv_raw": "18089A12002AED2E08",
+    "log_raw": "18089A12002AED2E08",
     "note": "raw"
   },
   {
-    "address": "FF-FF-A1-00-00-01",
+    "address": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
     "gat_raw": null,
-    "timestamp": "2026-02-25T18:55:39.674+0000",
-    "name": "LGS_NODE_14",
-    "rssi": -57,
-    "adv_raw": "7445A10E089813EC85",
-    "log_raw": "7445A10E089813EC85",
-    "note": "ch_14_active"
-  },
-  {
-    "address": "C898B4F2-B452-7502-1A67-0536E77D49EA",
-    "gat_raw": null,
-    "timestamp": "2026-02-25T18:55:39.082+0000",
-    "name": "sps",
-    "rssi": -77,
-    "adv_raw": "3A091E130092AF2E08",
-    "log_raw": "3A091E130092AF2E08",
+    "timestamp": "2026-02-27T02:10:55.166+0000",
+    "name": "ThermoBeacon2",
+    "rssi": -56,
+    "adv_raw": "190019060000F1F0B5102401DD02FFFFFFFFC38F0800",
+    "log_raw": "190019060000F1F0B5102401DD02FFFFFFFFC38F0800",
     "note": "raw"
   },
   {
     "address": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
     "gat_raw": null,
-    "timestamp": "2026-02-25T16:19:41.377+0000",
+    "timestamp": "2026-02-27T02:10:08.006+0000",
     "name": "TP351S (987A)",
-    "rssi": -80,
-    "adv_raw": "C2DB003C213301",
-    "log_raw": "C2DB003C213301",
+    "rssi": -74,
+    "adv_raw": "C2C90034213301",
+    "log_raw": "C2C90034213301",
     "note": "raw"
+  },
+  {
+    "address": "FF-FF-A1-00-00-01",
+    "gat_raw": null,
+    "timestamp": "2026-02-27T01:40:21.791+0000",
+    "name": "LGS_NODE_14",
+    "rssi": -57,
+    "adv_raw": "7445A10E078B13272B",
+    "log_raw": "7445A10E078B13272B",
+    "note": "ch_14_active"
   }
 ]

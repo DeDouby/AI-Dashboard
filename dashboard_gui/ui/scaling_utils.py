@@ -32,7 +32,7 @@ def compute_ui_scale():
     # ---------------------------------------------------
     if sys.platform not in ("android", "ios"):
         # Baseline: Desktop ist ergonomisch größer nötig
-        BASE = 1.3 # <<< sweet spot: 1.08 – 1.18
+        BASE = 1.2 # <<< sweet spot: 1.08 – 1.18
 
         # Breiten-Kompensation
         geom = w / 1400.0

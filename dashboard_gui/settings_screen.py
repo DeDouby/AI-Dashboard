@@ -10,6 +10,9 @@ from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.common.header_online import HeaderBar
 from dashboard_gui.ui.settings_content.settings_main_panel import SettingsMainPanel
 import config
+from kivy.metrics import dp
+from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
+
 from dashboard_gui.ui.i18n import I18N
 
 class SettingsScreen(Screen):
@@ -24,7 +27,8 @@ class SettingsScreen(Screen):
 
         # Header Bar
         self.header = HeaderBar()
-
+        self.header.size_hint_y = None
+        self.header.height = dp(45)
         self.header.update_back_button("settings")
         root.add_widget(self.header)
 
@@ -78,7 +82,12 @@ class SettingsScreen(Screen):
         import config as _config
         new_window = _config.get_tile_graph_window()
         
+        # --- NEU: GSM SYNC ---
+        GLOBAL_STATE.refresh_config() 
+        # ---------------------
+
         dashboard = self.manager.get_screen("dashboard")
+
         if hasattr(dashboard, "content") and hasattr(dashboard.content, "tile_map"):
             for tile in dashboard.content.tile_map.values():
                 if hasattr(tile, "apply_graph_window"):

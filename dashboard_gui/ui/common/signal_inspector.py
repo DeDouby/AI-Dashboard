@@ -7,13 +7,16 @@ from kivy.uix.anchorlayout import AnchorLayout
 from kivy.graphics import Color, RoundedRectangle, Line
 from kivy.clock import Clock
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
-
+import time
 class SignalGraph(Widget):
     """Widget-Graph für den RSSI-Verlauf"""
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        import config # Import hier oder oben
         self.points = [] 
-        self.max_points = 60 
+        # NEU: Direkt aus der Config laden statt fest auf 60
+        self.max_points = config.get_tile_graph_window() 
+        self.bind(pos=self.redraw, size=self.redraw)
         self.bind(pos=self.redraw, size=self.redraw)
 
     def add_value(self, val):
@@ -46,76 +49,136 @@ class SignalGraph(Widget):
             if len(line_points) >= 4:
                 Line(points=line_points, width=3.5, joint='round')
 
-# [Gleiche Imports wie vorher...]
+    def reset(self):
+        self.points = []
+        self.redraw()
 
 class SignalInspector(FloatLayout):
     def __init__(self, parent_header, **kwargs):
         super().__init__(**kwargs)
         self.parent_header = parent_header
+        self._last_packet_time = time.time()
+        self._latency = 0.0
         
-        # 1) Hintergrund (Klick schließt das Fenster sofort)
+        # 1) Hintergrund
         bg = Button(background_color=(0, 0, 0, 0.15), border=(0, 0, 0, 0))
         bg.bind(on_release=lambda *_: self.close())
         self.add_widget(bg)
 
-        # 2) Das Haupt-Panel
+        # 2) Das Haupt-Panel (Etwas höher für extra Info)
         self.panel = AnchorLayout(
             size_hint=(None, None),
-            size=(dp_scaled(380), dp_scaled(260)),
+            size=(dp_scaled(380), dp_scaled(240)), 
             pos_hint={"right": 0.98, "top": 0.98}
         )
 
         with self.panel.canvas.before:
-            Color(0.22, 0.25, 0.30, 0.85) 
+            Color(0, 0, 0, 0.55) # Dein geiles Schwarz-Transparent
             self.panel.bg = RoundedRectangle(pos=self.panel.pos, size=self.panel.size, radius=[12])
+            
+            # OPTIONAL: Ein ganz feiner weißer Rand (nur 10% Sichtbarkeit)
+            # Das wirkt wie eine Lichtkante und rettet die Lesbarkeit bei dunklen Hintergründen
+            Color(1, 1, 1, 0.1) 
+            self.panel.outline = Line(rounded_rectangle=(self.panel.x, self.panel.y, self.panel.width, self.panel.height, 12), width=1)
         
         self.panel.bind(pos=lambda obj, pos: setattr(self.panel.bg, 'pos', pos),
                         size=lambda obj, size: setattr(self.panel.bg, 'size', size))
 
-        self.graph = SignalGraph(size_hint=(0.9, 0.7))
+        self.graph = SignalGraph(size_hint=(0.9, 0.6)) # Platz für Text oben/unten
         self.panel.add_widget(self.graph)
 
         content = BoxLayout(orientation="vertical", padding=dp_scaled(16), spacing=dp_scaled(5))
-        self.lbl = Label(markup=True, halign="left", valign="top", font_size=sp_scaled(15))
+        self.lbl = Label(markup=True, halign="left", valign="top", font_size=sp_scaled(16))
         self.lbl.bind(size=lambda *_: setattr(self.lbl, "text_size", self.lbl.size))
         
         content.add_widget(self.lbl)
         self.panel.add_widget(content)
         self.add_widget(self.panel)
 
-        # Timer für UI-Updates
         self._update_event = Clock.schedule_interval(self.update_ui, 0.5)
 
     def update_ui(self, *_):
         frame = getattr(self.parent_header, "_last_frame", None)
         if not frame: return
 
+        # --- NEU: GERÄTE-WECHSEL LOGIK (Anti-Mischmasch) ---
+        from dashboard_gui.global_state_manager import GLOBAL_STATE
+        dev_id = frame.get('device_id', '?')
+        
+        # Falls das Gerät gewechselt wurde, Graph leeren und Historie laden
+        if getattr(self, "_current_dev_id", None) != dev_id:
+            self._current_dev_id = dev_id
+            self.graph.points = [] # Visueller Reset
+            
+            # Historie aus GSM Schublade laden (falls vorhanden)
+            hist = GLOBAL_STATE.rssi_history.get(dev_id, [])
+            for val in hist:
+                self.graph.add_value(val)
+        
+        # Graph-Fenster live synchron halten
+        self.graph.max_points = GLOBAL_STATE.trend_window
+        # --------------------------------------------------
+
+        # 1) Zeitstempel & Latenz (Heartbeat)
+        last_packet = getattr(self.parent_header, "_last_real_packet_time", time.time())
+        latency = time.time() - last_packet
+        
+        # 2) Daten extrahieren
         channel = frame.get("channel", "adv")
         ch = frame.get(channel, {}) or {}
-        rssi = frame.get("health", {}).get("signal", {}).get("rssi") or ch.get("rssi", "--")
+        health = frame.get("health", {})
         
-        # Den Graphen füttern (er wird beim Öffnen initial mit GSM-Daten befüllt, 
-        # hier kriegt er die Live-Updates während er offen ist)
+        # RSSI & Graph (Werte werden jetzt im GSM gepuffert, hier nur Anzeige)
+        rssi = health.get("signal", {}).get("rssi") or ch.get("rssi", "--")
         if rssi != "--":
             self.graph.add_value(rssi)
+            rssi_color = "00FF00" if float(rssi) > -70 else "FFCC00"
+        else:
+            rssi_color = "888888"
 
-        packets = ch.get("packet_counter", "--")
+        # 3) Bridge & Uptime Logik
+        bridge_status = frame.get("bridge_status", "???")
+        bridge_color = "00FF00" if frame.get("bridge_alive") else "FF4444"
+        
+        # Uptime schön formatieren (Sekunden -> HH:MM:SS)
+        uptime_val = health.get("uptime", {}).get("value")
+        if uptime_val is not None:
+            m, s = divmod(int(uptime_val), 60)
+            h, m = divmod(m, 60)
+            uptime_str = f"{h:02d}:{m:02d}:{s:02d}"
+        else:
+            uptime_str = "---"
+
+        # 4) Status-Farben (Heartbeat)
+        if latency < 2.5:
+            lat_color, status_text = "00FF00", "LIVE"
+        elif latency < 10.0:
+            lat_color, status_text = "FFCC00", "STALE"
+        else:
+            lat_color, status_text = "FF4444", "LOST"
+
+        # 5) Raw Data & Name (Config-Abgleich via GSM)
+        dev_name = frame.get("name") or GLOBAL_STATE.get_device_label(dev_id)
+
+        packets = ch.get("packet_counter") or "0"
         raw = ch.get("raw") or ch.get("adv_raw") or "--"
-        rssi_color = "00FF00" if isinstance(rssi, (int, float)) and rssi > -70 else "FFCC00"
         short_raw = (str(raw)[:40] + "...") if len(str(raw)) > 40 else str(raw)
 
+        # 6) Finales UI-Layout
         self.lbl.text = (
-            f"[b]Signal Inspector[/b]\n\n"
-            f"Device : [b]{frame.get('device_id','?')}[/b]\n"
-            f"RSSI   : [b][color={rssi_color}]{rssi} dBm[/color][/b]\n"
-            f"Packets: {packets}\n"
-            f"Channel: {channel.upper()}\n\n"
-            f"[size=18][color=888888]RAW DATA:[/color][/size]\n" 
-            f"[size=20][font=RobotoMono-Regular]{short_raw}[/font][/size]"
+            f"[b]{dev_name}[/b]  [color={bridge_color}][size=14sp]Bridge: {bridge_status}[/size][/color]\n"
+            f"[color=888888]{dev_id}[/color]\n\n"
+            f"RSSI     : [b][color={rssi_color}]{rssi} dBm[/color][/b]\n"
+            f"Heartbeat: [b][color={lat_color}]{latency:.1f}s ago[/color][/b] ({status_text})\n"
+            f"Uptime   : [b]{uptime_str}[/b]\n"
+            f"Packets  : {packets} ({channel.upper()})\n\n"
+            f"[color=888888]RAW DATA STREAM:[/color]\n" 
+            f"[font=RobotoMono-Regular]{short_raw}[/font]"
         )
-
+    def reset_graph(self):
+        if self.graph:
+            self.graph.reset()
     def close(self):
-        """Zerstört das Widget sauber"""
         if self._update_event:
             self._update_event.cancel()
         if self.parent:

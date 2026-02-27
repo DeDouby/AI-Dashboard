@@ -41,13 +41,15 @@ class IconLabel(Label):
 class SignalBars(BoxLayout):
     def __init__(self, **kw):
         super().__init__(**kw)
-        self.size_hint = kw.get("size_hint", (None, 1))
-        self.width = dp_scaled(40)
+        self.size_hint = (None, 1)
+        self.width = dp_scaled(45) 
+        self.padding = [0, 0] # <--- WICHTIG: Kein Padding mehr hier!
 
-        # Bild-Widget vorbereiten
         self.img = Image(
             allow_stretch=True,
             keep_ratio=True,
+            size_hint=(1, 1), # <--- Auf 1 setzen für maximale Größe
+            pos_hint={'center_y': 0.5}
         )
         self.add_widget(self.img)
 
@@ -104,35 +106,44 @@ class SignalBars(BoxLayout):
 
 
 # -------------------------------------------------------
-# External Sensor
+# External Sensor – OPTIMIZED FOR 60DP HEADER
 # -------------------------------------------------------
 class ExternalIcon(BoxLayout):
     def __init__(self, **kw):
         super().__init__(**kw)
-        self.orientation = "vertical"
-        self.spacing = dp_scaled(0)
+        self.orientation = "horizontal" # Von vertikal auf horizontal gewechselt
+        self.spacing = dp_scaled(4)
+        self.size_hint = (None, 1)
+        self.width = dp_scaled(65)      # Etwas breiter für Icon + Text nebeneinander
 
-        self.icon = IconLabel(font_size=sp_scaled(20))
-        self.text_label = Label(font_size=sp_scaled(14), color=(0.8, 0.8, 0.8, 1))
+        # Icon etwas kleiner, damit es nicht "schreit"
+        self.icon = IconLabel(font_size=sp_scaled(18))
+        
+        # Text-Label zentrieren
+        self.text_label = Label(
+            font_size=sp_scaled(12), 
+            color=(0.8, 0.8, 0.8, 1),
+            halign="left",
+            valign="middle"
+        )
+        self.text_label.bind(size=self.text_label.setter('text_size'))
 
         self.add_widget(self.icon)
         self.add_widget(self.text_label)
 
-        # Standardzustand
         self.set_external(False)
 
     def set_external(self, present):
-        """Einfacher Setter (Boolean) für die UI-Anzeige."""
         if present:
-            self.icon.text = "\uf2c7"
-            self.icon.color = (0.3, 1, 0.3, 1)
+            self.icon.text = "\uf2c7" # Thermometer Icon
+            self.icon.color = (0.3, 1, 0.3, 1) # Giftgrün
             self.text_label.text = "EXT"
-            self.text_label.color = (0.6, 1, 0.6, 1)
+            self.text_label.color = (0.3, 1, 0.3, 1)
         else:
-            self.icon.text = "\uf059"
-            self.icon.color = (0.7, 0.7, 0.7, 1)
-            self.text_label.text = "none"
-            self.text_label.color = (0.7, 0.7, 0.7, 1)
+            self.icon.text = "\uf059" # Fragezeichen
+            self.icon.color = (0.4, 0.4, 0.4, 1)
+            self.text_label.text = "OFF"
+            self.text_label.color = (0.4, 0.4, 0.4, 1)
 
 # -------------------------------------------------------
 # LED Circle – MODERN UI (NO LOGIC CHANGE)
@@ -232,12 +243,12 @@ class LEDCircle(Widget):
 class HeaderBar(BoxLayout):
     def __init__(self, **kw):
         super().__init__(**kw)
-
         self.orientation = "horizontal"
         self.size_hint_y = None
-        self.height = dp_scaled(50)
-        self.spacing = dp_scaled(10)
-        self.padding = [dp_scaled(10), dp_scaled(8)]
+        self.height = dp_scaled(45)   # <--- DEIN FIX (überall gleich)
+        self.spacing = dp_scaled(12)
+        # Weniger Padding oben/unten, damit das Logo größer wirken kann
+        self.padding = [dp_scaled(10), dp_scaled(2), dp_scaled(10), dp_scaled(2)]
         self._signal_overlay = None
         self._signal_update_event = None  # für auto-refresh
         with self.canvas.before:
@@ -260,13 +271,16 @@ class HeaderBar(BoxLayout):
         self.btn_back.size_hint_x = None
         self.btn_back.bind(on_release=lambda *_: self._go_back())
 
-        # LOGO
-        logo = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "logo.png")
+        # LOGO FIX
+        logo_path = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "logo.png")
         self.device_icon = Image(
-            source=logo,
-            size_hint=(None, None),   # absolute Größe
+            source=logo_path,
+            size_hint=(None, 1),      # 1 bedeutet: Fülle die volle verfügbare Höhe
+            width=dp_scaled(80),      # Gib ihm Platz in der Breite
             allow_stretch=True,
-            keep_ratio=True
+            keep_ratio=True,
+            # Das sorgt dafür, dass es wirklich mittig klebt
+            pos_hint={'center_y': 0.5} 
         )
         self.device_icon.height = self.height
         
@@ -278,7 +292,7 @@ class HeaderBar(BoxLayout):
         
         # TEXT & ICONS
         self.lbl_title = Label(
-            text="LGS",
+            text="Dashboard",
             font_size=sp_scaled(22),
             halign="left",
             size_hint=(0.28, 1)
@@ -468,18 +482,42 @@ class HeaderBar(BoxLayout):
     # ONE ENTRY-POINT FOR ALL SCREENS
     # ---------------------------------------------------
     def update_from_global(self, frame):
-        """
-        Zentrale Update-Funktion für alle Online-Screens.
-        Der Screen ruft nur noch: header.update_from_global(out)
-        """
-        self._last_frame = frame  # <--- DIESE ZEILE ERGÄNZEN
-        if not frame:
-            # safe defaults
-            self.set_clock(time.strftime("%H:%M:%S"))
-            self.set_device_label(None)
-            self.set_rssi(None)
-            self.set_external(False)
-            return
+        """Zentrale Update-Logik. Schreibt Daten und triggert den Heartbeat-Timer."""
+        self._last_frame = frame
+        
+        # 1) Welcher Kanal ist aktiv? (adv oder gatt)
+        channel_name = frame.get("channel", "adv")
+        ch_data = frame.get(channel_name, {})
+        
+        # 2) Semantik-Check für Heartbeat (Puls)
+        # Wir schauen auf den Counter (GATT) ODER auf Raw-Änderungen (ADV)
+        new_counter = ch_data.get("packet_counter", 0)
+        new_raw = ch_data.get("raw") or ch_data.get("adv_raw")
+
+        # Initialisierung beim ersten Mal
+        if not hasattr(self, "_old_counter"):
+            self._old_counter = new_counter
+            self._old_raw = new_raw
+            self._last_real_packet_time = time.time()
+
+        # PULS-DETEKTION: Hat sich am Datenstrom etwas geändert?
+        # Entweder der Counter ist hochgegangen ODER die Raw-Daten sind neu
+        has_pulsed = (new_counter != self._old_counter) or (new_raw != self._old_raw)
+
+        if has_pulsed:
+            self._last_real_packet_time = time.time() # Hier ist der neue "Nullpunkt"
+            self._old_counter = new_counter
+            self._old_raw = new_raw
+
+        # 3) Die restlichen UI-Elemente im Header aktualisieren
+        self.set_clock(time.strftime("%H:%M:%S"))
+        self.lbl_dev.text = self._format_device_with_channel(frame)
+        self.set_rssi_from_frame(frame)
+        self.set_external_from_frame(frame)
+
+        # LED: Wird weiterhin vom GSM gesteuert, aber wir könnten sie hier auch forcieren
+        if "alive" in frame or "status" in frame:
+            self.set_led(frame)
 
         # CLOCK
         self.set_clock(time.strftime("%H:%M:%S"))

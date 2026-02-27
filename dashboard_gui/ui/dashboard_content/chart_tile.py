@@ -31,7 +31,7 @@ class ChartTile(ButtonBehavior, BoxLayout):
         self.last_value = None
         self.smoothing = 0.25
 
-
+        self._trend_results = {}       # Die fertigen Pfeile
         # Multi-Device Buffers: device_id → eigener Verlauf
         self.buffers = {}
 
@@ -153,133 +153,54 @@ class ChartTile(ButtonBehavior, BoxLayout):
     # TILE-COMPATIBLE UPDATE
     # -------------------------------------------------
     def update(self, value, buf_key, stream=None, render=False):
-        """
-        Update eines Tiles (Buffer + Coord)
-        value: float oder int
-        buf_key: device_id_channel_tile
-        stream: dict mit coord, adv/gatt
-        render: Label + Graph sofort aktualisieren
-        """
-    
         if value is None:
             return
-    
-        # -------------------------
-        # UNIT SWITCH DETECT (nur Float-Werte)
-        # -------------------------
-        if self.unit != self._last_unit:
-            for k, b in self.buffers.items():
-                for i in range(len(b)):
-                    if isinstance(b[i], dict) and "value" in b[i]:
-                        # dict Buffer für Coord
-                        if self._last_unit == "°C" and self.unit == "°F":
-                            b[i]["value"] = (b[i]["value"] * 9 / 5) + 32
-                        elif self._last_unit == "°F" and self.unit == "°C":
-                            b[i]["value"] = (b[i]["value"] - 32) * 5 / 9
-                    else:
-                        # alte Float-Buffer
-                        if self._last_unit == "°C" and self.unit == "°F":
-                            b[i] = (b[i] * 9 / 5) + 32
-                        elif self._last_unit == "°F" and self.unit == "°C":
-                            b[i] = (b[i] - 32) * 5 / 9
-            self._last_unit = self.unit
-    
-        # -------------------------
-        # Buffer initialisieren
-        # -------------------------
-        if buf_key not in self.buffers:
-            self.buffers[buf_key] = []
-        buf = self.buffers[buf_key]
-    
-        # Value glätten
+
+        # 1. Wert validieren und umwandeln
         try:
             v = float(value)
         except:
             return
-    
+
+        # 2. DEM GSM BESCHEID GEBEN (Hier lag der Fehler!)
+        # Wir rufen die Logik im GLOBAL_STATE auf, nicht im Tile selbst!
+        GLOBAL_STATE.process_new_value(buf_key, v)
+
+        # 3. Buffer initialisieren
+        if buf_key not in self.buffers:
+            self.buffers[buf_key] = []
+        buf = self.buffers[buf_key]
+
+        # 4. Glättung
         if not buf:
             smoothed = v
         else:
+            # Wir prüfen, ob der letzte Wert ein Dict oder Float ist
             last_val = buf[-1]["value"] if isinstance(buf[-1], dict) else buf[-1]
             smoothed = last_val * (1 - self.smoothing) + v * self.smoothing
-    
-        # Trend anzeigen
-        if render and buf:
-            last_val = buf[-1]["value"] if isinstance(buf[-1], dict) else buf[-1]
-            diff = smoothed - last_val
-            if diff > 0.01:
-                self.lbl_trend.text = "\uf062"
-            elif diff < -0.01:
-                self.lbl_trend.text = "\uf063"
-            else:
-                self.lbl_trend.text = "\uf061"
-    
-        # Anzeige
-        display_value = smoothed
-        if self.base_unit == "°C" and self.unit == "°F":
-            display_value = (smoothed * 9 / 5) + 32
-    
-        # -------------------------
-        # Coord aus Stream übernehmen
-        # -------------------------
-        coords = {"internal": {}, "external": {}}
-        if stream and "coord" in stream:
-            coords["internal"] = stream["coord"].get("internal", {})
-            coords["external"] = stream["coord"].get("external", {})
-    
-        # -------------------------
-        # Float Buffer für alte Graphen
-        # -------------------------
+
+        # 5. Buffer füllen
         buf.append(smoothed)
         if len(buf) > self.window:
             buf.pop(0)
-    
-        # -------------------------
-        # Coord Buffer für Tiles
-        # -------------------------
-        if not hasattr(self, "_coord_buffers"):
-            self._coord_buffers = {}
-        if buf_key not in self._coord_buffers:
-            self._coord_buffers[buf_key] = []
-        coord_buf = self._coord_buffers[buf_key]
-        coord_buf.append({"value": smoothed, "coord": coords})
-        if len(coord_buf) > self.window:
-            coord_buf.pop(0)
-    
-        # -------------------------
-        # Render Label + Graph (nur Floats)
-        # -------------------------
+
+        # 6. Anzeige (Render)
         if render:
-            self.lbl_trend.text = self._calc_trend(buf)
-        
-            text = f"{display_value:.2f} {self.unit}"
-            self.lbl_value.text = text
-            # self.lbl_value_shadow.text = text  <-- DIESE ZEILE WAR DER FEHLER (GELÖSCHT)
-        
-            # Farbe bei jedem Render setzen
-            r, g, b, _ = self.color
-            self.lbl_value.color = (r, g, b, 1.0)
-        
+            # Hol dir das nackte Icon vom GSM
+            icon_code = GLOBAL_STATE.get_trend_icon(buf_key)
+            self.lbl_trend.text = icon_code
+            
+            # Debug-Print (Optional: Löschen wenn es läuft)
+            # print(f"DEBUG: Key {buf_key} zeigt Icon {hex(ord(icon_code))}")
+            
+            display_value = smoothed
+            if self.base_unit == "°C" and self.unit == "°F":
+                display_value = (smoothed * 9 / 5) + 32
+
+            self.lbl_value.text = f"{display_value:.2f} {self.unit}"
+            self.lbl_value.color = (*self.color[:3], 1.0)
             self._render_buffer(buf)
 
-    def _calc_trend(self, buf):
-        n = len(buf)
-        if n < 4:
-            return ""
-    
-        span = min(n, self.window)
-        start = buf[-span]
-        end = buf[-1]
-    
-        diff = end - start
-        threshold = max(0.01, abs(start) * 0.002)
-    
-        if diff > threshold:
-            return "\uf062"
-        elif diff < -threshold:
-            return "\uf063"
-        else:
-            return "\uf061"  
     def _render_buffer(self, buf):
         pts = [(i, val) for i, val in enumerate(buf)]
         self.plot.points = pts

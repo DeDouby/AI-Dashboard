@@ -2,6 +2,8 @@
 
 from kivy.uix.screenmanager import Screen
 from kivy.uix.boxlayout import BoxLayout
+from kivy.metrics import dp
+from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 
 from dashboard_gui.ui.common.header_online import HeaderBar
 from dashboard_gui.ui.cam_viewer_content.cam_viewer_panel import CamViewerPanel
@@ -21,6 +23,8 @@ class CamViewerScreen(Screen):
 
         # HEADER
         self.header = HeaderBar()
+        self.header.size_hint_y = None
+        self.header.height = dp(45)
 
         self.header.update_back_button("cam_viewer")
         

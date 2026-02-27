@@ -15,6 +15,7 @@ from dashboard_gui.ui.common.header_online import HeaderBar
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.ui.i18n import I18N
 from datetime import datetime
+from kivy.metrics import dp
 import math
 import json
 class SensorMixedModeScreen(Screen):
@@ -33,7 +34,6 @@ class SensorMixedModeScreen(Screen):
             "vpd": [],
             "dew": [],
         }
-        self._trend_window = 120 
         self.active_device_id = None    # aktuell ausgewähltes Gerät für Modus-Auswahl
         # Avg-Temp Hintergrundgraph
         self._avg_graph_temp = []
@@ -57,7 +57,7 @@ class SensorMixedModeScreen(Screen):
         # HEADER
         self.header = HeaderBar()
         self.header.size_hint_y = None
-        self.header.height = dp_scaled(48)
+        self.header.height = dp(45)
         self.header.lbl_title.text = I18N.t("menu.sensor_mixed_mode")
         self.header.update_back_button("sensor_mixed_mode")
         root.add_widget(self.header)
@@ -216,27 +216,6 @@ class SensorMixedModeScreen(Screen):
     def _update_btn_color(self, btn, state):
         btn.background_color = (0.12,0.20,0.45,1) if state=="down" else (0.15,0.15,0.18,1)
 
-    def _calc_trend_arrow(self, key, value):
-        buf = self._trend_buf[key]
-        buf.append(value)
-        if len(buf) > self._trend_window:
-            buf.pop(0)
-
-        if len(buf) < 3:
-            return ""
-
-        start = buf[0]
-        end = buf[-1]
-        diff = end - start
-
-        threshold = max(0.01, abs(start) * 0.002)
-
-        if diff > threshold:
-            return "[font=FA]\uf062[/font]"   # arrow-up
-        elif diff < -threshold:
-            return "[font=FA]\uf063[/font]"   # arrow-down
-        else:
-            return "[font=FA]\uf061[/font]"   # arrow-right
 
     def _draw_avg_temp_bg(self, *_):
         if not self._avg_graph_temp or len(self._avg_graph_temp) < 2:
@@ -469,35 +448,58 @@ class SensorMixedModeScreen(Screen):
                              dev_card.x + self.left_column.width * 0.9, dev_card.y - dp_scaled(10)], width=1)
             self.details_list_body.add_widget(dev_card)
 
-        # Durchschnittswerte & Trends
+        # ─────────────────────────────────────────────────
+        # DURCHSCHNITTSWERTE & TRENDS (SYNC MIT GSM)
+        # ─────────────────────────────────────────────────
+        
+        # 1. TEMPERATUR
         avg_temp_val = None
         if averaging_map["temp"]:
             avg_temp_val = sum(x[0] for x in averaging_map["temp"]) / len(averaging_map["temp"])
-            self.lbl_avg_temp.text = f"{self._calc_trend_arrow('temp', avg_temp_val)} {avg_temp_val:.2f} °C"
+            # Wert an GSM senden & Icon mit Markup holen
+            GLOBAL_STATE.process_new_value("mixed_avg_temp", avg_temp_val)
+            trend_icon = f"[font=FA]{GLOBAL_STATE.get_trend_icon('mixed_avg_temp')}[/font]"
+            
+            self.lbl_avg_temp.text = f"{trend_icon} {avg_temp_val:.2f} °C"
             self._avg_graph_temp.append(avg_temp_val)
             if len(self._avg_graph_temp) > self._avg_graph_len: self._avg_graph_temp.pop(0)
         else:
             self.lbl_avg_temp.text = "-- °C"
         
+        # 2. FEUCHTIGKEIT
+        avg_hum_val = None
         if averaging_map["hum"]:
             avg_hum_val = sum(averaging_map["hum"]) / len(averaging_map["hum"])
-            self.lbl_avg_hum.text = f"{self._calc_trend_arrow('hum', avg_hum_val)} {avg_hum_val:.2f} %"
+            # Wert an GSM senden & Icon mit Markup holen
+            GLOBAL_STATE.process_new_value("mixed_avg_hum", avg_hum_val)
+            trend_icon = f"[font=FA]{GLOBAL_STATE.get_trend_icon('mixed_avg_hum')}[/font]"
+            
+            self.lbl_avg_hum.text = f"{trend_icon} {avg_hum_val:.2f} %"
         else:
-            avg_hum_val = None
             self.lbl_avg_hum.text = "-- %"
 
+        # 3. VPD
+        avg_vpd_val = None
         if averaging_map["vpd"]:
             avg_vpd_val = sum(averaging_map["vpd"]) / len(averaging_map["vpd"])
-            self.lbl_avg_vpd.text = f"{self._calc_trend_arrow('vpd', avg_vpd_val)} {avg_vpd_val:.2f} kPa"
+            # Wert an GSM senden & Icon mit Markup holen
+            GLOBAL_STATE.process_new_value("mixed_avg_vpd", avg_vpd_val)
+            trend_icon = f"[font=FA]{GLOBAL_STATE.get_trend_icon('mixed_avg_vpd')}[/font]"
+            
+            self.lbl_avg_vpd.text = f"{trend_icon} {avg_vpd_val:.2f} kPa"
         else:
-            avg_vpd_val = None
             self.lbl_avg_vpd.text = "-- kPa"
 
+        # 4. TAUPUNKT (DEW POINT)
+        avg_dew_val = None
         if averaging_map["dew"]:
             avg_dew_val = sum(x[0] for x in averaging_map["dew"]) / len(averaging_map["dew"])
-            self.lbl_avg_dew.text = f"{self._calc_trend_arrow('dew', avg_dew_val)} {avg_dew_val:.2f} °C"
+            # Wert an GSM senden & Icon mit Markup holen
+            GLOBAL_STATE.process_new_value("mixed_avg_dew", avg_dew_val)
+            trend_icon = f"[font=FA]{GLOBAL_STATE.get_trend_icon('mixed_avg_dew')}[/font]"
+            
+            self.lbl_avg_dew.text = f"{trend_icon} {avg_dew_val:.2f} °C"
         else:
-            avg_dew_val = None
             self.lbl_avg_dew.text = "-- °C"
 
         # mixed.json Update

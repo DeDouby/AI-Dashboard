@@ -11,6 +11,7 @@ from kivy.uix.scrollview import ScrollView
 from kivy.uix.spinner import Spinner
 from kivy.graphics import Rectangle, Color
 from kivy.utils import platform
+from kivy.metrics import dp
 
 from dashboard_gui.ui.common.header_online import HeaderBar
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
@@ -48,6 +49,8 @@ class GrowRoomScreen(Screen):
 
         # Header
         self.header = HeaderBar()
+        self.header.size_hint_y = None
+        self.header.height = dp(45)
         self.header.lbl_title.text = "Grow Rooms"
         self.header.update_back_button("grow_rooms")
         self.root.add_widget(self.header)

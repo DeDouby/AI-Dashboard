@@ -7,12 +7,14 @@ import os
 import time
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.screenmanager import Screen
+from kivy.metrics import dp
 
 import config
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.common.header_online import HeaderBar
 from dashboard_gui.ui.common.control_buttons import ControlButtons
 from dashboard_gui.ui.dashboard_content.dashboard_main_panel import DashboardMainPanel
+from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 
 
 from kivy.uix.boxlayout import BoxLayout
@@ -51,6 +53,8 @@ class DashboardScreen(Screen):
 
         # HEADER
         self.header = HeaderBar()
+        self.header.size_hint_y = None
+        self.header.height = dp(45)
         self.root_layout.add_widget(self.header)
 
         # MAIN PANEL

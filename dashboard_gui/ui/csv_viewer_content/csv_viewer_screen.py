@@ -1,6 +1,8 @@
 from kivy.uix.screenmanager import Screen
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
+from kivy.metrics import dp
+
 from kivy.uix.scrollview import ScrollView
 from dashboard_gui.ui.common.header_online import HeaderBar
 from dashboard_gui.ui.csv_viewer_content.csv_viewer_filebrowser import CSVViewerFileBrowser
@@ -22,6 +24,8 @@ class CSVViewerScreen(Screen):
         self.add_widget(root)
 
         self.header = HeaderBar()
+        self.header.size_hint_y = None
+        self.header.height = dp(45)
         self.header.lbl_title.text = "CSV Viewer"
         self.header.enable_back("dashboard")
         root.add_widget(self.header)

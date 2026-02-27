@@ -8,6 +8,7 @@ from kivy.uix.scrollview import ScrollView
 import os
 from kivy.graphics import Rectangle, Color
 import webbrowser
+from kivy.metrics import dp
 
 from dashboard_gui.ui.common.header_online import HeaderBar
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
@@ -38,6 +39,8 @@ class AboutScreen(Screen):
         )
         # HEADER
         self.header = HeaderBar()
+        self.header.size_hint_y = None
+        self.header.height = dp(45)
 
         self.header.lbl_title.text = I18N.t("menu.about")
         self.header.update_back_button("about")

@@ -3,8 +3,8 @@
 
 from kivy.clock import Clock
 from dashboard_gui.data_buffer import BUFFER
-
-
+import time
+import config
 def _extract_mac(dev):
     """Normiert device_id auf reine MAC."""
     if isinstance(dev, dict):
@@ -41,11 +41,16 @@ class GlobalStateManager:
         # LED Status
         self.led_state = {"alive": False, "status": "offline"}
 
-        self.rssi_history = []  # Hier speichern wir die letzten 60 Werte
-        self.max_history = 60
+        self.rssi_history = {}  # MUSS ein Dictionary sein, keine Liste []
+        self.max_history = config.get_tile_graph_window()
+        self._last_frame_time = 0  # NEU für Ratenberechnung
+        self.current_latency = 0   # NEU
+
         # Heartbeat
         self._last_state = {}
-
+        self.trend_window = config.get_tile_graph_window() 
+        self._trend_buffers = {}
+        self.global_trends = {}
         # Global Tick
         Clock.schedule_interval(self._global_update, 0.5)
 
@@ -202,6 +207,67 @@ class GlobalStateManager:
         except Exception as e:
             print("[GSM] Bootstrap failed:", e)
 
+# ---------------------------------------------------------
+    # ZENTRALE TREND-FABRIK (Der Drift-Killer)
+    # ---------------------------------------------------------
+    def process_new_value(self, key, value):
+        if value is None: return
+        
+        if key not in self._trend_buffers:
+            self._trend_buffers[key] = []
+        
+        buf = self._trend_buffers[key]
+        
+        try:
+            v = float(value)
+            buf.append(v)
+        except:
+            return
+
+        # SYNC: Wir nutzen exakt das Fenster aus der Config
+        if len(buf) > self.trend_window:
+            buf.pop(0)
+            
+        # Die Logik nutzt jetzt die vollen 120 Werte für den Vergleich
+        if len(buf) < 10: # Mindestmenge für Start
+            self.global_trends[key] = 0
+            return
+
+        # Vergleich: Jetzt über das gesamte 120er Fenster!
+        diff = buf[-1] - buf[0]
+        threshold = max(0.01, abs(buf[0]) * 0.002)
+
+        if diff > threshold:
+            self.global_trends[key] = 1
+        elif diff < -threshold:
+            self.global_trends[key] = -1
+        else:
+            self.global_trends[key] = 0
+
+    def _calculate_trend_logic(self, buf):
+        """Die mathematische Wahrheit - nur hier wird entschieden!"""
+        if len(buf) < 5: 
+            return 0 # Nicht genug Daten -> Stabil/Neutral
+            
+        # Wir vergleichen das Ende mit dem Anfang des Buffers
+        start = buf[0]
+        end = buf[-1]
+        diff = end - start
+        
+        # Dynamischer Schwellenwert (0.2% vom Wert, mind. 0.01)
+        threshold = max(0.01, abs(start) * 0.002)
+        
+        if diff > threshold:
+            return 1   # Steigend
+        elif diff < -threshold:
+            return -1  # Fallend
+        return 0       # Stabil
+
+    def get_trend_icon(self, key):
+        val = self.global_trends.get(key, 0)
+        # NUR der nackte Hex-Code, KEIN Markup hier!
+        icons = {-1: "\uf063", 1: "\uf062", 0: "\uf061"}
+        return icons[val]
     def attach_fullscreen(self, scr):
         self.fullscreen_ref = scr
 
@@ -269,6 +335,7 @@ class GlobalStateManager:
     def _led_flow(self):
         self.led_state = {"alive": True, "status": "flow"}
         self._flow_hold = True
+        self._last_packet_timestamp = time.time()  # 🔥 NEU: Zeitstempel beim Puls merken
         self._push_led()
 
     # ---------------------------------------------------------
@@ -293,6 +360,13 @@ class GlobalStateManager:
         self._last_counter = None
         self._refresh_all_buttons()
     
+        # --- NEU: TREND-GEDÄCHTNIS LÖSCHEN ---
+        self._trend_buffers = {}
+        self.global_trends = {}
+        self.rssi_history = {}  # dev_id -> [werte]
+        print("[GSM] Trend-Buffers and Global-Trends cleared.")
+        # -------------------------------------
+
         if self.dashboard_ref:
             self.dashboard_ref.reset_from_global()
         if self.fullscreen_ref:
@@ -338,17 +412,26 @@ class GlobalStateManager:
     
         alive = ch.get("alive", False)
         
-        # NEU: RSSI extrahieren und in History speichern
-        current_rssi = None
+        # RSSI extrahieren und GERÄTESPEZIFISCH speichern
         try:
             current_rssi = d.get("health", {}).get("signal", {}).get("rssi")
-            if current_rssi is None:
-                current_rssi = ch.get("rssi")
+            # Im GSM (_global_update)
+            if current_rssi is not None and dev_id:
+                if not isinstance(self.rssi_history, dict): # Not-Anker falls doch noch []
+                    self.rssi_history = {}
             
-            if current_rssi is not None:
-                self.rssi_history.append(float(current_rssi))
-                if len(self.rssi_history) > self.max_history:
-                    self.rssi_history.pop(0)
+                if dev_id not in self.rssi_history:
+                    self.rssi_history[dev_id] = []
+            
+                self.rssi_history[dev_id].append(float(current_rssi))
+                if len(self.rssi_history[dev_id]) > self.max_history:
+                    self.rssi_history[dev_id].pop(0)
+                
+                hist = self.rssi_history[dev_id]
+                hist.append(float(current_rssi))
+                
+                if len(hist) > self.max_history:
+                    hist.pop(0)
         except:
             pass
 
@@ -566,61 +649,21 @@ class GlobalStateManager:
     def set_mixed_mode_for_device(self, dev_id, mode):
         self.mixed_device_modes[str(dev_id)] = mode
 
-
-    # ---------------------------------------------------------
-    # APPLY NEW CONFIG – globaler Refresh
-    # ---------------------------------------------------------
-    def apply_new_config(self):
+    def refresh_config(self):
         import config
-        import decoder
-        from kivy.app import App
-
-        print("[GSM] Neue Config wird angewendet…")
-
-        # 1) Config reload
-        try:
-            if hasattr(config, "reload"):
-                config.reload()
-            else:
-                config.load()
-            print("[GSM] Config reloaded.")
-        except Exception as e:
-            print("[GSM] Fehler beim Config-Reload:", e)
-
-        # 2) Decoder weicher Reset (keine Threads zerstören)
-        try:
-            if hasattr(decoder, "UPTIME_START"):
-                decoder.UPTIME_START = None
-            print("[GSM] Decoder soft-synced.")
-        except Exception as e:
-            print("[GSM] Decoder-Sync Fehler:", e)
-
-        # 3) Screens refreshen (nur wenn vorgesehen)
-        app = App.get_running_app()
-        if not app:
-            return
-
-        sm = app.sm  # kommt aus deiner main.py
-
-        for screen_name in [
-            "dashboard",
-            "fullscreen",
-            "device_picker",
-            "debug",
-            "filemanager",
-            "setup",
-            "sensor_mixed_mode",
-            "grow_rooms",
-        ]:
-            try:
-                scr = sm.get_screen(screen_name)
-                if hasattr(scr, "refresh_after_config"):
-                    scr.refresh_after_config()
-                    print(f"[GSM] {screen_name} refreshed.")
-            except:
-                pass
-
-        print("[GSM] Config vollständig aktiviert.")
+        # Nur das, was der GSM für seinen Takt braucht:
+        self.trend_window = config.get_tile_graph_window()
+        self.max_history = self.trend_window
+        
+        # RSSI History sofort trimmen, falls Fenster kleiner wurde
+        if len(self.rssi_history) > self.max_history:
+            self.rssi_history = self.rssi_history[-self.max_history:]        
+        # Buffer trimmen für sofortigen Sync
+        for key in self._trend_buffers:
+            if len(self._trend_buffers[key]) > self.trend_window:
+                self._trend_buffers[key] = self._trend_buffers[key][-self.trend_window:]
+        
+        print(f"[GSM] Trend-Window auf {self.trend_window} synchronisiert.")
 
 
 GLOBAL_STATE = GlobalStateManager()
