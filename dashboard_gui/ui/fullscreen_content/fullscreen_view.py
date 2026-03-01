@@ -8,19 +8,21 @@ from kivy.graphics import Rectangle, Color
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.metrics import dp
-
+import config 
 from dashboard_gui.ui.common.header_online import HeaderBar
 from dashboard_gui.ui.common.control_buttons import ControlButtons
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
+from dashboard_gui.data_buffer import BUFFER
 
 FULLSCREEN_MAX = 2000
 
 class FullScreenView(Screen):
+    name = "fullscreen"
     def __init__(self, **kw):
         super().__init__(**kw)
+        
         self.tile_id = None
-        self.tile_ref = None
         self._active_unit = ""
         # SWIPE STATE
         self._touch_start_x = None
@@ -29,24 +31,31 @@ class FullScreenView(Screen):
         # --- BASIS: FLOAT LAYOUT (Alles stapelbar) ---
         self.layout = FloatLayout()
         self.add_widget(self.layout)
-
-# 1) HINTERGRUND (Jetzt mit Referenz self.bg_color)
+        data = BUFFER.get()
+        # 1) HINTERGRUND (Jetzt mit Referenz self.bg_color)
         with self.layout.canvas.before:
             self.bg_color = Color(0, 0, 0, 1) # Start auf Schwarz
             self.bg_rect = Rectangle(pos=self.pos, size=self.size, source="")
         
         self.layout.bind(pos=self._update_bg, size=self._update_bg)
 
-        # 2) DER GRAPH (Layer 0 - Ganz unten, füllt alles)
+        # 2) DER GRAPH (Jetzt Platz-optimiert)
+        win_seconds = config.get_tile_graph_window()
+
         self.graph = Graph(
-            xmin=0, xmax=60, ymin=0, ymax=1,
+            xmin=0, xmax=win_seconds, 
+            ymin=0, ymax=1,
             draw_border=False,
             background_color=(0, 0, 0, 0),
-            y_grid_label=True,
+            y_grid_label=True,      # Y-Werte (z.B. 25°C) bleiben an
+            x_grid_label=False,     # X-Werte (Standard) AUS
             y_ticks_major=0.5,
-            tick_color=(1, 1, 1, 0.1),
-            label_options={'color': [1, 1, 1, 0.6]},
-            padding=dp_scaled(20),
+            x_ticks_major=win_seconds / 4, # Raster alle 25%
+            padding=0,              # <--- Nimmt den Platz weg! Auf 0 setzen
+            label_options={
+                'color': [1, 1, 1, 0.4], # 40% Sichtbarkeit (durchscheinend)
+                'bold': True
+            },
             size_hint=(1, 1),
             pos_hint={'x': 0, 'y': 0}
         )
@@ -55,7 +64,22 @@ class FullScreenView(Screen):
         self.graph.add_plot(self.plot_glow)
         self.graph.add_plot(self.plot)
         self.layout.add_widget(self.graph)
-
+        
+        # Ein Layout für die X-Achsen Beschriftung
+        self.x_axis_labels = GridLayout(
+            cols=5, # Wir nehmen 5 Punkte (Anfang, 25%, 50%, 75%, Ende)
+            size_hint=(1, None),
+            height=dp_scaled(20),
+            pos_hint={'x': 0, 'y': 0.08} # Position über den Buttons
+        )
+        
+        self.labels_list = []
+        for _ in range(5):
+            lbl = Label(text="", font_size=sp_scaled(11), color=(1,1,1,0.5))
+            self.labels_list.append(lbl)
+            self.x_axis_labels.add_widget(lbl)
+            
+        self.layout.add_widget(self.x_axis_labels)
         # 3) VALUE HUD (Layer 1 - Mittig schwebend)
         self.hud = BoxLayout(
             orientation="vertical",
@@ -83,8 +107,6 @@ class FullScreenView(Screen):
 
         # 4) HEADER (Layer 2 - Oben fest)
         self.header = HeaderBar()
-        self.header.size_hint_y = None
-        self.header.height = dp(45)
         self.header.pos_hint = {'top': 1}
         self.layout.add_widget(self.header)
         self.header.update_back_button("fullscreen")
@@ -179,116 +201,117 @@ class FullScreenView(Screen):
     def activate_tile(self, tile_id):
         self.tile_id = tile_id
         dashboard = self.manager.get_screen("dashboard")
-        self.tile_ref = dashboard.content.tile_map.get(tile_id)
-        
-        if self.tile_ref:
-            # 1. Titel & Unit setzen
-            self.header.lbl_title.text = tile_id.replace("_", " ").upper()
-            self._active_unit = getattr(self.tile_ref, "unit", "")
-            
-            # 2. Farben aus der Map holen
-            main_color, glow_color = self._get_plot_colors_for_tile(tile_id)
-            
-            # 3. ALTE PLOTS ENTFERNEN (Das löst das "Weiß"-Problem)
-            try:
-                for p in list(self.graph.plots):
-                    self.graph.remove_plot(p)
-            except:
-                pass
-            
-            # 4. NEUE PLOTS ERSTELLEN
-            self.plot = LinePlot(color=main_color, line_width=dp_scaled(4.5))
-            self.plot_glow = LinePlot(color=glow_color, line_width=dp_scaled(8))
-            
-            self.graph.add_plot(self.plot_glow)
-            self.graph.add_plot(self.plot)
-
-            # 5. Skala-Farbe anpassen (Jetzt sicher ohne font_size Bug)
-            self.graph.y_grid_label = True
-            self.graph.label_options = {'color': [*main_color[:3], 0.8]}
-            
-            # 6. Hintergrund setzen
-            _, bg_path = self._get_metric_config(tile_id) # Pfad-Logik bleibt
-            import os
-            if bg_path and os.path.exists(bg_path):
-                self.bg_color.rgba = (1, 1, 1, 0.5) 
-                self.bg_rect.source = bg_path
-            else:
-                self.bg_color.rgba = (0, 0, 0, 1)
-                self.bg_rect.source = ""
-            
-            self._load_data()
+        tile = dashboard.content.tile_map.get(tile_id)
+    
+        if not tile:
+            self._active_unit = ""
+            return
+    
+        # DEVICE + CHANNEL
+        data = GLOBAL_STATE.get_device_list()
+        idx = GLOBAL_STATE.active_index
+        dev_id = data[idx] if isinstance(data[idx], str) else data[idx].get("device_id")
+        channel = GLOBAL_STATE.get_active_channel()
+    
+        # buf_key korrekt definieren
+        buf_key = f"{dev_id}_{channel}_{tile_id}"
+        buf = tile.buffers.get(buf_key, [])
+    
+        # Unit direkt aus decoded.json übernehmen
+        last_val = buf[-1] if buf else None
+        if isinstance(last_val, dict):
+            self._active_unit = last_val.get("unit", "")
+        else:
+            self._active_unit = getattr(tile, "unit", "") or ""
+    
+        self.header.lbl_title.text = tile_id.replace("_", " ").upper()
+    
+        main_color, glow_color = self._get_plot_colors_for_tile(tile_id)
+    
+        try:
+            for p in list(self.graph.plots):
+                self.graph.remove_plot(p)
+        except:
+            pass
+    
+        self.plot = LinePlot(color=main_color, line_width=dp_scaled(4.5))
+        self.plot_glow = LinePlot(color=glow_color, line_width=dp_scaled(8))
+    
+        self.graph.add_plot(self.plot_glow)
+        self.graph.add_plot(self.plot)
+    
+        self.graph.label_options = {'color': [*main_color[:3], 0.8]}
+    
+        _, bg_path = self._get_metric_config(tile_id)
+        import os
+        if bg_path and os.path.exists(bg_path):
+            self.bg_color.rgba = (1, 1, 1, 0.5)
+            self.bg_rect.source = bg_path
+        else:
+            self.bg_color.rgba = (0, 0, 0, 1)
+            self.bg_rect.source = ""
+    
+        self._load_data()
 
     def _load_data(self):
-        # 1. Dashboard und verfügbare Tiles holen
-        dashboard = self.manager.get_screen("dashboard")
-        active_keys = dashboard.content.get_active_tile_keys()
-
-        # 2. VERFEINERTE LOGIK:
-        # Nur wenn es noch Tiles gibt, aber meins nicht mehr dabei ist -> Wechseln
-        if active_keys and self.tile_id not in active_keys:
-            print(f"[FULLSCREEN] Sensor nicht mehr verfügbar. Wechsele zu {active_keys[0]}")
-            self.activate_tile(active_keys[0])
-            return
-
-        # 3. DATEN-QUELLE PRÜFEN
         from dashboard_gui.data_buffer import BUFFER
-        data = BUFFER.get()
-        idx = GLOBAL_STATE.active_index
         
-        # Wenn Puffer leer oder Index ungültig -> Bleib hier, zeig Striche
-        if not data or idx >= len(data):
-            self.lbl_value.text = f"-- {self._active_unit}"
-            self.lbl_sub.text = "VERBINDUNG VERLOREN..."
+        # 1. Woher kommen die Daten?
+        idx = GLOBAL_STATE.active_index
+        channel = GLOBAL_STATE.get_active_channel()
+        dev_list = GLOBAL_STATE.get_device_list()
+        
+        if not dev_list or idx >= len(dev_list):
             return
 
-        if not self.tile_ref: return
-
-        # 4. BUFFER-KEY BAUEN
-        dev_id = data[idx].get("device_id")
-        channel = GLOBAL_STATE.get_active_channel()
+        dev_id = dev_list[idx]
+        # Der Key muss exakt so sein wie im GSM gespeichert!
         buf_key = f"{dev_id}_{channel}_{self.tile_id}"
         
-        buf = self.tile_ref.buffers.get(buf_key, [])
-        if len(buf) > FULLSCREEN_MAX: buf = buf[-FULLSCREEN_MAX:]
+        # 2. Daten direkt aus dem neuen GSM Speicher holen
+
+        buf = GLOBAL_STATE.graph_buffers.get(buf_key, [])
         
-        # 5. GRAPH & HUD UPDATE
-        if buf:
-            # --- GRAPH UPDATE ---
-            pts = [(i, v) for i, v in enumerate(buf)]
-            self.plot.points = pts
-            self.plot_glow.points = pts
+        # Wenn Buffer leer oder zu kurz für Berechnungen
+        if not buf or len(buf) < 2:
+            if hasattr(self, 'plot'): self.plot.points = []
+            if hasattr(self, 'plot_glow'): self.plot_glow.points = []
             
-            mn, mx = min(buf), max(buf)
-            if mn == mx: mn, mx = mn-0.5, mx+0.5
-            diff = mx - mn
-            
-            self.graph.ymin = mn - (diff * 0.1)
-            self.graph.ymax = mx + (diff * 0.1)
-            self.graph.y_ticks_major = diff / 4 
-            self.graph.xmin, self.graph.xmax = 0, len(buf)-1
+            # Falls wir gerade resetten, Achsen stabil halten
+            self.graph.xmin = 0
+            self.graph.xmax = config.get_tile_graph_window() or 1
+            return
 
-           # --- TREND LOGIK (DIREKT VOM GSM) ---
-            # Wir holen den nackten Code (\uf...) vom GSM mit dem buf_key
-            raw_icon = GLOBAL_STATE.get_trend_icon(buf_key)
-            
-            # Da lbl_value Text UND Icon mischt, wickeln wir hier das Font-Tag drum:
-            trend_icon_markup = f"[font=FA]{raw_icon}[/font]"
+        # Erst wenn wir Daten haben, die normalen Berechnungen:
+        pts = list(enumerate(buf))
+        self.plot.points = pts
+        self.plot_glow.points = pts
+        # ... Rest der Skalierungslogik ...
 
-           # --- HUD UPDATE ---
-            val = buf[-1]
-            
-            # NEU/FIX: Diese Berechnung hat gefehlt!
-            avg_v = sum(buf) / len(buf)
-            mn = min(buf)
-            mx = max(buf)
+        mn = min(buf)
+        mx = max(buf)
+        if mn == mx:
+            mn -= 0.5
+            mx += 0.5
 
-            # Jetzt zusammenbauen: Wert + Einheit + Trend-Pfeil (Markup ist an!)
-            self.lbl_value.text = f"{val:.2f} {self._active_unit} {trend_icon_markup}"
-            self.lbl_value.color = self.plot.color
-            
-            # Jetzt existiert avg_v und der Fehler ist weg:
-            self.lbl_sub.text = f"AVG: {avg_v:.2f} | MIN: {mn:.2f} | MAX: {mx:.2f}"
+        diff = mx - mn
+        self.graph.ymin = mn - diff * 0.1
+        self.graph.ymax = mx + diff * 0.1
+        self.graph.y_ticks_major = diff / 4
+
+        # X-Achse: Zeigt genau so viele Punkte wie da sind
+        self.graph.xmin = 0
+        self.graph.xmax = len(buf) - 1
+
+        # 4. HUD Texte
+        val = buf[-1]
+        avg_v = sum(buf) / len(buf)
+        trend_icon = GLOBAL_STATE.get_trend_icon(buf_key)
+        icon_markup = f"[font=FA]{trend_icon}[/font]" if trend_icon else ""
+
+        self.lbl_value.text = f"{val:.2f} {self._active_unit} {icon_markup}"
+        self.lbl_value.color = self.plot.color
+        self.lbl_sub.text = f"AVG: {avg_v:.2f} | MIN: {mn:.2f} | MAX: {mx:.2f}"
 
     # ============================================================
     # TILE SWIPE (HORIZONTAL)
@@ -327,14 +350,49 @@ class FullScreenView(Screen):
         self._touch_start_x = None
         return super().on_touch_up(touch)
 
-    def update_from_global(self, d):
-        self.header.update_from_global(d)
+    def update_from_global(self, data):
+        # 1. Header aktualisieren (LEDs, Name etc.)
+        self.header.update_from_global(data)
+        
+        # 2. X-Achse an Config anpassen
+        win_sec = config.get_tile_graph_window()
+        self.graph.xmax = win_sec
+        
+        # 3. Daten neu laden und Graph zeichnen
         self._load_data()
+        
+        # 4. Zeit-Beschriftung (X-Achse) aktualisieren
+        total_min = win_sec / 60
+        for i, lbl in enumerate(self.labels_list):
+            # Berechnet die Minuten rückwärts von Rechts (0) nach Links
+            min_val = (4 - i) * (total_min / 4)
+            if min_val == 0:
+                lbl.text = "jetzt"
+            else:
+                lbl.text = f"-{int(min_val)}m"
 
     def reset_from_global(self):
-        self.plot.points = []
-        self.plot_glow.points = []
-        self.lbl_value.text = "--"
-        self.lbl_sub.text = "avg: -- | min: -- | max: --"
+        """Wird aufgerufen, wenn der Reset-Button gedrückt wird."""
+        print(f"[UI] Fullscreen Graph Reset for {self.tile_id}")
+        
+        # 1. Plots leeren
+        if hasattr(self, 'plot'):
+            self.plot.points = []
+        if hasattr(self, 'plot_glow'):
+            self.plot_glow.points = []
+        
+        # 2. Crash-Schutz: X- und Y-Achse auf Minimalwerte setzen
+        # xmax darf niemals gleich xmin sein!
+        self.graph.xmin = 0
+        self.graph.xmax = 1 # Minimaler Abstand verhindert ZeroDivisionError
+        self.graph.ymin = 0
+        self.graph.ymax = 1
+        
+        # 3. Texte zurücksetzen
+        unit = getattr(self, "_active_unit", "")
+        self.lbl_value.text = f"-- {unit}"
+        self.lbl_sub.text = "BUFFER GELEERT"
+        
+        # 4. UI Update triggern (Größenänderung erzwingt Neuzeichnung sicher)
+        self.graph._trigger_size()
 
-    # GESTEN ENTFERNT (Kivy Standard-Touch reicht für Buttons)

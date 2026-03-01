@@ -28,7 +28,7 @@ class VPDScatterScreen(Screen):
     - Punkte via Canvas (Ellipse)
     - Graph nur als Koordinaten-Referenz
     """
-
+    name = "vpd_scatter" # <--- Unverzicht
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -59,8 +59,8 @@ class VPDScatterScreen(Screen):
         sm = app.root if app else None
 
         self.header = HeaderBar()
-        self.header.size_hint_y = None
-        self.header.height = dp(45)
+        self.header.lbl_title.text = "VPD-Chart"
+
         self.main.add_widget(self.header)
 
         self.header.enable_back("dashboard")
@@ -217,6 +217,9 @@ class VPDScatterScreen(Screen):
             on_stop=lambda *_: GLOBAL_STATE.stop(),
             on_reset=lambda *_: GLOBAL_STATE.reset(),
         )
+        self.controls.size_hint = (1, None)
+        self.controls.height = dp_scaled(40)
+        self.controls.pos_hint = {'y': 0}
         self.main.add_widget(self.controls)
 
         Clock.schedule_interval(self._tick, 1.0)
@@ -234,8 +237,11 @@ class VPDScatterScreen(Screen):
     # LAYOUT SYNC
     # -------------------------------------------------
     def _update_bg(self, *_):
-        self.bg_rect.size = self.content.size
-        self.bg_rect.pos = self.content.pos
+        header_h = dp(45) # Die Höhe deines Headers
+        # Das Bild startet erst unter dem Header
+        self.bg_rect.pos = (self.content.pos[0], self.content.pos[1])
+        # Das Bild ist genau so groß wie der Content-Bereich
+        self.bg_rect.size = (self.content.size[0], self.content.size[1])
 
     def _sync_graph(self, *_):
         self.graph.size = self.content.size
@@ -271,106 +277,67 @@ class VPDScatterScreen(Screen):
     # DATA LOAD (IDENTISCH ZU FULLSCREEN)
     # -------------------------------------------------
     def _load_points(self):
-        from dashboard_gui.data_buffer import BUFFER
         import config
-    
-        # Scatter-relevante Offsets (nur hier!)
+        # Offsets holen
         t_off    = float(config.get_temperature_offset() or 0.0)
         leaf_off = float(config.get_leaf_offset() or 0.0)
-        self._leaf_offset = leaf_off   # ✅ FIX
+        self._leaf_offset = leaf_off
 
-        data = BUFFER.get()
-        if not data or not isinstance(data, list):
-            return
-    
-        active = self.gsm.active_index
-        if active >= len(data):
-            return
-    
-        device_id = data[active].get("device_id")
-        if not device_id:
-            return
-    
+        # Device & Channel Info vom GSM
+        idx = self.gsm.active_index
+        dev_list = self.gsm.get_device_list()
+        if not dev_list or idx >= len(dev_list): return
+        
+        dev_id = dev_list[idx]
         ch = self.gsm.get_active_channel()
-        prefix = f"{device_id}_{ch}"
+        prefix = f"{dev_id}_{ch}"
 
-    
-        dashboard = self.manager.get_screen("dashboard")
-        tiles = dashboard.content.tile_map
-    
-        tile_vpd_in = tiles.get("vpd_in")
-        tile_vpd_ex = tiles.get("vpd_ex")
-        tile_h_in   = tiles.get("hum_in")
-        tile_h_ex   = tiles.get("hum_ex")
-        tile_t_in   = tiles.get("temp_in")
-        tile_t_ex   = tiles.get("temp_ex")
-    
-        if not tile_vpd_in or not tile_vpd_ex:
-            self.p_in.pos = (-1000, -1000)
-            self.p_ex.pos = (-1000, -1000)
-            return
-    
-        vpd_in = tile_vpd_in.buffers.get(f"{prefix}_vpd_in", [])
-        vpd_ex = tile_vpd_ex.buffers.get(f"{prefix}_vpd_ex", [])
-        h_in   = tile_h_in.buffers.get(f"{prefix}_hum_in", []) if tile_h_in else []
-        h_ex   = tile_h_ex.buffers.get(f"{prefix}_hum_ex", []) if tile_h_ex else []
-        # -------------------------
-        # IN (Scatter)
-        # -------------------------
-        if vpd_in and h_in:
-            vpd = float(vpd_in[-1])
-            rh  = float(h_in[-1])
-    
-            t_eff = self._temp_from_vpd_rh(vpd, rh)
+        # Hilfsfunktion, um den letzten Wert aus dem GSM-Buffer zu fischen
+        def get_last(metric):
+            buf = self.gsm.get_graph_data(f"{prefix}_{metric}")
+            return float(buf[-1]) if buf else None
+
+        # Daten direkt vom GSM holen
+        v_in = get_last("vpd_in")
+        h_in = get_last("hum_in")
+        t_in = get_last("temp_in") # Realer Sensorwert
+
+        v_ex = get_last("vpd_ex")
+        h_ex = get_last("hum_ex")
+        t_ex = get_last("temp_ex")
+
+        # --- IN Punkt setzen ---
+        if v_in is not None and h_in is not None:
+            t_eff = self._temp_from_vpd_rh(v_in, h_in)
+            if t_eff is not None:
+                # Der Scatter-Punkt braucht die Blatt-Temperatur-Logik
+                t_scatter = t_eff + t_off + leaf_off
+                self._place_point(self.p_in, t_scatter, h_in)
+                self._mirror["in"] = {"t": t_scatter, "h": h_in, "vpd": v_in}
+            else: self.p_in.pos = (-1000, -1000)
+        else: self.p_in.pos = (-1000, -1000)
+
+        # --- EX Punkt setzen ---
+        if v_ex is not None and h_ex is not None:
+            t_eff = self._temp_from_vpd_rh(v_ex, h_ex)
             if t_eff is not None:
                 t_scatter = t_eff + t_off + leaf_off
-                self._place_point(self.p_in, t_scatter, rh)
-    
-                # Mirror nur intern (Scatter/Debug)
-                self._mirror["in"] = {"t": t_scatter, "h": rh, "vpd": vpd}
-            else:
-                self.p_in.pos = (-1000, -1000)
-        else:
-            self.p_in.pos = (-1000, -1000)
-    
-        # -------------------------
-        # EX (Scatter)
-        # -------------------------
-        if vpd_ex and h_ex:
-            vpd = float(vpd_ex[-1])
-            rh  = float(h_ex[-1])
-    
-            t_eff = self._temp_from_vpd_rh(vpd, rh)
-            if t_eff is not None:
-                t_scatter = t_eff + t_off + leaf_off
-                self._place_point(self.p_ex, t_scatter, rh)
-    
-                self._mirror["ex"] = {"t": t_scatter, "h": rh, "vpd": vpd}
-            else:
-                self.p_ex.pos = (-1000, -1000)
-        else:
-            self.p_ex.pos = (-1000, -1000)
-    
-        # -------------------------
-        # VALUE BOX (NUR TILES!)
-        # -------------------------
-        self._unit_t = tile_t_in.unit if tile_t_in else ""
-        self._unit_h = tile_h_in.unit if tile_h_in else ""
-    
+                self._place_point(self.p_ex, t_scatter, h_ex)
+                self._mirror["ex"] = {"t": t_scatter, "h": h_ex, "vpd": v_ex}
+            else: self.p_ex.pos = (-1000, -1000)
+        else: self.p_ex.pos = (-1000, -1000)
+
+        # --- Value Box (HUD) füllen ---
+        # Wir nehmen hier die realen T-Werte vom Sensor für die Anzeige
+        self._unit_t = self.gsm.get_unit("temp_in")
+        self._unit_h = self.gsm.get_unit("hum_in")
+        
         self._box = {
-            "in": {
-                "t": self._last_float(tile_t_in.buffers.get(f"{prefix}_temp_in")) if tile_t_in else None,
-                "h": self._last_float(tile_h_in.buffers.get(f"{prefix}_hum_in")) if tile_h_in else None,
-                "vpd": self._last_float(vpd_in),
-            },
-            "ex": {
-                "t": self._last_float(tile_t_ex.buffers.get(f"{prefix}_temp_ex")) if tile_t_ex else None,
-                "h": self._last_float(tile_h_ex.buffers.get(f"{prefix}_hum_ex")) if tile_h_ex else None,
-                "vpd": self._last_float(vpd_ex),
-            },
+            "in": {"t": t_in, "h": h_in, "vpd": v_in},
+            "ex": {"t": t_ex, "h": h_ex, "vpd": v_ex},
         }
-    
         self._update_value_box()
+        
     # -------------------------------------------------
     def _place_point(self, ellipse, temp, hum):
         gx, gy = self.graph.pos

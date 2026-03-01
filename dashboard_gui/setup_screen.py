@@ -43,8 +43,6 @@ class SetupScreen(Screen):
 
         # 2) Header (Jetzt perfekt im Gleichtakt)
         self.header = HeaderBar()
-        self.header.size_hint_y = None
-        self.header.height = dp(45)
         self.header.lbl_title.text = "Setup"
         self.header.update_back_button("setup")
         root.add_widget(self.header)

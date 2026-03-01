@@ -27,8 +27,8 @@ class SettingsScreen(Screen):
 
         # Header Bar
         self.header = HeaderBar()
-        self.header.size_hint_y = None
-        self.header.height = dp(45)
+        self.header.lbl_title.text = "Settings"
+ 
         self.header.update_back_button("settings")
         root.add_widget(self.header)
 
@@ -85,7 +85,11 @@ class SettingsScreen(Screen):
         # --- NEU: GSM SYNC ---
         GLOBAL_STATE.refresh_config() 
         # ---------------------
-
+# JETZT den Motor (Global Tick) neu starten!
+        # Das aktiviert den neuen refresh_interval sofort live.
+        if hasattr(GLOBAL_STATE, "refresh_global_tick"):
+            GLOBAL_STATE.refresh_global_tick()
+        # ---------------------------------
         dashboard = self.manager.get_screen("dashboard")
 
         if hasattr(dashboard, "content") and hasattr(dashboard.content, "tile_map"):

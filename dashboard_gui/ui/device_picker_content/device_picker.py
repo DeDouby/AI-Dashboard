@@ -27,8 +27,7 @@ class DevicePickerScreen(Screen):
         # HEADER (identisch zu About)
         # -------------------------------------------------
         self.header = HeaderBar()
-        self.header.size_hint_y = None
-        self.header.height = dp(45)
+
         self.header.lbl_title.text = "Devices"
         self.header.update_back_button("device_picker")
         root.add_widget(self.header)

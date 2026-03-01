@@ -39,9 +39,6 @@ class AboutScreen(Screen):
         )
         # HEADER
         self.header = HeaderBar()
-        self.header.size_hint_y = None
-        self.header.height = dp(45)
-
         self.header.lbl_title.text = I18N.t("menu.about")
         self.header.update_back_button("about")
         root.add_widget(self.header)

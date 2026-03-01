@@ -23,8 +23,7 @@ class CamViewerScreen(Screen):
 
         # HEADER
         self.header = HeaderBar()
-        self.header.size_hint_y = None
-        self.header.height = dp(45)
+        self.header.lbl_title.text = "Camera"
 
         self.header.update_back_button("cam_viewer")
         

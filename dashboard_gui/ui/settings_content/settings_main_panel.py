@@ -95,10 +95,11 @@ class SettingsMainPanel(BoxLayout):
             container.add_widget(row)
 
         # --- Sliders ---
-        add_slider("settings.refresh_interval","refresh_interval",0.5,10,0.5)
+        # Min: 0.1, Max: 5.0, Schrittweite: 0.1
+        add_slider("settings.refresh_interval","refresh_interval",0.1,5.0,0.1)
         add_slider("settings.ui_refresh_interval","ui_refresh_interval",0.1,5,0.1)
         add_slider("settings.stale_timeout","stale_timeout",5,60,1)
-        add_slider("settings.tile_graph_window","tile_graph_window",30,1200,10)
+        add_slider("settings.tile_graph_window","tile_graph_window",30,5000,10)
         add_slider("settings.temp_offset","temperature_offset",-10,10,0.1)
         add_slider("settings.humidity_offset","humidity_offset",-20,20,1)
         add_slider("settings.leaf_offset","leaf_offset",-10,10,0.1)
@@ -189,10 +190,10 @@ class SettingsMainPanel(BoxLayout):
        
 
         defaults = {
-            "refresh_interval":2.0,
+            "refresh_interval":0.5,
             "ui_refresh_interval":1.0,
             "stale_timeout":15.0,
-            "tile_graph_window":120,
+            "tile_graph_window":300,
             "temperature_offset":0.0,
             "humidity_offset":0.0,
             "leaf_offset":0.0,

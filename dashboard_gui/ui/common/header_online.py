@@ -245,7 +245,7 @@ class HeaderBar(BoxLayout):
         super().__init__(**kw)
         self.orientation = "horizontal"
         self.size_hint_y = None
-        self.height = dp_scaled(45)   # <--- DEIN FIX (überall gleich)
+        self.height = dp_scaled(40)   # <--- DEIN FIX (überall gleich)
         self.spacing = dp_scaled(12)
         # Weniger Padding oben/unten, damit das Logo größer wirken kann
         self.padding = [dp_scaled(10), dp_scaled(2), dp_scaled(10), dp_scaled(2)]

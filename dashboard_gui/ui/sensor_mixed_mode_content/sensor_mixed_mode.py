@@ -3,420 +3,194 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
 from kivy.uix.togglebutton import ToggleButton
-from kivy.clock import Clock
 import os
-from kivy.graphics import Rectangle, Color
-from kivy.uix.widget import Widget
 from kivy.graphics import Rectangle, Color, Line
+from kivy.uix.widget import Widget
 from kivy.uix.scrollview import ScrollView
-import config
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.common.header_online import HeaderBar
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.ui.i18n import I18N
-from datetime import datetime
-from kivy.metrics import dp
-import math
-import json
+import time
+
 class SensorMixedModeScreen(Screen):
     name = "sensor_mixed_mode"
 
     def __init__(self, **kw):
         super().__init__(**kw)
-        ASSET_ROOT = os.path.join("dashboard_gui", "assets")
         self.GS = GLOBAL_STATE
         self.GS.attach_sensor_mixed_mode(self)
-        self.device_modes = {}          # dev_id -> set("internal", "external")
-        # Trend Buffer für gemittelte Werte
-        self._trend_buf = {
-            "temp": [],
-            "hum": [],
-            "vpd": [],
-            "dew": [],
-        }
-        self.active_device_id = None    # aktuell ausgewähltes Gerät für Modus-Auswahl
-        # Avg-Temp Hintergrundgraph
-        self._avg_graph_temp = []
-        self._avg_graph_len = 60
-         
-        self._trend_window = config.get_tile_graph_window()
-
+        
         # ROOT
         root = BoxLayout(orientation="vertical", spacing=dp_scaled(10))
         self.add_widget(root)
         with root.canvas.before:
-            Color(1, 1, 1, 1)
-            self.bg_rect = Rectangle(
-                source=os.path.join(ASSET_ROOT, "background_mixed.png"),
-                pos=root.pos,
-                size=root.size
-            )
-        root.bind(pos=lambda *_: setattr(self.bg_rect, "pos", root.pos),
-                  size=lambda *_: setattr(self.bg_rect, "size", root.size))
+            self.bg_rect = Rectangle(source=os.path.join("dashboard_gui", "assets", "background_mixed.png"))
+        root.bind(pos=self._update_bg, size=self._update_bg)
 
         # HEADER
         self.header = HeaderBar()
-        self.header.size_hint_y = None
-        self.header.height = dp(45)
+        # HIER DIE KORREKTUR:
         self.header.lbl_title.text = I18N.t("menu.sensor_mixed_mode")
-        self.header.update_back_button("sensor_mixed_mode")
+        self.header.update_back_button("sensor_mixed_mode") # Registriert den Screen
         root.add_widget(self.header)
 
-        # CENTER ZONE
-        self.center_zone = BoxLayout(
-            orientation="horizontal",
-            padding=dp_scaled(15),
-            spacing=dp_scaled(15),
-            size_hint=(1, 1)
-        )
-
-        # LINKSSPALTE – DETAILS (Jetzt mit ScrollView)
-        self.left_column = BoxLayout(
-            orientation="vertical",
-            size_hint_x=0.45,
-            spacing=dp_scaled(10)
-        )
+        # MAIN CONTENT
+        content = BoxLayout(orientation="horizontal", padding=dp_scaled(15), spacing=dp_scaled(15))
         
-        # ScrollView für die Sensor-Details
-        self.details_scroll = ScrollView(do_scroll_x=False, bar_width=dp_scaled(4))
-        self.details_list_body = BoxLayout(
-            orientation="vertical",
-            size_hint_y=None,
-            spacing=dp_scaled(12),
-            padding=[dp_scaled(5), dp_scaled(5)]
-        )
-        # Wichtig: Damit die ScrollView weiß, wie hoch der Inhalt ist
-        self.details_list_body.bind(minimum_height=self.details_list_body.setter("height"))
+        # LINKS: Scroll-Liste für Einzelwerte
+        self.left_col = BoxLayout(orientation="vertical", size_hint_x=0.45)
+        self.scroll = ScrollView(do_scroll_x=False)
+        self.details_list = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp_scaled(10))
+        self.details_list.bind(minimum_height=self.details_list.setter("height"))
+        self.scroll.add_widget(self.details_list)
+        self.left_col.add_widget(self.scroll)
+
+        # RECHTS: Große Anzeigen
+        self.right_col = BoxLayout(orientation="vertical", size_hint_x=0.55, spacing=dp_scaled(10))
+        self.lbl_temp = Label(text="--", font_size=sp_scaled(54), color=(1,0.2,0.2,1), markup=True, bold=True)
+        self.lbl_hum  = Label(text="--", font_size=sp_scaled(54), color=(0.2,0.6,1,1), markup=True, bold=True)
+        self.lbl_vpd  = Label(text="--", font_size=sp_scaled(54), color=(0.2,1,0.6,1), markup=True, bold=True)
+        self.lbl_dew  = Label(text="--", font_size=sp_scaled(54), color=(0.7,0.7,0.9,1), markup=True, bold=True)
         
-        self.details_scroll.add_widget(self.details_list_body)
-        self.left_column.add_widget(self.details_scroll)
+        for l in [self.lbl_temp, self.lbl_hum, self.lbl_vpd, self.lbl_dew]:
+            self.right_col.add_widget(l)
 
-        # RECHTSSPALTE – MITTELWERTE
-        self.right_column = BoxLayout(
-            orientation="vertical",
-            size_hint_x=0.55,
-            spacing=dp_scaled(12)
-        )
-        self.lbl_avg_temp = Label(text="--", font_size=sp_scaled(54), color=(1,0,0,1), bold=True, markup=True)
-        self.lbl_avg_hum  = Label(text="--", font_size=sp_scaled(54), color=(0.2, 0.6, 1, 1), bold=True, markup=True)
-        self.lbl_avg_vpd  = Label(text="--", font_size=sp_scaled(54), color=(0.2,1,0.6,1), bold=True, markup=True)
-        self.lbl_avg_dew  = Label(
-            text="--",
-            font_size=sp_scaled(54),
-            color=(0.7,0.7,0.9,1),
-            bold=True,
-            markup=True
-        )
-        self.right_column.add_widget(self.lbl_avg_temp)
-        self.right_column.add_widget(self.lbl_avg_hum)
-        self.right_column.add_widget(self.lbl_avg_vpd)
-        self.right_column.add_widget(self.lbl_avg_dew)   # 🔥 NEU
+        content.add_widget(self.left_col)
+        content.add_widget(self.right_col)
+        root.add_widget(content)
 
-        self.center_zone.add_widget(self.left_column)
-        self.center_zone.add_widget(self.right_column)
-        root.add_widget(self.center_zone)
-
-        # STATUS LABEL
-        self.status_label = Label(
-            text="",
-            font_size=sp_scaled(26),
-            color=(0.2,1,0.6,1),
-            size_hint_y=None,
-            height=dp_scaled(24)
-        )
-        root.add_widget(self.status_label)
-        
-        self.avg_graph_widget = Widget(size_hint=(1, None), height=dp_scaled(60))
-        self.right_column.add_widget(self.avg_graph_widget, index=0)  # hinter Labels
-
-        # DEVICE BUTTONS
-        self.device_box = BoxLayout(
-            orientation="horizontal",
-            spacing=dp_scaled(8),
-            size_hint_y=None,
-            height=dp_scaled(48),
-            padding=(dp_scaled(10), dp_scaled(5))
-        )
+        # UNTEN: Selector
+        self.device_box = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp_scaled(50), spacing=dp_scaled(5))
         root.add_widget(self.device_box)
 
-        self.GS.set_mixed_mode(True)
-        self.rebuild_device_list()
-        Clock.schedule_interval(lambda dt: self.update_values(), 0.5)
+    def _update_bg(self, instance, value):
+        self.bg_rect.pos = instance.pos
+        self.bg_rect.size = instance.size
 
-    # ─────────────────────────────
-    # DEVICE LIST
-    # ─────────────────────────────
-    def rebuild_device_list(self):
+    def on_pre_enter(self):
+        self.GS.mixed_mode_active = True
+        self.rebuild_selector()
+
+    def rebuild_selector(self):
         self.device_box.clear_widgets()
-        devices = self.GS.get_device_list() or []
-        count = max(len(devices), 1)
-    
-        for dev_id in devices:
-            device_slot = BoxLayout(orientation="vertical", spacing=dp_scaled(4), size_hint=(1/count, 1))
-    
-            # Gerät Button
+        from dashboard_gui.data_buffer import BUFFER
+        data_all = BUFFER.get() or []
+
+        for dev_id in self.GS.get_device_list():
+            is_selected = dev_id in self.GS.mixed_selected_buffers
+            
+            # Container für Button + evtl. Modus-Switches
+            btn_container = BoxLayout(orientation="vertical", spacing=dp_scaled(2))
+            
             btn = ToggleButton(
                 text=self.GS.get_device_label(dev_id),
-                size_hint_y=None,
-                height=dp_scaled(50),
-                background_normal='',
-                background_color=(0.15,0.15,0.18,1),
-                color=(1,1,1,1),
-                bold=True,
-                state="down" if dev_id in self.GS.mixed_selected_buffers else "normal"
+                state="down" if is_selected else "normal",
+                background_color=(0.12,0.20,0.45,1) if is_selected else (0.15,0.15,0.18,1),
+                size_hint_y=1 if not is_selected else 0.6
             )
-            btn.bind(state=self._update_btn_color)
-            btn.bind(on_press=lambda b, d=dev_id: self.select_device(d))
-            device_slot.add_widget(btn)
-    
-            # Modus Buttons nur wenn aktiv ausgewählt
-            data = self._get_latest_frame(dev_id)
-            if dev_id == self.active_device_id and data and self._has_external(data):
-                mode_box = BoxLayout(size_hint_y=None, height=dp_scaled(36), spacing=dp_scaled(4))
-                active_modes = self.device_modes.get(dev_id, {"internal"})
-                if not isinstance(active_modes, set):
-                    active_modes = {active_modes}
-    
-                for mode in ("internal", "external"):
-                    tbtn = ToggleButton(
-                        text=mode.capitalize(),
-                        group=None,
-                        state="down" if mode in active_modes else "normal",
-                        size_hint=(0.5, 1)
-                    )
-    
-                    # Klick-Handler sorgt jetzt für min. 1 Modus
-                    def on_mode_toggle(b, d=dev_id, m=mode):
-                        modes = self.device_modes.get(d, {"internal"})
-                        if not isinstance(modes, set):
-                            modes = {modes}
-                        if b.state == "down":
-                            modes.add(m)
-                            self.GS.mixed_selected_buffers.add(d)
-                        else:
-                            if len(modes) == 1 and m in modes:
-                                # ❌ Minimum 1 Modus bleibt aktiv
-                                b.state = "down"
-                                return
-                            modes.discard(m)
-                        self.device_modes[d] = modes
-                        self.update_values()
-                        # UI sofort syncen
-                        self.rebuild_device_list()
-    
-                    tbtn.bind(on_press=on_mode_toggle)
-                    mode_box.add_widget(tbtn)
-    
-                device_slot.add_widget(mode_box)
-    
-            self.device_box.add_widget(device_slot)
-    
-        self.update_values()
+            btn.bind(on_release=lambda b, d=dev_id: self._toggle_dev(d))
+            btn_container.add_widget(btn)
 
-    def _update_btn_color(self, btn, state):
-        btn.background_color = (0.12,0.20,0.45,1) if state=="down" else (0.15,0.15,0.18,1)
+            # Modus-Buttons einblenden, wenn selektiert UND externer Sensor vorhanden
+            if is_selected:
+                # Frame finden für dieses Gerät
+                frame = next((f for f in data_all if str(f.get("device_id")) == str(dev_id)), None)
+                if frame and self._has_external(frame):
+                    mode_box = BoxLayout(spacing=dp_scaled(2), size_hint_y=0.4)
+                    current_modes = self.GS.mixed_device_modes.get(dev_id, {"internal"})
+                    
+                    for m in ["internal", "external"]:
+                        m_btn = ToggleButton(
+                            text=m[:3].upper(), # INT / EXT
+                            state="down" if m in current_modes else "normal",
+                            font_size=sp_scaled(12)
+                        )
+                        # Logik: d=dev_id, mode=m
+                        m_btn.bind(on_release=lambda b, d=dev_id, mode=m: self._switch_mode(d, mode))
+                        mode_box.add_widget(m_btn)
+                    btn_container.add_widget(mode_box)
 
+            self.device_box.add_widget(btn_container)
 
-    def _draw_avg_temp_bg(self, *_):
-        if not self._avg_graph_temp or len(self._avg_graph_temp) < 2:
-            return
-    
-        # Größe aktuell holen
-        w, h = self.avg_graph_widget.width, self.avg_graph_widget.height
-        if w == 0 or h == 0:
-            # noch nicht laid out → wieder versuchen später
-            Clock.schedule_once(self._draw_avg_temp_bg, 0.1)
-            return
-    
-        buf = self._avg_graph_temp
-        vmin = min(buf)
-        vmax = max(buf)
-        span = max(vmax - vmin, 0.0001)
-        step_x = w / (len(buf) - 1)
-        points = []
-    
-        for i, v in enumerate(buf):
-            x = i * step_x
-            y = (v - vmin) / span * h
-            points.extend([x, y])
-    
-        self.avg_graph_widget.canvas.before.clear()
-        with self.avg_graph_widget.canvas.before:
-            Color(1, 1, 1, 0.06)
-            Line(points=points, width=1)
-    # ─────────────────────────────
-    # DEVICE SELECTION / MIXED MODE
-    # ─────────────────────────────
-    def select_device(self, dev_id):
-        dev_id = str(dev_id)
-        if dev_id in self.GS.mixed_selected_buffers:
-            # Gerät ist aktiv → abwählen
-            self.GS.mixed_selected_buffers.remove(dev_id)
-            self.device_modes.pop(dev_id, None)
-            if self.active_device_id == dev_id:
-                self.active_device_id = None
+    def _switch_mode(self, dev_id, mode):
+        modes = self.GS.mixed_device_modes.get(dev_id, {"internal"})
+        if mode in modes and len(modes) > 1:
+            modes.remove(mode)
         else:
-            # Gerät ist nicht aktiv → auswählen
-            self.GS.mixed_selected_buffers.add(dev_id)
-            self.device_modes.setdefault(dev_id, {"internal"})
-            self.active_device_id = dev_id
-    
-        self.rebuild_device_list()
-
-    def toggle_mixed_device(self, dev_id):
-        """Gerät für Mittelwertberechnung aktivieren/deaktivieren"""
-        dev_id = str(dev_id)
-        if dev_id in self.GS.mixed_selected_buffers:
-            self.GS.mixed_selected_buffers.remove(dev_id)
-            self.device_modes.pop(dev_id, None)
-        else:
-            self.GS.mixed_selected_buffers.add(dev_id)
-            self.device_modes.setdefault(dev_id, {"internal"})
-
-    def toggle_device_mode(self, dev_id, mode, state):
-        """Internal/External Modus toggeln (mindestens eins muss aktiv sein)"""
-        dev_id = str(dev_id)
-        modes = self.device_modes.get(dev_id, {"internal"})
-        if not isinstance(modes, set):
-            modes = {modes}
-    
-        if state == "down":
             modes.add(mode)
-            # Gerät automatisch für Mixed markieren
-            self.GS.mixed_selected_buffers.add(dev_id)
+        self.GS.mixed_device_modes[dev_id] = modes
+        self.rebuild_selector()
+
+    def _toggle_dev(self, dev_id):
+        if dev_id in self.GS.mixed_selected_buffers:
+            self.GS.mixed_selected_buffers.remove(dev_id)
+            if dev_id in self.GS.mixed_device_modes: del self.GS.mixed_device_modes[dev_id]
         else:
-            if len(modes) == 1 and mode in modes:
-                # ❌ Minimum 1 Modus bleibt aktiv → nicht entfernen
-                pass  # nichts tun
-            else:
-                modes.discard(mode)
-    
-        self.device_modes[dev_id] = modes
-    
-        # 🔹 UI sofort korrigieren: Buttons anpassen
-        self.rebuild_device_list()  # dadurch werden Buttons korrekt gesetzt
-    
-        self.update_values()
+            self.GS.mixed_selected_buffers.add(dev_id)
+            self.GS.mixed_device_modes[dev_id] = {"internal"} # Default
+        self.rebuild_selector()
 
-    # ─────────────────────────────
-    # DATEN-HELPER
-    # ─────────────────────────────
-    def _get_latest_frame(self, dev_id):
-        from dashboard_gui.data_buffer import BUFFER
-        data = BUFFER.get() or []
-        for frame in reversed(data):
-            if str(frame.get("device_id")) == str(dev_id):
-                return frame
-        return None
-
-    def _has_external(self, frame):
-        for ch_name in ("adv", "gatt"):
-            ch = frame.get(ch_name)
-            if isinstance(ch, dict) and ch.get("external") and ch["external"].get("present"):
-                return True
-        return False
-
-    def calc_vpd(self, temp, hum):
-        """VPD in kPa berechnen aus Temp (°C) und Hum (%)"""
-        es = 0.6108 * math.exp((17.27*temp)/(temp+237.3))
-        ea = es * hum/100
-        return es - ea
-
-    # ─────────────────────────────
-    # UPDATE VALUES
-    # ─────────────────────────────
-    def update_values(self):
-        from dashboard_gui.data_buffer import BUFFER
-        import core
-    
-        # 1. Auswahl validieren
-        def norm_id(dev):
-            return str(dev.decode("utf-8")) if isinstance(dev, bytes) else str(dev)
-    
-        selected = {norm_id(x) for x in self.GS.mixed_selected_buffers}
+    def update_from_global(self, d):
+        """Wird vom GSM Tick aufgerufen"""
+        self.header.update_from_global(d)
         
-        # --- SOFORT-STOPP WENN NICHTS GEWÄHLT ---
-        if not selected:
-            self.lbl_avg_temp.text = "[color=ff3333]Kein Sensor aktiv[/color]"
-            self.lbl_avg_hum.text = ""
-            self.lbl_avg_vpd.text = ""
-            self.lbl_avg_dew.text = ""
-            self.status_label.text = "Schnitt aus 0 Geräten" # Direkt auf 0 setzen
-            self.details_list_body.clear_widgets()
-            
-            # mixed.json sofort leeren
-            try:
-                mixed_path = os.path.join("data", "mixed.json")
-                with open(mixed_path, "w", encoding="utf-8") as f:
-                    json.dump([], f)
-            except:
-                pass
-            return 
-        # ----------------------------------------
+        # 1. Mittelwerte direkt aus dem GSM Buffer holen
+        def get_avg(key, unit):
+            buf = self.GS.get_graph_data(f"mixed_avg_{key}")
+            if buf:
+                icon = self.GS.get_trend_icon(f"mixed_avg_{key}")
+                return f"[font=FA]{icon}[/font] {buf[-1]:.2f}{unit}"
+            return f"-- {unit}"
 
+        self.lbl_temp.text = get_avg("temp", "°C")
+        self.lbl_hum.text  = get_avg("hum", "%")
+        self.lbl_vpd.text  = get_avg("vpd", "kPa")
+        self.lbl_dew.text  = get_avg("dew", "°C")
+
+        # 2. Details alle 2 Sek
+        if not hasattr(self, "_last_list") or time.time() - self._last_list > 2:
+            self._update_details()
+            self._last_list = time.time()
+
+    def _update_details(self):
+        self.details_list.clear_widgets()
+        from dashboard_gui.data_buffer import BUFFER
+        
         data = BUFFER.get() or []
-        sensor_values = {}
-        averaging_map = {"temp": [], "hum": [], "vpd": [], "dew": []}
-    
+        selected = self.GS.mixed_selected_buffers
+        
+        # Wir sammeln die Daten pro Gerät (ähnlich der alten Logik)
         for frame in data:
-            dev_id = norm_id(frame.get("device_id"))
+            dev_id = str(frame.get("device_id"))
             if dev_id not in selected:
                 continue
-            
-            # Initialisiere Gerät in der Map, falls noch nicht geschehen
-            if dev_id not in sensor_values:
-                sensor_values[dev_id] = {"temp": [], "hum": [], "vpd": [], "dew": []}
-            
-            active_modes = self.device_modes.get(dev_id, {"internal"})
-            if not isinstance(active_modes, set):
-                active_modes = {active_modes}
-    
-            for ch_name in ("adv", "gatt"):
-                ch = frame.get(ch_name)
-                if not isinstance(ch, dict): continue
-    
-                for mode in active_modes:
-                    vals = ch.get(mode)
-                    if not isinstance(vals, dict): continue
-    
-                    # Temperature
-                    temp_obj = vals.get("temperature")
-                    if temp_obj and temp_obj.get("value") is not None:
-                        v, u = float(temp_obj["value"]), temp_obj.get("unit", "°C")
-                        sensor_values[dev_id]["temp"].append((v, u))
-                        averaging_map["temp"].append((v, u))
-    
-                    # Humidity
-                    hum_obj = vals.get("humidity")
-                    if hum_obj and hum_obj.get("value") is not None:
-                        v = float(hum_obj["value"])
-                        sensor_values[dev_id]["hum"].append(v)
-                        averaging_map["hum"].append(v)
 
-                    # Dew Point
-                    dp_key = "dew_point_internal" if mode == "internal" else "dew_point_external"
-                    dp_obj = ch.get(dp_key)
-                    if isinstance(dp_obj, dict) and dp_obj.get("value") is not None:
-                        v, u = float(dp_obj["value"]), dp_obj.get("unit", "°C")
-                        sensor_values[dev_id]["dew"].append((v, u))
-                        averaging_map["dew"].append((v, u))
-
-                    # VPD
-                    vpd_key = "vpd_internal" if mode == "internal" else "vpd_external"
-                    vpd_obj = ch.get(vpd_key)
-                    if isinstance(vpd_obj, dict) and vpd_obj.get("value") is not None:
-                        v = float(vpd_obj["value"])
-                        sensor_values[dev_id]["vpd"].append(v)
-                        averaging_map["vpd"].append(v)
-    
-        # Details UI Update
-        self.details_list_body.clear_widgets()
-        self.details_list_body.spacing = dp_scaled(20) 
-
-        for dev_id, vals in sensor_values.items():
             name = self.GS.get_device_label(dev_id)
+            active_modes = self.GS.mixed_device_modes.get(dev_id, {"internal"})
+            
+            # Werte-Extraktion
+            temp_list = []
+            hum_list = []
+            vpd_list = []
+
+            for ch_name in ("adv", "gatt"):
+                ch = frame.get(ch_name, {})
+                for mode in active_modes:
+                    m_data = ch.get(mode, {})
+                    t = m_data.get("temperature", {}).get("value")
+                    h = m_data.get("humidity", {}).get("value")
+                    # VPD Key Logik (vpd_internal oder vpd_external)
+                    v = ch.get(f"vpd_{mode}", {}).get("value")
+                    
+                    if t is not None: temp_list.append(float(t))
+                    if h is not None: hum_list.append(float(h))
+                    if v is not None: vpd_list.append(float(v))
+
+            # UI Karte erstellen (85dp hoch wie im Original)
             dev_card = BoxLayout(orientation="vertical", size_hint_y=None, height=dp_scaled(85))
             
+            # Zeile 1: Name mit Icon
             lbl_name = Label(
                 text=f"[font=FA]\uf2c7[/font]  [b]{name}[/b]",
                 markup=True, font_size=sp_scaled(26), color=(0.2, 1, 0.6, 1),
@@ -424,120 +198,37 @@ class SensorMixedModeScreen(Screen):
             )
             lbl_name.bind(size=lambda s, w: setattr(s, 'text_size', (w[0], None)))
             
+            # Zeile 2: Werte-String zusammenbauen
             parts = []
-            if vals["temp"]:
-                avg_t = sum(x[0] for x in vals["temp"])/len(vals["temp"])
-                parts.append(f"T: {avg_t:.1f}°C")
-            if vals["hum"]:
-                parts.append(f"H: {sum(vals['hum'])/len(vals['hum']):.1f}%")
-            if vals["vpd"]:
-                parts.append(f"V: {sum(vals['vpd'])/len(vals['vpd']):.2f}kPa")
+            if temp_list: parts.append(f"T: {sum(temp_list)/len(temp_list):.1f}°C")
+            if hum_list:  parts.append(f"H: {sum(hum_list)/len(hum_list):.1f}%")
+            if vpd_list:  parts.append(f"V: {sum(vpd_list)/len(vpd_list):.2f}kPa")
             
             lbl_vals = Label(
-                text=" | ".join(parts), font_size=sp_scaled(24),
-                color=(0.8, 0.8, 0.8, 1), halign="left", valign="top", size_hint_y=0.5
+                text=" | ".join(parts) if parts else "Warte auf Daten...",
+                font_size=sp_scaled(24), color=(0.8, 0.8, 0.8, 1),
+                halign="left", valign="top", size_hint_y=0.5
             )
             lbl_vals.bind(size=lambda s, w: setattr(s, 'text_size', (w[0], None)))
             
             dev_card.add_widget(lbl_name)
             dev_card.add_widget(lbl_vals)
 
+            # Trennlinie zeichnen (Canvas)
             with dev_card.canvas.after:
                 Color(1, 1, 1, 0.15)
-                Line(points=[dev_card.x, dev_card.y - dp_scaled(10), 
-                             dev_card.x + self.left_column.width * 0.9, dev_card.y - dp_scaled(10)], width=1)
-            self.details_list_body.add_widget(dev_card)
-
-        # ─────────────────────────────────────────────────
-        # DURCHSCHNITTSWERTE & TRENDS (SYNC MIT GSM)
-        # ─────────────────────────────────────────────────
-        
-        # 1. TEMPERATUR
-        avg_temp_val = None
-        if averaging_map["temp"]:
-            avg_temp_val = sum(x[0] for x in averaging_map["temp"]) / len(averaging_map["temp"])
-            # Wert an GSM senden & Icon mit Markup holen
-            GLOBAL_STATE.process_new_value("mixed_avg_temp", avg_temp_val)
-            trend_icon = f"[font=FA]{GLOBAL_STATE.get_trend_icon('mixed_avg_temp')}[/font]"
+                Line(points=[dev_card.x, dev_card.y, 
+                             dev_card.x + self.left_col.width * 0.9, dev_card.y], width=1)
             
-            self.lbl_avg_temp.text = f"{trend_icon} {avg_temp_val:.2f} °C"
-            self._avg_graph_temp.append(avg_temp_val)
-            if len(self._avg_graph_temp) > self._avg_graph_len: self._avg_graph_temp.pop(0)
-        else:
-            self.lbl_avg_temp.text = "-- °C"
-        
-        # 2. FEUCHTIGKEIT
-        avg_hum_val = None
-        if averaging_map["hum"]:
-            avg_hum_val = sum(averaging_map["hum"]) / len(averaging_map["hum"])
-            # Wert an GSM senden & Icon mit Markup holen
-            GLOBAL_STATE.process_new_value("mixed_avg_hum", avg_hum_val)
-            trend_icon = f"[font=FA]{GLOBAL_STATE.get_trend_icon('mixed_avg_hum')}[/font]"
-            
-            self.lbl_avg_hum.text = f"{trend_icon} {avg_hum_val:.2f} %"
-        else:
-            self.lbl_avg_hum.text = "-- %"
+            self.details_list.add_widget(dev_card)
 
-        # 3. VPD
-        avg_vpd_val = None
-        if averaging_map["vpd"]:
-            avg_vpd_val = sum(averaging_map["vpd"]) / len(averaging_map["vpd"])
-            # Wert an GSM senden & Icon mit Markup holen
-            GLOBAL_STATE.process_new_value("mixed_avg_vpd", avg_vpd_val)
-            trend_icon = f"[font=FA]{GLOBAL_STATE.get_trend_icon('mixed_avg_vpd')}[/font]"
-            
-            self.lbl_avg_vpd.text = f"{trend_icon} {avg_vpd_val:.2f} kPa"
-        else:
-            self.lbl_avg_vpd.text = "-- kPa"
-
-        # 4. TAUPUNKT (DEW POINT)
-        avg_dew_val = None
-        if averaging_map["dew"]:
-            avg_dew_val = sum(x[0] for x in averaging_map["dew"]) / len(averaging_map["dew"])
-            # Wert an GSM senden & Icon mit Markup holen
-            GLOBAL_STATE.process_new_value("mixed_avg_dew", avg_dew_val)
-            trend_icon = f"[font=FA]{GLOBAL_STATE.get_trend_icon('mixed_avg_dew')}[/font]"
-            
-            self.lbl_avg_dew.text = f"{trend_icon} {avg_dew_val:.2f} °C"
-        else:
-            self.lbl_avg_dew.text = "-- °C"
-
-        # mixed.json Update
-        mixed_path = os.path.join("data", "mixed.json")
-        try:
-            if sensor_values and avg_temp_val is not None:
-                json_data = [{
-                    "timestamp": datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%f%z"),
-                    "name": "MixedSensor", "address": "MIXED-AVG", "note": "mixed",
-                    "avg_temp": avg_temp_val, "avg_hum": avg_hum_val,
-                    "avg_vpd": avg_vpd_val, "avg_dew": avg_dew_val,
-                    "devices": list(sensor_values.keys())
-                }]
-                with open(mixed_path, "w", encoding="utf-8") as f:
-                    json.dump(json_data, f, ensure_ascii=False, indent=2)
-            else:
-                with open(mixed_path, "w", encoding="utf-8") as f:
-                    json.dump([], f)
-        except:
-            pass
-
-        # Hier ist die Korrektur für das Status Label: 
-        # Es zählt nur die Geräte, die wirklich DATEN geliefert haben UND selektiert sind.
-        self.status_label.text = f"Schnitt aus {len(sensor_values)} Geräten"
-        self._draw_avg_temp_bg()
-
-    # ─────────────────────────────
-    # REFRESH / GLOBAL UPDATE
-    # ─────────────────────────────
-    def refresh_after_config(self):
-        valid = set(self.GS.get_device_list())
-        self.GS.mixed_selected_buffers &= valid
-        self.rebuild_device_list()
-
-    def on_pre_enter(self, *_):
-        self.rebuild_device_list()
-
-    def update_from_global(self, d):
-        if hasattr(self, "header"):
-            self.header.update_from_global(d)
-        self.update_values()
+    def _has_external(self, frame):
+        """Prüft im Datenframe, ob ein externer Sensor vorhanden ist."""
+        for ch_name in ("adv", "gatt"):
+            ch = frame.get(ch_name)
+            if isinstance(ch, dict) and ch.get("external") and ch["external"].get("present"):
+                return True
+        return False
+    def reset_from_global(self):
+        self.lbl_temp.text = "--"
+        self.details_list.clear_widgets()

@@ -149,64 +149,31 @@ class ChartTile(ButtonBehavior, BoxLayout):
     # -------------------------------------------------
     # UPDATE
     # -------------------------------------------------
-    # -------------------------------------------------
-    # TILE-COMPATIBLE UPDATE
-    # -------------------------------------------------
-    def update(self, value, buf_key, stream=None, render=False):
-        if value is None:
-            return
+    def update(self, value, buf_key, render=False):
+        # 1. Daten an den GSM senden (Zentrale Speicherung)
+        GLOBAL_STATE.process_new_value(buf_key, value)
 
-        # 1. Wert validieren und umwandeln
-        try:
-            v = float(value)
-        except:
-            return
-
-        # 2. DEM GSM BESCHEID GEBEN (Hier lag der Fehler!)
-        # Wir rufen die Logik im GLOBAL_STATE auf, nicht im Tile selbst!
-        GLOBAL_STATE.process_new_value(buf_key, v)
-
-        # 3. Buffer initialisieren
-        if buf_key not in self.buffers:
-            self.buffers[buf_key] = []
-        buf = self.buffers[buf_key]
-
-        # 4. Glättung
-        if not buf:
-            smoothed = v
-        else:
-            # Wir prüfen, ob der letzte Wert ein Dict oder Float ist
-            last_val = buf[-1]["value"] if isinstance(buf[-1], dict) else buf[-1]
-            smoothed = last_val * (1 - self.smoothing) + v * self.smoothing
-
-        # 5. Buffer füllen
-        buf.append(smoothed)
-        if len(buf) > self.window:
-            buf.pop(0)
-
-        # 6. Anzeige (Render)
         if render:
-            # Hol dir das nackte Icon vom GSM
-            icon_code = GLOBAL_STATE.get_trend_icon(buf_key)
-            self.lbl_trend.text = icon_code
+            # 2. Daten für die Anzeige wieder vom GSM holen
+            history = GLOBAL_STATE.get_graph_data(buf_key)
             
-            # Debug-Print (Optional: Löschen wenn es läuft)
-            # print(f"DEBUG: Key {buf_key} zeigt Icon {hex(ord(icon_code))}")
+            # Icon vom GSM holen
+            self.lbl_trend.text = GLOBAL_STATE.get_trend_icon(buf_key)
             
-            display_value = smoothed
-            if self.base_unit == "°C" and self.unit == "°F":
-                display_value = (smoothed * 9 / 5) + 32
-
-            self.lbl_value.text = f"{display_value:.2f} {self.unit}"
-            self.lbl_value.color = (*self.color[:3], 1.0)
-            self._render_buffer(buf)
+            # Wert anzeigen
+            if history:
+                current_val = history[-1]
+                self.lbl_value.text = f"{current_val:.2f} {self.unit}"
+                self._render_buffer(history)
 
     def _render_buffer(self, buf):
+        # 1. Punkte für den Plot erstellen
         pts = [(i, val) for i, val in enumerate(buf)]
         self.plot.points = pts
         self.plot_glow.points = pts
     
-        if len(buf) > 1:
+        # 2. Y-Achse (Höhe) automatisch anpassen
+        if len(buf) > 0:
             mn = min(buf)
             mx = max(buf)
             if mn == mx:
@@ -216,19 +183,25 @@ class ChartTile(ButtonBehavior, BoxLayout):
             self.graph.ymin = mn - margin
             self.graph.ymax = mx + margin
     
-        self.graph.xmax = max(self.window, len(buf))
+        # 3. X-Achse (Breite) - DAS IST DIE ÄNDERUNG:
+        # Wenn wir weniger Daten haben als ins Fenster passen, 
+        # setzen wir xmax auf die aktuelle Anzahl (mindestens 1).
+        # Sobald wir mehr haben, bleibt xmax beim eingestellten "window".
+        if len(buf) < self.window:
+            # Graph füllt sich von links nach rechts
+            self.graph.xmax = max(1, len(buf) - 1)
+        else:
+            # Fenster ist voll, Graph fängt an zu laufen/stauchen
+            self.graph.xmax = self.window - 1
     
-        # Footer
+        # 4. Footer-Texte (Durchschnitt/Min/Max)
         if len(buf) > 1:
             avg_v = sum(buf) / len(buf)
-            mn = min(buf)
-            mx = max(buf)
             self.lbl_avg.text = f"avg: {avg_v:.2f}"
             self.lbl_minmax.text = f"min: {mn:.2f}  max: {mx:.2f}"
         else:
             self.lbl_avg.text = "avg: --"
             self.lbl_minmax.text = ""
-
     # -------------------------------------------------
     # RESET
     # -------------------------------------------------

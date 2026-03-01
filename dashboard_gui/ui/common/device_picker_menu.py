@@ -128,60 +128,44 @@ class DevicePickerMenu(FloatLayout):
     def _add_channel_buttons(self, device_list, cfg):
         from dashboard_gui.global_state_manager import GLOBAL_STATE
     
-        # -----------------------------
-        # ADV Button
-        # -----------------------------
+        # --- ADV Button ---
         b_adv = Button(
             text=f"[font=FA]\uf1eb[/font]  ADV channel",
             font_size=sp_scaled(20),
             markup=True,
             size_hint_y=None,
             height=dp_scaled(50),
-        
             background_color=(0.20, 0.30, 0.25, 0.55),
             color=(0.95, 0.95, 0.98, 1),
-        
             halign="left",
             valign="middle",
-            padding=(dp_scaled(14), 0),
-            text_size=(self.panel_width, None),
+            padding=(dp_scaled(15), 0)
         )
-        def activate_adv():
-            GLOBAL_STATE.set_active_channel("adv")
-            self.close()
-        
-        b_adv.bind(on_release=lambda *_: activate_adv())
+        b_adv.bind(size=lambda instance, value: setattr(instance, 'text_size', (instance.width, None)))
+        b_adv.bind(on_release=lambda *_: (GLOBAL_STATE.set_active_channel("adv"), self.close()))
         self.panel_content.add_widget(b_adv)
 
-    
-        # -----------------------------
-        # GATT Button
-        # -----------------------------
+        # --- GATT Button ---
         b_gatt = Button(
             text=f"[font=FA]\uf0c1[/font]  GATT channel",
             font_size=sp_scaled(20),
             markup=True,
             size_hint_y=None,
             height=dp_scaled(50),
-        
             background_color=(0.25, 0.20, 0.30, 0.55),
             color=(0.95, 0.95, 0.98, 1),
-        
             halign="left",
             valign="middle",
-            padding=(dp_scaled(14), 0),
-            text_size=(self.panel_width, None),
+            padding=(dp_scaled(15), 0)
         )
+        b_gatt.bind(size=lambda instance, value: setattr(instance, 'text_size', (instance.width, None)))
+        
         def activate_gatt():
-            idx = self._current_idx if self._current_idx is not None else 0
-            device_id = device_list[idx]
             GLOBAL_STATE.set_active_channel("gatt")
             self.close()
     
         b_gatt.bind(on_release=lambda *_: activate_gatt())
         self.panel_content.add_widget(b_gatt)
-
-
     # -----------------------------
     # Menü schließen
     # -----------------------------

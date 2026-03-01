@@ -47,14 +47,14 @@ class DashboardScreen(Screen):
             size=lambda *_: setattr(self.bg_rect, "size", self.root_layout.size)
         )
         self.add_widget(self.root_layout)
-
+        # IDIOTENSICHERER PFAD-CACHE
+        self._bg_path_1 = os.path.join(ASSET_ROOT, "background.png")
+        self._bg_path_2 = os.path.join(ASSET_ROOT, "background2.png")
         # Global State registrieren
         GLOBAL_STATE.attach_dashboard(self)
 
         # HEADER
         self.header = HeaderBar()
-        self.header.size_hint_y = None
-        self.header.height = dp(45)
         self.root_layout.add_widget(self.header)
 
         # MAIN PANEL
@@ -67,6 +67,9 @@ class DashboardScreen(Screen):
             on_stop=lambda *_: GLOBAL_STATE.stop(),
             on_reset=lambda *_: GLOBAL_STATE.reset()
         )
+        self.controls.size_hint = (1, None)
+        self.controls.height = dp_scaled(40)
+        self.controls.pos_hint = {'y': 0}
         self.root_layout.add_widget(self.controls)
 
         # Tile-Reihenfolge
@@ -107,23 +110,22 @@ class DashboardScreen(Screen):
     # GLOBAL TICK → Dashboard Update
     # -----------------------------------------------------
     def update_from_global(self, d):
-    
-        # Frame für Header speichern (Signal-Overlay / Debug Info)
-    
         self.header.update_from_global(d)
         self.content.update_from_data(d)
     
-        # Hintergrund-Wechsel Logik (analog zum alten Panel Code)
-        if self.content.get_active_tile_keys():
-            new_bg = os.path.join(ASSET_ROOT, "background2.png")
-        else:
-            new_bg = os.path.join(ASSET_ROOT, "background.png")
+        # --- OPTIMIERTE HINTERGRUND-LOGIK ---
+        # 1. Prüfen: Sind gerade Tiles aktiv?
+        is_active = len(self.content.get_active_tile_keys()) > 0
+        
+        # 2. Ziel-Pfad bestimmen
+        target_bg = self._bg_path_2 if is_active else self._bg_path_1
     
-        if self.bg_rect.source != new_bg:
-            self.bg_rect.source = new_bg
+        # 3. NUR WECHSELN, wenn sich der Pfad geändert hat
+        if self.bg_rect.source != target_bg:
+            self.bg_rect.source = target_bg
+        # ------------------------------------
     
-        # PANELS / TILES
-        self.content.update_from_data(d)
+
     # -----------------------------------------------------
     # GLOBAL RESET
     # -----------------------------------------------------

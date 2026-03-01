@@ -52,8 +52,9 @@ class GlobalStateManager:
         self._trend_buffers = {}
         self.global_trends = {}
         # Global Tick
-        Clock.schedule_interval(self._global_update, 0.5)
-
+        # Statt 0.5 nehmen wir den Wert aus der Config
+        self._main_tick = Clock.schedule_interval(self._global_update, config.get_refresh_interval())
+        self.graph_buffers = {} # Hier speichern wir die Historie: { "MAC_temp_in": [22.1, 22.2, ...] }
 
 
     def set_active_channel(self, channel):
@@ -210,39 +211,42 @@ class GlobalStateManager:
 # ---------------------------------------------------------
     # ZENTRALE TREND-FABRIK (Der Drift-Killer)
     # ---------------------------------------------------------
+
     def process_new_value(self, key, value):
         if value is None: return
         
-        if key not in self._trend_buffers:
-            self._trend_buffers[key] = []
-        
-        buf = self._trend_buffers[key]
-        
         try:
-            v = float(value)
-            buf.append(v)
-        except:
-            return
-
-        # SYNC: Wir nutzen exakt das Fenster aus der Config
-        if len(buf) > self.trend_window:
-            buf.pop(0)
+            val_float = float(value)
             
-        # Die Logik nutzt jetzt die vollen 120 Werte für den Vergleich
-        if len(buf) < 10: # Mindestmenge für Start
-            self.global_trends[key] = 0
-            return
-
-        # Vergleich: Jetzt über das gesamte 120er Fenster!
-        diff = buf[-1] - buf[0]
-        threshold = max(0.01, abs(buf[0]) * 0.002)
-
-        if diff > threshold:
-            self.global_trends[key] = 1
-        elif diff < -threshold:
-            self.global_trends[key] = -1
-        else:
-            self.global_trends[key] = 0
+            # 1. Trend-Buffer (für die Pfeile)
+            if key not in self._trend_buffers: 
+                self._trend_buffers[key] = []
+            
+            t_buf = self._trend_buffers[key]
+            t_buf.append(val_float)
+            
+            if len(t_buf) > self.trend_window: 
+                t_buf.pop(0)
+            
+            # 2. NEU: Graphen-Historie für alle Screens speichern
+            if key not in self.graph_buffers:
+                self.graph_buffers[key] = []
+            
+            g_buf = self.graph_buffers[key]
+            g_buf.append(val_float)
+            
+            if len(g_buf) > self.max_history:
+                g_buf.pop(0)
+                
+            # 3. Trend berechnen (Nutzt jetzt den korrekten Namen der Funktion!)
+            # Wir speichern das Ergebnis direkt in global_trends
+            self.global_trends[key] = self._calculate_trend_logic(t_buf)
+            
+        except Exception as e:
+            print(f"[GSM] Error in process_new_value: {e}")
+    def get_graph_data(self, key):
+        """Liefert die Historie für einen Screen (z.B. Fullscreen)"""
+        return self.graph_buffers.get(key, [])
 
     def _calculate_trend_logic(self, buf):
         """Die mathematische Wahrheit - nur hier wird entschieden!"""
@@ -268,6 +272,26 @@ class GlobalStateManager:
         # NUR der nackte Hex-Code, KEIN Markup hier!
         icons = {-1: "\uf063", 1: "\uf062", 0: "\uf061"}
         return icons[val]
+
+    # ---------------------------------------------------------
+    # UNIT RESOLVER (für Tiles + Fullscreen)
+    # ---------------------------------------------------------
+    def get_unit(self, key):
+        temp_unit = getattr(self, "temp_unit", "°C")
+        units = {
+            "temp_in": temp_unit,
+            "temp_ex": temp_unit,
+            "hum_in": "%",
+            "hum_ex": "%",
+            "vpd_in": "kPa",
+            "vpd_ex": "kPa",
+            "rssi": "dBm"
+        }
+        return units.get(key, "")
+
+    def toggle_temp_unit(self):
+        self.temp_unit = "°F" if getattr(self, "temp_unit", "°C") == "°C" else "°C"
+        
     def attach_fullscreen(self, scr):
         self.fullscreen_ref = scr
 
@@ -339,7 +363,7 @@ class GlobalStateManager:
         self._push_led()
 
     # ---------------------------------------------------------
-    # Drei-Gestirn
+    # Drei-Gestirn (Start / Stop / Reset)
     # ---------------------------------------------------------
     def start(self):
         print("[STATE] START")
@@ -350,29 +374,69 @@ class GlobalStateManager:
     def stop(self):
         print("[STATE] STOP")
         self.running = False
+        # Wir halten den Puls an
         self._led_offline()
         self._last_counter = None
         self._refresh_all_buttons()
 
     def reset(self):
-        print("[STATE] RESET")
+        print("[STATE] RESET - Cleaning all buffers and histories")
+        
+        # 1. Hardware & Counter Status zurücksetzen
         self._led_offline()
         self._last_counter = None
-        self._refresh_all_buttons()
-    
-        # --- NEU: TREND-GEDÄCHTNIS LÖSCHEN ---
+        self._last_raw = None
+        self._flow_hold = False
+        
+        # 2. Daten-Buffer & Graphen-Historie komplett leeren
+        # Wir überschreiben die Dicts, damit keine alten Datenreste bleiben
+        self.graph_buffers = {} 
+        self.rssi_history = {} 
+        
+        # 3. Trend-Gedächtnis & Logik löschen
         self._trend_buffers = {}
         self.global_trends = {}
-        self.rssi_history = {}  # dev_id -> [werte]
-        print("[GSM] Trend-Buffers and Global-Trends cleared.")
-        # -------------------------------------
+        
+        # 4. Den Hardware/Eingangs-Buffer (BUFFER) leeren
+        try:
+            # Falls BUFFER (data_buffer.py) eine clear-Methode hat
+            BUFFER.clear() 
+        except AttributeError:
+            # Falls keine .clear() vorhanden ist, versuchen wir den internen state zu nullen
+            # (Hängt von deiner Implementierung in data_buffer.py ab)
+            pass
 
+        print("[GSM] Internal buffers cleared.")
+
+        # 5. UI-REFS INFORMIEREN (Reihenfolge wichtig: Erst Daten weg, dann UI Refresh)
+        # Dashboard zuerst, da es meist die Basis-Tiles hält
         if self.dashboard_ref:
-            self.dashboard_ref.reset_from_global()
+            try:
+                self.dashboard_ref.reset_from_global()
+            except Exception as e:
+                print(f"[GSM] Dashboard reset failed: {e}")
+
+        # Fullscreen (Wichtig wegen dem Crash-Schutz bei leeren Graphen)
         if self.fullscreen_ref:
-            self.fullscreen_ref.reset_from_global()
+            try:
+                self.fullscreen_ref.reset_from_global()
+            except Exception as e:
+                print(f"[GSM] Fullscreen reset failed: {e}")
+
+        # VPD Scatter
         if self.vpd_scatter_ref:
-            self.vpd_scatter_ref.reset_from_global()
+            try:
+                self.vpd_scatter_ref.reset_from_global()
+            except Exception as e:
+                print(f"[GSM] VPD Scatter reset failed: {e}")
+
+        # 6. Alle Buttons im System (Start/Stop) synchronisieren
+        self._refresh_all_buttons()
+        
+        print("[GSM] Global Reset complete.")
+
+    def bind_screen_manager(self, sm):
+        self.screen_manager = sm
     # ---------------------------------------------------------
     # GLOBAL TICK
     # ---------------------------------------------------------
@@ -386,7 +450,9 @@ class GlobalStateManager:
         if not data or not isinstance(data, list):
             self._led_nodata()
             return
-    
+        # 🔥 NEU: Wenn Mixed Mode aktiv ist, berechne die Mittelwerte global
+        if self.mixed_mode_active:
+            self._update_mixed_logic(data)
         # aktives Gerät clampen
         idx = min(self.active_index, len(data)-1)
         d = data[idx]
@@ -396,7 +462,21 @@ class GlobalStateManager:
         ch = d.get(ch_name)                     # der gewählte Stream
         dev_id = d.get("device_id")
         
+        # --- DIESER BLOCK FEHLT FÜR DEN GRAPHEN ---
+        # Wir holen die aktuellen Werte und füttern die Historie
+        metrics = {
+            "temp_in": ch.get("internal", {}).get("temperature", {}).get("value"),
+            "hum_in":  ch.get("internal", {}).get("humidity", {}).get("value"),
+            "vpd_in":  ch.get("vpd_internal", {}).get("value"),
+            "temp_ex": ch.get("external", {}).get("temperature", {}).get("value"),
+            "hum_ex":  ch.get("external", {}).get("humidity", {}).get("value"),
+            "vpd_ex":  ch.get("vpd_external", {}).get("value"),
+        }
 
+        for m_name, m_val in metrics.items():
+            if m_val is not None:
+                key = f"{dev_id}_{ch_name}_{m_name}"
+                self.process_new_value(key, m_val)
         # MAC flatten
         mac = _extract_mac(d.get("device_id"))
         d["device_id"] = mac
@@ -415,21 +495,20 @@ class GlobalStateManager:
         # RSSI extrahieren und GERÄTESPEZIFISCH speichern
         try:
             current_rssi = d.get("health", {}).get("signal", {}).get("rssi")
-            # Im GSM (_global_update)
             if current_rssi is not None and dev_id:
-                if not isinstance(self.rssi_history, dict): # Not-Anker falls doch noch []
+                # Sicherstellen, dass rssi_history ein Dict ist
+                if not isinstance(self.rssi_history, dict):
                     self.rssi_history = {}
-            
+        
+                # Device-Eintrag anlegen, falls nicht existent
                 if dev_id not in self.rssi_history:
                     self.rssi_history[dev_id] = []
-            
-                self.rssi_history[dev_id].append(float(current_rssi))
-                if len(self.rssi_history[dev_id]) > self.max_history:
-                    self.rssi_history[dev_id].pop(0)
-                
+        
+                # Wert einfügen
                 hist = self.rssi_history[dev_id]
                 hist.append(float(current_rssi))
-                
+        
+                # Länge begrenzen
                 if len(hist) > self.max_history:
                     hist.pop(0)
         except:
@@ -501,30 +580,14 @@ class GlobalStateManager:
             "_active_keys": d["_active_keys"],
         }
     
-        if self.dashboard_ref:
-            self.dashboard_ref.update_from_global(out)
-        if self.fullscreen_ref:
-            self.fullscreen_ref.update_from_global(out)
-        if self.setup_ref:
-            self.setup_ref.update_from_global(out)
-        if self.about_ref:
-            self.about_ref.update_from_global(out)            
-        if self.settings_ref:
-            self.settings_ref.update_from_global(out) 
-        if self.vpd_scatter_ref:
-            self.vpd_scatter_ref.update_from_global(out)
-        if self.debug_ref:
-            self.debug_ref.update_from_global(out)            
-        if self.csv_viewer_ref:
-            self.csv_viewer_ref.update_from_global(out)
-        if self.cam_viewer_ref:
-            self.cam_viewer_ref.update_from_global(out)            
-        if self.device_picker_ref:
-            self.device_picker_ref.update_from_global(out)
-        if self.sensor_mixed_mode_ref:
-            self.sensor_mixed_mode_ref.update_from_global(out)
-        if self.grow_rooms_ref: # 🔥 NEU: GrowRooms update_from_global
-            self.grow_rooms_ref.update_from_global(out)
+        # 2. NUR den Screen updaten, den der User gerade sieht!
+        if hasattr(self, 'screen_manager'):
+            current_screen_name = self.screen_manager.current
+            current_screen_obj = self.screen_manager.get_screen(current_screen_name)
+            
+            # Hat der aktuelle Screen eine Update-Funktion? Dann feuer frei!
+            if hasattr(current_screen_obj, 'update_from_global'):
+                current_screen_obj.update_from_global(out)
     # ---------------------------------------------------------
     # Active Keys – MULTI-CHANNEL (adv + gatt, ohne Vorrang)
     # ---------------------------------------------------------
@@ -551,28 +614,6 @@ class GlobalStateManager:
                 active.add("vpd_in")
 
             # externe Werte
-            if external.get("present"):
-                if external.get("temperature", {}).get("value") is not None:
-                    active.add("temp_ex")
-                if external.get("humidity", {}).get("value") is not None:
-                    active.add("hum_ex")
-                if vpd_ext.get("value") is not None:
-                    active.add("vpd_ex")
-
-        # Fallback für ALTEN Single-Channel-Frame (falls mal nötig)
-        if not active and "internal" in d:
-            internal = d.get("internal", {})
-            external = d.get("external", {})
-            vpd_int = d.get("vpd_internal", {})
-            vpd_ext = d.get("vpd_external", {})
-
-            if internal.get("temperature", {}).get("value") is not None:
-                active.add("temp_in")
-            if internal.get("humidity", {}).get("value") is not None:
-                active.add("hum_in")
-            if vpd_int.get("value") is not None:
-                active.add("vpd_in")
-
             if external.get("present"):
                 if external.get("temperature", {}).get("value") is not None:
                     active.add("temp_ex")
@@ -649,21 +690,132 @@ class GlobalStateManager:
     def set_mixed_mode_for_device(self, dev_id, mode):
         self.mixed_device_modes[str(dev_id)] = mode
 
+# In der GlobalStateManager Klasse ergänzen:
+
+    def _update_mixed_logic(self, all_data):
+        """Berechnet die Mittelwerte für das gesamte System im Hintergrund."""
+        selected = self.mixed_selected_buffers
+        if not selected or not all_data:
+            self._write_mixed_json([]) # Leeren wenn nichts gewählt
+            return
+
+        averaging_map = {"temp": [], "hum": [], "vpd": [], "dew": []}
+        active_device_ids = []
+
+        for frame in all_data:
+            dev_id = str(frame.get("device_id"))
+            if dev_id not in selected:
+                continue
+            
+            # Welche Modi sind für dieses Gerät aktiv? (Internal/External)
+            active_modes = self.mixed_device_modes.get(dev_id, {"internal"})
+            
+            for ch_name in ("adv", "gatt"):
+                ch = frame.get(ch_name)
+                if not isinstance(ch, dict): continue
+
+                for mode in active_modes:
+                    vals = ch.get(mode)
+                    if not isinstance(vals, dict): continue
+
+                    # Werte sammeln
+                    t = vals.get("temperature", {}).get("value")
+                    h = vals.get("humidity", {}).get("value")
+                    if t is not None: averaging_map["temp"].append(float(t))
+                    if h is not None: averaging_map["hum"].append(float(h))
+
+                    # VPD & Dew Point
+                    v_key = f"vpd_{mode}"
+                    d_key = f"dew_point_{mode}"
+                    v = ch.get(v_key, {}).get("value")
+                    d = ch.get(d_key, {}).get("value")
+                    if v is not None: averaging_map["vpd"].append(float(v))
+                    if d is not None: averaging_map["dew"].append(float(d))
+            
+            active_device_ids.append(dev_id)
+        results = {}
+        has_real_data = False # Tracker, ob wir wirklich Zahlen haben
+
+        for key, vals in averaging_map.items():
+            if vals:
+                avg = sum(vals) / len(vals)
+                results[key] = avg
+                self.process_new_value(f"mixed_avg_{key}", avg)
+                has_real_data = True # Wir haben mindestens einen echten Mittelwert
+            else:
+                results[key] = None
+
+        # WICHTIG: Wenn keine echten Daten da sind, schreiben wir eine leere Liste
+        if not has_real_data:
+            self._write_mixed_json([]) 
+            return []
+
+        self._write_mixed_json(results, active_device_ids)
+        return results
+        # Mittelwerte berechnen
+        results = {}
+        for key, vals in averaging_map.items():
+            if vals:
+                avg = sum(vals) / len(vals)
+                results[key] = avg
+                # Trends direkt im GSM füttern!
+                self.process_new_value(f"mixed_avg_{key}", avg)
+            else:
+                results[key] = None
+
+        self._write_mixed_json(results, active_device_ids)
+        return results
+
+    def _write_mixed_json(self, results, device_ids=None):
+        import json, os
+        from datetime import datetime
+        path = os.path.join("data", "mixed.json")
+        
+        # Wenn results eine leere Liste oder None ist -> Datei leeren
+        if not results:
+            with open(path, "w") as f:
+                json.dump([], f) # Die Bridge sieht [], erkennt "keine Daten" und stoppt
+            return
+
+        # Hier schreiben wir nur, wenn wir sicher sind, dass wir Daten haben
+        json_data = [{
+            "timestamp": datetime.now().isoformat(),
+            "avg_temp": results.get("temp"),
+            "avg_hum": results.get("hum"),
+            "avg_vpd": results.get("vpd"),
+            "avg_dew": results.get("dew"),
+            "devices": device_ids
+        }]
+        
+        with open(path, "w") as f:
+            json.dump(json_data, f, indent=2)
+
     def refresh_config(self):
         import config
-        # Nur das, was der GSM für seinen Takt braucht:
+        from kivy.clock import Clock # Wichtig für den Motor-Neustart
+        
+        # 1. Fenster-Synchronisierung (hast du schon)
         self.trend_window = config.get_tile_graph_window()
         self.max_history = self.trend_window
         
-        # RSSI History sofort trimmen, falls Fenster kleiner wurde
-        if len(self.rssi_history) > self.max_history:
-            self.rssi_history = self.rssi_history[-self.max_history:]        
-        # Buffer trimmen für sofortigen Sync
+        # Buffer-Trimming (hast du schon)
         for key in self._trend_buffers:
             if len(self._trend_buffers[key]) > self.trend_window:
                 self._trend_buffers[key] = self._trend_buffers[key][-self.trend_window:]
         
-        print(f"[GSM] Trend-Window auf {self.trend_window} synchronisiert.")
+        # 2. 🔥 DER MOTOR-NEUSTART (Das fehlende Teil)
+        # Wir holen den neuen Wert vom Slider
+        new_interval = config.get_refresh_interval()
+        
+        # Wir stoppen den alten Tick (falls vorhanden)
+        if hasattr(self, "_main_tick"):
+            self._main_tick.cancel()
+            
+        # Wir starten den Tick neu mit der neuen Zeit
+        self._main_tick = Clock.schedule_interval(self._global_update, config.get_refresh_interval())        
+        print(f"[GSM] LIVE-SYNC: Fenster={self.trend_window}, Intervall={new_interval}s")
 
-
+    # Als Backup-Funktion, falls dein SettingsScreen genau diesen Namen sucht:
+    def refresh_global_tick(self):
+        self.refresh_config()
 GLOBAL_STATE = GlobalStateManager()
