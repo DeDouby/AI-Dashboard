@@ -130,23 +130,19 @@ class DashboardScreen(Screen):
     # GLOBAL RESET
     # -----------------------------------------------------
     def reset_from_global(self):
-        print("[DASHBOARD] Resetting…")
+        """ Sucht alle Graphen im Dashboard und macht sie leer. """
+        print("[DASHBOARD] Suche Tiles zum Resetten...")
 
-        # Tiles resetten
-        self.tile_temp_in.reset()
-        self.tile_hum_in.reset()
-        self.tile_vpd_in.reset()
+        # Wir gehen durch ALLE Widgets im Dashboard
+        for widget in self.walk():
+            # Wenn das Widget eine 'reset' Methode hat (wie deine ChartTiles), ruf sie auf!
+            if hasattr(widget, 'reset') and callable(widget.reset):
+                widget.reset()
 
-        self.tile_temp_ex.reset()
-        self.tile_hum_ex.reset()
-        self.tile_vpd_ex.reset()
-
-        # Header minimal
-        self.header.set_clock("--:--")
-        self.header.set_rssi(None)
-
-        # LED kommt vom GSM
-
+        # Header separat (da dieser meist kein ChartTile ist)
+        if hasattr(self, 'header'):
+            self.header.set_clock("--:--")
+            self.header.set_rssi(None)
 
     # -----------------------------------------------------
     # TILE → FULLSCREEN

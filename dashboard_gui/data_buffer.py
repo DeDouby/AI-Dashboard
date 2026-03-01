@@ -42,7 +42,19 @@ class DataBuffer:
         else:
             self.data_ok = False
             self.alive_flag = False
-
+    def clear(self):
+        """Leert den aktuellen Frame-Speicher komplett."""
+        self.data = None
+        self.data_ok = False
+        self.alive_flag = False
+        # Optional: Die Datei auf der Disk auch leeren, 
+        # damit beim Neustart kein 'Müll' geladen wird
+        if os.path.exists(self.path):
+            try:
+                with open(self.path, "w") as f:
+                    f.write("[]") 
+            except:
+                pass
     def get(self):
         return self.data
 

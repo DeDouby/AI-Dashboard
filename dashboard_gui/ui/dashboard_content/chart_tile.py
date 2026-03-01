@@ -21,19 +21,11 @@ class ChartTile(ButtonBehavior, BoxLayout):
             padding=dp_scaled(6),
             **kw
         )
-        self._last_unit = unit
+        # Wir speichern die initiale Unit nur noch als Fallback, 
+        # die echte Unit kommt jetzt aus der unit_map des GSM.
         self.title = title
-        self.unit = unit
         self.color = color_rgba
         self.window = config.get_tile_graph_window()
-        self.buffer = []
-        self._coord_buffers = {}  # NEU: für interne/externe Koordinaten
-        self.last_value = None
-        self.smoothing = 0.25
-
-        self._trend_results = {}       # Die fertigen Pfeile
-        # Multi-Device Buffers: device_id → eigener Verlauf
-        self.buffers = {}
 
         # -------------------------------------------------
         # BACKGROUND
@@ -51,7 +43,6 @@ class ChartTile(ButtonBehavior, BoxLayout):
                 self.bg_rect = Rectangle(pos=self.pos, size=self.size)
 
         self.bind(pos=self._upd_bg, size=self._upd_bg)
-        self.base_unit = unit   # z. B. "°C" oder "kPa"
 
         # -------------------------------------------------
         # HEADER (TITLE • TREND • VALUE)
@@ -104,7 +95,9 @@ class ChartTile(ButtonBehavior, BoxLayout):
             y_ticks_major=0, y_ticks_minor=0,
             x_grid_label=False, y_grid_label=False,
             draw_border=False,
-            padding=dp_scaled(4),
+            # Padding erhöhen: links, unten, rechts, oben
+            # dp_scaled(8) gibt der Linie genug Platz zum "Atmen"
+            padding=dp_scaled(8), 
             xmin=0, xmax=self.window,
             ymin=0, ymax=1,
             background_color=(0, 0, 0, 0),
@@ -112,12 +105,11 @@ class ChartTile(ButtonBehavior, BoxLayout):
             size_hint=(1, 1),
         )
 
-        self.plot = LinePlot(color=self.color, line_width=4.0)
-        self.graph.add_plot(self.plot)
-        glow = [self.color[0], self.color[1], self.color[2], 0.25]
-        self.plot_glow = LinePlot(color=glow, line_width=4.0)
+        # Dickere Linien für den "Vivid" Look
+        self.plot = LinePlot(color=self.color, line_width=dp_scaled(3.5)) 
+        self.plot_glow = LinePlot(color=[*self.color[:3], 0.2], line_width=dp_scaled(7))
         self.graph.add_plot(self.plot_glow)
-
+        self.graph.add_plot(self.plot)
         self.add_widget(self.graph)
 
         # -------------------------------------------------
@@ -147,61 +139,56 @@ class ChartTile(ButtonBehavior, BoxLayout):
         self.bg_rect.size = self.size
 
     # -------------------------------------------------
-    # UPDATE
+    # UPDATE – Jetzt mit dynamischer Unit-Abfrage
     # -------------------------------------------------
     def update(self, value, buf_key, render=False):
-        # 1. Daten an den GSM senden (Zentrale Speicherung)
+        # 1. Wert an GSM geben (Smoothing passiert dort!)
         GLOBAL_STATE.process_new_value(buf_key, value)
 
         if render:
-            # 2. Daten für die Anzeige wieder vom GSM holen
+            # 2. Daten & Trend vom GSM holen
             history = GLOBAL_STATE.get_graph_data(buf_key)
-            
-            # Icon vom GSM holen
             self.lbl_trend.text = GLOBAL_STATE.get_trend_icon(buf_key)
             
-            # Wert anzeigen
-            if history:
-                current_val = history[-1]
-                self.lbl_value.text = f"{current_val:.2f} {self.unit}"
-                self._render_buffer(history)
+            # 3. EINHEIT DYNAMISCH HOLEN (Der Fullscreen-Weg)
+            # Das ist der Fix: Wir nutzen die unit_map aus dem GSM
+            current_unit = GLOBAL_STATE.get_unit(buf_key)
 
-    def _render_buffer(self, buf):
-        # 1. Punkte für den Plot erstellen
-        pts = [(i, val) for i, val in enumerate(buf)]
+            if history:
+                # Letzten Wert mit der ECHTEN Einheit anzeigen
+                last_val = history[-1]
+                self.lbl_value.text = f"{last_val:.2f} {current_unit}"
+                
+                # Graph zeichnen
+                self._render_buffer(history, current_unit)
+
+    def _render_buffer(self, buf, unit):
+        if not buf: 
+            return
+        # ... (deine X-Achsen Logik bleibt gleich) ...
+        current_count = len(buf)
+        self.graph.xmin = 0
+        self.graph.xmax = (current_count - 1) if current_count < self.window else (self.window - 1)
+
+        display_buf = buf[-self.window:]
+        pts = [(i, val) for i, val in enumerate(display_buf)]
         self.plot.points = pts
         self.plot_glow.points = pts
     
-        # 2. Y-Achse (Höhe) automatisch anpassen
-        if len(buf) > 0:
-            mn = min(buf)
-            mx = max(buf)
-            if mn == mx:
-                mn -= 0.5
-                mx += 0.5
-            margin = (mx - mn) * 0.2
-            self.graph.ymin = mn - margin
-            self.graph.ymax = mx + margin
-    
-        # 3. X-Achse (Breite) - DAS IST DIE ÄNDERUNG:
-        # Wenn wir weniger Daten haben als ins Fenster passen, 
-        # setzen wir xmax auf die aktuelle Anzahl (mindestens 1).
-        # Sobald wir mehr haben, bleibt xmax beim eingestellten "window".
-        if len(buf) < self.window:
-            # Graph füllt sich von links nach rechts
-            self.graph.xmax = max(1, len(buf) - 1)
-        else:
-            # Fenster ist voll, Graph fängt an zu laufen/stauchen
-            self.graph.xmax = self.window - 1
-    
-        # 4. Footer-Texte (Durchschnitt/Min/Max)
-        if len(buf) > 1:
-            avg_v = sum(buf) / len(buf)
-            self.lbl_avg.text = f"avg: {avg_v:.2f}"
-            self.lbl_minmax.text = f"min: {mn:.2f}  max: {mx:.2f}"
-        else:
-            self.lbl_avg.text = "avg: --"
-            self.lbl_minmax.text = ""
+        # Y-Achse mit 5% Margin
+        mn, mx = min(display_buf), max(display_buf)
+        if mn == mx:
+            mn -= 0.5; mx += 0.5
+        
+        diff = mx - mn
+        self.graph.ymin = mn - diff * 0.05
+        self.graph.ymax = mx + diff * 0.05
+        
+        # 4. FOOTER UPDATEN – Auch hier die dynamische Einheit nutzen!
+        avg_v = sum(display_buf) / len(display_buf)
+        self.lbl_avg.text = f"avg: {avg_v:.2f} {unit}"
+        self.lbl_minmax.text = f"min: {mn:.2f}  max: {mx:.2f}"
+####
     # -------------------------------------------------
     # RESET
     # -------------------------------------------------
@@ -211,13 +198,12 @@ class ChartTile(ButtonBehavior, BoxLayout):
         self.lbl_avg.text = "avg: --"
         self.lbl_minmax.text = ""
 
-        self.buffers = {}
         self.last_value = None
         self.plot.points = []
         self.plot_glow.points = []
         self.graph.ymin = 0
         self.graph.ymax = 1
-
+####
     # -------------------------------------------------
     # TILE CLICK → FULLSCREEN
     # -------------------------------------------------
@@ -248,37 +234,9 @@ class ChartTile(ButtonBehavior, BoxLayout):
 
         print("❌ ERROR: Tile-Key nicht gefunden!")
 
-    def get_mixed_buffer(self):
-        from dashboard_gui.global_state_manager import GLOBAL_STATE
-    
-        merged = []
-    
-        for key in GLOBAL_STATE.mixed_selected_buffers:
-            buf = self.buffers.get(key)
-            if buf:
-                merged.extend(buf)
+
     
         merged.sort(key=lambda x: x if isinstance(x, float) else x["value"])
         return merged[-self.window:]
-    def apply_graph_window(self, new_window: int):
-        if new_window <= 0:
-            return
-    
-        self.window = int(new_window)
-    
-        # alle Float-Buffer trimmen
-        for key, buf in self.buffers.items():
-            if len(buf) > self.window:
-                self.buffers[key] = buf[-self.window:]
-    
-        # Coord-Buffer trimmen
-        if hasattr(self, "_coord_buffers"):
-            for key, buf in self._coord_buffers.items():
-                if len(buf) > self.window:
-                    self._coord_buffers[key] = buf[-self.window:]
-    
-        # Graph neu rendern (falls Daten da)
-        for buf in self.buffers.values():
-            if buf:
-                self._render_buffer(buf)
-                break        
+ 
+ 

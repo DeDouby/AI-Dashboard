@@ -1,62 +1,32 @@
 [
   {
+    "address": "FF-FF-A1-00-00-01",
+    "gat_raw": null,
+    "timestamp": "2026-03-01T23:38:08.247+0000",
+    "name": "LGS_NODE_14",
+    "rssi": -47,
+    "adv_raw": "7445A10E07F0138D13",
+    "log_raw": "7445A10E07F0138D13",
+    "note": "ch_14_active"
+  },
+  {
     "address": "C898B4F2-B452-7502-1A67-0536E77D49EA",
     "gat_raw": null,
-    "timestamp": "2026-03-01T00:15:44.509+0000",
+    "timestamp": "2026-03-01T23:38:05.248+0000",
     "name": "sps",
-    "rssi": -75,
-    "adv_raw": "1E086E1500E12F2E08",
-    "log_raw": "1E086E1500E12F2E08",
+    "rssi": -74,
+    "adv_raw": "2308D51300FF6F2408",
+    "log_raw": "2308D51300FF6F2408",
     "note": "raw"
   },
   {
     "address": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
     "gat_raw": null,
-    "timestamp": "2026-03-01T00:15:34.330+0000",
+    "timestamp": "2026-03-01T23:38:00.876+0000",
     "name": "ThermoBeacon2",
-    "rssi": -58,
-    "adv_raw": "190019060000F1F0A8104601590347017D03C5170B00",
-    "log_raw": "190019060000F1F0A8104601590347017D03C5170B00",
-    "note": "raw"
-  },
-  {
-    "address": "FF-FF-A1-00-00-01",
-    "gat_raw": null,
-    "timestamp": "2026-03-01T00:15:45.112+0000",
-    "name": "LGS_NODE_14",
-    "rssi": -57,
-    "adv_raw": "7445A10E080D152C68",
-    "log_raw": "7445A10E080D152C68",
-    "note": "ch_14_active"
-  },
-  {
-    "address": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
-    "gat_raw": null,
-    "timestamp": "2026-03-01T00:15:29.733+0000",
-    "name": "TP351S (987A)",
-    "rssi": -70,
-    "adv_raw": "C2CD0036213301",
-    "log_raw": "C2CD0036213301",
-    "note": "raw"
-  },
-  {
-    "address": "AA57769F-BBC7-2111-B0A7-E3F39B32EFBA",
-    "gat_raw": null,
-    "timestamp": "2026-02-28T16:55:03.727+0000",
-    "name": "(unknown)",
-    "rssi": -94,
-    "adv_raw": "4C001005151C6744B3",
-    "log_raw": "4C001005151C6744B3",
-    "note": "raw"
-  },
-  {
-    "address": "DD6F142B-F154-17FE-6B70-3CE3A29D3BF5",
-    "gat_raw": null,
-    "timestamp": "2026-02-28T16:55:00.050+0000",
-    "name": "(unknown)",
-    "rssi": -93,
-    "adv_raw": "4C0012020000",
-    "log_raw": "4C0012020000",
+    "rssi": -65,
+    "adv_raw": "190019060000F1F0A410410125033E014F037C600C00",
+    "log_raw": "190019060000F1F0A410410125033E014F037C600C00",
     "note": "raw"
   }
 ]

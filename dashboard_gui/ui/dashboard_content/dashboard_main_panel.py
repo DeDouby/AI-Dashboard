@@ -144,7 +144,6 @@ class DashboardMainPanel(GridLayout):
             vpd_ext = stream.get("vpd_external", {})
     
             if internal.get("temperature", {}).get("value") is not None:
-                self.tile_temp_in.unit = internal["temperature"].get("unit", self.tile_temp_in.unit)
                 self.tile_temp_in.update(
                     internal["temperature"]["value"],
                     f"{prefix}_temp_in",
@@ -166,7 +165,6 @@ class DashboardMainPanel(GridLayout):
                 )
             
             if external.get("present") and external.get("temperature", {}).get("value") is not None:
-                self.tile_temp_ex.unit = external["temperature"].get("unit", self.tile_temp_ex.unit)
                 self.tile_temp_ex.update(
                     external["temperature"]["value"],
                     f"{prefix}_temp_ex",

@@ -14,8 +14,7 @@ from dashboard_gui.ui.common.control_buttons import ControlButtons
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.data_buffer import BUFFER
-
-FULLSCREEN_MAX = 2000
+import os 
 
 class FullScreenView(Screen):
     name = "fullscreen"
@@ -31,7 +30,6 @@ class FullScreenView(Screen):
         # --- BASIS: FLOAT LAYOUT (Alles stapelbar) ---
         self.layout = FloatLayout()
         self.add_widget(self.layout)
-        data = BUFFER.get()
         # 1) HINTERGRUND (Jetzt mit Referenz self.bg_color)
         with self.layout.canvas.before:
             self.bg_color = Color(0, 0, 0, 1) # Start auf Schwarz
@@ -150,7 +148,6 @@ class FullScreenView(Screen):
 
     def _get_metric_config(self, tile_id):
         """Absolut korrekte Pfade mit dem /tiles/ Unterordner"""
-        import os
         # Der Pfad geht jetzt tief bis in den tiles-Ordner
         asset_path = os.path.join("dashboard_gui", "assets", "tiles")
         
@@ -198,65 +195,59 @@ class FullScreenView(Screen):
         # Gibt [Main-Farbe], [Glow-Farbe] zurück
         return [col[0], col[1], col[2], 1], [col[0], col[1], col[2], 0.3]
 
-    def activate_tile(self, tile_id):
-        self.tile_id = tile_id
+    def activate_tile(self, buf_key):
+        print(f"[FULLSCREEN] Activating Key: {buf_key}")
+        
+        # 1. Key speichern und tile_id extrahieren
+        self.current_key = buf_key
+        parts = buf_key.split("_")
+        # Falls der Key 'DEV1_CH1_temp_in' ist, ist die tile_id 'temp_in'
+        self.tile_id = "_".join(parts[2:]) if len(parts) > 2 else buf_key
+
+        # 2. Dashboard und Tile für Metadaten holen
         dashboard = self.manager.get_screen("dashboard")
-        tile = dashboard.content.tile_map.get(tile_id)
-    
+        tile = dashboard.content.tile_map.get(self.tile_id)
+        
         if not tile:
-            self._active_unit = ""
+            print(f"❌ ERROR: Tile {self.tile_id} nicht gefunden!")
             return
+
+        # 3. UI Texte & Einheit
+        self._active_unit = GLOBAL_STATE.get_unit(buf_key)
+        self.header.lbl_title.text = self.tile_id.replace("_", " ").upper()
     
-        # DEVICE + CHANNEL
-        data = GLOBAL_STATE.get_device_list()
-        idx = GLOBAL_STATE.active_index
-        dev_id = data[idx] if isinstance(data[idx], str) else data[idx].get("device_id")
-        channel = GLOBAL_STATE.get_active_channel()
+        # 4. FARBEN & PLOTS (Hier war der Fehler)
+        main_color, glow_color = self._get_plot_colors_for_tile(self.tile_id)
+        
+        # Sicher alle alten Plots entfernen (Idiotensicher via Liste)
+        for p in list(self.graph.plots):
+            self.graph.remove_plot(p)
     
-        # buf_key korrekt definieren
-        buf_key = f"{dev_id}_{channel}_{tile_id}"
-        buf = tile.buffers.get(buf_key, [])
-    
-        # Unit direkt aus decoded.json übernehmen
-        last_val = buf[-1] if buf else None
-        if isinstance(last_val, dict):
-            self._active_unit = last_val.get("unit", "")
-        else:
-            self._active_unit = getattr(tile, "unit", "") or ""
-    
-        self.header.lbl_title.text = tile_id.replace("_", " ").upper()
-    
-        main_color, glow_color = self._get_plot_colors_for_tile(tile_id)
-    
-        try:
-            for p in list(self.graph.plots):
-                self.graph.remove_plot(p)
-        except:
-            pass
-    
+        # Neue Plots erstellen
         self.plot = LinePlot(color=main_color, line_width=dp_scaled(4.5))
         self.plot_glow = LinePlot(color=glow_color, line_width=dp_scaled(8))
     
         self.graph.add_plot(self.plot_glow)
         self.graph.add_plot(self.plot)
+        
+        # Label Farbe anpassen
+        self.graph.label_options = {'color': [*main_color[:3], 0.8], 'bold': True}
     
-        self.graph.label_options = {'color': [*main_color[:3], 0.8]}
-    
-        _, bg_path = self._get_metric_config(tile_id)
-        import os
+        # 5. HINTERGRUND
+        _, bg_path = self._get_metric_config(self.tile_id)
         if bg_path and os.path.exists(bg_path):
-            self.bg_color.rgba = (1, 1, 1, 0.5)
+            self.bg_color.rgba = (1, 1, 1, 0.4)
             self.bg_rect.source = bg_path
         else:
             self.bg_color.rgba = (0, 0, 0, 1)
             self.bg_rect.source = ""
     
+        # 6. DATEN LADEN
         self._load_data()
 
+
     def _load_data(self):
-        from dashboard_gui.data_buffer import BUFFER
-        
-        # 1. Woher kommen die Daten?
+        # 1. Key-Generierung (Deine funktionierende Logik)
         idx = GLOBAL_STATE.active_index
         channel = GLOBAL_STATE.get_active_channel()
         dev_list = GLOBAL_STATE.get_device_list()
@@ -264,46 +255,47 @@ class FullScreenView(Screen):
         if not dev_list or idx >= len(dev_list):
             return
 
-        dev_id = dev_list[idx]
-        # Der Key muss exakt so sein wie im GSM gespeichert!
+        # Device ID sicher extrahieren
+        dev_id = dev_list[idx] if isinstance(dev_list[idx], str) else dev_list[idx].get("device_id")
+        
+        # Den Key bauen, den das GSM versteht
         buf_key = f"{dev_id}_{channel}_{self.tile_id}"
         
-        # 2. Daten direkt aus dem neuen GSM Speicher holen
-
+        # 2. Daten direkt aus dem GSM holen
         buf = GLOBAL_STATE.graph_buffers.get(buf_key, [])
-        
-        # Wenn Buffer leer oder zu kurz für Berechnungen
+        self._active_unit = GLOBAL_STATE.get_unit(buf_key)
+        # 3. Sicherheitscheck: Wenn keine Daten da sind, Graphen leeren und raus
         if not buf or len(buf) < 2:
-            if hasattr(self, 'plot'): self.plot.points = []
-            if hasattr(self, 'plot_glow'): self.plot_glow.points = []
-            
-            # Falls wir gerade resetten, Achsen stabil halten
+            self.plot.points = []
+            self.plot_glow.points = []
+            self.lbl_value.text = "--"
+            # Achsen stabil halten laut Config
             self.graph.xmin = 0
             self.graph.xmax = config.get_tile_graph_window() or 1
             return
 
-        # Erst wenn wir Daten haben, die normalen Berechnungen:
+        # 4. Punkte für den Graphen erstellen
         pts = list(enumerate(buf))
         self.plot.points = pts
         self.plot_glow.points = pts
-        # ... Rest der Skalierungslogik ...
 
-        mn = min(buf)
-        mx = max(buf)
+        # 5. Y-ACHSE (Dynamische Skalierung)
+        mn, mx = min(buf), max(buf)
         if mn == mx:
             mn -= 0.5
             mx += 0.5
 
         diff = mx - mn
+        # 10% Puffer für die Optik
         self.graph.ymin = mn - diff * 0.1
         self.graph.ymax = mx + diff * 0.1
         self.graph.y_ticks_major = diff / 4
 
-        # X-Achse: Zeigt genau so viele Punkte wie da sind
+        # 6. X-ACHSE (Anzahl der Samples)
         self.graph.xmin = 0
         self.graph.xmax = len(buf) - 1
 
-        # 4. HUD Texte
+        # 7. HUD Texte (Oberfläche)
         val = buf[-1]
         avg_v = sum(buf) / len(buf)
         trend_icon = GLOBAL_STATE.get_trend_icon(buf_key)
@@ -312,7 +304,6 @@ class FullScreenView(Screen):
         self.lbl_value.text = f"{val:.2f} {self._active_unit} {icon_markup}"
         self.lbl_value.color = self.plot.color
         self.lbl_sub.text = f"AVG: {avg_v:.2f} | MIN: {mn:.2f} | MAX: {mx:.2f}"
-
     # ============================================================
     # TILE SWIPE (HORIZONTAL)
     # ============================================================
@@ -372,27 +363,16 @@ class FullScreenView(Screen):
                 lbl.text = f"-{int(min_val)}m"
 
     def reset_from_global(self):
-        """Wird aufgerufen, wenn der Reset-Button gedrückt wird."""
-        print(f"[UI] Fullscreen Graph Reset for {self.tile_id}")
-        
-        # 1. Plots leeren
-        if hasattr(self, 'plot'):
-            self.plot.points = []
-        if hasattr(self, 'plot_glow'):
-            self.plot_glow.points = []
-        
-        # 2. Crash-Schutz: X- und Y-Achse auf Minimalwerte setzen
-        # xmax darf niemals gleich xmin sein!
-        self.graph.xmin = 0
-        self.graph.xmax = 1 # Minimaler Abstand verhindert ZeroDivisionError
-        self.graph.ymin = 0
-        self.graph.ymax = 1
-        
-        # 3. Texte zurücksetzen
-        unit = getattr(self, "_active_unit", "")
-        self.lbl_value.text = f"-- {unit}"
-        self.lbl_sub.text = "BUFFER GELEERT"
-        
-        # 4. UI Update triggern (Größenänderung erzwingt Neuzeichnung sicher)
-        self.graph._trigger_size()
+        """ Sucht alle Graphen im Dashboard und macht sie leer. """
+        print("[DASHBOARD] Suche Tiles zum Resetten...")
 
+        # Wir gehen durch ALLE Widgets im Dashboard
+        for widget in self.walk():
+            # Wenn das Widget eine 'reset' Methode hat (wie deine ChartTiles), ruf sie auf!
+            if hasattr(widget, 'reset') and callable(widget.reset):
+                widget.reset()
+
+        # Header separat (da dieser meist kein ChartTile ist)
+        if hasattr(self, 'header'):
+            self.header.set_clock("--:--")
+            self.header.set_rssi(None)

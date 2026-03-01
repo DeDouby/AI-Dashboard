@@ -319,7 +319,7 @@ class HeaderBar(BoxLayout):
         self.led = LEDCircle(size_hint=(0.07, 1))
         
         # NEU: BROADCAST TOGGLE BUTTON
-        self.broadcast_active = True # Default beim Start
+        from dashboard_gui.global_state_manager import GLOBAL_STATE
         self.btn_broadcast = Button(
             text="\uf09e",   # FA "rss" icon
             font_name="FA",
@@ -361,6 +361,7 @@ class HeaderBar(BoxLayout):
 
         self._menu_overlay = None
         self.device_menu = None
+        self.refresh_broadcast_state()
 
         # Default channel = GATT (Android parity)
         from dashboard_gui.global_state_manager import GLOBAL_STATE
@@ -568,25 +569,45 @@ class HeaderBar(BoxLayout):
         
     def set_led(self, d):
         self.led.set_state(d.get("alive", False), d.get("status", "offline"))
+
     def _toggle_broadcast(self, *_):
         import core
+        from dashboard_gui.global_state_manager import GLOBAL_STATE
+    
+        if not GLOBAL_STATE.broadcast_data_available:
+            return
+    
         try:
-            if self.broadcast_active:
-                # Abschalten
+            if GLOBAL_STATE.broadcast_active:
                 core.stop_broadcast_bridge()
-                self.broadcast_active = False
-                self.btn_broadcast.color = (0.7, 0.7, 0.7, 1) # Grau = Aus
-                self.btn_broadcast.text = "\uf05e"            # Verbotszeichen
-                print("[Header] Broadcast Bridge STOPPED")
+                GLOBAL_STATE.broadcast_active = False
             else:
-                # Anschalten / Restart
                 core.restart_broadcast_bridge()
-                self.broadcast_active = True
-                self.btn_broadcast.color = (0.3, 1, 0.3, 1) # Grün = An
-                self.btn_broadcast.text = "\uf09e"           # RSS Icon
-                print("[Header] Broadcast Bridge RESTARTED")
+                GLOBAL_STATE.broadcast_active = True
+    
         except Exception as e:
-            print(f"[Header] Broadcast Toggle failed: {e}")
+            print(e)
+
+    def refresh_broadcast_state(self):
+        from dashboard_gui.global_state_manager import GLOBAL_STATE
+    
+        available = bool(GLOBAL_STATE.broadcast_data_available)
+        active = bool(GLOBAL_STATE.broadcast_active)
+    
+        if not available:
+            self.btn_broadcast.disabled = True
+            self.btn_broadcast.color = (0.5, 0.5, 0.5, 1)
+            self.btn_broadcast.text = "\uf071"
+            return
+    
+        self.btn_broadcast.disabled = False
+    
+        if active:
+            self.btn_broadcast.color = (0.3, 1, 0.3, 1)
+            self.btn_broadcast.text = "\uf09e"
+        else:
+            self.btn_broadcast.color = (0.7, 0.7, 0.7, 1)
+            self.btn_broadcast.text = "\uf05e"
 
     def set_external(self, present):
         self.external.set_external(bool(present))

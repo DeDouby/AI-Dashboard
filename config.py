@@ -141,9 +141,23 @@ def get_leaf_offset():
 
 def reload():
     global _config
+
+    if _config is None:
+        _init()
+        return
+
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-        _config = json.load(f)
-    print("[config] reload OK")
+        data = json.load(f)
+
+    # Defaults sicherstellen
+    for k, v in DEFAULTS.items():
+        data.setdefault(k, v)
+
+    # ❗WICHTIG: Referenz NICHT ersetzen
+    _config.clear()
+    _config.update(data)
+
+    print("[config] reload OK (in-place)")
 
 def get_bridge_profiles():
     return _init().get("bridge_profiles", {})

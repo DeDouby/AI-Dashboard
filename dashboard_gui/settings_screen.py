@@ -50,8 +50,7 @@ class SettingsScreen(Screen):
     # -----------------------------
     def _save(self, values: dict):
         cfg = config._init()
-
-        # Standard Parameter
+    
         cfg["refresh_interval"] = float(values.get("refresh_interval", 2.0))
         cfg["ui_refresh_interval"] = float(values.get("ui_refresh_interval", 1.0))
         cfg["stale_timeout"] = float(values.get("stale_timeout", 15.0))
@@ -61,53 +60,39 @@ class SettingsScreen(Screen):
         cfg["leaf_offset"] = float(values.get("leaf_offset", 0.0))
         cfg["temperature_unit"] = values.get("temperature_unit", "C")
         cfg["theme"] = values.get("theme", cfg.get("theme", "tiles"))
-
-        # 🔥 LGS MESH KANÄLE (Neu)
+    
+        # LGS Mesh
         cfg["lgs_mesh_channel_send"] = int(values.get("lgs_mesh_channel_send", 17))
         cfg["lgs_mesh_channel_recv"] = int(values.get("lgs_mesh_channel_recv", 17))
-
-        # Speichern und Reload der Python-Config
+    
         config.save(cfg)
         config.reload()
-        
-        # 1. Live Watchdog Update
+    
+        # ---------------------------------
+        # Watchdog Live Update
+        # ---------------------------------
         from core import _watchdog
         if _watchdog and hasattr(_watchdog, "set_timeout"):
             _watchdog.set_timeout(cfg["stale_timeout"])
-            print(f"[SETTINGS] Watchdog stale_timeout live gesetzt → {cfg['stale_timeout']}")
-        else:
-            print("[SETTINGS] Watchdog live update nicht unterstützt – greift beim Neustart")
-        
-        # 2. 🔄 Live Tile Graph-Window Update
-        import config as _config
-        new_window = _config.get_tile_graph_window()
-        
-        # --- NEU: GSM SYNC ---
-        GLOBAL_STATE.refresh_config() 
-        # ---------------------
-# JETZT den Motor (Global Tick) neu starten!
-        # Das aktiviert den neuen refresh_interval sofort live.
-        if hasattr(GLOBAL_STATE, "refresh_global_tick"):
-            GLOBAL_STATE.refresh_global_tick()
+            print(f"[SETTINGS] Watchdog stale_timeout → {cfg['stale_timeout']}")
+    
         # ---------------------------------
-        dashboard = self.manager.get_screen("dashboard")
-
-        if hasattr(dashboard, "content") and hasattr(dashboard.content, "tile_map"):
-            for tile in dashboard.content.tile_map.values():
-                if hasattr(tile, "apply_graph_window"):
-                    tile.apply_graph_window(new_window)
-
-        # 3. 🚀 HARDWARE RESTART (LGS MESH)
-        # Wir nutzen die stabilen Core-Aufrufe wie im Debug-Screen
+        # GSM LIVE SYNC (Graph + Interval)
+        # ---------------------------------
+        GLOBAL_STATE.refresh_config()
+    
+        # ---------------------------------
+        # Hardware Restart (Mesh)
+        # ---------------------------------
         import core
         from kivy.utils import platform
+    
         if platform == "android":
-            print("[SETTINGS] Triggere Core-Restart für LGS Mesh Kanäle...")
-            core.restart_adv_bridge()        # Übernimmt neuen Recv-Kanal (Java-Filter)
-            core.restart_broadcast_bridge()  # Übernimmt neuen Send-Kanal (Java-Payload)
-        
-        # Zurück zum Dashboard
-        print("[SETTINGS] Speichervorgang abgeschlossen.")
+            print("[SETTINGS] Restart LGS Mesh Bridges")
+            core.restart_adv_bridge()
+            core.restart_broadcast_bridge()
+    
+        print("[SETTINGS] Save completed")
         self.manager.current = "dashboard"
         
     # -----------------------------

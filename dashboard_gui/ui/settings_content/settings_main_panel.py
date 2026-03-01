@@ -68,8 +68,6 @@ class SettingsMainPanel(BoxLayout):
         )
         container.bind(minimum_height=container.setter("height"))
 
-        # ... der Rest bleibt unverändert ...
-
         # Helper: add slider
         def add_slider(label_text, key, min_v, max_v, step):
             row = BoxLayout(

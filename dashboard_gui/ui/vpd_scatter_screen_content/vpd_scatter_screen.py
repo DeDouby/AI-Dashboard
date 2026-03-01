@@ -277,67 +277,66 @@ class VPDScatterScreen(Screen):
     # DATA LOAD (IDENTISCH ZU FULLSCREEN)
     # -------------------------------------------------
     def _load_points(self):
-        import config
-        # Offsets holen
-        t_off    = float(config.get_temperature_offset() or 0.0)
-        leaf_off = float(config.get_leaf_offset() or 0.0)
-        self._leaf_offset = leaf_off
-
-        # Device & Channel Info vom GSM
+    
         idx = self.gsm.active_index
         dev_list = self.gsm.get_device_list()
-        if not dev_list or idx >= len(dev_list): return
-        
+    
+        if not dev_list or idx >= len(dev_list):
+            return
+    
         dev_id = dev_list[idx]
         ch = self.gsm.get_active_channel()
         prefix = f"{dev_id}_{ch}"
-
-        # Hilfsfunktion, um den letzten Wert aus dem GSM-Buffer zu fischen
+    
         def get_last(metric):
             buf = self.gsm.get_graph_data(f"{prefix}_{metric}")
             return float(buf[-1]) if buf else None
-
-        # Daten direkt vom GSM holen
+    
+        # -------------------------------------------------
+        # KOORDINATEN DIREKT VOM GSM
+        # -------------------------------------------------
+    
+        x_in = get_last("vpd_x_in")
+        y_in = get_last("vpd_y_in")
+    
+        x_ex = get_last("vpd_x_ex")
+        y_ex = get_last("vpd_y_ex")
+    
+        # -------------------------------------------------
+        # POINTS SETZEN
+        # -------------------------------------------------
+    
+        if x_in is not None and y_in is not None:
+            self._place_point(self.p_in, y_in, x_in)
+        else:
+            self.p_in.pos = (-1000, -1000)
+    
+        if x_ex is not None and y_ex is not None:
+            self._place_point(self.p_ex, y_ex, x_ex)
+        else:
+            self.p_ex.pos = (-1000, -1000)
+    
+        # -------------------------------------------------
+        # VALUE BOX (bleibt gleich)
+        # -------------------------------------------------
+    
         v_in = get_last("vpd_in")
         h_in = get_last("hum_in")
-        t_in = get_last("temp_in") # Realer Sensorwert
-
+        t_in = get_last("temp_in")
+    
         v_ex = get_last("vpd_ex")
         h_ex = get_last("hum_ex")
         t_ex = get_last("temp_ex")
-
-        # --- IN Punkt setzen ---
-        if v_in is not None and h_in is not None:
-            t_eff = self._temp_from_vpd_rh(v_in, h_in)
-            if t_eff is not None:
-                # Der Scatter-Punkt braucht die Blatt-Temperatur-Logik
-                t_scatter = t_eff + t_off + leaf_off
-                self._place_point(self.p_in, t_scatter, h_in)
-                self._mirror["in"] = {"t": t_scatter, "h": h_in, "vpd": v_in}
-            else: self.p_in.pos = (-1000, -1000)
-        else: self.p_in.pos = (-1000, -1000)
-
-        # --- EX Punkt setzen ---
-        if v_ex is not None and h_ex is not None:
-            t_eff = self._temp_from_vpd_rh(v_ex, h_ex)
-            if t_eff is not None:
-                t_scatter = t_eff + t_off + leaf_off
-                self._place_point(self.p_ex, t_scatter, h_ex)
-                self._mirror["ex"] = {"t": t_scatter, "h": h_ex, "vpd": v_ex}
-            else: self.p_ex.pos = (-1000, -1000)
-        else: self.p_ex.pos = (-1000, -1000)
-
-        # --- Value Box (HUD) füllen ---
-        # Wir nehmen hier die realen T-Werte vom Sensor für die Anzeige
+    
         self._unit_t = self.gsm.get_unit("temp_in")
         self._unit_h = self.gsm.get_unit("hum_in")
-        
+    
         self._box = {
             "in": {"t": t_in, "h": h_in, "vpd": v_in},
             "ex": {"t": t_ex, "h": h_ex, "vpd": v_ex},
         }
-        self._update_value_box()
-        
+    
+        self._update_value_box()        
     # -------------------------------------------------
     def _place_point(self, ellipse, temp, hum):
         gx, gy = self.graph.pos
@@ -452,14 +451,16 @@ class VPDScatterScreen(Screen):
 
     # -------------------------------------------------
     # RESET
-    # -------------------------------------------------
     def reset_from_global(self):
-        self.p_in.pos = (-1000, -1000)
-        self.p_ex.pos = (-1000, -1000)
-    
-        self._mirror = {
-            "in": {"t": None, "h": None, "vpd": None},
-            "ex": {"t": None, "h": None, "vpd": None},
-        }
-    
-        self._update_value_box()
+        print("[DASHBOARD] Suche Tiles zum Resetten...")
+
+        # Wir gehen durch ALLE Widgets im Dashboard
+        for widget in self.walk():
+            # Wenn das Widget eine 'reset' Methode hat (wie deine ChartTiles), ruf sie auf!
+            if hasattr(widget, 'reset') and callable(widget.reset):
+                widget.reset()
+
+        # Header separat (da dieser meist kein ChartTile ist)
+        if hasattr(self, 'header'):
+            self.header.set_clock("--:--")
+            self.header.set_rssi(None)
