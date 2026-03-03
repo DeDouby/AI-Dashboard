@@ -4,6 +4,7 @@ from kivy.graphics import Rectangle, Color
 from dashboard_gui.ui.dashboard_content.chart_tile import ChartTile
 from dashboard_gui.ui.scaling_utils import dp_scaled
 from kivy.animation import Animation
+from dashboard_gui.global_state_manager import GLOBAL_STATE
 ASSET_ROOT = os.path.join("dashboard_gui", "assets")
 
 class DashboardMainPanel(GridLayout):
@@ -15,21 +16,21 @@ class DashboardMainPanel(GridLayout):
         self.spacing = dp_scaled(12)
         self.padding = dp_scaled(12)
 
-        # ---------------------------------------------------
+# ---------------------------------------------------
         # IN SENSORS
         # ---------------------------------------------------
         self.tile_temp_in = ChartTile(
-            "Temperature IN", "—",
+            "temp_in", "Temperature IN", "—",
             [1, 0.2, 0.2, 1],
             bg="tile_bg_temp_in.png",
         )
         self.tile_hum_in = ChartTile(
-            "Humidity IN", "%",
+            "hum_in", "Humidity IN", "%",
             [0.2, 0.6, 1, 1],
             bg="tile_bg_hum_in.png",
         )
         self.tile_vpd_in = ChartTile(
-            "VPD IN", "kPa",
+            "vpd_in", "VPD IN", "kPa",
             [1, 0.8, 0.2, 1],
             bg="tile_bg_vpd_in.png",
         )
@@ -38,22 +39,22 @@ class DashboardMainPanel(GridLayout):
         # EX SENSORS
         # ---------------------------------------------------
         self.tile_temp_ex = ChartTile(
-            "Temperature EX", "—",
+            "temp_ex", "Temperature EX", "—",
             [1, 0.4, 0.4, 1],
             bg="tile_bg_temp_out.png",
         )
         self.tile_hum_ex = ChartTile(
-            "Humidity EX", "%",
+            "hum_ex", "Humidity EX", "%",
             [0.3, 1, 1, 1],
             bg="tile_bg_hum_out.png",
         )
         self.tile_vpd_ex = ChartTile(
-            "VPD EX", "kPa",
+            "vpd_ex", "VPD EX", "kPa",
             [0.3, 1, 0.3, 1],
             bg="tile_bg_vpd_out.png",
         )
 
-        # Map
+        # Map bleibt gleich, da die Variablennamen stimmen
         self.tile_map = {
             "temp_in": self.tile_temp_in,
             "hum_in":  self.tile_hum_in,
@@ -89,7 +90,7 @@ class DashboardMainPanel(GridLayout):
         
         active_channel = GLOBAL_STATE.get_active_channel()
         
-        active_idx = GLOBAL_STATE.active_index
+        active_idx = GLOBAL_STATE.get_active_index()
         active_device_id = (
             data[active_idx].get("device_id")
             if active_idx < len(data) else None
@@ -100,7 +101,7 @@ class DashboardMainPanel(GridLayout):
         # Sichtbarkeit NUR fürs aktive Gerät
         self._apply_tile_visibility([])
     
-        active_idx = GLOBAL_STATE.active_index
+        active_idx = GLOBAL_STATE.get_active_index()
         if active_idx < len(data):
             frame = data[active_idx]
             stream = frame.get(active_channel, {})
@@ -203,75 +204,28 @@ class DashboardMainPanel(GridLayout):
     # ============================================================
     # DEVICE SWIPE (HORIZONTAL)
     # ============================================================
-    def on_touch_down(self, touch):
-        if self.collide_point(*touch.pos):
-            self._touch_start_x = touch.x
-            self._touch_active = True
-        return super().on_touch_down(touch)
-
-    def on_touch_move(self, touch):
-        if not self._touch_active or self._touch_start_x is None:
-            return super().on_touch_move(touch)
-    
-        dx = touch.x - self._touch_start_x
-    
-        if abs(dx) >= self._swipe_threshold:
-            touch.grab(self)
-    
-            if dx < 0:
-                self._swipe_feedback(-1)
-                self._next_device()
-            else:
-                self._swipe_feedback(1)
-                self._prev_device()
-    
-            # 🔒 NUR EINMAL
-            self._touch_active = False
-            self._touch_start_x = None
-            touch.ungrab(self)
-            return True
-    
-        return super().on_touch_move(touch)
-
-    def on_touch_up(self, touch):
-        if touch.grab_current is self:
-            touch.ungrab(self)
-            return True
-
-        self._touch_active = False
-        self._touch_start_x = None
-        return super().on_touch_up(touch)
-
-    def _next_device(self):
-        from dashboard_gui.global_state_manager import GLOBAL_STATE
-        lst = GLOBAL_STATE.get_device_list()
-        if not lst:
-            return
-        GLOBAL_STATE.set_active_index((GLOBAL_STATE.active_index + 1) % len(lst))
-
-    def _prev_device(self):
-        from dashboard_gui.global_state_manager import GLOBAL_STATE
-        lst = GLOBAL_STATE.get_device_list()
-        if not lst:
-            return
-        GLOBAL_STATE.set_active_index((GLOBAL_STATE.active_index - 1) % len(lst))
 
     def get_active_tile_keys(self):
         return [k for k, v in self.tile_map.items() if v.parent is self]   
 
-    def _swipe_feedback(self, direction):
-        offset = dp_scaled(24) * direction
+    # ============================================================
+    # GLOBAL SWIPE DELEGATION
+    # ============================================================
     
-        for tile in self.children:
-            # Start: leicht verschieben
-            anim = Animation(
-                x=tile.x + offset,
-                d=0.08,
-                t="out_quad"
-            ) + Animation(
-                x=tile.x,
-                d=0.12,
-                t="out_quad"
-            )
-            anim.start(tile)        
+    def on_touch_down(self, touch):
+        if self.collide_point(*touch.pos):
+            if hasattr(GLOBAL_STATE, "swipe_engine"):
+                GLOBAL_STATE.swipe_engine.process_touch_down(touch)
+        return super().on_touch_down(touch)
     
+    
+    def on_touch_move(self, touch):
+        if hasattr(GLOBAL_STATE, "swipe_engine"):
+            GLOBAL_STATE.swipe_engine.process_touch_move(touch)
+        return super().on_touch_move(touch)
+    
+    
+    def on_touch_up(self, touch):
+        if hasattr(GLOBAL_STATE, "swipe_engine"):
+            GLOBAL_STATE.swipe_engine.process_touch_up(touch)
+        return super().on_touch_up(touch)

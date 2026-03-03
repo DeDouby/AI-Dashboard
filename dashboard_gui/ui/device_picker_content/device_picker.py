@@ -19,7 +19,7 @@ class DevicePickerScreen(Screen):
 
     def __init__(self, **kw):
         super().__init__(**kw)
-        GLOBAL_STATE.attach_device_picker(self)
+        GLOBAL_STATE.ui_handler.attach_screen("device_picker", self)
 
         root = BoxLayout(orientation="vertical")
 

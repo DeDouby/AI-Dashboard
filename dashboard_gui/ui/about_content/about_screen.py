@@ -22,7 +22,7 @@ class AboutScreen(Screen):
         super().__init__(**kw)
 
         from dashboard_gui.global_state_manager import GLOBAL_STATE
-        GLOBAL_STATE.attach_about(self)
+        GLOBAL_STATE.ui_handler.attach_screen("about", self)
 
         root = BoxLayout(orientation="vertical")
         with root.canvas.before:

@@ -14,7 +14,7 @@ class DevicePickerMenu(FloatLayout):
         self.parent_header = parent_header
 
         from dashboard_gui.global_state_manager import GLOBAL_STATE
-        self._current_idx = GLOBAL_STATE.active_index
+        GLOBAL_STATE.get_active_index()
 
         # -----------------------------
         # 1) Hintergrund Overlay (leicht abdunkeln)

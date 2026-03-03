@@ -14,7 +14,7 @@ from dashboard_gui.global_state_manager import GLOBAL_STATE
 class CSVViewerScreen(Screen):
     def __init__(self, **kw):
         super().__init__(**kw)
-        GLOBAL_STATE.attach_csv_viewer(self)
+        GLOBAL_STATE.ui_handler.attach_screen("csv_viewer", self)
         self.file_browser = None  # Referenz initialisieren
         self.current_csv = None
         self.active_tab = "Table"

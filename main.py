@@ -30,7 +30,11 @@ from dashboard_gui.ui.i18n import I18N
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 
 import core
+# main.py (nach GLOBAL_STATE initialisiert)
+from dashboard_gui.global_state_manager import GLOBAL_STATE
 
+# Default-Kanal festlegen
+GLOBAL_STATE.set_active_channel("gatt")  # Android parity
 # -------------------------------------------------------
 # FontAwesome sicher laden
 # -------------------------------------------------------

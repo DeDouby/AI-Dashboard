@@ -23,7 +23,7 @@ class SettingsScreen(Screen):
         root = BoxLayout(orientation="vertical")
 
         # Attach to global state
-        GLOBAL_STATE.attach_settings(self)
+        GLOBAL_STATE.ui_handler.attach_screen("settings", self)
 
         # Header Bar
         self.header = HeaderBar()
@@ -79,7 +79,7 @@ class SettingsScreen(Screen):
         # ---------------------------------
         # GSM LIVE SYNC (Graph + Interval)
         # ---------------------------------
-        GLOBAL_STATE.refresh_config()
+        GLOBAL_STATE.engine.refresh_settings()
     
         # ---------------------------------
         # Hardware Restart (Mesh)

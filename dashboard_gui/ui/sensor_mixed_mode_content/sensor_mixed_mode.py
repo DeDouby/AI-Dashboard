@@ -19,7 +19,7 @@ class SensorMixedModeScreen(Screen):
     def __init__(self, **kw):
         super().__init__(**kw)
         self.GS = GLOBAL_STATE
-        self.GS.attach_sensor_mixed_mode(self)
+        self.GS.ui_handler.attach_screen("sensor_mixed_mode", self)
         
         # ROOT
         root = BoxLayout(orientation="vertical", spacing=dp_scaled(10))
@@ -131,24 +131,36 @@ class SensorMixedModeScreen(Screen):
             self.GS.mixed_device_modes[dev_id] = {"internal"} # Default
         self.rebuild_selector()
 
+    # Im MixedModeScreen
     def update_from_global(self, d):
-        """Wird vom GSM Tick aufgerufen"""
+        """Reaktives Update analog zur ChartTile Logik."""
         self.header.update_from_global(d)
         
-        # 1. Mittelwerte direkt aus dem GSM Buffer holen
-        def get_avg(key, unit):
-            buf = self.GS.get_graph_data(f"mixed_avg_{key}")
-            if buf:
-                icon = self.GS.get_trend_icon(f"mixed_avg_{key}")
-                return f"[font=FA]{icon}[/font] {buf[-1]:.2f}{unit}"
-            return f"-- {unit}"
+        # Helfer für die 4 Haupt-Labels
+        def update_label(label_widget, suffix):
+            full_key = f"mixed_avg_{suffix}"
+            
+            # 1. Wert via GraphEngine holen (jetzt ohne AttributeError)
+            val = self.GS.graph_engine.get_last_value(full_key)
+            
+            # 2. Einheit via GSM holen (wie ChartTile)
+            unit = self.GS.get_unit(full_key)
+            
+            # 3. Trend via GSM/GraphEngine
+            trend = self.GS.get_trend_icon(full_key)
+            
+            if val is not None:
+                label_widget.text = f"[font=FA]{trend}[/font] {val:.2f} {unit}"
+            else:
+                label_widget.text = f"-- {unit}"
 
-        self.lbl_temp.text = get_avg("temp", "°C")
-        self.lbl_hum.text  = get_avg("hum", "%")
-        self.lbl_vpd.text  = get_avg("vpd", "kPa")
-        self.lbl_dew.text  = get_avg("dew", "°C")
+        # Updates triggern
+        update_label(self.lbl_temp, "temp")
+        update_label(self.lbl_hum,  "hum")
+        update_label(self.lbl_vpd,  "vpd")
+        update_label(self.lbl_dew,  "dew")
 
-        # 2. Details alle 2 Sek
+        # Details alle 2 Sek (Listen-Update)
         if not hasattr(self, "_last_list") or time.time() - self._last_list > 2:
             self._update_details()
             self._last_list = time.time()
@@ -200,15 +212,32 @@ class SensorMixedModeScreen(Screen):
             
             # Zeile 2: Werte-String zusammenbauen
             parts = []
-            if temp_list: parts.append(f"T: {sum(temp_list)/len(temp_list):.1f}°C")
-            if hum_list:  parts.append(f"H: {sum(hum_list)/len(hum_list):.1f}%")
-            if vpd_list:  parts.append(f"V: {sum(vpd_list)/len(vpd_list):.2f}kPa")
+            
+            temp_unit = self.GS.get_unit("mixed_avg_temp") or "°C"
+            hum_unit = self.GS.get_unit("mixed_avg_hum") or "%"
+            vpd_unit = self.GS.get_unit("mixed_avg_vpd") or "kPa"
+            
+            if temp_list:
+                t = sum(temp_list) / len(temp_list)
+                parts.append(f"T: {t:.1f}{temp_unit}")
+            
+            if hum_list:
+                h = sum(hum_list) / len(hum_list)
+                parts.append(f"H: {h:.1f}{hum_unit}")
+            
+            if vpd_list:
+                v = sum(vpd_list) / len(vpd_list)
+                parts.append(f"V: {v:.2f}{vpd_unit}")
             
             lbl_vals = Label(
                 text=" | ".join(parts) if parts else "Warte auf Daten...",
-                font_size=sp_scaled(24), color=(0.8, 0.8, 0.8, 1),
-                halign="left", valign="top", size_hint_y=0.5
+                font_size=sp_scaled(24),
+                color=(0.8, 0.8, 0.8, 1),
+                halign="left",
+                valign="top",
+                size_hint_y=0.5
             )
+            
             lbl_vals.bind(size=lambda s, w: setattr(s, 'text_size', (w[0], None)))
             
             dev_card.add_widget(lbl_name)

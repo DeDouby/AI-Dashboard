@@ -66,7 +66,7 @@ class VPDScatterScreen(Screen):
         self.header.enable_back("dashboard")
         self.header.update_back_button("vpd_scatter")
 
-        self.gsm.attach_vpd_scatter(self)
+        self.gsm.ui_handler.attach_screen("vpd_scatter", self)
         self._reset_active = False
 
         # -------------------------------------------------
@@ -212,11 +212,7 @@ class VPDScatterScreen(Screen):
         # -------------------------------------------------
         # CONTROL BUTTONS
         # -------------------------------------------------
-        self.controls = ControlButtons(
-            on_start=lambda *_: GLOBAL_STATE.start(),
-            on_stop=lambda *_: GLOBAL_STATE.stop(),
-            on_reset=lambda *_: GLOBAL_STATE.reset(),
-        )
+        self.controls = ControlButtons()
         self.controls.size_hint = (1, None)
         self.controls.height = dp_scaled(40)
         self.controls.pos_hint = {'y': 0}
@@ -278,7 +274,7 @@ class VPDScatterScreen(Screen):
     # -------------------------------------------------
     def _load_points(self):
     
-        idx = self.gsm.active_index
+        idx = self.gsm.get_active_index()
         dev_list = self.gsm.get_device_list()
     
         if not dev_list or idx >= len(dev_list):
@@ -441,13 +437,13 @@ class VPDScatterScreen(Screen):
         lst = self.gsm.get_device_list()
         if not lst:
             return
-        self.gsm.set_active_index((self.gsm.active_index + 1) % len(lst))
+        self.gsm.next_device()
 
     def _prev_device(self):
         lst = self.gsm.get_device_list()
         if not lst:
             return
-        self.gsm.set_active_index((self.gsm.active_index - 1) % len(lst))
+        self.gsm.next_device()
 
     # -------------------------------------------------
     # RESET

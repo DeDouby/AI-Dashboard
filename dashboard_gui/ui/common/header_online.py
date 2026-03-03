@@ -22,6 +22,8 @@ from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.ui.common.window_picker import WindowPicker
 from dashboard_gui.ui.common.device_picker_menu import DevicePickerMenu
 from dashboard_gui.ui.common.signal_inspector import SignalInspector
+from dashboard_gui.ui.common.broadcast_button import BroadcastButton
+
 # -------------------------------------------------------
 # IconLabel
 # -------------------------------------------------------
@@ -317,18 +319,20 @@ class HeaderBar(BoxLayout):
         self.signal.bind(on_touch_down=self._signal_click)
         self.external = ExternalIcon(size_hint=(0.08, 1))
         self.led = LEDCircle(size_hint=(0.07, 1))
-        
-        # NEU: BROADCAST TOGGLE BUTTON
+        # Broadcast Button (Inline wiederhergestellt – KEIN Refactoring jetzt!)
         from dashboard_gui.global_state_manager import GLOBAL_STATE
-        self.btn_broadcast = Button(
-            text="\uf09e",   # FA "rss" icon
+        
+        self.btn_broadcast = BroadcastButton(
+            text="\uf09e",
             font_name="FA",
             size_hint=(0.08, 1),
             background_color=(0, 0, 0, 0),
-            color=(0.3, 1, 0.3, 1), # Initial Grün
+            color=(0.7, 0.7, 0.7, 1),
             font_size=sp_scaled(22)
         )
-        self.btn_broadcast.bind(on_release=self._toggle_broadcast)
+        
+        # NEU: BROADCAST TOGGLE BUTTON
+        from dashboard_gui.global_state_manager import GLOBAL_STATE
 
         self.lbl_clock = Label(text="--:--", font_size=sp_scaled(20),
                                size_hint=(0.10, 1))
@@ -361,7 +365,6 @@ class HeaderBar(BoxLayout):
 
         self._menu_overlay = None
         self.device_menu = None
-        self.refresh_broadcast_state()
 
         # Default channel = GATT (Android parity)
         from dashboard_gui.global_state_manager import GLOBAL_STATE
@@ -570,44 +573,7 @@ class HeaderBar(BoxLayout):
     def set_led(self, d):
         self.led.set_state(d.get("alive", False), d.get("status", "offline"))
 
-    def _toggle_broadcast(self, *_):
-        import core
-        from dashboard_gui.global_state_manager import GLOBAL_STATE
-    
-        if not GLOBAL_STATE.broadcast_data_available:
-            return
-    
-        try:
-            if GLOBAL_STATE.broadcast_active:
-                core.stop_broadcast_bridge()
-                GLOBAL_STATE.broadcast_active = False
-            else:
-                core.restart_broadcast_bridge()
-                GLOBAL_STATE.broadcast_active = True
-    
-        except Exception as e:
-            print(e)
 
-    def refresh_broadcast_state(self):
-        from dashboard_gui.global_state_manager import GLOBAL_STATE
-    
-        available = bool(GLOBAL_STATE.broadcast_data_available)
-        active = bool(GLOBAL_STATE.broadcast_active)
-    
-        if not available:
-            self.btn_broadcast.disabled = True
-            self.btn_broadcast.color = (0.5, 0.5, 0.5, 1)
-            self.btn_broadcast.text = "\uf071"
-            return
-    
-        self.btn_broadcast.disabled = False
-    
-        if active:
-            self.btn_broadcast.color = (0.3, 1, 0.3, 1)
-            self.btn_broadcast.text = "\uf09e"
-        else:
-            self.btn_broadcast.color = (0.7, 0.7, 0.7, 1)
-            self.btn_broadcast.text = "\uf05e"
 
     def set_external(self, present):
         self.external.set_external(bool(present))
@@ -630,11 +596,10 @@ class HeaderBar(BoxLayout):
         # 2. Falls der Kanal etwas hat (z.B. später pro Kanal RSSI)
         if rssi is None:
             from dashboard_gui.global_state_manager import GLOBAL_STATE
-            ch = GLOBAL_STATE.get_active_channel()  # "adv" oder "gatt"
-            dec = frame.get(ch)
-            if dec:
-                # falls Decoder später rssi liefert:
-                rssi = dec.get("rssi")
+            ch = frame.get("channel", "adv")
+            dec = frame.get(ch, {})
+            rssi = dec.get("rssi") if dec else None
+            self.signal.set_rssi(rssi)
     
         self.signal.set_rssi(rssi)
 
@@ -662,10 +627,9 @@ class HeaderBar(BoxLayout):
             # 2) Falls nicht im Health → aktiver Kanal
             if not present:
                 from dashboard_gui.global_state_manager import GLOBAL_STATE
-                ch = GLOBAL_STATE.get_active_channel()   # "adv" oder "gatt"
-                dec = frame.get(ch)
-                if dec and isinstance(dec, dict):
-                    present = bool(dec.get("external", {}).get("present", False))
+                ch = frame.get("channel", "adv")  # Standard auf "adv"
+                dec = frame.get(ch, {})
+                present = bool(dec.get("external", {}).get("present", False))
     
             # 3) In UI anwenden
             self.set_external(present)
@@ -692,16 +656,8 @@ class HeaderBar(BoxLayout):
         return self._short_dev(mac)
 
     def _format_device_with_channel(self, frame):
-        if not frame:
-            return "---"
-    
         name = self._resolve_device_name(frame)
-    
-        from dashboard_gui.global_state_manager import GLOBAL_STATE
-        ch = GLOBAL_STATE.get_active_channel()
-    
-        # bewusst kurz & ruhig
+        ch = frame.get("channel", "adv")   # aus Frame
         tag = "GATT" if ch == "gatt" else "ADV"
-    
         icon = "[font=FA]\uf2c7[/font]"
         return f"{icon}  {name} · {tag}"

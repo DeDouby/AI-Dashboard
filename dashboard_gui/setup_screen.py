@@ -35,7 +35,7 @@ class SetupScreen(Screen):
         self._devices_loaded_once = False
 
         from dashboard_gui.global_state_manager import GLOBAL_STATE
-        GLOBAL_STATE.attach_setup(self)
+        GLOBAL_STATE.ui_handler.attach_screen("setup", self)
 
         # 1) ROOT OHNE PADDING (Damit der Header oben klebt)
         root = BoxLayout(orientation="vertical", spacing=0, padding=0)
@@ -289,7 +289,7 @@ class SetupScreen(Screen):
                 print("[Setup] Device 0 hat kein bridge_profile")
         
             # GSM sauber initialisieren
-            GLOBAL_STATE.active_index = 0
+            GLOBAL_STATE.set_active_index(0)
             GLOBAL_STATE.set_active_channel("gatt")
         
             # Bridge EINMAL neu starten

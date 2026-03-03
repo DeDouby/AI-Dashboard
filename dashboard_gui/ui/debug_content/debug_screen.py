@@ -32,7 +32,7 @@ class DebugScreen(Screen):
 
         self.header.enable_back("dashboard")
         root.add_widget(self.header)
-        GLOBAL_STATE.attach_debug(self)
+        GLOBAL_STATE.ui_handler.attach_screen("debug", self)
 
         # -----------------------------
         # BUTTONS IN SCROLLVIEW

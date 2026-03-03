@@ -51,7 +51,7 @@ class DashboardScreen(Screen):
         self._bg_path_1 = os.path.join(ASSET_ROOT, "background.png")
         self._bg_path_2 = os.path.join(ASSET_ROOT, "background2.png")
         # Global State registrieren
-        GLOBAL_STATE.attach_dashboard(self)
+        GLOBAL_STATE.ui_handler.attach_screen("dashboard", self) # Geht direkt zum Spezialisten
 
         # HEADER
         self.header = HeaderBar()
@@ -60,16 +60,11 @@ class DashboardScreen(Screen):
         # MAIN PANEL
         self.content = DashboardMainPanel(size_hint_y=1)
         self.root_layout.add_widget(self.content)
-
-        # CONTROL BUTTONS
-        self.controls = ControlButtons(
-            on_start=lambda *_: GLOBAL_STATE.start(),
-            on_stop=lambda *_: GLOBAL_STATE.stop(),
-            on_reset=lambda *_: GLOBAL_STATE.reset()
-        )
-        self.controls.size_hint = (1, None)
+        # nur hinzufügen, ohne Callbacks:
+        self.controls = ControlButtons()
+        self.controls.size_hint = (1,None)
         self.controls.height = dp_scaled(40)
-        self.controls.pos_hint = {'y': 0}
+        self.controls.pos_hint = {'y':0}
         self.root_layout.add_widget(self.controls)
 
         # Tile-Reihenfolge

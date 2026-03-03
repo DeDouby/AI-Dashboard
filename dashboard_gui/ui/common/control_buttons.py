@@ -64,7 +64,7 @@ class ControlButtons(BoxLayout):
 
     def sync_with_global(self):
         """Aktualisiert die Button-Optik basierend auf GSM Status"""
-        self.running = GLOBAL_STATE.running
+        self.running = GLOBAL_STATE.graph_engine.running
         if self.running:
             self.btn_toggle.background_color = (*self.COLOR_STOP[:3], 0.6)
             self.btn_toggle.text = "[font=FA]\uf04d[/font]  " + I18N.t(self.TXT_STOP)
@@ -72,29 +72,35 @@ class ControlButtons(BoxLayout):
             self.btn_toggle.background_color = (*self.COLOR_START[:3], 0.6)
             self.btn_toggle.text = "[font=FA]\uf04b[/font]  " + I18N.t(self.TXT_START)
 
-    def refresh_state(self, is_running):
-        """Wird vom GSM aufgerufen, um alle Buttons systemweit zu syncen"""
+    def refresh_state(self):
         self.sync_with_global()
 
     def _toggle_release(self, *_):
-        if not GLOBAL_STATE.running:
-            GLOBAL_STATE.start()
-            if self.on_start: self.on_start()
+    
+        if not GLOBAL_STATE.graph_engine.running:
+            GLOBAL_STATE.graph_engine.start()
+    
+            if self.on_start:
+                self.on_start()
+    
         else:
-            GLOBAL_STATE.stop()
-            if self.on_stop: self.on_stop()
+            GLOBAL_STATE.graph_engine.stop()
+    
+            if self.on_stop:
+                self.on_stop()
+    
+        self.sync_with_global()
         
-        # Alle Instanzen dieser Buttons auf allen Screens aktualisieren
-        GLOBAL_STATE._refresh_all_buttons()
 
     def _reset_release(self, *_):
-        # 1. GSM Reset (Buffer löschen)
-        GLOBAL_STATE.reset()
-        
-        # 2. Lokaler Callback (z.B. UI-Elemente explizit refreshen)
+    
+        GLOBAL_STATE.graph_engine.reset()
+    
         if self.on_reset:
             self.on_reset()
-        
+    
+        self.sync_with_global()
+    
         print("[UI] Global Reset performed")
 
     def _trigger(self, callback):

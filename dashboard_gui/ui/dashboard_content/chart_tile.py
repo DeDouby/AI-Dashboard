@@ -5,28 +5,22 @@ from kivy_garden.graph import Graph, LinePlot
 from kivy.uix.behaviors import ButtonBehavior
 from kivy.graphics import Rectangle, Color
 from kivy.uix.floatlayout import FloatLayout
-
+from kivy.app import App  # <--- Das hier fehlt!
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 import config
 
 class ChartTile(ButtonBehavior, BoxLayout):
-
-    def __init__(self, title, unit, color_rgba, bg=None, **kw):
-        ButtonBehavior.__init__(self)
-        BoxLayout.__init__(
-            self,
-            orientation="vertical",
-            spacing=dp_scaled(6),
-            padding=dp_scaled(6),
-            **kw
-        )
-        # Wir speichern die initiale Unit nur noch als Fallback, 
-        # die echte Unit kommt jetzt aus der unit_map des GSM.
+    def __init__(self, tile_id, title, unit, color_rgba, bg=None, **kw):
+        # Wir rufen die Super-Klassen auf
+        ButtonBehavior.__init__(self, **kw)
+        BoxLayout.__init__(self, orientation="vertical", spacing=dp_scaled(6), padding=dp_scaled(6))
+        
+        self.tile_id = tile_id
         self.title = title
+        self.unit = unit
         self.color = color_rgba
         self.window = config.get_tile_graph_window()
-
         # -------------------------------------------------
         # BACKGROUND
         # -------------------------------------------------
@@ -142,25 +136,27 @@ class ChartTile(ButtonBehavior, BoxLayout):
     # UPDATE – Jetzt mit dynamischer Unit-Abfrage
     # -------------------------------------------------
     def update(self, value, buf_key, render=False):
-        # 1. Wert an GSM geben (Smoothing passiert dort!)
-        GLOBAL_STATE.process_new_value(buf_key, value)
-
+        # 1. Wert in den Graph-Speicher schieben
+        GLOBAL_STATE.graph_engine.process_new_value(buf_key, value)
+    
         if render:
-            # 2. Daten & Trend vom GSM holen
             history = GLOBAL_STATE.get_graph_data(buf_key)
-            self.lbl_trend.text = GLOBAL_STATE.get_trend_icon(buf_key)
+    
+            # ✅ Trend holen
+            trend_icon = GLOBAL_STATE.get_trend_icon(buf_key)
+            self.lbl_trend.text = trend_icon or ""
+            self.lbl_trend.font_name = "FA"
+    
+            # ✅ Einheit vom GSM holen
+            unit = GLOBAL_STATE.get_unit(buf_key)
             
-            # 3. EINHEIT DYNAMISCH HOLEN (Der Fullscreen-Weg)
-            # Das ist der Fix: Wir nutzen die unit_map aus dem GSM
-            current_unit = GLOBAL_STATE.get_unit(buf_key)
-
             if history:
-                # Letzten Wert mit der ECHTEN Einheit anzeigen
+                # Letzten Wert anzeigen
                 last_val = history[-1]
-                self.lbl_value.text = f"{last_val:.2f} {current_unit}"
+                self.lbl_value.text = f"{last_val:.2f} {unit}"
                 
-                # Graph zeichnen
-                self._render_buffer(history, current_unit)
+                # Graph zeichnen (Hier rufen wir die Helferfunktion auf)
+                self._render_buffer(history, unit)
 
     def _render_buffer(self, buf, unit):
         if not buf: 
@@ -207,36 +203,44 @@ class ChartTile(ButtonBehavior, BoxLayout):
     # -------------------------------------------------
     # TILE CLICK → FULLSCREEN
     # -------------------------------------------------
-    def on_release(self, *_):
-        parent = self.parent
+    # In chart_tile.py (on_release)
+    def on_release(self):
+        from kivy.app import App
+        app = App.get_running_app()
+        
+        # 1. Sicherstellen, dass wir Daten haben
+        idx = GLOBAL_STATE.get_active_index()
+        dev_list = GLOBAL_STATE.get_device_list()
+        if not dev_list: 
+            print("[TILE] Klick ignoriert: Keine Geräte-Liste!")
+            return
+            
+        dev_id = dev_list[idx]
+        channel = GLOBAL_STATE.get_active_channel()
+        full_key = f"{dev_id}_{channel}_{self.tile_id}"
+        
+        print(f"[TILE] Klick registriert! Ziel-Key: {full_key}")
+
+        # 2. Den ScreenManager finden (Egal wie tief er vergraben ist)
+        # Wir suchen in app.root nach dem ScreenManager
         sm = None
-        while parent:
-            if hasattr(parent, "current") and hasattr(parent, "get_screen"):
-                sm = parent
-                break
-            parent = parent.parent
-
-        if sm is None:
-            print("❌ ERROR: Kein ScreenManager gefunden!")
-            return
-
-        if not sm.has_screen("fullscreen"):
-            print("❌ ERROR: Fullscreen existiert nicht!")
-            return
-
-        dashboard = sm.get_screen("dashboard")
-        for key, tile in dashboard.content.tile_map.items():
-            if tile is self:
+        if hasattr(app.root, 'current'): # Wenn root selbst der SM ist
+            sm = app.root
+        else:
+            # Suche in den Kindern von root (falls root ein Boxlayout ist)
+            for child in app.root.walk():
+                if hasattr(child, 'current') and hasattr(child, 'get_screen'):
+                    sm = child
+                    break
+        
+        if sm:
+            try:
                 fs = sm.get_screen("fullscreen")
-                fs.activate_tile(key)
+                fs.activate_tile(full_key)
                 sm.current = "fullscreen"
-                return
-
-        print("❌ ERROR: Tile-Key nicht gefunden!")
-
-
-    
-        merged.sort(key=lambda x: x if isinstance(x, float) else x["value"])
-        return merged[-self.window:]
- 
+                print("[TILE] Wechsel zu Fullscreen erfolgreich!")
+            except Exception as e:
+                print(f"[TILE] Fehler beim Wechsel: {e}")
+        else:
+            print("[TILE] KRITISCH: ScreenManager nicht gefunden!")
  

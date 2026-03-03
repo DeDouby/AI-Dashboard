@@ -34,8 +34,7 @@ class GrowRoomScreen(Screen):
         
         # GSM Registrierung
         from dashboard_gui.global_state_manager import GLOBAL_STATE
-        GLOBAL_STATE.attach_grow_rooms(self)
-
+        GLOBAL_STATE.ui_handler.attach_screen("grow_rooms", self)
         self.root = BoxLayout(orientation="vertical")
         
         # Hintergrund

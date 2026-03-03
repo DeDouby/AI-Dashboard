@@ -17,8 +17,7 @@ class CamViewerScreen(Screen):
 
     def __init__(self, **kw):
         super().__init__(**kw)
-        GLOBAL_STATE.attach_cam_viewer(self)
-
+        GLOBAL_STATE.ui_handler.attach_screen("cam_viewer", self)
         root = BoxLayout(orientation="vertical")
 
         # HEADER
