@@ -1,17 +1,8 @@
-# dashboard_gui/ui/common/broadcast_button.py
-
 from kivy.uix.button import Button
-from kivy.clock import Clock
 from dashboard_gui.ui.scaling_utils import sp_scaled
-import core
-
+from dashboard_gui.global_state_manager import GLOBAL_STATE
 
 class BroadcastButton(Button):
-    """
-    Eigenständiges Modul für Broadcast Control.
-    Kein Logik-Code im Header mehr.
-    """
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
@@ -23,56 +14,49 @@ class BroadcastButton(Button):
         self.color = (0.7, 0.7, 0.7, 1)
 
         self.bind(on_release=self._toggle)
-
-        self._refresh_event = Clock.schedule_interval(self._refresh_state, 2)
-
-        self._refresh_state()
-
-    # -------------------------------------------------
+        
+        # Initialer Refresh
+        self.refresh()
 
     def _toggle(self, *_):
-        from dashboard_gui.global_state_manager import GLOBAL_STATE
-    
-        if GLOBAL_STATE.get_broadcast_active():
-            # User will stoppen
-            core.stop_broadcast_bridge()
-            GLOBAL_STATE.set_broadcast_active(False)
-            GLOBAL_STATE.set_broadcast_user_disabled(True)
+        """User klickt auf den Button"""
+        be = GLOBAL_STATE.broadcast_engine
+        
+        # Wenn aktiv -> ausschalten und manuell deaktivieren
+        if be.active:
+            be.set_user_disabled(True)
         else:
-            # User will starten
-            core.start_broadcast_bridge()
-            GLOBAL_STATE.set_broadcast_active(True)
-            GLOBAL_STATE.set_broadcast_user_disabled(False)
-    
-        GLOBAL_STATE.refresh_all_headers()
-        self._refresh_state()
+            # Wenn inaktiv -> wieder erlauben
+            be.set_user_disabled(False)
+            # Falls Daten da sind, wird set_user_disabled(False) die Bridge automatisch starten
 
-    # -------------------------------------------------
+    def refresh(self, *_):
+        """Wird vom GSM/UI-Handler gerufen, wenn sich was ändert"""
+        be = GLOBAL_STATE.broadcast_engine
+        status = be.get_status() # Holen uns das kompakte Status-Paket
 
-    def _refresh_state(self, *_):
-        from dashboard_gui.global_state_manager import GLOBAL_STATE
-
-        available = bool(GLOBAL_STATE.broadcast_data_available)
-        active = GLOBAL_STATE.get_broadcast_active()
-
-        if not available:
+        # 1. Sind überhaupt Daten da? (mixed.json)
+        if not status["available"]:
             self.disabled = True
-            self.color = (0.5, 0.5, 0.5, 1)
-            self.text = "\uf071"
+            self.color = (0.4, 0.4, 0.4, 1) # Dunkelgrau
+            self.text = "\uf071" # Warn-Icon (Keine Daten)
             return
 
+        # 2. Daten sind da -> Button freigeben
         self.disabled = False
 
-        if active:
-            self.text = "\uf09e"
-            self.color = (0.3, 1, 0.3, 1)
+        # 3. Ist die Bridge gerade aktiv?
+        if status["active"]:
+            self.text = "\uf09e" # RSSI/Sende-Icon
+            self.color = (0.2, 1, 0.2, 1) # Leuchtend Grün
         else:
-            self.text = "\uf05e"
-            self.color = (0.7, 0.7, 0.7, 1)
+            # Daten da, aber Bridge aus (entweder durch User oder Fehler)
+            self.text = "\uf05e" # Verbots-Schild / Aus-Icon
+            self.color = (1, 0.3, 0.3, 1) if status["disabled"] else (0.7, 0.7, 0.7, 1)
 
-    # -------------------------------------------------
-
-    def on_parent(self, *_):
-        """Cleanup wenn entfernt"""
-        if not self.parent:
-            self._refresh_event.cancel()
+    def on_parent(self, widget, parent):
+        """Registriert sich beim UI-Handler, wenn der Button erscheint"""
+        if parent:
+            GLOBAL_STATE.ui_handler.register_broadcast_button(self)
+        else:
+            GLOBAL_STATE.ui_handler.unregister_broadcast_button(self)

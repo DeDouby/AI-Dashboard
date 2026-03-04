@@ -14,7 +14,13 @@ from dashboard_gui.engines.metrics_engine import MetricsEngine
 from dashboard_gui.engines.gatt_config_engine import GattConfigEngine
 from dashboard_gui.engines.active_channel_engine import init_active_channel_engine
 from dashboard_gui.engines.unit_engine import UnitEngine
-from dashboard_gui.engines.swipe_gesture_engine import SwipeGestureEngine
+from dashboard_gui.engines.multi_active_key_engine import MultiActiveKeyEngine
+from dashboard_gui.engines.tile_engine import TileEngine
+# In deiner global_state_manager.py
+from dashboard_gui.global_gesture_manager import GlobalGestureManager
+from dashboard_gui.engines.data_flow_engine import DataFlowEngine
+from dashboard_gui.engines.broadcast_engine import BroadcastEngine
+
 # Initialisieren
 def _extract_mac(dev):
     """Normiert device_id auf reine MAC."""
@@ -37,20 +43,14 @@ class GlobalStateManager:
 
         # LED Status
 
-        self.rssi_history = {}  # MUSS ein Dictionary sein, keine Liste []
         self.max_history = config.get_tile_graph_window()
-        self._last_frame_time = 0  # NEU für Ratenberechnung
-        self.current_latency = 0   # NEU
 
         # Heartbeat
-        self._last_state = {}
         self.trend_window = config.get_tile_graph_window() 
         # Global Tick
         # Statt 0.5 nehmen wir den Wert aus der Config
         self._main_tick = Clock.schedule_interval(self._global_update, config.get_refresh_interval())
-        self.broadcast_active = False
-        self.broadcast_data_available = True
-        self.broadcast_user_disabled = False
+
 
         ######REFACTORING!!!!!
         self.graph_engine = GraphEngine(self)
@@ -60,26 +60,50 @@ class GlobalStateManager:
         self.led_engine = LedEngine(self.ui_handler)
         self.mixed_engine = MixedEngine(self)
         self.mixed_engine.init_file()
-        self.broadcast_data_available = self.mixed_engine.check_file()
         self.metrics_engine = MetricsEngine(self)
         self.gatt_engine = GattConfigEngine(self)
         self.unit_engine = UnitEngine(self)
-        self.swipe_engine = SwipeGestureEngine(self)
-        # ActiveChannelEngine initialisieren
-        global ACTIVE_CHANNEL_ENGINE
-        ACTIVE_CHANNEL_ENGINE = init_active_channel_engine(self.gatt_engine)
-
-        # Android Parity: direkt GATT aktivieren
-        self.set_active_channel("gatt")
+        self.multi_key_engine = MultiActiveKeyEngine(self)
+        self.tile_engine = TileEngine(self)
+        self.ggm = GlobalGestureManager(self)
+        self.broadcast_engine = BroadcastEngine(self)
+        self.data_flow = DataFlowEngine(self)
+        from dashboard_gui.engines.active_channel_engine import init_active_channel_engine
         
+        # 2. ERSCHAFFE die Engine und binde sie an self (WICHTIG!)
+        self.active_channel_engine = init_active_channel_engine(self.gatt_engine)
+        
+        # 3. Jetzt, wo sie existiert, kannst du sie der globalen Variable zuweisen
+        global ACTIVE_CHANNEL_ENGINE
+        ACTIVE_CHANNEL_ENGINE = self.active_channel_engine
         ##################################
 #########REFACTOR
+    def sync_ui_buttons(self):
+        """Triggert den Sync-Vorgang im UI Manager an."""
+        self.ui_handler._refresh_all_buttons()
+# Füge diese Methode im GlobalStateManager hinzu:
+    def get_active_device_id(self):
+        """Gibt die ID des aktuell angewählten Geräts zurück."""
+        try:
+            # Jetzt existiert self.active_channel_engine!
+            idx = self.active_channel_engine.get_active_index()
+            dev_list = self.active_channel_engine.get_device_list()
+            
+            if dev_list and idx < len(dev_list):
+                return dev_list[idx]
+        except Exception as e:
+            print(f"[GSM] Error getting active device id: {e}")
+        return None
 
     def get_active_channel(self):
-        return ACTIVE_CHANNEL_ENGINE.get_active_channel()
-
+        # Wir delegieren die Anfrage an die tatsächliche Engine
+        from dashboard_gui.engines.active_channel_engine import ACTIVE_CHANNEL
+        return ACTIVE_CHANNEL.get_active_channel()
+    # In global_state_manager.py
     def set_active_channel(self, channel):
-        ACTIVE_CHANNEL_ENGINE.set_active_channel(channel)
+        self.active_channel_engine.set_active_channel(channel)
+        # Kleiner Trick: Wir triggern hier direkt den Flow, dann muss das Menü es nicht tun!
+        self.data_flow.process_cycle()
 
     def get_active_index(self):
         return ACTIVE_CHANNEL_ENGINE.get_active_index()
@@ -96,26 +120,42 @@ class GlobalStateManager:
     def get_device_list(self):
         return ACTIVE_CHANNEL_ENGINE.get_device_list()
 
-
-
-
-
-
-
-
-
+# --- BROADCAST DELEGATION ---
     def get_broadcast_active(self):
-        return self.broadcast_active    
-    def set_broadcast_active(self, state: bool):
-        self.broadcast_active = state
-        self.refresh_all_headers()
+        return self.broadcast_engine.active    
+
+    def set_broadcast_active(self, state):
+        # Ruft die neue Engine-Logik auf (inkl. core start/stop)
+        self.broadcast_engine.set_active(state)
 
     def set_broadcast_available(self, state: bool):
-        self.broadcast_data_available = state
-    def set_broadcast_user_disabled(self, state: bool):
-        self.broadcast_user_disabled = state
-        self.refresh_all_headers()
+        self.broadcast_engine.set_available(state)
 
+    def set_broadcast_user_disabled(self, state: bool):
+        self.broadcast_engine.set_user_disabled(state)
+
+    def refresh_all_headers(self):
+        # Delegiert an den UI-Manager
+        self.ui_handler.refresh_broadcast_buttons()
+
+    # ---------------------------------------------------------
+    # TILE ENGINE – Delegation
+    # ---------------------------------------------------------
+
+    def register_tiles(self, tiles):
+        self.tile_engine.register_tiles(tiles)
+
+    def get_active_tiles(self):
+        return self.tile_engine.get_active_tiles()
+
+    def build_tile_key(self, device_id, channel, tile_id):
+        return self.tile_engine.build_full_key(device_id, channel, tile_id)
+
+    def next_tile(self, tile_id, direction):
+        return self.tile_engine.get_next_tile(tile_id, direction)
+
+    def next_tile_key(self, full_key, direction):
+        return self.tile_engine.get_next_full_key(full_key, direction)
 
 
            
@@ -124,18 +164,15 @@ class GlobalStateManager:
      # ---------------------------------------------------------
     # PUBLIC API – Device Switch
     # ---------------------------------------------------------
-
     def get_device_label(self, device_id):
-        import config
-        cfg = config._init()
-        d = cfg.get("devices", {}).get(device_id, {})
-        name = d.get("name")
-        return name if name else device_id        
+        try:
+            cfg = config._init()
+            devices = cfg.get("devices", {})
+            dev = devices.get(device_id, {})
+            return dev.get("name") or device_id
+        except:
+            return device_id
 ####
-    # ---------------------------------------------------------
-    # Screen Attach
-    # ---------------------------------------------------------
-    # Lösche die alten Einzelfunktionen und nimm das:
 
 ####
     # ---------------------------------------------------------
@@ -150,11 +187,6 @@ class GlobalStateManager:
         return self.graph_engine.get_trend_icon(key)
 ####
 ####
-    # ---------------------------------------------------------
-    # UNIT RESOLVER (für Tiles + Fullscreen)
-    # ---------------------------------------------------------
-    
-
     # ---------------------------------------------------------
     # UNIT ENGINE – Delegation
     # ---------------------------------------------------------
@@ -179,11 +211,7 @@ class GlobalStateManager:
         # Der GSM sagt nur noch: "Hier ist der Status, verteil das mal!"
         self.ui_handler.update_leds(self.led_state)
     
-
 ####
-
-
-
     def bind_screen_manager(self, sm):
         self.screen_manager = sm
 
@@ -191,168 +219,20 @@ class GlobalStateManager:
     # ---------------------------------------------------------
     # GLOBAL UPDATE TICK!!!
     # ---------------------------------------------------------
+    # Der neue, saubere Tick:
     def _global_update(self, dt):
-        BUFFER.soft_reload()
-        data = BUFFER.get()
-    
-        if not self.running or not data or not isinstance(data, list):
-            self.led_engine.nodata()
-            return
-    
-        # --- MIXED MODE LOGIK ---
-        if self.mixed_mode_active:
-            self.mixed_engine.update(data)
-    
-        # Aktives Gerät / Kanal
-        idx = min(self.get_active_index(), len(data)-1)
-        d = data[idx]
-        dev_id = d.get("device_id")
-        ch_name = self.get_active_channel()
-        ch = d.get(ch_name, {})
-        self.metrics_engine.process_metrics(dev_id, ch_name, ch)
-        self.metrics_engine.process_vpd_coords(dev_id, ch_name, ch)
-        if not isinstance(ch, dict):
-            self.led_engine.offline()
-            return
-    
-        # Metriken extrahieren
-
-
-    
-
-    
-        # MAC für UI
-        mac = _extract_mac(dev_id)
-        d["device_id_flat"] = mac
-    
-        # Screen Update
-        if hasattr(self, 'screen_manager'):
-            out = {
-                "device_id": d.get("device_id"),
-                "device_id_flat": mac,
-                "channel": ch_name,
-                ch_name: ch,
-                "adv": d.get("adv"),
-                "gatt": d.get("gatt"),
-                "bridge_alive": d.get("bridge_alive"),
-                "bridge_status": d.get("bridge_status"),
-                "health": d.get("health"),
-                "_active_keys": self.extract_active_keys(d)
-            }
-            self.ui_handler.update_active_screen(self.screen_manager, out)
-    
-        # Alive / Counter / LED Logik
-        alive = ch.get("alive", False)
-    
-        try:
-            current_rssi = d.get("health", {}).get("signal", {}).get("rssi")
-            if current_rssi is not None and dev_id:
-                self.rssi_history.setdefault(dev_id, []).append(float(current_rssi))
-                if len(self.rssi_history[dev_id]) > self.max_history:
-                    self.rssi_history[dev_id].pop(0)
-        except:
-            pass
-    
-        counter = ch.get("packet_counter")
-        raw = ch.get("raw") or ch.get("adv_raw") or ch.get("gat_raw")
-    
-        if not alive:
-            self.led_engine.offline()
-            self._last_counter = None
-            self._last_raw = None
-        else:
-            if ch_name == "adv":
-                if raw and raw != getattr(self, "_last_raw", None):
-                    self.led_engine.flow()
-                else:
-                    if self.led_engine._flow_hold:
-                        self.led_engine.release_flow_hold()
-                    else:
-                        self.led_engine.stale()
-                self._last_raw = raw
-            else:  # GATT
-                if counter is None or self._last_counter is None:
-                    self.led_engine.stale()
-                elif counter != self._last_counter:
-                    self.led_engine.flow()
-                else:
-                    if self.led_engine._flow_hold:
-                        self.led_engine.release_flow_hold()
-                    else:
-                        self.led_engine.stale()
-                self._last_counter = counter
-    
-        # Active Keys
-        d["_active_keys"] = self.extract_active_keys(d)
+        # Alles delegiert an die Spezial-Engine
+        self.data_flow.process_cycle()
  ####
     # ---------------------------------------------------------
     # Active Keys – MULTI-CHANNEL (adv + gatt, ohne Vorrang) MIXED MODE
     # ---------------------------------------------------------
     def extract_active_keys(self, d):
-        active = set()
-
-        # Neuer Multi-Channel-Pfad: adv / gatt
-        for ch_name in ("adv", "gatt"):
-            ch = d.get(ch_name)
-            if not isinstance(ch, dict):
-                continue
-
-            internal = ch.get("internal", {})
-            external = ch.get("external", {})
-            vpd_int = ch.get("vpd_internal", {})
-            vpd_ext = ch.get("vpd_external", {})
-
-            # interne Werte
-            if internal.get("temperature", {}).get("value") is not None:
-                active.add("temp_in")
-            if internal.get("humidity", {}).get("value") is not None:
-                active.add("hum_in")
-            if vpd_int.get("value") is not None:
-                active.add("vpd_in")
-
-            # externe Werte
-            if external.get("present"):
-                if external.get("temperature", {}).get("value") is not None:
-                    active.add("temp_ex")
-                if external.get("humidity", {}).get("value") is not None:
-                    active.add("hum_ex")
-                if vpd_ext.get("value") is not None:
-                    active.add("vpd_ex")
-
-        return list(active)
-
-####
-
-####
-    # ---------------------------------------------------------
-    # Mixed Mode 
-    # ---------------------------------------------------------
-
-    def set_mixed_mode(self, state: bool):
-        self.mixed_mode_active = state
-    
-    def toggle_mixed_buffer(self, buf_key):
-        if buf_key in self.mixed_selected_buffers:
-            self.mixed_selected_buffers.remove(buf_key)
-        else:
-            self.mixed_selected_buffers.add(buf_key)
-
-    def get_mixed_mode(self, dev_id):
-        return self.mixed_device_modes.get(str(dev_id), "mixed")
-    
-    def set_mixed_mode_for_device(self, dev_id, mode):
-        self.mixed_device_modes[str(dev_id)] = mode
-
-
-
+        return self.multi_key_engine.extract_active_keys(d)
 
     def refresh_all_headers(self):
-        # Wir holen uns die Liste der Screens jetzt direkt vom neuen Spezialisten!
-        for name, ref in self.ui_handler.screens.items():
-            # SICHERHEITSGURT: Erst prüfen ob 'ref' existiert, dann ob es 'header' hat
-            if ref and hasattr(ref, 'header'):
-                if hasattr(ref.header, "btn_broadcast"):
-                    ref.header.btn_broadcast._refresh_state()
+        # Nutzt jetzt den ui_handler
+        self.ui_handler.refresh_broadcast_buttons()
 
 
     # ---------------------------------------------------------

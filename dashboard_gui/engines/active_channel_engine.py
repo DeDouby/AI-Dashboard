@@ -25,21 +25,45 @@ class ActiveChannelEngine:
         print(f"[ACE] Channel -> {channel}")
 
         try:
+            # 1. Aktuelle Geräte-ID ermitteln
             item = self.get_device_list()[self.active_index]
             device_id = item.get("device_id") if isinstance(item, dict) else item
 
+            # 2. Kanal-spezifische Hardware-Aktionen (Bridge starten/stoppen)
             cfg = config._init()
             dev = cfg.get("devices", {}).get(device_id, {})
             bridge_profile = dev.get("bridge_profile", "")
 
-            # ADV → GATT
             if prev == "adv" and channel == "gatt":
                 if bridge_profile:
                     self.gatt_config_engine.write(device_id)
-                    core.restart_gatt_bridge()
-            # GATT → ADV
             elif prev == "gatt" and channel == "adv":
-                pass  # ADV Restart nicht nötig
+                try:
+                    core.stop_gatt_bridge()
+                    print("[ACE] GATT Bridge stopped")
+                except Exception as e:
+                    print("[ACE] stop_gatt_bridge failed:", e)
+
+            # ---------------------------------------------------------
+            # NEU: IDIOTENSICHERER FULLSCREEN-RESET
+            # ---------------------------------------------------------
+            # Wenn wir den Kanal wechseln, ändern sich oft die verfügbaren Daten.
+            # Wir zwingen den Fullscreen, auf das erste Tile des neuen Kanals zu springen.
+            
+            if hasattr(self.gatt_config_engine, "gsm"):
+                    gsm = self.gatt_config_engine.gsm
+                    
+                    # 1. Wahrheit abgreifen
+                    allowed = gsm.tile_engine.get_active_tiles()
+                    if allowed:
+                        # 2. Key für das erste Tile bauen
+                        new_key = f"{device_id}_{channel}_{allowed[0]}"
+                        
+                        # 3. Fullscreen zwingen
+                        fs_screen = gsm.ui_handler.get_screen("fullscreen")
+                        if fs_screen:
+                            fs_screen.activate_tile(new_key)
+
         except Exception as e:
             print("[ACE] channel switch failed:", e)
 
@@ -80,7 +104,7 @@ class ActiveChannelEngine:
                 bridge_profile = dev.get("bridge_profile", "")
                 if bridge_profile:
                     self.gatt_config_engine.write(device_id)
-                    core.restart_gatt_bridge()
+                    
         except Exception as e:
             print("[ACE] device switch failed:", e)
 

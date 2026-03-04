@@ -16,17 +16,13 @@ class BleBridgeAndroid:
         self.ctx = self.PythonActivity.mActivity
 
     def start(self):
-        # Alles nacheinander mit kurzen Pausen starten
         self.start_adv()
-        self.start_gatt()
-        self.start_broadcast()
-
+        
     def start_adv(self):
         self.AdvBridge.start(self.ctx)
 
     def stop_adv(self):
         self.AdvBridge.stop()
-
     def start_gatt(self):
         gatt_cfg = os.path.join(config.DATA, "gatt_config.json")
         self.GattBridge.start(self.ctx, gatt_cfg)

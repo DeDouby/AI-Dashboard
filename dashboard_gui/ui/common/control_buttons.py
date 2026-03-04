@@ -76,32 +76,22 @@ class ControlButtons(BoxLayout):
         self.sync_with_global()
 
     def _toggle_release(self, *_):
-    
         if not GLOBAL_STATE.graph_engine.running:
             GLOBAL_STATE.graph_engine.start()
-    
-            if self.on_start:
-                self.on_start()
-    
+            if self.on_start: self.on_start()
         else:
             GLOBAL_STATE.graph_engine.stop()
-    
-            if self.on_stop:
-                self.on_stop()
-    
-        self.sync_with_global()
+            if self.on_stop: self.on_stop()
         
+        # NEU: Sag dem GlobalStateManager, er soll ALLE Buttons im UI synchronisieren
+        GLOBAL_STATE.sync_ui_buttons()
 
     def _reset_release(self, *_):
-    
         GLOBAL_STATE.graph_engine.reset()
-    
-        if self.on_reset:
-            self.on_reset()
-    
-        self.sync_with_global()
-    
-        print("[UI] Global Reset performed")
+        if self.on_reset: self.on_reset()
+        
+        # NEU: Auch hier alle Buttons syncen
+        GLOBAL_STATE.sync_ui_buttons()
 
     def _trigger(self, callback):
         if callback:

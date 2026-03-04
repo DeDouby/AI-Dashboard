@@ -8,7 +8,6 @@ from kivy.graphics import Color, RoundedRectangle, Line
 from kivy.clock import Clock
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 import time
-import time
 from kivy.uix.widget import Widget
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.anchorlayout import AnchorLayout
@@ -17,8 +16,7 @@ from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.graphics import Color, Line, RoundedRectangle
 from kivy.clock import Clock
-from kivy.metrics import dp as dp_scaled
-from kivy.metrics import sp as sp_scaled
+
 
 # Import des GSM
 from dashboard_gui.global_state_manager import GLOBAL_STATE
@@ -139,83 +137,76 @@ class SignalInspector(FloatLayout):
         self._update_event = Clock.schedule_interval(self.update_ui, 0.5)
 
     def update_ui(self, *_):
-        # Frame direkt vom Header beziehen (der vom GSM gefüttert wird)
+        # Frame direkt vom Header beziehen
         frame = getattr(self.parent_header, "_last_frame", None)
-        if not frame: 
+        if not frame or not isinstance(frame, dict): 
             return
 
         dev_id = frame.get('device_id', '?')
         
-        # --- GERÄTE-WECHSEL / INITIALISIERUNG ---
+        # --- 1) DATENQUELLE RSSI-HISTORY (Der Fix!) ---
         if self._current_dev_id != dev_id:
             self._current_dev_id = dev_id
             self.graph.reset()
             
-            # Historie direkt aus GSM (rssi_history) abgreifen
-            # Wir nehmen nur die letzten 100 Werte, falls GSM mehr hat
-            hist = GLOBAL_STATE.rssi_history.get(dev_id, [])
-            if hist:
-                for val in hist[-100:]:
+            # Wir holen die History jetzt von dort, wo sie lebt: In der DataFlowEngine
+            df = getattr(GLOBAL_STATE, "data_flow", None)
+            if df and hasattr(df, "rssi_history"):
+                hist = df.rssi_history.get(dev_id, [])
+                for val in hist[-self.graph.max_points:]:
                     self.graph.add_value(val)
 
-        # 1) Zeitstempel & Latenz
-        last_packet = getattr(self.parent_header, "_last_real_packet_time", time.time())
-        latency = time.time() - last_packet
-        
-        # 2) Daten extrahieren
+        # --- 2) DATEN AUS DEM FRAME EXTRAHIEREN ---
         channel = frame.get("channel", "adv")
         ch = frame.get(channel, {}) or {}
         health = frame.get("health", {})
+        
+        # Latenz nutzen wir jetzt direkt aus dem Frame (wird in ms geliefert)
+        latency_ms = frame.get("latency", 0)
+        latency_s = latency_ms / 1000.0
         
         # RSSI-Wert
         rssi = health.get("signal", {}).get("rssi") or ch.get("rssi", "--")
         
         if rssi != "--":
-            # Live-Update des Graphen
+            # Graphen füttern
             self.graph.add_value(rssi)
             rssi_val = float(rssi)
-            if rssi_val > -65: rssi_color = "00FF00" # Exzellent
-            elif rssi_val > -85: rssi_color = "FFCC00" # Okay
-            else: rssi_color = "FF4444" # Kritisch
+            if rssi_val > -65: rssi_color = "00FF00" 
+            elif rssi_val > -85: rssi_color = "FFCC00" 
+            else: rssi_color = "FF4444" 
         else:
             rssi_color = "888888"
 
-        # 3) Bridge & Uptime
-        bridge_status = frame.get("bridge_status", "UNKNOWN")
-        bridge_alive = frame.get("bridge_alive", False)
+        # --- 3) BRIDGE & STATUS ---
+        # Nutzt die neuen Keys aus der ACE/DataFlow Logik
+        bridge_status = frame.get("bridge_status", "ACTIVE" if channel == "gatt" else "IDLE")
+        bridge_alive = frame.get("bridge_alive", True) # Vereinfacht
         bridge_color = "00FF00" if bridge_alive else "FF4444"
         
         uptime_val = health.get("uptime", {}).get("value")
-        if uptime_val is not None:
-            m, s = divmod(int(uptime_val), 60)
-            h, m = divmod(m, 60)
-            uptime_str = f"{h:02d}:{m:02d}:{s:02d}"
-        else:
-            uptime_str = "---"
+        uptime_str = self._format_uptime(uptime_val)
 
-        # 4) Latenz-Farben
-        if latency < 3.0:
+        # Latenz-Farben (Status-Text)
+        if latency_s < 3.0:
             lat_color, status_text = "00FF00", "LIVE"
-        elif latency < 15.0:
+        elif latency_s < 15.0:
             lat_color, status_text = "FFCC00", "STALE"
         else:
             lat_color, status_text = "FF4444", "LOST"
 
-        # 5) Namen und Identifier über GSM auflösen
+        # --- 4) UI TEXT UPDATE ---
         dev_name = GLOBAL_STATE.get_device_label(dev_id)
         packets = ch.get("packet_counter") or "0"
-        raw = ch.get("raw") or ch.get("adv_raw") or ch.get("gat_raw") or "--"
+        raw = ch.get("raw") or ch.get("adv_raw") or "--"
         
-        # Raw Data kürzen für Anzeige
-        raw_str = str(raw)
-        short_raw = (raw_str[:42] + "...") if len(raw_str) > 42 else raw_str
+        short_raw = (str(raw)[:42] + "...") if len(str(raw)) > 42 else str(raw)
 
-        # 6) UI Text zusammenbauen
         self.lbl.text = (
             f"[b]{dev_name}[/b]  [color={bridge_color}][size=13sp]Bridge: {bridge_status}[/size][/color]\n"
             f"[color=888888][size=12sp]{dev_id}[/size][/color]\n\n"
             f"RSSI     : [b][color={rssi_color}]{rssi} dBm[/color][/b]\n"
-            f"Heartbeat: [b][color={lat_color}]{latency:.1f}s ago[/color][/b] ({status_text})\n"
+            f"Latency  : [b][color={lat_color}]{latency_s:.2f}s[/color][/b] ({status_text})\n"
             f"Uptime   : [b]{uptime_str}[/b]\n"
             f"Packets  : {packets} ({channel.upper()})\n\n"
             f"[color=888888]RAW DATA STREAM:[/color]\n" 
@@ -223,17 +214,22 @@ class SignalInspector(FloatLayout):
         )
 
     def _init_graph_data(self, *_):
-        frame = getattr(self.parent_header, "_last_frame", None)
-        if not frame:
-            return
-    
+        df = getattr(GLOBAL_STATE, "data_flow", None)
+        if not df: return
+        
+        frame = getattr(self.parent_header, "_last_frame", {})
         dev_id = frame.get("device_id")
-        if not dev_id:
-            return
+        if not dev_id: return
     
-        hist = GLOBAL_STATE.rssi_history.get(dev_id, [])
+        hist = df.rssi_history.get(dev_id, [])
         for val in hist[-self.graph.max_points:]:
             self.graph.add_value(val)
+    def _format_uptime(self, val):
+        if val is None: return "---"
+        m, s = divmod(int(val), 60)
+        h, m = divmod(m, 60)
+        return f"{h:02d}:{m:02d}:{s:02d}"
+
     def close(self):
         if self._update_event:
             self._update_event.cancel()

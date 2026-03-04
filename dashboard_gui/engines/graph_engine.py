@@ -32,13 +32,30 @@ class GraphEngine:
         """Liefert Liste für Kivy Graph."""
         buf = self.graph_buffers.get(key)
         return list(buf) if buf else []
-
+    def get_stats(self, key):
+        """Liefert avg / min / max eines Graphbuffers."""
+        buf = self.graph_buffers.get(key)
+    
+        if not buf or len(buf) == 0:
+            return None, None, None
+    
+        data = list(buf)
+    
+        avg = sum(data) / len(data)
+        mn = min(data)
+        mx = max(data)
+    
+        return avg, mn, mx
     def get_trend_icon(self, key):
         """Liefert FontAwesome Icon."""
         val = self.global_trends.get(key, 0)
         icons = {-1: "\uf063", 1: "\uf062", 0: "\uf061"}
         return icons.get(val, "\uf061")
 
+
+    def get_all_keys(self):
+        """Liefert alle aktuell existierenden Keys im Buffer."""
+        return list(self.graph_buffers.keys())
     # ---------------------------------------------------------
     # PROCESS VALUE
     # ---------------------------------------------------------

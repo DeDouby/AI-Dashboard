@@ -3,7 +3,7 @@
 class UIManager:
     def __init__(self, gsm):
         self.gsm = gsm  # Rückreferenz auf den Boss (GSM)
-        # Alle Screen-Referenzen zentral hier
+        self.broadcast_buttons = []# Alle Screen-Referenzen zentral hier
         self.screens = {
             "dashboard": None, "fullscreen": None, "setup": None,
             "about": None, "settings": None, "vpd_scatter": None,
@@ -24,15 +24,14 @@ class UIManager:
     # ---------------------------------------------------------
     # Button Sync
     # ---------------------------------------------------------
+# In dashboard_gui/ui_manager.py
     def _refresh_all_buttons(self):
-        if self.dashboard_ref and hasattr(self.dashboard_ref, "controls"):
-            self.dashboard_ref.controls.refresh_state(self.running)
-    
-        if self.fullscreen_ref and hasattr(self.fullscreen_ref, "controls"):
-            self.fullscreen_ref.controls.refresh_state(self.running)
-    
-        if self.vpd_scatter_ref and hasattr(self.vpd_scatter_ref, "controls"):
-            self.vpd_scatter_ref.controls.refresh_state(self.running)
+        """Geht alle registrierten Screens durch und aktualisiert die Controls."""
+        for name, scr in self.screens.items():
+            if scr:
+                # Prüfen, ob der Screen ein 'controls' Attribut hat (wie dein Dashboard)
+                if hasattr(scr, "controls") and scr.controls:
+                    scr.controls.refresh_state()
     def refresh_broadcast_buttons(self):
         """Aktualisiert die Broadcast-Buttons in allen Headern."""
         for name, scr in self.screens.items():
@@ -50,3 +49,16 @@ class UIManager:
         
         if hasattr(current_scr, 'update_from_global'):
             current_scr.update_from_global(data_packet)
+
+    def register_broadcast_button(self, btn):
+        if btn not in self.broadcast_buttons:
+            self.broadcast_buttons.append(btn)
+            btn.refresh()
+
+    def unregister_broadcast_button(self, btn):
+        if btn in self.broadcast_buttons:
+            self.broadcast_buttons.remove(btn)
+
+    def refresh_broadcast_buttons(self):
+        for btn in self.broadcast_buttons:
+            btn.refresh()

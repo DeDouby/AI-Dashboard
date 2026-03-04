@@ -99,8 +99,7 @@ def start():
 
         _bridge = get_bridge(prefer_mock=False)
         
-        _bridge.start()
-        _bridge.start_broadcast()
+        _bridge.start_adv()
         
         print("[Core] Android-Bridges gestartet (ADV + GATT + BROADCAST)")
 

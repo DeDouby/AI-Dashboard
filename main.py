@@ -33,8 +33,7 @@ import core
 # main.py (nach GLOBAL_STATE initialisiert)
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 
-# Default-Kanal festlegen
-GLOBAL_STATE.set_active_channel("gatt")  # Android parity
+
 # -------------------------------------------------------
 # FontAwesome sicher laden
 # -------------------------------------------------------
@@ -84,7 +83,7 @@ class DashboardApp(App):
         sm.add_widget(SensorMixedModeScreen(name="sensor_mixed_mode"))
         sm.add_widget(GrowRoomScreen(name="grow_rooms"))
         
-        GLOBAL_STATE.bind_screen_manager(sm) 
+        GLOBAL_STATE.bind_screen_manager(sm)
         
         return sm
 

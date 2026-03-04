@@ -15,6 +15,20 @@ class MixedEngine:
         selected = self.gsm.mixed_selected_buffers
     
         if not selected or not all_data:
+        
+            # --------------------------------
+            # Mixed Graph Buffers reset
+            # (wie frischer Start)
+            # --------------------------------
+            for key in ("temp", "hum", "vpd", "dew"):
+        
+                gk = f"mixed_avg_{key}"
+        
+                self.gsm.graph_engine.graph_buffers.pop(gk, None)
+                self.gsm.graph_engine._trend_buffers.pop(gk, None)
+                self.gsm.graph_engine._last_smoothed_values.pop(gk, None)
+                self.gsm.graph_engine.global_trends.pop(gk, None)
+        
             self.write_json([])
             return
     
@@ -92,11 +106,21 @@ class MixedEngine:
             avg = sum(vals) / len(vals)
             graph_key = f"mixed_avg_{key}"
     
-            results[key] = avg
-    
-            self.gsm.graph_engine.process_new_value(graph_key, avg)
-    
+            avg_value = avg
             unit = unit_map.get(key)
+            
+            # -----------------------------
+            # TEMPERATUR UMRECHNUNG HIER !!!
+            # -----------------------------
+            if key == "temp" and unit == "F":
+                avg_value = (avg_value - 32) * 5.0 / 9.0
+                unit = "C"   # Nach Umrechnung immer C speichern
+            
+            results[key] = avg_value
+            
+            graph_key = f"mixed_avg_{key}"
+            self.gsm.graph_engine.process_new_value(graph_key, avg_value)
+            
             if unit:
                 self.gsm.set_unit(graph_key, unit)
     
@@ -143,54 +167,43 @@ class MixedEngine:
             return False
 
     def write_json(self, results, device_ids=None):
-    
         path = os.path.join("data", "mixed.json")
-    
-        # --------------------------------
-        # FALL 1: KEINE DATEN
-        # --------------------------------
+
+        # FALL 1: Keine Ergebnisse da -> Datei leeren
         if not results:
-    
-            with open(path, "w") as f:
-                json.dump([], f)
-    
-            self.gsm.broadcast_data_available = False
-    
             try:
-                import core
-                core.stop_broadcast_bridge()
-            except:
-                pass
-    
-            self.gsm.set_broadcast_active(False)
-            self.gsm.refresh_all_headers()
-    
+                with open(path, "w") as f:
+                    json.dump([], f)
+                self.gsm.broadcast_engine.set_available(False)
+            except Exception as e:
+                print(f"[MixedEngine] Write empty failed: {e}")
             return
-    
-        # --------------------------------
-        # FALL 2: DATEN
-        # --------------------------------
-        json_data = [{
-            "timestamp": datetime.now().isoformat(),
-            "avg_temp": results.get("temp"),
-            "avg_hum": results.get("hum"),
-            "avg_vpd": results.get("vpd"),
-            "avg_dew": results.get("dew"),
-            "devices": device_ids
-        }]
-    
-        with open(path, "w") as f:
-            json.dump(json_data, f, indent=2)
-    
-        self.gsm.broadcast_data_available = True
-    
-        if not self.gsm.broadcast_active and not self.gsm.broadcast_user_disabled:
-    
-            try:
-                import core
-                core.start_broadcast_bridge()
-                self.gsm.set_broadcast_active(True)
-            except:
-                pass
-    
-        self.gsm.refresh_all_headers()
+
+        # FALL 2: Daten sind da -> Berechnen und Struktur aufbauen
+        try:
+            temp_avg = results.get("temp")
+            
+            # WICHTIG: Die Struktur, die vorhin fehlte!
+            json_data = [{
+                "timestamp": datetime.now().isoformat(),
+                "avg_temp": temp_avg,
+                "avg_hum": results.get("hum"),
+                "avg_vpd": results.get("vpd"),
+                "avg_dew": results.get("dew"),
+                "devices": device_ids or []
+            }]
+
+            # Jetzt schreiben
+            with open(path, "w") as f:
+                json.dump(json_data, f, indent=2)
+
+            # Der BroadcastEngine melden, dass wir bereit sind
+            self.gsm.broadcast_engine.set_available(True)
+
+            # Automatisch starten, wenn der User es nicht explizit verboten hat
+            be = self.gsm.broadcast_engine
+            if not be.active and not be.user_disabled:
+                be.set_active(True)
+
+        except Exception as e:
+            print(f"[MixedEngine] write_json failed: {e}")

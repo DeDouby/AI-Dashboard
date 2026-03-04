@@ -11,6 +11,9 @@ from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.common.header_online import HeaderBar
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.ui.i18n import I18N
+from dashboard_gui.global_state_manager import ACTIVE_CHANNEL_ENGINE
+
+
 import time
 
 class SensorMixedModeScreen(Screen):
@@ -84,7 +87,7 @@ class SensorMixedModeScreen(Screen):
             btn_container = BoxLayout(orientation="vertical", spacing=dp_scaled(2))
             
             btn = ToggleButton(
-                text=self.GS.get_device_label(dev_id),
+                text=ACTIVE_CHANNEL_ENGINE.get_device_label(dev_id),
                 state="down" if is_selected else "normal",
                 background_color=(0.12,0.20,0.45,1) if is_selected else (0.15,0.15,0.18,1),
                 size_hint_y=1 if not is_selected else 0.6
@@ -178,7 +181,7 @@ class SensorMixedModeScreen(Screen):
             if dev_id not in selected:
                 continue
 
-            name = self.GS.get_device_label(dev_id)
+            name = ACTIVE_CHANNEL_ENGINE.get_device_label(dev_id)
             active_modes = self.GS.mixed_device_modes.get(dev_id, {"internal"})
             
             # Werte-Extraktion

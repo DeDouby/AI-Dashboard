@@ -13,6 +13,7 @@ from dashboard_gui.ui.common.header_online import HeaderBar
 from dashboard_gui.ui.common.control_buttons import ControlButtons
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
+
 import os
 
 class FullScreenView(Screen):
@@ -23,13 +24,12 @@ class FullScreenView(Screen):
         self.tile_id = None
         self.current_key = None
         self._active_unit = ""
-        self._touch_start_x = None
-        self._touch_active = False
-        self._swipe_threshold = dp_scaled(60)
 
         self.layout = FloatLayout()
         self.add_widget(self.layout)
         self.xmax=config.get_tile_graph_window(), # Das Fenster aus der Config
+        
+
         # HINTERGRUND
         with self.layout.canvas.before:
             self.bg_color = Color(0, 0, 0, 1)
@@ -114,106 +114,148 @@ class FullScreenView(Screen):
         self.controls.height = dp_scaled(40)
         self.controls.pos_hint = {'y':0}
         self.layout.add_widget(self.controls)
-
+        self.active_tile = None  # <-- das ist jetzt der aktuelle Tile-Key
         GLOBAL_STATE.ui_handler.attach_screen("fullscreen", self)
 
     def _update_bg(self, *_):
         self.bg_rect.pos = self.pos
         self.bg_rect.size = self.size
 
-    def _get_plot_colors_for_tile(self, tile_id):
-        """Liefert die Hauptfarbe und die Glow-Farbe basierend auf der Metrik-ID."""
-        base = {
-            "temp_in": [1, 0.2, 0.2, 1],
-            "hum_in":  [0.2, 0.6, 1, 1],
-            "vpd_in":  [1, 0.8, 0.2, 1],
-            "temp_ex": [1, 0.4, 0.4, 1],
-            "hum_ex":  [0.3, 1, 1, 1],
-            "vpd_ex":  [0.3, 1, 0.3, 1],
-        }
-        # Fallback auf Weiß, falls die ID nicht in der Liste ist
-        col = base.get(tile_id, [1, 1, 1, 1])
+    def _get_metric_config(self, tile_id):
+        """Holt Farbe und Hintergrundbild-Pfad für die jeweilige Kachel."""
+        # Der Pfad zu deinen Assets
+        asset_path = os.path.join("dashboard_gui", "assets", "tiles")
         
-        # Gibt [Main-Farbe], [Glow-Farbe mit 30% Deckkraft] zurück
-        return col, [col[0], col[1], col[2], 0.3]
+        # Deine alten Definitionen
+        config_map = {
+            "temp_in": {"color": [1, 0.2, 0.2, 1], "bg": "tile_bg_temp_in.png"},
+            "hum_in":  {"color": [0.2, 0.6, 1, 1], "bg": "tile_bg_hum_in.png"},
+            "vpd_in":  {"color": [1, 0.8, 0.2, 1], "bg": "tile_bg_vpd_in.png"},
+            "temp_ex": {"color": [1, 0.4, 0.4, 1], "bg": "tile_bg_temp_out.png"},
+            "hum_ex":  {"color": [0.3, 1, 1, 1],   "bg": "tile_bg_hum_out.png"},
+            "vpd_ex":  {"color": [0.3, 1, 0.3, 1], "bg": "tile_bg_vpd_out.png"},
+        }
+        
+        # Daten holen oder Fallback auf Weiß/Leer
+        c_data = config_map.get(tile_id, {"color": [1, 1, 1, 1], "bg": ""})
+        
+        main_color = c_data["color"]
+        glow_color = [main_color[0], main_color[1], main_color[2], 0.3] # 30% Glow
+        full_bg_path = os.path.join(asset_path, c_data["bg"]) if c_data["bg"] else ""
+        
+        return main_color, glow_color, full_bg_path
     def activate_tile(self, full_key):
-        """Wird beim Klick auf ein Tile aufgerufen (mit dem langen Key)."""
+        """Wird beim Klick oder Swipe aufgerufen."""
         print(f"[FS] Aktiviere: {full_key}")
         self.current_key = full_key
         
-        # Tile-ID extrahieren für Styling (Farben/Hintergrund)
-        # MAC_adv_temp_in -> temp_in
+        # Tile-ID extrahieren (z.B. temp_in)
         parts = full_key.split("_")
         self.tile_id = "_".join(parts[2:]) if len(parts) > 2 else full_key
         
-        # 1. UI Setup (Farben aus deiner Config holen)
-        main_color, glow_color = self._get_plot_colors_for_tile(self.tile_id)
+        # 1. Metrik-Konfig laden
+        main_col, glow_col, bg_path = self._get_metric_config(self.tile_id)
         
-        # Plots zurücksetzen
+        # 2. HINTERGRUND REPARATUR
+        if bg_path and os.path.exists(bg_path):
+            self.bg_rect.source = bg_path
+            # WICHTIG: Farbe auf Weiß mit Alpha setzen, damit das Bild korrekt strahlt
+            self.bg_color.rgba = (1, 1, 1, 0.6) # 0.6 für schönen Kontrast zum Graphen
+        else:
+            self.bg_rect.source = ""
+            self.bg_color.rgba = (0, 0, 0, 1) # Fallback auf Schwarz
+        
+        # 3. Graph-Farben updaten (Plots löschen und neu setzen)
         for p in list(self.graph.plots):
             self.graph.remove_plot(p)
             
-        self.plot = LinePlot(color=main_color, line_width=dp_scaled(4.5))
-        self.plot_glow = LinePlot(color=glow_color, line_width=dp_scaled(8))
+        self.plot = LinePlot(color=main_col, line_width=dp_scaled(4.5))
+        self.plot_glow = LinePlot(color=glow_col, line_width=dp_scaled(8))
         self.graph.add_plot(self.plot_glow)
         self.graph.add_plot(self.plot)
         
-        # 2. Daten sofort einmal laden
+        # 4. Daten laden
         self._load_data()
 
     def _load_data(self):
-        """Holt die Daten direkt aus der GraphEngine."""
-        if not hasattr(self, "current_key") or not self.current_key:
+        # 1. Den exakten Kontext holen
+        dev_id = GLOBAL_STATE.get_active_device_id()
+        channel = GLOBAL_STATE.get_active_channel()
+        
+        if not dev_id or not self.tile_id:
             return
 
-        # ZUGRIFF AUF DEINE ENGINE
-        # Wir nutzen die Methode get_buffer(), die du oben definiert hast!
+        # 2. Key bauen (muss exakt zum Metrics-Key passen)
+        self.current_key = f"{dev_id}_{channel}_{self.tile_id}"
+        
+        # 3. Buffer aus der Engine holen
         buf = GLOBAL_STATE.graph_engine.get_buffer(self.current_key)
         
-        if not buf:
+        # Sicherheits-Check: Wenn keine Daten da sind
+        if not buf or len(buf) == 0:
             self.plot.points = []
-            self.lbl_value.text = "--"
+            self.plot_glow.points = []
+            self.lbl_value.text = "Warte auf Daten..."
             return
 
-        # Punkte setzen
+        # 4. GRAPH ZEICHNEN
         pts = list(enumerate(buf))
         self.plot.points = pts
         self.plot_glow.points = pts
 
-        # Skalierung (Idiotensicher)
-        self.graph.xmin = 0
-        self.graph.xmax = len(buf) - 1 if len(buf) > 1 else 1
-        
+        # Achsen skalieren (für die Linien)
         mn, mx = min(buf), max(buf)
-        if mn == mx:
-            mn -= 0.5; mx += 0.5
+        if mn == mx: mn -= 1; mx += 1
         diff = mx - mn
-        self.graph.ymin = mn - diff * 0.1
-        self.graph.ymax = mx + diff * 0.1
+        self.graph.ymin = mn - (diff * 0.1)
+        self.graph.ymax = mx + (diff * 0.1)
+        self.graph.xmax = config.get_tile_graph_window()
 
-        # Texte
-        unit = GLOBAL_STATE.get_unit(self.current_key)
-        trend = GLOBAL_STATE.graph_engine.get_trend_icon(self.current_key)
-        self.lbl_value.text = f"{buf[-1]:.2f} {unit} [font=FA]{trend}[/font]"
-        self.lbl_value.markup = True
+        # ---------------------------------------------------------
+        # 5. WERTE-ANZEIGE (Hier lag vermutlich der Fehler)
+        # ---------------------------------------------------------
+        last_val = buf[-1] # Der allerletzte Wert im Buffer
+        
+        # Einheit und Trend-Icon vom GSM/Engine holen
+        unit = GLOBAL_STATE.get_unit(self.current_key) or ""
+        trend_icon = GLOBAL_STATE.graph_engine.get_trend_icon(self.current_key)
+        
+        # WICHTIG: Markup für das Icon verwenden
+        icon_markup = f"[font=FA]{trend_icon}[/font]" if trend_icon else ""
+
+        # Das Haupt-Label (Die große Zahl)
+        self.lbl_value.text = f"{last_val:.2f} {unit} {icon_markup}"
+        
+        # Die Sub-Statistiken (Durchschnitt, Min, Max)
+        avg_v, mn_stat, mx_stat = GLOBAL_STATE.graph_engine.get_stats(self.current_key)
+        if avg_v is not None:
+            self.lbl_sub.text = f"avg: {avg_v:.2f} {unit} | min: {mn_stat:.2f} | max: {mx_stat:.2f}"
     def update_from_global(self, data):
+        # 1. Header updaten
         self.header.update_from_global(data)
+        
+        # 2. PLAUZIBILITÄTS-CHECK: Ist mein aktuelles Tile beim neuen Gerät überhaupt erlaubt?
+        allowed = GLOBAL_STATE.tile_engine.get_active_tiles() # Liste z.B. ["temp_in", "hum_in"]
+        
+        if self.tile_id not in allowed and allowed:
+            # Falls nicht: Springe zum ersten verfügbaren Tile des neuen Geräts
+            print(f"[FS] Tile {self.tile_id} nicht verfügbar für dieses Gerät. Springe zu {allowed[0]}")
+            self.activate_tile(f"{GLOBAL_STATE.get_active_device_id()}_{GLOBAL_STATE.get_active_channel()}_{allowed[0]}")
+            return # activate_tile ruft _load_data bereits auf
+
+        # 3. Wenn alles okay ist: Daten laden
         self._load_data()
-        win_sec = config.get_tile_graph_window()
-        self.graph.xmax = win_sec
-        total_min = win_sec / 60
-        for i,lbl in enumerate(self.labels_list):
-            min_val = (4-i)*(total_min/4)
-            lbl.text = "jetzt" if min_val==0 else f"-{int(min_val)}m"
 
     def _switch(self, direction):
-        dashboard = self.manager.get_screen("dashboard")
-        order = dashboard.content.get_active_tile_keys()
-        if not order or self.tile_id not in order:
+        """Fragt einfach die TileEngine nach dem nächsten Key."""
+        if not self.current_key:
             return
-        idx = order.index(self.tile_id)
-        new_idx = (idx+direction)%len(order)
-        self.activate_tile(order[new_idx])
+
+        # Die TileEngine berechnet den Nachbarn basierend auf der Metrics-Wahrheit
+        next_key = GLOBAL_STATE.tile_engine.get_next_full_key(self.current_key, direction)
+        
+        if next_key != self.current_key:
+            self.activate_tile(next_key)
 
     def reset_from_global(self):
         for widget in self.walk():
@@ -222,26 +264,21 @@ class FullScreenView(Screen):
         if hasattr(self,'header'):
             self.header.set_clock("--:--")
             self.header.set_rssi(None)
-
-    # Touch-Swipe
-    def on_touch_down(self,touch):
-        if self.collide_point(*touch.pos):
-            self._touch_start_x = touch.x
-            self._touch_active = True
+# --- TOUCH SWIPE (Idiotensicher fixiert) ---
+    # In dashboard_gui/ui/fullscreen_content/fullscreen_view.py
+    
+    def on_touch_down(self, touch):
+        # Wir nutzen den GGM und sagen ihm: "Ich bin der fullscreen screen"
+        if hasattr(GLOBAL_STATE, "ggm"):
+            GLOBAL_STATE.ggm.handle_touch("fullscreen", "down", touch)
         return super().on_touch_down(touch)
-
-    def on_touch_move(self,touch):
-        if not self._touch_active or self._touch_start_x is None:
-            return super().on_touch_move(touch)
-        dx = touch.x - self._touch_start_x
-        if abs(dx)>=self._swipe_threshold:
-            self._switch(1 if dx<0 else -1)
-            self._touch_active = False
-            self._touch_start_x = None
-            return True
+    
+    def on_touch_move(self, touch):
+        if hasattr(GLOBAL_STATE, "ggm"):
+            GLOBAL_STATE.ggm.handle_touch("fullscreen", "move", touch)
         return super().on_touch_move(touch)
-
-    def on_touch_up(self,touch):
-        self._touch_active = False
-        self._touch_start_x = None
+    
+    def on_touch_up(self, touch):
+        if hasattr(GLOBAL_STATE, "ggm"):
+            GLOBAL_STATE.ggm.handle_touch("fullscreen", "up", touch)
         return super().on_touch_up(touch)

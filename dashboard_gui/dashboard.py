@@ -108,14 +108,14 @@ class DashboardScreen(Screen):
         self.header.update_from_global(d)
         self.content.update_from_data(d)
     
-        # --- OPTIMIERTE HINTERGRUND-LOGIK ---
-        # 1. Prüfen: Sind gerade Tiles aktiv?
-        is_active = len(self.content.get_active_tile_keys()) > 0
-        
-        # 2. Ziel-Pfad bestimmen
+        # --- ACTIVE TILE CHECK ---
+        active_tiles = [k for k, v in self.content.tile_map.items() if v.parent is self.content]
+        GLOBAL_STATE.register_tiles(active_tiles)
+        is_active = len(active_tiles) > 0
+    
+        # --- BACKGROUND SWITCH ---
         target_bg = self._bg_path_2 if is_active else self._bg_path_1
     
-        # 3. NUR WECHSELN, wenn sich der Pfad geändert hat
         if self.bg_rect.source != target_bg:
             self.bg_rect.source = target_bg
         # ------------------------------------

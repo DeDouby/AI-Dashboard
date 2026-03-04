@@ -226,5 +226,3 @@ class DevicePickerScreen(Screen):
 
 
         return box
-    def update_from_global(self, d):
-        self.header.update_from_global(d)

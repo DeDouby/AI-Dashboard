@@ -63,12 +63,7 @@ class DashboardMainPanel(GridLayout):
             "hum_ex":  self.tile_hum_ex,
             "vpd_ex":  self.tile_vpd_ex,
         }
-        # ---------------------------------------------------
-        # SWIPE STATE (ADD ONLY)
-        # ---------------------------------------------------
-        self._touch_start_x = None
-        self._touch_active = False
-        self._swipe_threshold = dp_scaled(60)
+
 
         # Anfang: alles anzeigen
         for tile in self.tile_map.values():
@@ -201,31 +196,28 @@ class DashboardMainPanel(GridLayout):
         for key in order:
             if key in active_keys:
                 self.add_widget(self.tile_map[key])
-    # ============================================================
-    # DEVICE SWIPE (HORIZONTAL)
-    # ============================================================
-
-    def get_active_tile_keys(self):
-        return [k for k, v in self.tile_map.items() if v.parent is self]   
-
+  
     # ============================================================
     # GLOBAL SWIPE DELEGATION
     # ============================================================
     
+# ============================================================
+    # GLOBAL GESTURE DELEGATION (Jetzt über GGM)
+    # ============================================================
+    
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
-            if hasattr(GLOBAL_STATE, "swipe_engine"):
-                GLOBAL_STATE.swipe_engine.process_touch_down(touch)
+            # Wir melden dem GGM: Dashboard hat einen Touch Down
+            if hasattr(GLOBAL_STATE, "ggm"):
+                GLOBAL_STATE.ggm.handle_touch("dashboard", "down", touch)
         return super().on_touch_down(touch)
     
-    
     def on_touch_move(self, touch):
-        if hasattr(GLOBAL_STATE, "swipe_engine"):
-            GLOBAL_STATE.swipe_engine.process_touch_move(touch)
+        if hasattr(GLOBAL_STATE, "ggm"):
+            GLOBAL_STATE.ggm.handle_touch("dashboard", "move", touch)
         return super().on_touch_move(touch)
     
-    
     def on_touch_up(self, touch):
-        if hasattr(GLOBAL_STATE, "swipe_engine"):
-            GLOBAL_STATE.swipe_engine.process_touch_up(touch)
+        if hasattr(GLOBAL_STATE, "ggm"):
+            GLOBAL_STATE.ggm.handle_touch("dashboard", "up", touch)
         return super().on_touch_up(touch)

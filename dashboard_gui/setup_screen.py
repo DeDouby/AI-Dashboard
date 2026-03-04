@@ -293,7 +293,6 @@ class SetupScreen(Screen):
             GLOBAL_STATE.set_active_channel("gatt")
         
             # Bridge EINMAL neu starten
-            core.restart_gatt_bridge()
         
         except Exception as e:
             print("[Setup] Fehler bei GATT Auto-Activate:", e)    

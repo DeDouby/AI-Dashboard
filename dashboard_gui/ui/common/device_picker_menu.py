@@ -70,15 +70,14 @@ class DevicePickerMenu(FloatLayout):
         self.panel.add_widget(self.panel_content)
 
 
-        # -----------------------------
-        # 3) Devices aus Config
-        # -----------------------------
-        cfg = config._init()
-        devices_cfg = cfg.get("devices", {})
 
+        # -----------------------------
+        # 3) Devices – Label über GSM
+        # -----------------------------
+        from dashboard_gui.global_state_manager import GLOBAL_STATE
+        self.gsm = GLOBAL_STATE
         for idx, mac in enumerate(device_list):
-            name = devices_cfg.get(mac, {}).get("name")
-            label = name if name else mac
+            label = self.gsm.get_device_label(mac)
         
             b = Button(
                 text=f"[font=FA]\uf2c7[/font]  {label}",
@@ -120,12 +119,12 @@ class DevicePickerMenu(FloatLayout):
         # -----------------------------
         # 5) Channel Buttons (ADV / GATT)
         # -----------------------------
-        self._add_channel_buttons(device_list, cfg)
+        self._add_channel_buttons(device_list)
 
     # -----------------------------
     # Channel Buttons separat
     # -----------------------------
-    def _add_channel_buttons(self, device_list, cfg):
+    def _add_channel_buttons(self, device_list):
         from dashboard_gui.global_state_manager import GLOBAL_STATE
     
         # --- ADV Button ---
@@ -142,7 +141,15 @@ class DevicePickerMenu(FloatLayout):
             padding=(dp_scaled(15), 0)
         )
         b_adv.bind(size=lambda instance, value: setattr(instance, 'text_size', (instance.width, None)))
-        b_adv.bind(on_release=lambda *_: (GLOBAL_STATE.set_active_channel("adv"), self.close()))
+        
+        # Sofort-Logik für ADV
+        def activate_adv(*_):
+            GLOBAL_STATE.set_active_channel("adv")
+            # Wir zwingen den Flow, damit das Header-Label sofort Bescheid weiß
+            GLOBAL_STATE.data_flow.process_cycle()
+            self.close()
+            
+        b_adv.bind(on_release=activate_adv)
         self.panel_content.add_widget(b_adv)
 
         # --- GATT Button ---
@@ -160,11 +167,14 @@ class DevicePickerMenu(FloatLayout):
         )
         b_gatt.bind(size=lambda instance, value: setattr(instance, 'text_size', (instance.width, None)))
         
-        def activate_gatt():
+        # Sofort-Logik für GATT
+        def activate_gatt(*_):
             GLOBAL_STATE.set_active_channel("gatt")
+            # Wir zwingen den Flow, damit das Header-Label sofort Bescheid weiß
+            GLOBAL_STATE.data_flow.process_cycle()
             self.close()
     
-        b_gatt.bind(on_release=lambda *_: activate_gatt())
+        b_gatt.bind(on_release=activate_gatt)
         self.panel_content.add_widget(b_gatt)
     # -----------------------------
     # Menü schließen

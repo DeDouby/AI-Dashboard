@@ -23,6 +23,7 @@ from dashboard_gui.ui.common.window_picker import WindowPicker
 from dashboard_gui.ui.common.device_picker_menu import DevicePickerMenu
 from dashboard_gui.ui.common.signal_inspector import SignalInspector
 from dashboard_gui.ui.common.broadcast_button import BroadcastButton
+from dashboard_gui.global_state_manager import GLOBAL_STATE
 
 # -------------------------------------------------------
 # IconLabel
@@ -245,6 +246,8 @@ class LEDCircle(Widget):
 class HeaderBar(BoxLayout):
     def __init__(self, **kw):
         super().__init__(**kw)
+        from dashboard_gui.global_state_manager import GLOBAL_STATE
+        self.gsm = GLOBAL_STATE
         self.orientation = "horizontal"
         self.size_hint_y = None
         self.height = dp_scaled(40)   # <--- DEIN FIX (überall gleich)
@@ -366,9 +369,7 @@ class HeaderBar(BoxLayout):
         self._menu_overlay = None
         self.device_menu = None
 
-        # Default channel = GATT (Android parity)
-        from dashboard_gui.global_state_manager import GLOBAL_STATE
-        GLOBAL_STATE.set_active_channel("gatt")
+
 
 
 
@@ -486,65 +487,43 @@ class HeaderBar(BoxLayout):
     # ONE ENTRY-POINT FOR ALL SCREENS
     # ---------------------------------------------------
     def update_from_global(self, frame):
-        """Zentrale Update-Logik. Schreibt Daten und triggert den Heartbeat-Timer."""
-        self._last_frame = frame
-        
-        # 1) Welcher Kanal ist aktiv? (adv oder gatt)
-        channel_name = frame.get("channel", "adv")
-        ch_data = frame.get(channel_name, {})
-        
-        # 2) Semantik-Check für Heartbeat (Puls)
-        # Wir schauen auf den Counter (GATT) ODER auf Raw-Änderungen (ADV)
-        new_counter = ch_data.get("packet_counter", 0)
-        new_raw = ch_data.get("raw") or ch_data.get("adv_raw")
+        """Wird im Takt der DataFlowEngine gerufen - Einzige Quelle für das Label!"""
+        if not isinstance(frame, dict):
+            return
 
-        # Initialisierung beim ersten Mal
-        if not hasattr(self, "_old_counter"):
-            self._old_counter = new_counter
-            self._old_raw = new_raw
-            self._last_real_packet_time = time.time()
+        # --- DEVICE & CHANNEL LABEL ---
+        self._last_frame = frame  # <--- DIESE ZEILE MUSS REIN!
+        mac = frame.get("device_id")
+        if mac:
+            label = GLOBAL_STATE.get_device_label(mac)
+            
+            # Hier holen wir den Kanal aus dem Frame, den ACE & DataFlowEngine gesetzt haben
+            ch = frame.get("channel", "adv")
+            tag = str(ch).upper()
+            
+            icon = "[font=FA]\uf2c7[/font]"
+            # Wir setzen das Label NUR HIER
+            self.lbl_dev.text = f"{icon}  {label} [color=777777]· {tag}[/color]"
+        else:
+            self.lbl_dev.text = "---"
 
-        # PULS-DETEKTION: Hat sich am Datenstrom etwas geändert?
-        # Entweder der Counter ist hochgegangen ODER die Raw-Daten sind neu
-        has_pulsed = (new_counter != self._old_counter) or (new_raw != self._old_raw)
-
-        if has_pulsed:
-            self._last_real_packet_time = time.time() # Hier ist der neue "Nullpunkt"
-            self._old_counter = new_counter
-            self._old_raw = new_raw
-
-        # 3) Die restlichen UI-Elemente im Header aktualisieren
-        self.set_clock(time.strftime("%H:%M:%S"))
-        self.lbl_dev.text = self._format_device_with_channel(frame)
+        # --- Restliche Updates ---
         self.set_rssi_from_frame(frame)
         self.set_external_from_frame(frame)
+        self._update_clock()
 
-        # LED: Wird weiterhin vom GSM gesteuert, aber wir könnten sie hier auch forcieren
-        if "alive" in frame or "status" in frame:
-            self.set_led(frame)
-
-        # CLOCK
-        self.set_clock(time.strftime("%H:%M:%S"))
-
-        # DEVICE LABEL
-        self.lbl_dev.text = self._format_device_with_channel(frame)
-
-
-
-        # RSSI (health.signal bevorzugt)
-        self.set_rssi_from_frame(frame)
-
-        # EXTERNAL (health.external bevorzugt, sonst aktiver Channel)
-        self.set_external_from_frame(frame)
-
-        # LED:
-        # - wird bei dir weiterhin vom GSM gepusht (led_state dict),
-        #   aber falls jemand aus Versehen full-frame hier reinreicht,
-        #   schadet das nicht:
-        if "alive" in frame or "status" in frame:
-            self.set_led(frame)
-
-
+    def set_rssi_from_frame(self, frame):
+        """Aktualisiert die Signal-Balken (PNG-Version)"""
+        # Daten aus dem neuen Paketformat holen
+        health = frame.get("health", {})
+        rssi = health.get("signal", {}).get("rssi")
+        
+        # Du hast in __init__: self.signal = SignalBars(...)
+        # Wir rufen also die Methode der Klasse SignalBars auf
+        if rssi is not None:
+            self.signal.set_rssi(rssi)
+        else:
+            self.signal.set_rssi(None)
     # ---------------------------------------------------
     # Helpers
     # ---------------------------------------------------
@@ -560,16 +539,7 @@ class HeaderBar(BoxLayout):
         p = dev.split(":")
         return f"{p[0]}:{p[1]} … {p[-1]}" if len(p) == 6 else dev
 
-    def set_device_label(self, frame):
-        if isinstance(frame, dict):
-            self.lbl_dev.text = self._format_device_with_channel(frame)
-
-        elif isinstance(frame, str):
-            name = self._name_from_config(frame)
-            self.lbl_dev.text = name or self._short_dev(frame)
-        else:
-            self.lbl_dev.text = "---"
-        
+ 
     def set_led(self, d):
         self.led.set_state(d.get("alive", False), d.get("status", "offline"))
 
@@ -581,27 +551,7 @@ class HeaderBar(BoxLayout):
     def set_rssi(self, rssi):
         self.signal.set_rssi(rssi)
 
-    def set_rssi_from_frame(self, frame):
-        if not frame:
-            self.signal.set_rssi(None)
-            return
-    
-        # 1. RSSI aus dem Health-Bereich (einzige zuverlässige Quelle)
-        rssi = None
-        try:
-            rssi = frame["health"]["signal"]["rssi"]
-        except:
-            pass
-    
-        # 2. Falls der Kanal etwas hat (z.B. später pro Kanal RSSI)
-        if rssi is None:
-            from dashboard_gui.global_state_manager import GLOBAL_STATE
-            ch = frame.get("channel", "adv")
-            dec = frame.get(ch, {})
-            rssi = dec.get("rssi") if dec else None
-            self.signal.set_rssi(rssi)
-    
-        self.signal.set_rssi(rssi)
+
 
     def set_clock(self, hhmmss):
         self.lbl_clock.text = hhmmss
@@ -633,31 +583,3 @@ class HeaderBar(BoxLayout):
     
             # 3) In UI anwenden
             self.set_external(present)
-    def _name_from_config(self, mac):
-        try:
-            import config
-            cfg = config._init()
-            dev = cfg.get("devices", {}).get(mac, {})
-            return dev.get("name")
-        except:
-            return None
-    def _resolve_device_name(self, frame):
-        if not frame:
-            return "---"
-    
-        mac = frame.get("device_id")
-        if not mac:
-            return "---"
-    
-        name = self._name_from_config(mac)
-        if name:
-            return name
-    
-        return self._short_dev(mac)
-
-    def _format_device_with_channel(self, frame):
-        name = self._resolve_device_name(frame)
-        ch = frame.get("channel", "adv")   # aus Frame
-        tag = "GATT" if ch == "gatt" else "ADV"
-        icon = "[font=FA]\uf2c7[/font]"
-        return f"{icon}  {name} · {tag}"

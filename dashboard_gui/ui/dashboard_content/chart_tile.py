@@ -8,6 +8,7 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.app import App  # <--- Das hier fehlt!
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.global_state_manager import GLOBAL_STATE
+from kivy.uix.anchorlayout import AnchorLayout
 import config
 
 class ChartTile(ButtonBehavior, BoxLayout):
@@ -109,19 +110,19 @@ class ChartTile(ButtonBehavior, BoxLayout):
         # -------------------------------------------------
         # FOOTER
         # -------------------------------------------------
-        footer = BoxLayout(
-            orientation="horizontal",
+        footer = AnchorLayout(
+            anchor_x='center',  # horizontal zentrieren
+            anchor_y='center',  # vertical zentrieren
             size_hint_y=None,
-            height=dp_scaled(22),
-            spacing=dp_scaled(4),
+            height=dp_scaled(22)
         )
-
+        lbl_box = BoxLayout(orientation='horizontal', spacing=dp_scaled(4))
         self.lbl_avg = Label(text="avg: --", font_size=sp_scaled(16))
         self.lbl_minmax = Label(text="", font_size=sp_scaled(16))
-
-        footer.add_widget(self.lbl_avg)
-        footer.add_widget(self.lbl_minmax)
-
+        lbl_box.add_widget(self.lbl_avg)
+        lbl_box.add_widget(self.lbl_minmax)
+        
+        footer.add_widget(lbl_box)
         self.add_widget(footer)
 
 
@@ -149,23 +150,23 @@ class ChartTile(ButtonBehavior, BoxLayout):
     
             # ✅ Einheit vom GSM holen
             unit = GLOBAL_STATE.get_unit(buf_key)
-            
+            self._render_buffer(history, unit, buf_key)
             if history:
                 # Letzten Wert anzeigen
                 last_val = history[-1]
                 self.lbl_value.text = f"{last_val:.2f} {unit}"
                 
                 # Graph zeichnen (Hier rufen wir die Helferfunktion auf)
-                self._render_buffer(history, unit)
+                self._render_buffer(history, unit, buf_key)
 
-    def _render_buffer(self, buf, unit):
+    def _render_buffer(self, buf, unit, buf_key):
         if not buf: 
             return
-        # ... (deine X-Achsen Logik bleibt gleich) ...
+    
         current_count = len(buf)
         self.graph.xmin = 0
         self.graph.xmax = (current_count - 1) if current_count < self.window else (self.window - 1)
-
+    
         display_buf = buf[-self.window:]
         pts = [(i, val) for i, val in enumerate(display_buf)]
         self.plot.points = pts
@@ -179,11 +180,17 @@ class ChartTile(ButtonBehavior, BoxLayout):
         diff = mx - mn
         self.graph.ymin = mn - diff * 0.05
         self.graph.ymax = mx + diff * 0.05
-        
-        # 4. FOOTER UPDATEN – Auch hier die dynamische Einheit nutzen!
-        avg_v = sum(display_buf) / len(display_buf)
-        self.lbl_avg.text = f"avg: {avg_v:.2f} {unit}"
-        self.lbl_minmax.text = f"min: {mn:.2f}  max: {mx:.2f}"
+    
+        # Stats aus GraphEngine
+        avg_v, mn_stat, mx_stat = GLOBAL_STATE.graph_engine.get_stats(buf_key)
+    
+        if avg_v is not None:
+            # Einheit für avg + min/max anwenden
+            self.lbl_avg.text = f"avg: {avg_v:.2f} {unit}"
+            self.lbl_minmax.text = f"min: {mn_stat:.2f} {unit}  max: {mx_stat:.2f} {unit}"
+        else:
+            self.lbl_avg.text = "avg: --"
+            self.lbl_minmax.text = ""
 ####
     # -------------------------------------------------
     # RESET
@@ -203,44 +210,20 @@ class ChartTile(ButtonBehavior, BoxLayout):
     # -------------------------------------------------
     # TILE CLICK → FULLSCREEN
     # -------------------------------------------------
-    # In chart_tile.py (on_release)
+# -------------------------------------------------
+    # TILE CLICK → FULLSCREEN (GGM Version)
+    # -------------------------------------------------
     def on_release(self):
-        from kivy.app import App
-        app = App.get_running_app()
-        
-        # 1. Sicherstellen, dass wir Daten haben
         idx = GLOBAL_STATE.get_active_index()
         dev_list = GLOBAL_STATE.get_device_list()
-        if not dev_list: 
-            print("[TILE] Klick ignoriert: Keine Geräte-Liste!")
-            return
+        if not dev_list or idx >= len(dev_list): return
             
-        dev_id = dev_list[idx]
+        # SICHERES EXTRAHIEREN (Idiotensicher)
+        item = dev_list[idx]
+        dev_id = item.get("device_id") if isinstance(item, dict) else item
+        
         channel = GLOBAL_STATE.get_active_channel()
         full_key = f"{dev_id}_{channel}_{self.tile_id}"
         
-        print(f"[TILE] Klick registriert! Ziel-Key: {full_key}")
-
-        # 2. Den ScreenManager finden (Egal wie tief er vergraben ist)
-        # Wir suchen in app.root nach dem ScreenManager
-        sm = None
-        if hasattr(app.root, 'current'): # Wenn root selbst der SM ist
-            sm = app.root
-        else:
-            # Suche in den Kindern von root (falls root ein Boxlayout ist)
-            for child in app.root.walk():
-                if hasattr(child, 'current') and hasattr(child, 'get_screen'):
-                    sm = child
-                    break
-        
-        if sm:
-            try:
-                fs = sm.get_screen("fullscreen")
-                fs.activate_tile(full_key)
-                sm.current = "fullscreen"
-                print("[TILE] Wechsel zu Fullscreen erfolgreich!")
-            except Exception as e:
-                print(f"[TILE] Fehler beim Wechsel: {e}")
-        else:
-            print("[TILE] KRITISCH: ScreenManager nicht gefunden!")
- 
+        if hasattr(GLOBAL_STATE, "ggm"):
+            GLOBAL_STATE.ggm.engines["dashboard"].open_fullscreen(full_key)
