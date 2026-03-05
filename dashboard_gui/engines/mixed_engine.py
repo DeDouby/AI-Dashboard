@@ -2,57 +2,68 @@
 import os
 import json
 from datetime import datetime
+import config
 class MixedEngine:
 
     def __init__(self, gsm):
         self.gsm = gsm
-
+        self._config_loaded = False
+        self.load_from_config()
     # ---------------------------------------------------------
     # UPDATE
     # ---------------------------------------------------------
     def update(self, all_data):
+        # -----------------------------------------------
+        # INITIALISIERUNGSFLAG: beim ersten Aufruf nichts löschen
+        # -----------------------------------------------
+        if not hasattr(self, "_initialized"):
+            self._initialized = True
+            # Erstes Update beim Start -> Buffers werden noch nicht geleert
+            if not all_data:
+                return
+    
+        if self._config_loaded:
+            self.sync_config()
     
         selected = self.gsm.mixed_selected_buffers
     
+        # -----------------------------------------------
+        # Keine Auswahl oder keine Daten
+        # -----------------------------------------------
         if not selected or not all_data:
-        
-            # --------------------------------
-            # Mixed Graph Buffers reset
-            # (wie frischer Start)
-            # --------------------------------
+            # Mixed Graph Buffers reset (wie frischer Start)
             for key in ("temp", "hum", "vpd", "dew"):
-        
                 gk = f"mixed_avg_{key}"
-        
                 self.gsm.graph_engine.graph_buffers.pop(gk, None)
                 self.gsm.graph_engine._trend_buffers.pop(gk, None)
                 self.gsm.graph_engine._last_smoothed_values.pop(gk, None)
                 self.gsm.graph_engine.global_trends.pop(gk, None)
-        
-            self.write_json([])
+    
+            # Nur löschen, wenn es nicht der erste Start war
+            if hasattr(self, "_initialized") and self._initialized:
+                self.write_json([])
             return
     
+        # -----------------------------------------------
+        # Datenverarbeitung: Averaging Map vorbereiten
+        # -----------------------------------------------
         averaging_map = {"temp": [], "hum": [], "vpd": [], "dew": []}
         unit_map = {"temp": None, "hum": None, "vpd": None, "dew": None}
         active_device_ids = []
     
         for frame in all_data:
-    
             dev_id = str(frame.get("device_id"))
-    
             if dev_id not in selected:
                 continue
     
             active_modes = self.gsm.mixed_device_modes.get(dev_id, {"internal"})
     
             for ch_name in ("adv", "gatt"):
-    
                 ch = frame.get(ch_name)
                 if not isinstance(ch, dict):
                     continue
     
                 for mode in active_modes:
-    
                     vals = ch.get(mode)
                     if not isinstance(vals, dict):
                         continue
@@ -94,11 +105,13 @@ class MixedEngine:
     
             active_device_ids.append(dev_id)
     
+        # -----------------------------------------------
+        # Ergebnisse berechnen
+        # -----------------------------------------------
         results = {}
         has_real_data = False
     
         for key, vals in averaging_map.items():
-    
             if not vals:
                 results[key] = None
                 continue
@@ -108,28 +121,25 @@ class MixedEngine:
     
             avg_value = avg
             unit = unit_map.get(key)
-            
-            # -----------------------------
-            # TEMPERATUR UMRECHNUNG HIER !!!
-            # -----------------------------
-            if key == "temp" and unit == "F":
-                avg_value = (avg_value - 32) * 5.0 / 9.0
-                unit = "C"   # Nach Umrechnung immer C speichern
-            
+    
             results[key] = avg_value
-            
-            graph_key = f"mixed_avg_{key}"
             self.gsm.graph_engine.process_new_value(graph_key, avg_value)
-            
+    
             if unit:
                 self.gsm.set_unit(graph_key, unit)
     
             has_real_data = True
     
+        # -----------------------------------------------
+        # Wenn keine realen Werte -> Datei leeren
+        # -----------------------------------------------
         if not has_real_data:
             self.write_json([])
             return
     
+        # -----------------------------------------------
+        # JSON schreiben & Broadcast verfügbar machen
+        # -----------------------------------------------
         self.write_json(results, active_device_ids)
 
     def init_file(self):
@@ -183,6 +193,11 @@ class MixedEngine:
         try:
             temp_avg = results.get("temp")
             
+            # -------------------------------------------------
+            # JSON NORMALISIERUNG (UI bleibt unangetastet)
+            # -------------------------------------------------
+            if temp_avg is not None and config.get_temperature_unit() == "F":
+                temp_avg = (temp_avg - 32.0) * 5.0 / 9.0            
             # WICHTIG: Die Struktur, die vorhin fehlte!
             json_data = [{
                 "timestamp": datetime.now().isoformat(),
@@ -207,3 +222,31 @@ class MixedEngine:
 
         except Exception as e:
             print(f"[MixedEngine] write_json failed: {e}")
+
+    def load_from_config(self):
+    
+        devices = config.get_devices()
+    
+        for dev in devices:
+    
+            if config.get_mixed_enabled(dev):
+                self.gsm.mixed_selected_buffers.add(dev)
+    
+                if config.get_mixed_external(dev):
+                    self.gsm.mixed_device_modes[dev] = {"external"}
+                else:
+                    self.gsm.mixed_device_modes[dev] = {"internal"}
+    
+        self._config_loaded = True
+
+    def sync_config(self):
+    
+        devices = config.get_devices()
+    
+        for dev in devices:
+    
+            enabled = dev in self.gsm.mixed_selected_buffers
+            config.set_mixed_enabled(dev, enabled)
+    
+            modes = self.gsm.mixed_device_modes.get(dev, {"internal"})
+            config.set_mixed_external(dev, "external" in modes)

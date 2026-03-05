@@ -150,7 +150,7 @@ class VPDScatterScreen(Screen):
         
         with self.value_label.canvas.before:
             # Hintergrund – deutlich transparenter
-            Color(0.05, 0.05, 0.05, 0.45)
+            Color(0.00, 0.00, 0.00, 0.15)
             self._value_bg = RoundedRectangle(radius=[dp_scaled(14)])
         
             # Border – sehr subtil, fast HUD-like
@@ -264,7 +264,6 @@ class VPDScatterScreen(Screen):
     # DATA LOAD (IDENTISCH ZU FULLSCREEN)
     # -------------------------------------------------
     def _load_points(self):
-    
         idx = self.gsm.get_active_index()
         dev_list = self.gsm.get_device_list()
     
@@ -279,20 +278,27 @@ class VPDScatterScreen(Screen):
             buf = self.gsm.get_graph_data(f"{prefix}_{metric}")
             return float(buf[-1]) if buf else None
     
-        # -------------------------------------------------
-        # KOORDINATEN DIREKT VOM GSM
-        # -------------------------------------------------
+        # 1. Koordinaten für die Punkte auf dem Canvas
+        x_in, y_in = get_last("vpd_x_in"), get_last("vpd_y_in")
+        x_ex, y_ex = get_last("vpd_x_ex"), get_last("vpd_y_ex")
     
-        x_in = get_last("vpd_x_in")
-        y_in = get_last("vpd_y_in")
+        # 2. Werte für die Detail-Box (Rechts)
+        v_in, h_in, t_in = get_last("vpd_in"), get_last("hum_in"), get_last("temp_in")
+        v_ex, h_ex, t_ex = get_last("vpd_ex"), get_last("hum_ex"), get_last("temp_ex")
     
-        x_ex = get_last("vpd_x_ex")
-        y_ex = get_last("vpd_y_ex")
+        # --- DER UNIT-FIX ---
+        # Wir holen die Einheiten direkt über die Keys aus dem GSM
+        self._unit_t = self.gsm.get_unit(f"{prefix}_temp_in")
+        self._unit_h = self.gsm.get_unit(f"{prefix}_hum_in")
+        self._unit_v = " kPa" # VPD ist bei uns fix kPa, oder auch via GSM: self.gsm.get_unit(f"{prefix}_vpd_in")
     
-        # -------------------------------------------------
-        # POINTS SETZEN
-        # -------------------------------------------------
+        # 3. Daten für die Render-Funktion zwischenspeichern
+        self._box = {
+            "in": {"t": t_in, "h": h_in, "vpd": v_in},
+            "ex": {"t": t_ex, "h": h_ex, "vpd": v_ex},
+        }
     
+        # 4. Punkte auf dem Hintergrund-Bild platzieren
         if x_in is not None and y_in is not None:
             self._place_point(self.p_in, y_in, x_in)
         else:
@@ -303,27 +309,7 @@ class VPDScatterScreen(Screen):
         else:
             self.p_ex.pos = (-1000, -1000)
     
-        # -------------------------------------------------
-        # VALUE BOX (bleibt gleich)
-        # -------------------------------------------------
-    
-        v_in = get_last("vpd_in")
-        h_in = get_last("hum_in")
-        t_in = get_last("temp_in")
-    
-        v_ex = get_last("vpd_ex")
-        h_ex = get_last("hum_ex")
-        t_ex = get_last("temp_ex")
-    
-        self._unit_t = self.gsm.get_unit("temp_in")
-        self._unit_h = self.gsm.get_unit("hum_in")
-    
-        self._box = {
-            "in": {"t": t_in, "h": h_in, "vpd": v_in},
-            "ex": {"t": t_ex, "h": h_ex, "vpd": v_ex},
-        }
-    
-        self._update_value_box()        
+        self._update_value_box()     
     # -------------------------------------------------
     def _place_point(self, ellipse, temp, hum):
         gx, gy = self.graph.pos
@@ -358,34 +344,37 @@ class VPDScatterScreen(Screen):
         pass
     def _update_value_box(self):
         def fmt(v, unit=""):
-            return "--" if v is None else f"{v:.2f}{unit}"
+            if v is None: return "--"
+            # Schöne Formatierung: Leerzeichen nur wenn nötig
+            return f"{v:.2f} {unit}".strip()
     
-        ut = getattr(self, "_unit_t", "")
-        uh = getattr(self, "_unit_h", "")
+        # 1. Einheiten vom GSM (UnitEngine) beziehen
+        ut = getattr(self, "_unit_t", "°C")
+        uh = getattr(self, "_unit_h", "%")
+        uv = "kPa" # VPD Standard
     
         b = getattr(self, "_box", None)
-        if not b:
-            return
+        if not b: return
     
+        # 2. Leaf Offset aus der Config (Fix auf Celsius)
+        import config
+        offset = config.get_leaf_offset()
+
+        # 3. Markup-Text zusammenbauen (Farben passend zu den Ellipsen)
         self.value_label.text = (
-            "[font=FA][color=#FFD933]\uf111[/color][/font] [b]IN[/b]\n"
-
-
-            f"  T: {fmt(b['in']['t'], ut)}   "
+            "[font=FA][color=#FFD933]\uf111[/color][/font] [b]INTERNAL[/b]\n"
+            f"  T: {fmt(b['in']['t'], ut)}  "
             f"H: {fmt(b['in']['h'], uh)}\n"
-            f"  VPD: {fmt(b['in']['vpd'], ' kPa')}\n\n"
+            f"  VPD: [b]{fmt(b['in']['vpd'], uv)}[/b]\n\n"
         
-            "[font=FA][color=#4DFF4D]\uf111[/color][/font] [b]EX[/b]\n"
-
-            f"  T: {fmt(b['ex']['t'], ut)}   "
+            "[font=FA][color=#4DFF4D]\uf111[/color][/font] [b]EXTERNAL[/b]\n"
+            f"  T: {fmt(b['ex']['t'], ut)}  "
             f"H: {fmt(b['ex']['h'], uh)}\n"
-            f"  VPD: {fmt(b['ex']['vpd'], ' kPa')}\n\n"
+            f"  VPD: [b]{fmt(b['ex']['vpd'], uv)}[/b]\n\n"
         
             "[color=#AAAAAA][i]Leaf Offset:[/i][/color] "
-            f"{fmt(getattr(self, '_leaf_offset', None), '°C')}"
-
-        )
-    # ============================================================
+            f"[color=#FFFFFF]{fmt(offset, '°C')}[/color]"
+        )    # ============================================================
     # DEVICE SWIPE (HORIZONTAL)
     # ============================================================
 # In VPDScatterScreen Klasse

@@ -213,3 +213,30 @@ def set_lgs_channels(send, recv):
     cfg["lgs_mesh_channel_send"] = int(send)
     cfg["lgs_mesh_channel_recv"] = int(recv)
     save(cfg)
+
+def get_mixed_enabled(mac):
+    cfg = _init()
+    return bool(cfg.get("devices", {}).get(mac, {}).get("mixed_enabled", False))
+
+
+def set_mixed_enabled(mac, state: bool):
+    cfg = _init()
+    devs = cfg.get("devices", {})
+    if mac not in devs:
+        devs[mac] = {}
+    devs[mac]["mixed_enabled"] = bool(state)
+    save(cfg)
+
+
+def get_mixed_external(mac):
+    cfg = _init()
+    return bool(cfg.get("devices", {}).get(mac, {}).get("mixed_external", False))
+
+
+def set_mixed_external(mac, state: bool):
+    cfg = _init()
+    devs = cfg.get("devices", {})
+    if mac not in devs:
+        devs[mac] = {}
+    devs[mac]["mixed_external"] = bool(state)
+    save(cfg)

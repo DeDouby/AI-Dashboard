@@ -101,8 +101,8 @@ class ChartTile(ButtonBehavior, BoxLayout):
         )
 
         # Dickere Linien für den "Vivid" Look
-        self.plot = LinePlot(color=self.color, line_width=dp_scaled(3.5)) 
-        self.plot_glow = LinePlot(color=[*self.color[:3], 0.2], line_width=dp_scaled(7))
+        self.plot = LinePlot(color=self.color, line_width=dp_scaled(2.5)) 
+        self.plot_glow = LinePlot(color=[*self.color[:3], 0.2], line_width=dp_scaled(5))
         self.graph.add_plot(self.plot_glow)
         self.graph.add_plot(self.plot)
         self.add_widget(self.graph)

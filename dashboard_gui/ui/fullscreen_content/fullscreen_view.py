@@ -185,13 +185,12 @@ class FullScreenView(Screen):
         if not dev_id or not self.tile_id:
             return
 
-        # 2. Key bauen (muss exakt zum Metrics-Key passen)
+        # 2. Key bauen
         self.current_key = f"{dev_id}_{channel}_{self.tile_id}"
         
         # 3. Buffer aus der Engine holen
         buf = GLOBAL_STATE.graph_engine.get_buffer(self.current_key)
         
-        # Sicherheits-Check: Wenn keine Daten da sind
         if not buf or len(buf) == 0:
             self.plot.points = []
             self.plot_glow.points = []
@@ -203,30 +202,46 @@ class FullScreenView(Screen):
         self.plot.points = pts
         self.plot_glow.points = pts
 
-        # Achsen skalieren (für die Linien)
+        # Achsen skalieren
         mn, mx = min(buf), max(buf)
         if mn == mx: mn -= 1; mx += 1
         diff = mx - mn
         self.graph.ymin = mn - (diff * 0.1)
         self.graph.ymax = mx + (diff * 0.1)
-        self.graph.xmax = config.get_tile_graph_window()
+        
+        # X-Achse auf die Buffer-Größe setzen
+        win_seconds = config.get_tile_graph_window()
+        self.graph.xmax = win_seconds
 
         # ---------------------------------------------------------
-        # 5. WERTE-ANZEIGE (Hier lag vermutlich der Fehler)
+        # NEU: ZEITACHSE BESCHRIFTEN (Idiotensicher)
         # ---------------------------------------------------------
-        last_val = buf[-1] # Der allerletzte Wert im Buffer
+        # Wir berechnen, wie viele Minuten das Fenster insgesamt groß ist
+        total_minutes = win_seconds / 60
         
-        # Einheit und Trend-Icon vom GSM/Engine holen
+        # Wir haben 5 Labels in deiner self.labels_list
+        # Label 0 (links) -> -Gesamtzeit
+        # Label 4 (rechts) -> 0 (Jetzt)
+        for i, lbl in enumerate(self.labels_list):
+            # Berechne den Zeitwert für dieses Label
+            # i=0 -> -total_minutes | i=4 -> 0
+            time_val = -total_minutes + (i * (total_minutes / 4))
+            
+            if time_val == 0:
+                lbl.text = "Jetzt"
+            else:
+                lbl.text = f"{int(time_val)}m"
+
+        # ---------------------------------------------------------
+        # 5. WERTE-ANZEIGE
+        # ---------------------------------------------------------
+        last_val = buf[-1]
         unit = GLOBAL_STATE.get_unit(self.current_key) or ""
         trend_icon = GLOBAL_STATE.graph_engine.get_trend_icon(self.current_key)
-        
-        # WICHTIG: Markup für das Icon verwenden
         icon_markup = f"[font=FA]{trend_icon}[/font]" if trend_icon else ""
 
-        # Das Haupt-Label (Die große Zahl)
         self.lbl_value.text = f"{last_val:.2f} {unit} {icon_markup}"
         
-        # Die Sub-Statistiken (Durchschnitt, Min, Max)
         avg_v, mn_stat, mx_stat = GLOBAL_STATE.graph_engine.get_stats(self.current_key)
         if avg_v is not None:
             self.lbl_sub.text = f"avg: {avg_v:.2f} {unit} | min: {mn_stat:.2f} | max: {mx_stat:.2f}"
