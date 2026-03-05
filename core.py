@@ -81,36 +81,41 @@ def _cleanup_ble_dump():
 def start():
     global _bridge, _watchdog
 
-    print("[Core] Starte Core…")
+    print("[Core] Starte Core (Foreground Service Mode)…")
     print("[Core] is_android():", is_android())
 
     _cleanup_decoded()
     _cleanup_ble_dump()
     _cleanup_ble_log_dump() 
+
     # -----------------------------------------------------
-    # Bridge starten
+    # 1. Android Foreground Service starten
     # -----------------------------------------------------
     if is_android():
-        try:
-            from permission_fix import check_permissions
-            check_permissions()
-        except:
-            print("[Core] Permission check skipped")
-
+        from jnius import autoclass
         _bridge = get_bridge(prefer_mock=False)
         
-        _bridge.start_adv()
-        
-        print("[Core] Android-Bridges gestartet (ADV + GATT + BROADCAST)")
+        _bridge.start_adv()        
+        PythonActivity = autoclass('org.kivy.android.PythonActivity')
+        Intent = autoclass('android.content.Intent')
+    
+        service_name = "org.hackintosh1980.blebridge.BleService"
+        ServiceClass = autoclass(service_name)
+    
+        activity = PythonActivity.mActivity
+        intent = Intent(activity, ServiceClass)
+    
+        activity.startForegroundService(intent)
+        activity.startService(intent)
+    
+        print(f"[Core] Foreground Service {service_name} gestartet!")
 
-    # -----------------------------------------------------
-    # Decoder starten (liefert decoded.json)
-    # -----------------------------------------------------
+    # Decoder und Watchdog bleiben hier
     start_decoder_thread(config.get_refresh_interval())
     print("[Core] Decoder-Thread gestartet")
 
     # -----------------------------------------------------
-    # Watchdog starten
+    # 3. Watchdog starten
     # -----------------------------------------------------
     _watchdog = DumpWatchdog(
         timeout=config.get_stale_timeout(),
@@ -120,10 +125,7 @@ def start():
     _watchdog.start()
     print("[Core] Watchdog gestartet")
 
-    print("[Core] System läuft.")
-
-
-_broadcast_active = True  # Da sie beim start() mit gestartet wird
+    print("[Core] System läuft stabil im Hintergrund.")
 
 def is_broadcast_active():
     return _broadcast_active

@@ -5,21 +5,21 @@ from kivy.clock import Clock
 from dashboard_gui.data_buffer import BUFFER
 import time
 import config
-from dashboard_gui.engines.graph_engine import GraphEngine
-from dashboard_gui.engines.ui_manager import UIManager # oben importieren
-from dashboard_gui.engines.config_engine import ConfigEngine# oben importieren
-from dashboard_gui.engines.led_engine import LedEngine
-from dashboard_gui.engines.mixed_engine import MixedEngine
-from dashboard_gui.engines.metrics_engine import MetricsEngine
-from dashboard_gui.engines.gatt_config_engine import GattConfigEngine
-from dashboard_gui.engines.active_channel_engine import init_active_channel_engine
-from dashboard_gui.engines.unit_engine import UnitEngine
-from dashboard_gui.engines.multi_active_key_engine import MultiActiveKeyEngine
-from dashboard_gui.engines.tile_engine import TileEngine
+from dashboard_gui.gsm_engines.graph_engine import GraphEngine
+from dashboard_gui.gsm_engines.ui_manager import UIManager # oben importieren
+from dashboard_gui.gsm_engines.config_engine import ConfigEngine# oben importieren
+from dashboard_gui.gsm_engines.led_engine import LedEngine
+from dashboard_gui.gsm_engines.mixed_engine import MixedEngine
+from dashboard_gui.gsm_engines.metrics_engine import MetricsEngine
+from dashboard_gui.gsm_engines.gatt_config_engine import GattConfigEngine
+from dashboard_gui.gsm_engines.active_channel_engine import init_active_channel_engine
+from dashboard_gui.gsm_engines.unit_engine import UnitEngine
+from dashboard_gui.gsm_engines.multi_active_key_engine import MultiActiveKeyEngine
+from dashboard_gui.gsm_engines.tile_engine import TileEngine
 # In deiner global_state_manager.py
 from dashboard_gui.global_gesture_manager import GlobalGestureManager
-from dashboard_gui.engines.data_flow_engine import DataFlowEngine
-from dashboard_gui.engines.broadcast_engine import BroadcastEngine
+from dashboard_gui.gsm_engines.data_flow_engine import DataFlowEngine
+from dashboard_gui.gsm_engines.broadcast_engine import BroadcastEngine
 
 # Initialisieren
 def _extract_mac(dev):
@@ -68,7 +68,7 @@ class GlobalStateManager:
         self.ggm = GlobalGestureManager(self)
         self.broadcast_engine = BroadcastEngine(self)
         self.data_flow = DataFlowEngine(self)
-        from dashboard_gui.engines.active_channel_engine import init_active_channel_engine
+        from dashboard_gui.gsm_engines.active_channel_engine import init_active_channel_engine
         
         # 2. ERSCHAFFE die Engine und binde sie an self (WICHTIG!)
         self.active_channel_engine = init_active_channel_engine(self.gatt_engine)
@@ -97,7 +97,7 @@ class GlobalStateManager:
 
     def get_active_channel(self):
         # Wir delegieren die Anfrage an die tatsächliche Engine
-        from dashboard_gui.engines.active_channel_engine import ACTIVE_CHANNEL
+        from dashboard_gui.gsm_engines.active_channel_engine import ACTIVE_CHANNEL
         return ACTIVE_CHANNEL.get_active_channel()
     # In global_state_manager.py
     def set_active_channel(self, channel):

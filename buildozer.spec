@@ -20,8 +20,12 @@ fullscreen = 1
 # Nur Font Awesome Solid soll eingebunden werden
 android.add_assets = assets/fonts/fa-solid-900.ttf
 requirements = python3,kivy,pyjnius,pillow,certifi,six,kivy_garden.graph,flask
+
+# (list) Services to declare
+android.services = BleBridgeService:org.hackintosh1980.blebridge.BleService
+
 android.add_src = src/main/java
-android.permissions = BLUETOOTH, BLUETOOTH_ADMIN, ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION, BLUETOOTH_SCAN, BLUETOOTH_CONNECT, BLUETOOTH_ADVERTISE, FOREGROUND_SERVICE, POST_NOTIFICATIONS
+android.permissions = BLUETOOTH, BLUETOOTH_ADMIN, ACCESS_FINE_LOCATION, ACCESS_COARSE_LOCATION, BLUETOOTH_SCAN, BLUETOOTH_CONNECT, BLUETOOTH_ADVERTISE, FOREGROUND_SERVICE, FOREGROUND_SERVICE_CONNECTED_DEVICE, POST_NOTIFICATIONS
 android.api = 33
 android.minapi = 29
 android.ndk_api = 29

@@ -2,41 +2,41 @@
   {
     "address": "C898B4F2-B452-7502-1A67-0536E77D49EA",
     "gat_raw": null,
-    "timestamp": "2026-03-05T14:22:08.710+0000",
+    "timestamp": "2026-03-05T23:19:56.116+0000",
     "name": "sps",
-    "rssi": -67,
-    "adv_raw": "56083E150001302908",
-    "log_raw": "56083E150001302908",
+    "rssi": -47,
+    "adv_raw": "A9084E1100163F2908",
+    "log_raw": "A9084E1100163F2908",
     "note": "raw"
   },
   {
     "address": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
     "gat_raw": null,
-    "timestamp": "2026-03-05T14:22:13.923+0000",
+    "timestamp": "2026-03-05T23:19:57.033+0000",
     "name": "ThermoBeacon2",
-    "rssi": -56,
-    "adv_raw": "190019060000F1F08D10550145036F0130034C241100",
-    "log_raw": "190019060000F1F08D10550145036F0130034C241100",
+    "rssi": -57,
+    "adv_raw": "190019060000F1F08D103B0158033A018B0355A21100",
+    "log_raw": "190019060000F1F08D103B0158033A018B0355A21100",
     "note": "raw"
   },
   {
     "address": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
     "gat_raw": null,
-    "timestamp": "2026-03-05T14:22:08.101+0000",
+    "timestamp": "2026-03-05T23:19:42.939+0000",
     "name": "TP351S (987A)",
-    "rssi": -71,
-    "adv_raw": "C2C00030213301",
-    "log_raw": "C2C00030213301",
+    "rssi": -82,
+    "adv_raw": "C2C60031213301",
+    "log_raw": "C2C60031213301",
     "note": "raw"
   },
   {
     "address": "FF-FF-A1-00-00-01",
     "gat_raw": null,
-    "timestamp": "2026-03-05T14:22:13.318+0000",
+    "timestamp": "2026-03-05T23:19:57.035+0000",
     "name": "LGS_NODE_133",
-    "rssi": -61,
-    "adv_raw": "7445A18508581389DB",
-    "log_raw": "7445A18508581389DB",
+    "rssi": -49,
+    "adv_raw": "7445A1850801141F0A",
+    "log_raw": "7445A1850801141F0A",
     "note": "ch_133_active"
   }
 ]

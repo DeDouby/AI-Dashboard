@@ -4,7 +4,6 @@ from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
 from kivy.uix.togglebutton import ToggleButton
 import os
-from kivy.uix.floatlayout import FloatLayout  # WICHTIG
 from kivy.graphics import Rectangle, Color, Line
 from kivy.uix.widget import Widget
 from kivy.uix.scrollview import ScrollView
@@ -25,61 +24,53 @@ class SensorMixedModeScreen(Screen):
         self.GS = GLOBAL_STATE
         self.GS.ui_handler.attach_screen("sensor_mixed_mode", self)
         
-        # 1. ROOT (FloatLayout: Basis für die Schichtung)
-        root = FloatLayout()
+        # ROOT
+        root = BoxLayout(orientation="vertical", spacing=dp_scaled(10))
         self.add_widget(root)
-        
-        # Hintergrundbild (Ganz unten)
         with root.canvas.before:
             self.bg_rect = Rectangle(source=os.path.join("dashboard_gui", "assets", "background_mixed.png"))
         root.bind(pos=self._update_bg, size=self._update_bg)
 
-        # 2. DER GRAPH (Ebene über dem Bild)
-        self.graph_widget = Widget(size_hint=(1, 1), pos_hint={'x': 0, 'y': 0})
-        root.add_widget(self.graph_widget)
-
-        # 3. MAIN_UI (Vordergrund-Layout)
-        main_ui = BoxLayout(orientation="vertical", spacing=dp_scaled(10))
-        root.add_widget(main_ui)
-
-        # --- HEADER ---
+        # HEADER
         self.header = HeaderBar()
+        # HIER DIE KORREKTUR:
         self.header.lbl_title.text = I18N.t("menu.sensor_mixed_mode")
-        self.header.update_back_button("sensor_mixed_mode") 
-        main_ui.add_widget(self.header)
+        self.header.update_back_button("sensor_mixed_mode") # Registriert den Screen
+        root.add_widget(self.header)
 
-        # --- CONTENT BOX (Die große Glasplatte) ---
-        # Hier lag der Fehler: Wir müssen 'content' erst definieren!
-        content = BoxLayout(orientation="horizontal", padding=dp_scaled(20), spacing=0)
-        with content.canvas.before:
-            Color(0, 0, 0, 0.45) 
-            self.content_bg_rect = RoundedRectangle(pos=content.pos, size=content.size, radius=[dp_scaled(20)])
-        content.bind(pos=self._update_content_rect, size=self._update_content_rect)
+        # MAIN CONTENT
+        content = BoxLayout(orientation="horizontal", padding=dp_scaled(15), spacing=dp_scaled(15))
         
-        # Erst jetzt zum main_ui hinzufügen
-        main_ui.add_widget(content)
-
-        # --- INHALT DER GLASPLATTE ---
-
-        # LINKS: Scroll-Liste
-        self.left_col = BoxLayout(orientation="vertical", size_hint_x=0.45, padding=dp_scaled(10))
+        # LINKS: Scroll-Liste für Einzelwerte
+        self.left_col = BoxLayout(orientation="vertical", size_hint_x=0.45)
         self.scroll = ScrollView(do_scroll_x=False)
         self.details_list = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp_scaled(10))
         self.details_list.bind(minimum_height=self.details_list.setter("height"))
         self.scroll.add_widget(self.details_list)
         self.left_col.add_widget(self.scroll)
-        content.add_widget(self.left_col)
 
-        # RECHTS: Durchschnittswerte
-        self.right_col = BoxLayout(orientation="vertical", size_hint_x=0.55, padding=dp_scaled(10))
-        self.avg_box = BoxLayout(orientation="vertical", spacing=dp_scaled(5))
+        # RECHTS: Große Anzeigen
+# RECHTS: Die Spalte für die Durchschnittswerte
+# RECHTS: Die Spalte für die Durchschnittswerte
+        self.right_col = BoxLayout(orientation="vertical", size_hint_x=0.55, padding=dp_scaled(15))
+
+        self.avg_box = BoxLayout(orientation="vertical", spacing=dp_scaled(5), padding=dp_scaled(20))
+
+        with self.avg_box.canvas.before:
+            Color(0, 0, 0, 0.45) 
+            self.avg_bg_rect = RoundedRectangle(pos=self.avg_box.pos, size=self.avg_box.size, radius=[dp_scaled(15)])
         
+        self.avg_box.bind(pos=self._update_avg_rect, size=self._update_avg_rect)
+
+        # 1. Überschrift (Hardcoded)
         self.avg_title = Label(
-            text="[b]Sensor Mixed Mode[/b]", markup=True, font_size=sp_scaled(22),
+            text="[b]Sensor Mixed Mode [/b]", markup=True, font_size=sp_scaled(22),
             size_hint_y=None, height=dp_scaled(40), color=(1, 1, 1, 0.8)
         )
         self.avg_box.add_widget(self.avg_title)
 
+        # 2. Die Werte-Labels (jetzt mit Outlines und sanften Farben)
+        # Wir nutzen kleinere Fonts für die Bezeichner direkt im Text-Update später
         self.lbl_temp = Label(text="--", font_size=sp_scaled(48), bold=True, markup=True, color=(1, 0.4, 0.4, 1), outline_width=1.5, outline_color=(0,0,0,1))
         self.lbl_hum  = Label(text="--", font_size=sp_scaled(48), bold=True, markup=True, color=(0.4, 0.7, 1, 1), outline_width=1.5, outline_color=(0,0,0,1))
         self.lbl_vpd  = Label(text="--", font_size=sp_scaled(48), bold=True, markup=True, color=(0.4, 1, 0.7, 1), outline_width=1.5, outline_color=(0,0,0,1))
@@ -92,21 +83,22 @@ class SensorMixedModeScreen(Screen):
             self.avg_box.add_widget(l)
 
         self.right_col.add_widget(self.avg_box)
-        content.add_widget(self.right_col)
 
-        # --- UNTEN: SELECTOR ---
+        content.add_widget(self.left_col)
+        content.add_widget(self.right_col)
+        root.add_widget(content)
+
+        # UNTEN: Selector
         self.device_box = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp_scaled(50), spacing=dp_scaled(5))
-        main_ui.add_widget(self.device_box)  
+        root.add_widget(self.device_box)
+
     def _update_bg(self, instance, value):
         self.bg_rect.pos = instance.pos
         self.bg_rect.size = instance.size
-
-
-    def _update_content_rect(self, instance, value):
-        """Hält den großen Glas-Hintergrund hinter der gesamten Content-Box."""
-        self.content_bg_rect.pos = instance.pos
-        self.content_bg_rect.size = instance.size
-
+    def _update_avg_rect(self, instance, value):
+        """Hält den schwarzen Hintergrund genau hinter der Box."""
+        self.avg_bg_rect.pos = instance.pos
+        self.avg_bg_rect.size = instance.size
     def on_pre_enter(self):
         self.GS.mixed_mode_active = True
         self.rebuild_selector()
@@ -211,7 +203,7 @@ class SensorMixedModeScreen(Screen):
     # Im MixedModeScreen
     def update_from_global(self, d):
         self.header.update_from_global(d)
-        self.draw_mixed_graph()
+        
         # Lokale Bezeichner für die Anzeige
         display_names = {
             "temp": "MIX TEMP",
@@ -341,143 +333,6 @@ class SensorMixedModeScreen(Screen):
             if isinstance(ch, dict) and ch.get("external") and ch["external"].get("present"):
                 return True
         return False
-
-    def draw_mixed_graph(self):
-    
-        curves = [
-            ("mixed_avg_temp", (1, 0.4, 0.4, 0.95)),
-            ("mixed_avg_hum",  (0.4, 0.7, 1, 0.9)),
-            ("mixed_avg_vpd",  (0.4, 1, 0.7, 0.9)),
-        ]
-    
-        self.graph_widget.canvas.clear()
-    
-        buffers = {}
-        ranges = {}
-        
-        global_min = None
-        global_max = None
-        
-        # -----------------------------
-        # BUFFERS + GLOBAL SCALE
-        # -----------------------------
-        for key, _ in curves:
-    
-            pts = self.GS.graph_engine.get_buffer(key)
-    
-            if not pts or len(pts) < 3:
-                continue
-    
-            # EMA SMOOTHING
-            smoothed = []
-            alpha = 0.6
-    
-            ema = pts[0]
-    
-            for v in pts:
-                ema = alpha * v + (1 - alpha) * ema
-                smoothed.append(ema)
-    
-            buffers[key] = smoothed
-            
-            mn = min(smoothed)
-            mx = max(smoothed)
-            
-            v_range = mx - mn
-            
-            # --- RANGE TUNING ---
-            if key == "mixed_avg_temp":
-                min_range = 0.4
-            elif key == "mixed_avg_hum":
-                min_range = 2.0
-            elif key == "mixed_avg_vpd":
-                min_range = 0.15
-            else:
-                min_range = 0.1
-            
-            if v_range < min_range:
-                center = (mx + mn) / 2
-                mn = center - min_range / 2
-                mx = center + min_range / 2
-            
-            ranges[key] = (mn, mx)
-    
-            if global_min is None or mn < global_min:
-                global_min = mn
-    
-            if global_max is None or mx > global_max:
-                global_max = mx
-    
-        if not buffers:
-            return
-    
-        v_range = (global_max - global_min)
-        
-        # künstliche Verstärkung kleiner ranges
-        if v_range < 0.5:
-            expand = 0.25
-            global_min -= expand
-            global_max += expand
-            v_range = global_max - global_min
-        
-        if v_range == 0:
-            v_range = 1    
-        # -----------------------------
-        # GRAPH GEOMETRIE
-        # -----------------------------
-        w = self.graph_widget.width
-        h = self.graph_widget.height
-    
-        x_off = self.graph_widget.x
-        y_off = self.graph_widget.y
-    
-        # mehr Luft oben/unten
-        padding = h * 0.18
-        
-        # zusätzlich feste Sicherheitszone für dicke Linien / glow
-        edge_margin = dp_scaled(8)
-        
-        draw_h = h - padding * 2 - edge_margin * 2
-        y_off = y_off + edge_margin
-    
-        with self.graph_widget.canvas:
-    
-            # GRID LINES (macht Graph verständlicher)
-            Color(1,1,1,0.06)
-    
-            for i in range(4):
-                y = y_off + padding + (i/3) * draw_h
-                Line(points=[x_off, y, x_off + w, y], width=1)
-    
-            # -----------------------------
-            # DRAW CURVES
-            # -----------------------------
-            for key, color in curves:
-    
-                points = buffers.get(key)
-    
-                if not points:
-                    continue
-    
-                line_pts = []
-    
-                for i, val in enumerate(points):
-    
-                    px = x_off + (i / (len(points) - 1)) * w
-                    mn, mx = ranges[key]
-                    v_range = (mx - mn) if mx > mn else 1
-
-                    py = y_off + padding + ((val - mn) / v_range) * draw_h
-    
-                    line_pts.extend([px, py])
-    
-                # glow layer
-                Color(color[0], color[1], color[2], 0.18)
-                Line(points=line_pts, width=dp_scaled(6), joint='round')
-    
-                # main line
-                Color(*color)
-                Line(points=line_pts, width=dp_scaled(2.4), joint='round')
     def reset_from_global(self):
         self.lbl_temp.text = "--"
         self.details_list.clear_widgets()
