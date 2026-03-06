@@ -20,7 +20,6 @@ from dashboard_gui.gsm_engines.tile_engine import TileEngine
 from dashboard_gui.global_gesture_manager import GlobalGestureManager
 from dashboard_gui.gsm_engines.data_flow_engine import DataFlowEngine
 from dashboard_gui.gsm_engines.broadcast_engine import BroadcastEngine
-
 # Initialisieren
 def _extract_mac(dev):
     """Normiert device_id auf reine MAC."""
@@ -119,7 +118,18 @@ class GlobalStateManager:
 
     def get_device_list(self):
         return ACTIVE_CHANNEL_ENGINE.get_device_list()
-
+    def get_last_seen_text(self, dev_id):
+        """Gibt einen menschlich lesbaren String zurück."""
+        last_ts = self.last_seen_timestamps.get(dev_id)
+        if not last_ts:
+            return "Nie gesehen"
+        
+        diff = time.time() - last_ts
+        if diff < 2:
+            return "Jetzt"
+        if diff < 60:
+            return f"vor {int(diff)}s"
+        return f"vor {int(diff/60)}m"
 # --- BROADCAST DELEGATION ---
     def get_broadcast_active(self):
         return self.broadcast_engine.active    

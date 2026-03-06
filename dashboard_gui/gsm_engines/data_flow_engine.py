@@ -1,7 +1,7 @@
 # dashboard_gui/engines/data_flow_engine.py
 import time
 from dashboard_gui.data_buffer import BUFFER
-
+from datetime import datetime
 class DataFlowEngine:
     def __init__(self, gsm):
         self.gsm = gsm
@@ -81,33 +81,32 @@ class DataFlowEngine:
             self.gsm.led_engine.offline()
     # --- HILFSMETHODE (Die hat gefehlt!) ---
     # dashboard_gui/engines/data_flow_engine.py
-    from dateutil import parser # Falls nicht installiert: pip install python-dateutil
     
     def _update_background_rssi(self, dev_id, frame):
         try:
             ts_value = None
-    
-            # 1 Root Timestamp
-            raw_ts = frame.get("timestamp")
-    
-            # 2 ADV Timestamp
-            if not raw_ts:
-                raw_ts = frame.get("adv", {}).get("timestamp")
-    
-            # 3 GATT Timestamp
-            if not raw_ts:
-                raw_ts = frame.get("gatt", {}).get("timestamp")
-    
-            if isinstance(raw_ts, (int, float)):
-                ts_value = raw_ts
-    
-            elif isinstance(raw_ts, str):
-                from dateutil import parser
-                ts_value = parser.parse(raw_ts).timestamp()
-    
+            # Priorität: Root -> ADV -> GATT
+            raw_ts = frame.get("timestamp") or \
+                     frame.get("adv", {}).get("timestamp") or \
+                     frame.get("gatt", {}).get("timestamp")
+
+            if raw_ts:
+                if isinstance(raw_ts, (int, float)):
+                    ts_value = raw_ts
+                elif isinstance(raw_ts, str):
+                    try:
+                        # ISO-Strings (z.B. 2026-03-06T04:00:00) nativ parsen
+                        # Wir entfernen ein eventuelles "Z" am Ende für die Kompatibilität
+                        clean_ts = raw_ts.replace("Z", "+00:00")
+                        ts_value = datetime.fromisoformat(clean_ts).timestamp()
+                    except ValueError:
+                        # Fallback: Falls es kein ISO-String ist, nehmen wir "jetzt" 
+                        # als Empfangszeitpunkt, um den Fluss nicht zu stoppen
+                        ts_value = time.time()
+
             if ts_value:
                 self.last_seen_timestamps[dev_id] = ts_value
-    
+
             # RSSI History
             rssi = frame.get("health", {}).get("signal", {}).get("rssi")
             if rssi is not None:
@@ -115,10 +114,9 @@ class DataFlowEngine:
                 history.append(float(rssi))
                 if len(history) > self.gsm.max_history:
                     history.pop(0)
-    
-        except Exception as e:
-            print("Timestamp Parse Error:", e)
 
+        except Exception as e:
+            print(f"[DFE] Timestamp Error for {dev_id}: {e}")
     def _handle_health_and_leds(self, d, ch, ch_name, dev_id):
         # RSSI History (intern verwaltet)
         try:

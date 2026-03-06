@@ -24,7 +24,7 @@ from dashboard_gui.settings_screen import SettingsScreen
 from dashboard_gui.ui.cam_viewer_content.cam_viewer_screen import CamViewerScreen
 from dashboard_gui.ui.about_content.about_screen import AboutScreen
 from dashboard_gui.ui.vpd_scatter_screen_content.vpd_scatter_screen import VPDScatterScreen
-from dashboard_gui.ui.sensor_mixed_mode_content.sensor_mixed_mode import SensorMixedModeScreen
+from dashboard_gui.ui.sensor_mixed_mode_content.sensor_mixed_mode_screen import SensorMixedModeScreen
 from dashboard_gui.ui.grow_rooms_content.grow_room_screen import GrowRoomScreen
 from dashboard_gui.ui.i18n import I18N
 from dashboard_gui.global_state_manager import GLOBAL_STATE

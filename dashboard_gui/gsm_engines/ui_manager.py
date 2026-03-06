@@ -1,5 +1,4 @@
 # dashboard_gui/ui_manager.py
-
 class UIManager:
     def __init__(self, gsm):
         self.gsm = gsm  # Rückreferenz auf den Boss (GSM)
@@ -62,3 +61,6 @@ class UIManager:
     def refresh_broadcast_buttons(self):
         for btn in self.broadcast_buttons:
             btn.refresh()
+    def get_device_label(self, dev_id):
+        from dashboard_gui.global_state_manager import ACTIVE_CHANNEL_ENGINE
+        return ACTIVE_CHANNEL_ENGINE.get_device_label(dev_id)
