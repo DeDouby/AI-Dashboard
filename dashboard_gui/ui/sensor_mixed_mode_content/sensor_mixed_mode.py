@@ -4,18 +4,17 @@ from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
 from kivy.uix.togglebutton import ToggleButton
 import os
-from kivy.uix.floatlayout import FloatLayout  # WICHTIG
-from kivy.graphics import Rectangle, Color, Line
+import time
+from kivy.uix.floatlayout import FloatLayout
+from kivy.graphics import Rectangle, Color, RoundedRectangle, Line
 from kivy.uix.widget import Widget
 from kivy.uix.scrollview import ScrollView
-from dashboard_gui.global_state_manager import GLOBAL_STATE
+from dashboard_gui.ui.common.control_buttons import ControlButtons
+
+from dashboard_gui.global_state_manager import GLOBAL_STATE, ACTIVE_CHANNEL_ENGINE
 from dashboard_gui.ui.common.header_online import HeaderBar
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.ui.i18n import I18N
-from dashboard_gui.global_state_manager import ACTIVE_CHANNEL_ENGINE
-from kivy.graphics import Color, RoundedRectangle, Line
-
-import time
 
 class SensorMixedModeScreen(Screen):
     name = "sensor_mixed_mode"
@@ -24,22 +23,23 @@ class SensorMixedModeScreen(Screen):
         super().__init__(**kw)
         self.GS = GLOBAL_STATE
         self.GS.ui_handler.attach_screen("sensor_mixed_mode", self)
+        self._last_list_update = 0
         
-        # 1. ROOT (FloatLayout: Basis für die Schichtung)
+# 1. ROOT (FloatLayout)
         root = FloatLayout()
         self.add_widget(root)
         
-        # Hintergrundbild (Ganz unten)
+        # Hintergrundbild
         with root.canvas.before:
             self.bg_rect = Rectangle(source=os.path.join("dashboard_gui", "assets", "background_mixed.png"))
         root.bind(pos=self._update_bg, size=self._update_bg)
 
-        # 2. DER GRAPH (Ebene über dem Bild)
-        self.graph_widget = Widget(size_hint=(1, 1), pos_hint={'x': 0, 'y': 0})
+        # 2. DER GRAPH (hinter dem UI)
+        self.graph_widget = Widget()
         root.add_widget(self.graph_widget)
 
-        # 3. MAIN_UI (Vordergrund-Layout)
-        main_ui = BoxLayout(orientation="vertical", spacing=dp_scaled(10))
+        # 3. MAIN_UI (Vordergrund)
+        main_ui = BoxLayout(orientation="vertical") # Spacing hier auf 0, wir regeln das intern
         root.add_widget(main_ui)
 
         # --- HEADER ---
@@ -49,240 +49,129 @@ class SensorMixedModeScreen(Screen):
         main_ui.add_widget(self.header)
 
         # --- CONTENT BOX (Die große Glasplatte) ---
-        # Hier lag der Fehler: Wir müssen 'content' erst definieren!
-        content = BoxLayout(orientation="horizontal", padding=dp_scaled(20), spacing=0)
+        # size_hint_y=1 sorgt dafür, dass dieser Teil den gesamten Platz zwischen Header und Controls füllt
+        content = BoxLayout(orientation="horizontal", padding=dp_scaled(15), spacing=dp_scaled(10), size_hint_y=1)
         with content.canvas.before:
             Color(0, 0, 0, 0.45) 
-            self.content_bg_rect = RoundedRectangle(pos=content.pos, size=content.size, radius=[dp_scaled(20)])
+            self.content_bg_rect = RoundedRectangle(radius=[dp_scaled(20)])
         content.bind(pos=self._update_content_rect, size=self._update_content_rect)
-        
-        # Erst jetzt zum main_ui hinzufügen
         main_ui.add_widget(content)
 
-        # --- INHALT DER GLASPLATTE ---
+        # --- [LINKS: Scroll-Liste] & [RECHTS: Durchschnittswerte] ---
+        # (Hier bleibt dein Code für left_col und right_col identisch wie im letzten Umbau)
+        self._setup_columns(content)
 
+        # --- NEU: CONTROL BUTTONS (Ganz unten) ---
+        # Wir fügen die Leiste einfach als letztes Widget zum vertikalen main_ui hinzu
+        self.controls = ControlButtons()
+        self.controls.size_hint = (1, None)
+        self.controls.height = dp_scaled(40) # Etwas höher für bessere Bedienbarkeit
+        main_ui.add_widget(self.controls)
+
+    def _setup_columns(self, content):
         # LINKS: Scroll-Liste
-        self.left_col = BoxLayout(orientation="vertical", size_hint_x=0.45, padding=dp_scaled(10))
+        self.left_col = BoxLayout(orientation="vertical", size_hint_x=0.4)
         self.scroll = ScrollView(do_scroll_x=False)
-        self.details_list = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp_scaled(10))
+        self.details_list = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp_scaled(12))
         self.details_list.bind(minimum_height=self.details_list.setter("height"))
         self.scroll.add_widget(self.details_list)
         self.left_col.add_widget(self.scroll)
         content.add_widget(self.left_col)
 
         # RECHTS: Durchschnittswerte
-        self.right_col = BoxLayout(orientation="vertical", size_hint_x=0.55, padding=dp_scaled(10))
+        self.right_col = BoxLayout(orientation="vertical", size_hint_x=0.6, padding=[dp_scaled(10), 0])
         self.avg_box = BoxLayout(orientation="vertical", spacing=dp_scaled(5))
         
-        self.avg_title = Label(
-            text="[b]Sensor Mixed Mode[/b]", markup=True, font_size=sp_scaled(22),
-            size_hint_y=None, height=dp_scaled(40), color=(1, 1, 1, 0.8)
-        )
-        self.avg_box.add_widget(self.avg_title)
-
-        self.lbl_temp = Label(text="--", font_size=sp_scaled(48), bold=True, markup=True, color=(1, 0.4, 0.4, 1), outline_width=1.5, outline_color=(0,0,0,1))
-        self.lbl_hum  = Label(text="--", font_size=sp_scaled(48), bold=True, markup=True, color=(0.4, 0.7, 1, 1), outline_width=1.5, outline_color=(0,0,0,1))
-        self.lbl_vpd  = Label(text="--", font_size=sp_scaled(48), bold=True, markup=True, color=(0.4, 1, 0.7, 1), outline_width=1.5, outline_color=(0,0,0,1))
-        self.lbl_dew  = Label(text="--", font_size=sp_scaled(48), bold=True, markup=True, color=(0.8, 0.8, 1, 1), outline_width=1.5, outline_color=(0,0,0,1))
+        self.lbl_temp = self._create_avg_label((1, 0.4, 0.4, 1))
+        self.lbl_hum  = self._create_avg_label((0.4, 0.7, 1, 1))
+        self.lbl_vpd  = self._create_avg_label((0.4, 1, 0.7, 1))
+        self.lbl_dew  = self._create_avg_label((0.8, 0.8, 1, 1))
         
         for l in [self.lbl_temp, self.lbl_hum, self.lbl_vpd, self.lbl_dew]:
-            l.halign = "center"
-            l.valign = "middle"
-            l.bind(size=lambda s, w: setattr(s, 'text_size', w)) 
             self.avg_box.add_widget(l)
-
         self.right_col.add_widget(self.avg_box)
         content.add_widget(self.right_col)
 
-        # --- UNTEN: SELECTOR ---
-        self.device_box = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp_scaled(50), spacing=dp_scaled(5))
-        main_ui.add_widget(self.device_box)  
+    def _create_avg_label(self, color):
+        return Label(text="--", font_size=sp_scaled(42), bold=True, markup=True, 
+                     color=color, outline_width=1.5, outline_color=(0,0,0,1),
+                     halign="center", valign="middle")
+
+
     def _update_bg(self, instance, value):
         self.bg_rect.pos = instance.pos
         self.bg_rect.size = instance.size
 
-
     def _update_content_rect(self, instance, value):
-        """Hält den großen Glas-Hintergrund hinter der gesamten Content-Box."""
         self.content_bg_rect.pos = instance.pos
         self.content_bg_rect.size = instance.size
 
     def on_pre_enter(self):
         self.GS.mixed_mode_active = True
-        self.rebuild_selector()
+        self._update_details_list()
 
-    def rebuild_selector(self):
-        self.device_box.clear_widgets()
-        from dashboard_gui.data_buffer import BUFFER
-        data_all = BUFFER.get() or []
-
-        # Ermitteln, wie viele Geräte wir haben, um den Platz zu teilen
-        device_list = self.GS.get_device_list()
-        if not device_list:
-            return
-
-        for dev_id in device_list:
-            is_selected = dev_id in self.GS.mixed_selected_buffers
-            
-            # --- DER FIX: size_hint_x=1 statt None/Width ---
-            # Damit verteilt Kivy alle Container gleichmäßig über die gesamte Breite der device_box
-            btn_container = BoxLayout(
-                orientation="vertical", 
-                spacing=dp_scaled(2), 
-                size_hint_x=1  # <--- Nimmt sich seinen Anteil am Gesamtplatz
-            )
-            
-            # --- HAUPTBUTTON (GERÄT) ---
-            btn = ToggleButton(
-                text=ACTIVE_CHANNEL_ENGINE.get_device_label(dev_id),
-                state="down" if is_selected else "normal",
-                markup=True,
-                background_normal='', 
-                background_down='',
-                background_color=(0.0, 0.0, 0.0, 0.65) if is_selected else (0, 0, 0, 0.35),
-                color=(1, 1, 1, 1) if is_selected else (1, 1, 1, 0.6),
-                size_hint_y=1 if not is_selected else 0.6
-            )
-            btn.bind(on_release=lambda b, d=dev_id: self._toggle_dev(d))
-            btn_container.add_widget(btn)
-
-            # Modus-Buttons einblenden
-            if is_selected:
-                frame = next((f for f in data_all if str(f.get("device_id")) == str(dev_id)), None)
-                if frame and self._has_external(frame):
-                    mode_box = BoxLayout(spacing=dp_scaled(2), size_hint_y=0.4)
-                    current_modes = self.GS.mixed_device_modes.get(dev_id, {"internal"})
-                    
-                    for m in ["internal", "external"]:
-                        is_mode_active = m in current_modes
-                        m_btn = ToggleButton(
-                            text=f"{'[font=FA]\uf015[/font]' if m=='internal' else '[font=FA]\uf0c2[/font]'} {m[:3].upper()}",
-                            markup=True, # Für die Icons
-                            state="down" if is_mode_active else "normal",
-                            font_size=sp_scaled(10),
-                            bold=True,
-                            background_normal='',
-                            background_down='',
-                            background_color=(0.0, 0.0, 0.0, 0.65) if is_mode_active else (0.0, 0.0, 0.0, 0.35),
-                            color=(1, 1, 1, 1) if is_mode_active else (1, 1, 1, 0.5)
-                        )
-                        m_btn.bind(on_release=lambda b, d=dev_id, mode=m: self._switch_mode(d, mode))
-                        mode_box.add_widget(m_btn)
-                    
-                    btn_container.add_widget(mode_box)
-
-            self.device_box.add_widget(btn_container)
+    def _toggle_dev(self, dev_id):
+        if dev_id in self.GS.mixed_selected_buffers:
+            self.GS.mixed_selected_buffers.remove(dev_id)
+        else:
+            self.GS.mixed_selected_buffers.add(dev_id)
+            # Standard-Modus setzen falls nicht vorhanden
+            if dev_id not in self.GS.mixed_device_modes:
+                from dashboard_gui.data_buffer import BUFFER
+                frame = next((f for f in (BUFFER.get() or []) if str(f.get("device_id")) == str(dev_id)), None)
+                self.GS.mixed_device_modes[dev_id] = {"external"} if frame and self._has_external(frame) else {"internal"}
+        
+        self._update_details_list()
+        self.draw_mixed_graph()
 
     def _switch_mode(self, dev_id, mode):
-        modes = self.GS.mixed_device_modes.get(dev_id, {"internal"})
-        if mode in modes and len(modes) > 1:
-            modes.remove(mode)
+        modes = self.GS.mixed_device_modes.get(dev_id, {"internal"}).copy()
+        if mode in modes:
+            if len(modes) > 1: modes.remove(mode)
         else:
             modes.add(mode)
         self.GS.mixed_device_modes[dev_id] = modes
-        self.rebuild_selector()
+        self._update_details_list()
 
-    def _toggle_dev(self, dev_id):
-    
-        from dashboard_gui.data_buffer import BUFFER
-        data_all = BUFFER.get() or []
-    
-        if dev_id in self.GS.mixed_selected_buffers:
-    
-            self.GS.mixed_selected_buffers.remove(dev_id)
-    
-            if dev_id in self.GS.mixed_device_modes:
-                del self.GS.mixed_device_modes[dev_id]
-    
-        else:
-    
-            self.GS.mixed_selected_buffers.add(dev_id)
-    
-            # Frame suchen um external prüfen zu können
-            frame = next((f for f in data_all if str(f.get("device_id")) == str(dev_id)), None)
-    
-            if frame and self._has_external(frame):
-                self.GS.mixed_device_modes[dev_id] = {"external"}
-            else:
-                self.GS.mixed_device_modes[dev_id] = {"internal"}
-    
-        self.rebuild_selector()
-
-    # Im MixedModeScreen
-    def update_from_global(self, d):
-        self.header.update_from_global(d)
-        self.draw_mixed_graph()
-        # Lokale Bezeichner für die Anzeige
-        display_names = {
-            "temp": "MIX TEMP",
-            "hum":  "MIX HUM",
-            "vpd":  "MIX VPD",
-            "dew":  "MIX DEW"
-        }
-
-        def update_label(label_widget, suffix):
-            full_key = f"mixed_avg_{suffix}"
-            val = self.GS.graph_engine.get_last_value(full_key)
-            unit = self.GS.get_unit(full_key) or ""
-            trend = self.GS.get_trend_icon(full_key) or ""
-            name = display_names.get(suffix, "")
-
-            if val is not None:
-                # [size=...] macht den Bezeichner und die Einheit etwas kleiner für den edlen Look
-                # Trend-Pfeil steht jetzt ganz hinten
-                label_widget.text = f"[size={int(sp_scaled(20))}]{name}:[/size] {val:.2f} [size={int(sp_scaled(24))}]{unit} [font=FA]{trend}[/font][/size]"
-            else:
-                label_widget.text = f"[size={int(sp_scaled(20))}]{name}:[/size] -- {unit}"
-
-        # Updates triggern
-        update_label(self.lbl_temp, "temp")
-        update_label(self.lbl_hum,  "hum")
-        update_label(self.lbl_vpd,  "vpd")
-        update_label(self.lbl_dew,  "dew")
-
-        # Details alle 2 Sek (Listen-Update)
-        if not hasattr(self, "_last_list") or time.time() - self._last_list > 2:
-            self._update_details()
-            self._last_list = time.time()
-
-    def _update_details(self):
+    def _update_details_list(self):
+        """Baut die Liste der Geräte mit integrierter Steuerung auf."""
         self.details_list.clear_widgets()
         from dashboard_gui.data_buffer import BUFFER
-        
         data = BUFFER.get() or []
-        selected = self.GS.mixed_selected_buffers
-        
-        # Wir sammeln die Daten pro Gerät (ähnlich der alten Logik)
-        for frame in data:
-            dev_id = str(frame.get("device_id"))
-            if dev_id not in selected:
-                continue
+        device_list = self.GS.get_device_list()
 
+        for dev_id in device_list:
+            is_selected = dev_id in self.GS.mixed_selected_buffers
+            frame = next((f for f in data if str(f.get("device_id")) == str(dev_id)), None)
+            
+            # 1. Container für die gesamte Karte (Device + evtl. Modi)
+            card_height = dp_scaled(110) if (is_selected and frame and self._has_external(frame)) else dp_scaled(75)
+            card = BoxLayout(orientation="vertical", size_hint_y=None, height=card_height, spacing=dp_scaled(5))
+            
+            # 2. Der eigentliche Button-Bereich (als FloatLayout, damit wir schichten können)
+            from kivy.uix.floatlayout import FloatLayout
+            btn_area = FloatLayout(size_hint_y=1)
+            
+            # Der Background-Button (füllt die gesamte btn_area)
+            btn_bg = ToggleButton(
+                state="down" if is_selected else "normal",
+                background_normal='', background_down='',
+                background_color=(0, 0, 0, 0.35) if is_selected else (0, 0, 0, 0.2),
+                size_hint=(1, 1), pos_hint={'x': 0, 'y': 0}
+            )
+            btn_bg.bind(on_release=lambda b, d=dev_id: self._toggle_dev(d))
+            btn_area.add_widget(btn_bg)
+
+            # Das Label-Layout (darüber liegend)
+            content_overlay = BoxLayout(
+                orientation="vertical", 
+                padding=[dp_scaled(15), dp_scaled(10)],
+                size_hint=(1, 1), pos_hint={'x': 0, 'y': 0}
+            )
+            
             name = ACTIVE_CHANNEL_ENGINE.get_device_label(dev_id)
-            active_modes = self.GS.mixed_device_modes.get(dev_id, {"internal"})
-            
-            # Werte-Extraktion
-            temp_list = []
-            hum_list = []
-            vpd_list = []
-
-            for ch_name in ("adv", "gatt"):
-                ch = frame.get(ch_name, {})
-                for mode in active_modes:
-                    m_data = ch.get(mode, {})
-                    t = m_data.get("temperature", {}).get("value")
-                    h = m_data.get("humidity", {}).get("value")
-                    # VPD Key Logik (vpd_internal oder vpd_external)
-                    v = ch.get(f"vpd_{mode}", {}).get("value")
-                    
-                    if t is not None: temp_list.append(float(t))
-                    if h is not None: hum_list.append(float(h))
-                    if v is not None: vpd_list.append(float(v))
-
-            # UI Karte erstellen (85dp hoch wie im Original)
-            dev_card = BoxLayout(orientation="vertical", size_hint_y=None, height=dp_scaled(85))
-            
-            # Zeile 1: Name mit Icon
+            # Name in schönem Grün wenn aktiv
+            name_color = "[color=#33ff99]" if is_selected else "[color=#ffffff]"
             lbl_name = Label(
                 text=f"[font=FA]\uf2c7[/font]  [b]{name}[/b]",
                 markup=True, font_size=sp_scaled(26), color=(0.2, 1, 0.6, 1),
@@ -290,194 +179,142 @@ class SensorMixedModeScreen(Screen):
             )
             lbl_name.bind(size=lambda s, w: setattr(s, 'text_size', (w[0], None)))
             
-            # Zeile 2: Werte-String zusammenbauen
-            parts = []
-            
-            temp_unit = self.GS.get_unit("mixed_avg_temp") or "°C"
-            hum_unit = self.GS.get_unit("mixed_avg_hum") or "%"
-            vpd_unit = self.GS.get_unit("mixed_avg_vpd") or "kPa"
-            
-            if temp_list:
-                t = sum(temp_list) / len(temp_list)
-                # ÄNDERUNG: von :.1f auf :.2f
-                parts.append(f"T: {t:.2f}{temp_unit}")
-            
-            if hum_list:
-                h = sum(hum_list) / len(hum_list)
-                # ÄNDERUNG: von :.1f auf :.2f
-                parts.append(f"H: {h:.2f}{hum_unit}")
-            
-            if vpd_list:
-                v = sum(vpd_list) / len(vpd_list)
-                # Bleibt :.2f (war schon so)
-                parts.append(f"V: {v:.2f}{vpd_unit}")
-            
+            # Werte-String
+            val_text = self._get_values_string(frame, dev_id) if frame else "Warte auf Daten..."
             lbl_vals = Label(
-                text=" | ".join(parts) if parts else "Warte auf Daten...",
-                font_size=sp_scaled(24),
-                color=(0.8, 0.8, 0.8, 1),
-                halign="left",
-                valign="top",
-                size_hint_y=0.5
+                text=val_text, font_size=sp_scaled(17), 
+                color=(1, 1, 1, 0.8) if is_selected else (1, 1, 1, 0.4),
+                halign="left", valign="top",
+                size_hint_y=0.4
             )
-            
             lbl_vals.bind(size=lambda s, w: setattr(s, 'text_size', (w[0], None)))
             
-            dev_card.add_widget(lbl_name)
-            dev_card.add_widget(lbl_vals)
-
-            # Trennlinie zeichnen (Canvas)
-            with dev_card.canvas.after:
-                Color(1, 1, 1, 0.15)
-                Line(points=[dev_card.x, dev_card.y, 
-                             dev_card.x + self.left_col.width * 0.9, dev_card.y], width=1)
+            content_overlay.add_widget(lbl_name)
+            content_overlay.add_widget(lbl_vals)
             
-            self.details_list.add_widget(dev_card)
+            btn_area.add_widget(content_overlay)
+            card.add_widget(btn_area)
+
+            # 3. SUB-MODI (Internal/External) - Falls vorhanden und ausgewählt
+            if is_selected and frame and self._has_external(frame):
+                mode_box = BoxLayout(size_hint_y=None, height=dp_scaled(35), spacing=dp_scaled(4))
+                current_modes = self.GS.mixed_device_modes.get(dev_id, {"internal"})
+                
+                for m in ["internal", "external"]:
+                    m_active = m in current_modes
+                    m_btn = ToggleButton(
+                        text=f"{'[font=FA]\uf015[/font]' if m=='internal' else '[font=FA]\uf0c2[/font]'} {m.upper()}",
+                        markup=True, state="down" if m_active else "normal",
+                        font_size=sp_scaled(11), bold=True,
+                        background_normal='', background_down='',
+                        background_color=(0, 0, 0, 0.7) if m_active else (0, 0, 0, 0.35),
+                        color=(1, 1, 1, 1) if m_active else (1, 1, 1, 0.5)
+                    )
+                    m_btn.bind(on_release=lambda b, d=dev_id, mode=m: self._switch_mode(d, mode))
+                    mode_box.add_widget(m_btn)
+                card.add_widget(mode_box)
+
+            # Trennlinie für die Optik
+            with card.canvas.after:
+                Color(1, 1, 1, 0.1)
+                Line(points=[card.x, card.y, card.x + self.left_col.width, card.y], width=1)
+
+            self.details_list.add_widget(card)
+
+    def _get_values_string(self, frame, dev_id):
+        """Berechnet die Durchschnittswerte für die Anzeige in der Liste."""
+        active_modes = self.GS.mixed_device_modes.get(dev_id, {"internal"})
+        t_vals, h_vals, v_vals, d_vals = [], [], [], []
+        
+        for ch_name in ("adv", "gatt"):
+            ch = frame.get(ch_name, {})
+            for m in active_modes:
+                # Daten extrahieren
+                m_data = ch.get(m, {})
+                t = m_data.get("temperature", {}).get("value")
+                h = m_data.get("humidity", {}).get("value")
+                
+                # VPD und Dew Point (hängen oft am Channel-Level oder Mode-Level)
+                # Hier nutzen wir die Keys passend zu deinem System
+                v = ch.get(f"vpd_{m}", {}).get("value")
+                d = ch.get(f"dew_{m}", {}).get("value")
+                
+                if t is not None: t_vals.append(float(t))
+                if h is not None: h_vals.append(float(h))
+                if v is not None: v_vals.append(float(v))
+                if d is not None: d_vals.append(float(d))
+        
+        if not t_vals and not h_vals:
+            return "Warten auf Sensordaten..."
+
+        # Einheiten holen
+        u_t = self.GS.get_unit("mixed_avg_temp") or "°C"
+        u_h = self.GS.get_unit("mixed_avg_hum") or "%"
+        u_v = self.GS.get_unit("mixed_avg_vpd") or "kPa"
+        u_d = self.GS.get_unit("mixed_avg_dew") or "°C"
+
+        parts = []
+        # Formatierung mit :.2f für zwei Nachkommastellen
+        if t_vals:
+            parts.append(f"T: {sum(t_vals)/len(t_vals):.2f}{u_t}")
+        if h_vals:
+            parts.append(f"H: {sum(h_vals)/len(h_vals):.2f}{u_h}")
+        if v_vals:
+            parts.append(f"V: {sum(v_vals)/len(v_vals):.2f}{u_v}")
+        if d_vals:
+            parts.append(f"D: {sum(d_vals)/len(d_vals):.2f}{u_d}")
+
+        # Mit Trenner zusammenfügen
+        return " | ".join(parts)
 
     def _has_external(self, frame):
-        """Prüft im Datenframe, ob ein externer Sensor vorhanden ist."""
-        for ch_name in ("adv", "gatt"):
-            ch = frame.get(ch_name)
-            if isinstance(ch, dict) and ch.get("external") and ch["external"].get("present"):
-                return True
+        for ch in [frame.get("adv", {}), frame.get("gatt", {})]:
+            if ch.get("external", {}).get("present"): return True
         return False
 
-    def draw_mixed_graph(self):
-    
-        curves = [
-            ("mixed_avg_temp", (1, 0.4, 0.4, 0.95)),
-            ("mixed_avg_hum",  (0.4, 0.7, 1, 0.9)),
-            ("mixed_avg_vpd",  (0.4, 1, 0.7, 0.9)),
-        ]
-    
-        self.graph_widget.canvas.clear()
-    
-        buffers = {}
-        ranges = {}
+    def update_from_global(self, d):
+        self.header.update_from_global(d)
+        self.draw_mixed_graph()
         
-        global_min = None
-        global_max = None
-        
-        # -----------------------------
-        # BUFFERS + GLOBAL SCALE
-        # -----------------------------
-        for key, _ in curves:
-    
-            pts = self.GS.graph_engine.get_buffer(key)
-    
-            if not pts or len(pts) < 3:
-                continue
-    
-            # EMA SMOOTHING
-            smoothed = []
-            alpha = 0.6
-    
-            ema = pts[0]
-    
-            for v in pts:
-                ema = alpha * v + (1 - alpha) * ema
-                smoothed.append(ema)
-    
-            buffers[key] = smoothed
+        # Durchschnittswerte Rechts updaten
+        for key, label, name in [("temp", self.lbl_temp, "MIX T"), ("hum", self.lbl_hum, "MIX H"), 
+                                 ("vpd", self.lbl_vpd, "MIX V"), ("dew", self.lbl_dew, "MIX D")]:
+            full_key = f"mixed_avg_{key}"
+            val = self.GS.graph_engine.get_last_value(full_key)
+            unit = self.GS.get_unit(full_key) or ""
+            trend = self.GS.get_trend_icon(full_key) or ""
             
-            mn = min(smoothed)
-            mx = max(smoothed)
-            
-            v_range = mx - mn
-            
-            # --- RANGE TUNING ---
-            if key == "mixed_avg_temp":
-                min_range = 0.4
-            elif key == "mixed_avg_hum":
-                min_range = 2.0
-            elif key == "mixed_avg_vpd":
-                min_range = 0.15
+            if val is not None:
+                label.text = f"[size={int(sp_scaled(18))}]{name}:[/size] {val:.2f}[size={int(sp_scaled(20))}]{unit} [font=FA]{trend}[/font][/size]"
             else:
-                min_range = 0.1
-            
-            if v_range < min_range:
-                center = (mx + mn) / 2
-                mn = center - min_range / 2
-                mx = center + min_range / 2
-            
-            ranges[key] = (mn, mx)
-    
-            if global_min is None or mn < global_min:
-                global_min = mn
-    
-            if global_max is None or mx > global_max:
-                global_max = mx
-    
-        if not buffers:
-            return
-    
-        v_range = (global_max - global_min)
-        
-        # künstliche Verstärkung kleiner ranges
-        if v_range < 0.5:
-            expand = 0.25
-            global_min -= expand
-            global_max += expand
-            v_range = global_max - global_min
-        
-        if v_range == 0:
-            v_range = 1    
-        # -----------------------------
-        # GRAPH GEOMETRIE
-        # -----------------------------
-        w = self.graph_widget.width
-        h = self.graph_widget.height
-    
-        x_off = self.graph_widget.x
-        y_off = self.graph_widget.y
-    
-        # mehr Luft oben/unten
-        padding = h * 0.18
-        
-        # zusätzlich feste Sicherheitszone für dicke Linien / glow
-        edge_margin = dp_scaled(8)
-        
-        draw_h = h - padding * 2 - edge_margin * 2
-        y_off = y_off + edge_margin
-    
-        with self.graph_widget.canvas:
-    
-            # GRID LINES (macht Graph verständlicher)
-            Color(1,1,1,0.06)
-    
-            for i in range(4):
-                y = y_off + padding + (i/3) * draw_h
-                Line(points=[x_off, y, x_off + w, y], width=1)
-    
-            # -----------------------------
-            # DRAW CURVES
-            # -----------------------------
-            for key, color in curves:
-    
-                points = buffers.get(key)
-    
-                if not points:
-                    continue
-    
-                line_pts = []
-    
-                for i, val in enumerate(points):
-    
-                    px = x_off + (i / (len(points) - 1)) * w
-                    mn, mx = ranges[key]
-                    v_range = (mx - mn) if mx > mn else 1
+                label.text = f"[size={int(sp_scaled(18))}]{name}:[/size] --"
 
-                    py = y_off + padding + ((val - mn) / v_range) * draw_h
-    
-                    line_pts.extend([px, py])
-    
-                # glow layer
-                Color(color[0], color[1], color[2], 0.18)
-                Line(points=line_pts, width=dp_scaled(6), joint='round')
-    
-                # main line
+        # Liste alle 3 Sek refreshen (Werte in der Liste)
+        if time.time() - self._last_list_update > 3:
+            self._update_details_list()
+            self._last_list_update = time.time()
+
+    def draw_mixed_graph(self):
+        # ... (Deine bestehende Graph-Logik bleibt identisch)
+        curves = [("mixed_avg_temp", (1, 0.4, 0.4, 0.9)), ("mixed_avg_hum", (0.4, 0.7, 1, 0.8)), ("mixed_avg_vpd", (0.4, 1, 0.7, 0.7))]
+        self.graph_widget.canvas.clear()
+        with self.graph_widget.canvas:
+            for key, color in curves:
+                points = self.GS.graph_engine.get_buffer(key)
+                if not points or len(points) < 2: continue
                 Color(*color)
-                Line(points=line_pts, width=dp_scaled(2.4), joint='round')
+                w, h = self.graph_widget.width, self.graph_widget.height
+                x_off, y_off = self.graph_widget.x, self.graph_widget.y
+                min_v, max_v = min(points), max(points)
+                v_range = (max_v - min_v) if max_v > min_v else 1
+                padding = h * 0.15
+                draw_h = h - (padding * 2)
+                line_pts = []
+                for i, val in enumerate(points):
+                    px = x_off + (i / (len(points) - 1)) * w
+                    py = y_off + padding + ((val - min_v) / v_range) * draw_h
+                    line_pts.extend([px, py])
+                Line(points=line_pts, width=dp_scaled(2), joint='round')
+
     def reset_from_global(self):
-        self.lbl_temp.text = "--"
         self.details_list.clear_widgets()

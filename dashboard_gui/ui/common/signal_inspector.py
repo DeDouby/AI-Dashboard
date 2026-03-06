@@ -103,12 +103,12 @@ class SignalInspector(FloatLayout):
         # 2) Das Haupt-Panel
         self.panel = AnchorLayout(
             size_hint=(None, None),
-            size=(dp_scaled(300), dp_scaled(220)), 
+            size=(dp_scaled(300), dp_scaled(240)), 
             pos_hint={"right": 0.98, "top": 0.98}
         )
 
         with self.panel.canvas.before:
-            Color(0, 0, 0, 0.7) # Hintergrund etwas dunkler für bessere Lesbarkeit
+            Color(0, 0, 0, 0.5) # Hintergrund etwas dunkler für bessere Lesbarkeit
             self.panel.bg = RoundedRectangle(pos=self.panel.pos, size=self.panel.size, radius=[12])
             
             # Feine Lichtkante
@@ -137,39 +137,53 @@ class SignalInspector(FloatLayout):
         self._update_event = Clock.schedule_interval(self.update_ui, 0.5)
 
     def update_ui(self, *_):
-        # Frame direkt vom Header beziehen
+        # 1. Frame vom Header beziehen
         frame = getattr(self.parent_header, "_last_frame", None)
         if not frame or not isinstance(frame, dict): 
             return
 
         dev_id = frame.get('device_id', '?')
+        df = getattr(GLOBAL_STATE, "data_flow", None)
         
-        # --- 1) DATENQUELLE RSSI-HISTORY (Der Fix!) ---
+        # --- LAST SEEN BERECHNUNG (Basierend auf JSON-Timestamp) ---
+        last_seen_str = "Never"
+        if df and dev_id in df.last_seen_timestamps:
+            last_ts = df.last_seen_timestamps[dev_id]
+            diff = time.time() - last_ts
+            
+            # Sicherstellen, dass diff nicht negativ ist (bei Zeit-Sync-Abweichungen)
+            diff = max(0, diff)
+            
+            if diff < 1:
+                last_seen_str = "Just now"
+            elif diff < 60:
+                last_seen_str = f"{int(diff)}s ago"
+            elif diff < 3600:
+                last_seen_str = f"{int(diff//60)}m {int(diff%60)}s ago"
+            else:
+                last_seen_str = time.strftime("%H:%M:%S", time.localtime(last_ts))
+
+        # --- 1) GRAPH / RSSI-HISTORY UPDATE ---
         if self._current_dev_id != dev_id:
             self._current_dev_id = dev_id
             self.graph.reset()
             
-            # Wir holen die History jetzt von dort, wo sie lebt: In der DataFlowEngine
-            df = getattr(GLOBAL_STATE, "data_flow", None)
             if df and hasattr(df, "rssi_history"):
                 hist = df.rssi_history.get(dev_id, [])
                 for val in hist[-self.graph.max_points:]:
                     self.graph.add_value(val)
 
-        # --- 2) DATEN AUS DEM FRAME EXTRAHIEREN ---
+        # --- 2) DATEN EXTRAKTION ---
         channel = frame.get("channel", "adv")
         ch = frame.get(channel, {}) or {}
         health = frame.get("health", {})
         
-        # Latenz nutzen wir jetzt direkt aus dem Frame (wird in ms geliefert)
         latency_ms = frame.get("latency", 0)
         latency_s = latency_ms / 1000.0
         
-        # RSSI-Wert
         rssi = health.get("signal", {}).get("rssi") or ch.get("rssi", "--")
         
         if rssi != "--":
-            # Graphen füttern
             self.graph.add_value(rssi)
             rssi_val = float(rssi)
             if rssi_val > -65: rssi_color = "00FF00" 
@@ -178,16 +192,14 @@ class SignalInspector(FloatLayout):
         else:
             rssi_color = "888888"
 
-        # --- 3) BRIDGE & STATUS ---
-        # Nutzt die neuen Keys aus der ACE/DataFlow Logik
+        # --- 3) STATUS & UPTIME ---
         bridge_status = frame.get("bridge_status", "ACTIVE" if channel == "gatt" else "IDLE")
-        bridge_alive = frame.get("bridge_alive", True) # Vereinfacht
+        bridge_alive = frame.get("bridge_alive", True)
         bridge_color = "00FF00" if bridge_alive else "FF4444"
         
         uptime_val = health.get("uptime", {}).get("value")
         uptime_str = self._format_uptime(uptime_val)
 
-        # Latenz-Farben (Status-Text)
         if latency_s < 3.0:
             lat_color, status_text = "00FF00", "LIVE"
         elif latency_s < 15.0:
@@ -195,24 +207,24 @@ class SignalInspector(FloatLayout):
         else:
             lat_color, status_text = "FF4444", "LOST"
 
-        # --- 4) UI TEXT UPDATE ---
+        # --- 4) UI TEXT UPDATE (Die finale Anzeige) ---
         dev_name = GLOBAL_STATE.get_device_label(dev_id)
         packets = ch.get("packet_counter") or "0"
         raw = ch.get("raw") or ch.get("adv_raw") or "--"
-        
         short_raw = (str(raw)[:42] + "...") if len(str(raw)) > 42 else str(raw)
 
+        # Hier wird alles zusammengefügt:
         self.lbl.text = (
             f"[b]{dev_name}[/b]  [color={bridge_color}][size=13sp]Bridge: {bridge_status}[/size][/color]\n"
             f"[color=888888][size=12sp]{dev_id}[/size][/color]\n\n"
             f"RSSI     : [b][color={rssi_color}]{rssi} dBm[/color][/b]\n"
+            f"Last Seen: [b]{last_seen_str}[/b]\n"
             f"Latency  : [b][color={lat_color}]{latency_s:.2f}s[/color][/b] ({status_text})\n"
             f"Uptime   : [b]{uptime_str}[/b]\n"
             f"Packets  : {packets} ({channel.upper()})\n\n"
             f"[color=888888]RAW DATA STREAM:[/color]\n" 
             f"[font=RobotoMono-Regular][size=12sp]{short_raw}[/size][/font]"
         )
-
     def _init_graph_data(self, *_):
         df = getattr(GLOBAL_STATE, "data_flow", None)
         if not df: return

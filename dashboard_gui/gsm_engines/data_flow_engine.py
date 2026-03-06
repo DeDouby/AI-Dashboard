@@ -11,7 +11,7 @@ class DataFlowEngine:
         self._last_state = {}
         self._last_frame_time = time.time()
         self.current_latency = 0
-        
+        self.last_seen_timestamps = {}
         # Für LED/Flow Logik
         self._last_counter = None
         self._last_raw = None
@@ -80,16 +80,44 @@ class DataFlowEngine:
         else:
             self.gsm.led_engine.offline()
     # --- HILFSMETHODE (Die hat gefehlt!) ---
+    # dashboard_gui/engines/data_flow_engine.py
+    from dateutil import parser # Falls nicht installiert: pip install python-dateutil
+    
     def _update_background_rssi(self, dev_id, frame):
         try:
+            ts_value = None
+    
+            # 1 Root Timestamp
+            raw_ts = frame.get("timestamp")
+    
+            # 2 ADV Timestamp
+            if not raw_ts:
+                raw_ts = frame.get("adv", {}).get("timestamp")
+    
+            # 3 GATT Timestamp
+            if not raw_ts:
+                raw_ts = frame.get("gatt", {}).get("timestamp")
+    
+            if isinstance(raw_ts, (int, float)):
+                ts_value = raw_ts
+    
+            elif isinstance(raw_ts, str):
+                from dateutil import parser
+                ts_value = parser.parse(raw_ts).timestamp()
+    
+            if ts_value:
+                self.last_seen_timestamps[dev_id] = ts_value
+    
+            # RSSI History
             rssi = frame.get("health", {}).get("signal", {}).get("rssi")
             if rssi is not None:
                 history = self.rssi_history.setdefault(dev_id, [])
                 history.append(float(rssi))
                 if len(history) > self.gsm.max_history:
                     history.pop(0)
-        except:
-            pass
+    
+        except Exception as e:
+            print("Timestamp Parse Error:", e)
 
     def _handle_health_and_leds(self, d, ch, ch_name, dev_id):
         # RSSI History (intern verwaltet)
