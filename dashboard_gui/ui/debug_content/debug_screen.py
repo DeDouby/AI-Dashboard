@@ -2,122 +2,109 @@
 # -*- coding: utf-8 -*-
 
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.scrollview import ScrollView
+from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.screenmanager import Screen
-from kivy.metrics import dp
-from kivy.utils import platform
 from kivy.clock import Clock
 
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.ui.common.header_online import HeaderBar
 from dashboard_gui.global_state_manager import GLOBAL_STATE
-import core  # Dein Core-Modul
-
+import core 
 
 class DebugScreen(Screen):
     def __init__(self, **kw):
         super().__init__(**kw)
 
-        # -----------------------------
-        # ROOT LAYOUT
-        # -----------------------------
+        # Root Layout
         root = BoxLayout(orientation="vertical")
         self.add_widget(root)
 
-        # -----------------------------
-        # HEADER FIX OBEN
-        # -----------------------------
+        # Header
         self.header = HeaderBar()
-        self.header.lbl_title.text = "Debug"
-
+        self.header.lbl_title.text = "Debug Console"
         self.header.enable_back("dashboard")
         root.add_widget(self.header)
         GLOBAL_STATE.ui_handler.attach_screen("debug", self)
 
-        # -----------------------------
-        # BUTTONS IN SCROLLVIEW
-        # -----------------------------
-        from kivy.uix.scrollview import ScrollView
-        scroll = ScrollView(size_hint=(1, 1))
-        root.add_widget(scroll)
+        # --- Zwei-Spalten Layout Container ---
+        content_layout = BoxLayout(orientation="horizontal", spacing=dp_scaled(15), padding=dp_scaled(12))
+        root.add_widget(content_layout)
 
-        btn_container = BoxLayout(orientation="vertical",
-                                  spacing=dp_scaled(10),
-                                  padding=dp_scaled(12),
-                                  size_hint_y=None)
-        btn_container.bind(minimum_height=btn_container.setter("height"))
-        scroll.add_widget(btn_container)
+        # --- LINKE SPALTE (Kills / Stops) ---
+        scroll_left = ScrollView(size_hint=(0.5, 1))
+        self.container_left = GridLayout(cols=1, spacing=dp_scaled(10), size_hint_y=None)
+        self.container_left.bind(minimum_height=self.container_left.setter("height"))
+        scroll_left.add_widget(self.container_left)
 
-        def mk_btn(label, cb, base_color):
-        
-            btn = Button(
-                text=label,
-                background_normal="",
-                background_down="",
-                background_color=(*base_color[:3], 0.60),
-                font_size=sp_scaled(18),
-                size_hint_y=None,
-                height=dp_scaled(50),
-            )
-        
-            # klick feedback wie settings
-            btn.bind(on_release=lambda b, c=base_color, fn=cb: self._flash_and_run(b, c, fn))
-        
-            return btn
+        # --- RECHTE SPALTE (Restarts / Starts) ---
+        scroll_right = ScrollView(size_hint=(0.5, 1))
+        self.container_right = GridLayout(cols=1, spacing=dp_scaled(10), size_hint_y=None)
+        self.container_right.bind(minimum_height=self.container_right.setter("height"))
+        scroll_right.add_widget(self.container_right)
+
+        content_layout.add_widget(scroll_left)
+        content_layout.add_widget(scroll_right)
+
+        # --- Helper: Überschrift ---
+        def add_hdr(text, target):
+            target.add_widget(Label(
+                text=f"[b]{text}[/b]", 
+                markup=True, 
+                size_hint_y=None, 
+                height=dp_scaled(40),
+                color=(0.8, 0.3, 0.3, 1) if target == self.container_left else (0.3, 0.8, 0.3, 1)
+            ))
+
+        add_hdr("KILL / STOP", self.container_left)
+        add_hdr("RESTART / START", self.container_right)
+
+        # --- Debug Buttons hinzufügen ---
         # ADV
-        btn_container.add_widget(
-            mk_btn("ADV STOP", lambda: core.stop_adv_bridge(), (0.40, 0.10, 0.10, 1))
-        )
-        btn_container.add_widget(
-            mk_btn("ADV RESTART", lambda: core.restart_adv_bridge(), (0.12, 0.20, 0.45, 1))
-        )
-        
+        self._add_debug_pair("ADV", core.stop_adv_bridge, core.restart_adv_bridge)
         # GATT
-        btn_container.add_widget(
-            mk_btn("GATT STOP", lambda: core.stop_gatt_bridge(), (0.40, 0.10, 0.10, 1))
-        )
-        btn_container.add_widget(
-            mk_btn("GATT RESTART", lambda: core.restart_gatt_bridge(), (0.12, 0.20, 0.45, 1))
-        )
-        
+        self._add_debug_pair("GATT", core.stop_gatt_bridge, core.restart_gatt_bridge)
         # LOG
-        btn_container.add_widget(
-            mk_btn("LOG STOP", lambda: core.stop_log_bridge(), (0.40, 0.10, 0.10, 1))
-        )
-        btn_container.add_widget(
-            mk_btn("LOG RESTART", lambda: core.restart_log_bridge(), (0.12, 0.20, 0.45, 1))
-        )
-        # BROADCAST (LGS Mesh)
-        btn_container.add_widget(
-            mk_btn("BROADCAST STOP", lambda: core.stop_broadcast_bridge(), (0.45, 0.25, 0.05, 1)) # Braun/Orange für Sendebetrieb
-        )
-        btn_container.add_widget(
-            mk_btn("BROADCAST RESTART", lambda: core.restart_broadcast_bridge(), (0.12, 0.20, 0.45, 1))
-        )        
-        # SYSTEM
-        btn_container.add_widget(
-            mk_btn("SYSTEM STOP", lambda: core.stop(), (0.40, 0.10, 0.10, 1))
-        )
-        btn_container.add_widget(
-            mk_btn("SYSTEM RESTART", lambda: core.start(), (0.12, 0.20, 0.45, 1))
-        )
+        self._add_debug_pair("LOG", core.stop_log_bridge, core.restart_log_bridge)
+        # MESH
+        self._add_debug_pair("MESH", core.stop_broadcast_bridge, core.restart_broadcast_bridge)
+        # SYSTEM (Ganz unten als Abgrenzung)
+        self.container_left.add_widget(Label(size_hint_y=None, height=dp_scaled(20))) # Spacer
+        self.container_right.add_widget(Label(size_hint_y=None, height=dp_scaled(20)))
         
-    # --------------------------
-    # Press / Release Feedback
-    # --------------------------
+        btn_stop = self.mk_btn("SYSTEM STOP", core.stop, (0.6, 0.1, 0.1, 1))
+        btn_start = self.mk_btn("SYSTEM START", core.start, (0.1, 0.5, 0.2, 1))
+        self.container_left.add_widget(btn_stop)
+        self.container_right.add_widget(btn_start)
+
+    def _add_debug_pair(self, name, stop_fn, restart_fn):
+        """Fügt ein Paar aus Stop (links) und Restart (rechts) hinzu"""
+        btn_l = self.mk_btn(f"{name} STOP", stop_fn, (0.4, 0.1, 0.1, 1))
+        btn_r = self.mk_btn(f"{name} RESTART", restart_fn, (0.12, 0.2, 0.45, 1))
+        self.container_left.add_widget(btn_l)
+        self.container_right.add_widget(btn_r)
+
+    def mk_btn(self, label, cb, base_color):
+        btn = Button(
+            text=label,
+            background_normal="",
+            background_color=(*base_color[:3], 0.6),
+            font_size=sp_scaled(15),
+            size_hint_y=None,
+            height=dp_scaled(50),
+        )
+        btn.bind(on_release=lambda b: self._flash_and_run(b, base_color, cb))
+        return btn
+
     def _flash_and_run(self, btn, base_color, callback):
         r, g, b, _ = base_color
-    
-        # Heller = Klick sichtbar
-        btn.background_color = (min(r+0.25,1), min(g+0.25,1), min(b+0.25,1), 1)
-    
+        btn.background_color = (min(r+0.3, 1), min(g+0.3, 1), min(b+0.3, 1), 1)
         def _restore(dt):
-            btn.background_color = (r, g, b, 0.6)
-            if callback:
-                callback()
-    
-        # exakt das macht Settings Gefühl:
-        Clock.schedule_once(_restore, 0.12)
+            btn.background_color = (*base_color[:3], 0.6)
+            if callback: callback()
+        Clock.schedule_once(_restore, 0.1)
 
     def update_from_global(self, d):
         self.header.update_from_global(d)

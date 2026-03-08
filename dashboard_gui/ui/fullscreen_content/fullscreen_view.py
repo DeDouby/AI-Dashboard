@@ -109,7 +109,10 @@ class FullScreenView(Screen):
         self.layout.add_widget(self.btn_right)
 
         # CONTROL BUTTONS
-        self.controls = ControlButtons()
+# NEU:
+        self.controls = ControlButtons(
+            on_reset=self.reset_from_global
+        )
         self.controls.size_hint = (1,None)
         self.controls.height = dp_scaled(40)
         self.controls.pos_hint = {'y':0}
@@ -191,28 +194,43 @@ class FullScreenView(Screen):
         # 3. Buffer aus der Engine holen
         buf = GLOBAL_STATE.graph_engine.get_buffer(self.current_key)
         
-        if not buf or len(buf) == 0:
+        # Wenn Puffer leer ist, sofort auf "Leer-Modus" schalten
+        if not buf or len(buf) < 1:
+            unit = GLOBAL_STATE.get_unit(self.current_key) or ""
+            self.lbl_value.text = f"--- {unit}"
+            self.lbl_sub.text = "avg: --- | min: --- | max: ---"
             self.plot.points = []
             self.plot_glow.points = []
-            self.lbl_value.text = "Warte auf Daten..."
             return
 
-        # 4. GRAPH ZEICHNEN
-        pts = list(enumerate(buf))
+# 4. GRAPH ZEICHNEN (Mit Stauchungs-Effekt)
+        win_size = config.get_tile_graph_window()
+        # Wir nehmen nur die letzten X Werte passend zum Fenster
+        display_buf = list(buf)[-win_size:]
+        current_count = len(display_buf)
+
+        # Punkte setzen (Index 0 bis N)
+        pts = list(enumerate(display_buf))
         self.plot.points = pts
         self.plot_glow.points = pts
+        win_seconds = config.get_tile_graph_window()
+        # --- X-ACHSE DYNAMISCH (Das ist der Trick für die Stauchung) ---
+        # Wenn wir weniger Daten haben als ins Fenster passen, 
+        # schrumpfen wir die X-Achse auf die Datenmenge.
+        # Mindestens aber 1, um Abstürze zu vermeiden.
+        self.graph.xmin = 0
+        if current_count < win_size:
+            self.graph.xmax = max(1, current_count - 1)
+        else:
+            self.graph.xmax = win_size - 1
 
-        # Achsen skalieren
-        mn, mx = min(buf), max(buf)
-        if mn == mx: mn -= 1; mx += 1
+        # --- Y-ACHSE SKALIEREN (mit Puffer) ---
+        mn, mx = min(display_buf), max(display_buf)
+        if mn == mx: 
+            mn -= 1; mx += 1
         diff = mx - mn
         self.graph.ymin = mn - (diff * 0.1)
         self.graph.ymax = mx + (diff * 0.1)
-        
-        # X-Achse auf die Buffer-Größe setzen
-        win_seconds = config.get_tile_graph_window()
-        self.graph.xmax = win_seconds
-
         # ---------------------------------------------------------
         # NEU: ZEITACHSE BESCHRIFTEN (Idiotensicher)
         # ---------------------------------------------------------
@@ -273,12 +291,29 @@ class FullScreenView(Screen):
             self.activate_tile(next_key)
 
     def reset_from_global(self):
-        for widget in self.walk():
-            if hasattr(widget,'reset') and callable(widget.reset):
-                widget.reset()
-        if hasattr(self,'header'):
-            self.header.set_clock("--:--")
+        """Löscht alle Anzeigen im Fullscreen-Modus."""
+        print("[FS] Resetting Fullscreen UI...")
+        
+        # 1. Die großen HUD Labels säubern
+        unit = GLOBAL_STATE.get_unit(self.current_key) if self.current_key else ""
+        self.lbl_value.text = f"--- {unit}"
+        self.lbl_sub.text = "avg: --- | min: --- | max: ---"
+        
+        # 2. Den Graphen leeren
+        self.plot.points = []
+        self.plot_glow.points = []
+        self.graph.ymin = 0
+        self.graph.ymax = 1
+        
+        # 3. Header aufräumen
+        if hasattr(self, 'header'):
             self.header.set_rssi(None)
+            
+        # 4. Falls Unter-Widgets existieren, die reset() können (Sicherheitshalber)
+        for widget in self.walk():
+            if widget != self and hasattr(widget, 'reset') and callable(widget.reset):
+                widget.reset()
+
 # --- TOUCH SWIPE (Idiotensicher fixiert) ---
     # In dashboard_gui/ui/fullscreen_content/fullscreen_view.py
     

@@ -6,7 +6,7 @@ from dashboard_gui.data_buffer import BUFFER
 import time
 import config
 from dashboard_gui.gsm_engines.graph_engine import GraphEngine
-from dashboard_gui.gsm_engines.ui_manager import UIManager # oben importieren
+from dashboard_gui.gsm_engines.ui_screen_button_engine import UIManager # oben importieren
 from dashboard_gui.gsm_engines.config_engine import ConfigEngine# oben importieren
 from dashboard_gui.gsm_engines.led_engine import LedEngine
 from dashboard_gui.gsm_engines.mixed_engine import MixedEngine
@@ -20,7 +20,8 @@ from dashboard_gui.gsm_engines.tile_engine import TileEngine
 from dashboard_gui.global_gesture_manager import GlobalGestureManager
 from dashboard_gui.gsm_engines.data_flow_engine import DataFlowEngine
 from dashboard_gui.gsm_engines.broadcast_engine import BroadcastEngine
-# Initialisieren
+
+from dashboard_gui.gsm_engines.graph_control_engine import GraphControlEngine# Initialisieren
 def _extract_mac(dev):
     """Normiert device_id auf reine MAC."""
     if isinstance(dev, dict):
@@ -51,10 +52,9 @@ class GlobalStateManager:
         self._main_tick = Clock.schedule_interval(self._global_update, config.get_refresh_interval())
 
 
-        ######REFACTORING!!!!!
+        ######REFACTORING!!!!! ENGINES
         self.graph_engine = GraphEngine(self)
         self.ui_handler = UIManager(self)
-                # CONFIG ENGINE
         self.engine = ConfigEngine(self)
         self.led_engine = LedEngine(self.ui_handler)
         self.mixed_engine = MixedEngine(self)
@@ -67,6 +67,7 @@ class GlobalStateManager:
         self.ggm = GlobalGestureManager(self)
         self.broadcast_engine = BroadcastEngine(self)
         self.data_flow = DataFlowEngine(self)
+        self.graph_control = GraphControlEngine(self)
         from dashboard_gui.gsm_engines.active_channel_engine import init_active_channel_engine
         
         # 2. ERSCHAFFE die Engine und binde sie an self (WICHTIG!)
@@ -80,7 +81,7 @@ class GlobalStateManager:
     def sync_ui_buttons(self):
         """Triggert den Sync-Vorgang im UI Manager an."""
         self.ui_handler._refresh_all_buttons()
-# Füge diese Methode im GlobalStateManager hinzu:
+
     def get_active_device_id(self):
         """Gibt die ID des aktuell angewählten Geräts zurück."""
         try:
@@ -98,7 +99,7 @@ class GlobalStateManager:
         # Wir delegieren die Anfrage an die tatsächliche Engine
         from dashboard_gui.gsm_engines.active_channel_engine import ACTIVE_CHANNEL
         return ACTIVE_CHANNEL.get_active_channel()
-    # In global_state_manager.py
+
     def set_active_channel(self, channel):
         self.active_channel_engine.set_active_channel(channel)
         # Kleiner Trick: Wir triggern hier direkt den Flow, dann muss das Menü es nicht tun!
@@ -118,6 +119,7 @@ class GlobalStateManager:
 
     def get_device_list(self):
         return ACTIVE_CHANNEL_ENGINE.get_device_list()
+
     def get_last_seen_text(self, dev_id):
         """Gibt einen menschlich lesbaren String zurück."""
         last_ts = self.last_seen_timestamps.get(dev_id)
@@ -130,7 +132,8 @@ class GlobalStateManager:
         if diff < 60:
             return f"vor {int(diff)}s"
         return f"vor {int(diff/60)}m"
-# --- BROADCAST DELEGATION ---
+
+    # --- BROADCAST DELEGATION ---
     def get_broadcast_active(self):
         return self.broadcast_engine.active    
 
@@ -167,11 +170,7 @@ class GlobalStateManager:
     def next_tile_key(self, full_key, direction):
         return self.tile_engine.get_next_full_key(full_key, direction)
 
-
-           
-
-
-     # ---------------------------------------------------------
+    # ---------------------------------------------------------
     # PUBLIC API – Device Switch
     # ---------------------------------------------------------
     def get_device_label(self, device_id):
@@ -182,9 +181,7 @@ class GlobalStateManager:
             return dev.get("name") or device_id
         except:
             return device_id
-####
 
-####
     # ---------------------------------------------------------
     # ZENTRALE GRAPHEN, SMOOTHING & TREND-FABRIK 
     # ---------------------------------------------------------
@@ -195,8 +192,8 @@ class GlobalStateManager:
     def get_trend_icon(self, key):
     # Einfach an die Engine durchreichen
         return self.graph_engine.get_trend_icon(key)
-####
-####
+
+
     # ---------------------------------------------------------
     # UNIT ENGINE – Delegation
     # ---------------------------------------------------------
@@ -213,7 +210,11 @@ class GlobalStateManager:
     def get_temp_unit(self):
         return self.unit_engine.get_temp_unit()
 
-####
+########reserrr
+
+    def global_start(self): self.graph_control.start()
+    def global_stop(self): self.graph_control.stop()
+    def global_reset(self): self.graph_control.reset()
     # ---------------------------------------------------------
     # LED Helpers
     # ---------------------------------------------------------
@@ -221,7 +222,6 @@ class GlobalStateManager:
         # Der GSM sagt nur noch: "Hier ist der Status, verteil das mal!"
         self.ui_handler.update_leds(self.led_state)
     
-####
     def bind_screen_manager(self, sm):
         self.screen_manager = sm
 
@@ -233,7 +233,7 @@ class GlobalStateManager:
     def _global_update(self, dt):
         # Alles delegiert an die Spezial-Engine
         self.data_flow.process_cycle()
- ####
+
     # ---------------------------------------------------------
     # Active Keys – MULTI-CHANNEL (adv + gatt, ohne Vorrang) MIXED MODE
     # ---------------------------------------------------------
@@ -251,4 +251,5 @@ class GlobalStateManager:
     def refresh_config(self):
         """Einfaches Interface für GSM, alles andere erledigt die Engine"""
         self.engine.refresh()
+
 GLOBAL_STATE = GlobalStateManager()

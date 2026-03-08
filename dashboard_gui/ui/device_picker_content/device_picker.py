@@ -12,6 +12,7 @@ from kivy.metrics import dp
 from dashboard_gui.ui.common.header_online import HeaderBar
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.global_state_manager import GLOBAL_STATE
+from kivy.uix.gridlayout import GridLayout # Oben zu den Imports hinzufügen!
 
 
 class DevicePickerScreen(Screen):
@@ -23,38 +24,36 @@ class DevicePickerScreen(Screen):
 
         root = BoxLayout(orientation="vertical")
 
-        # -------------------------------------------------
-        # HEADER (identisch zu About)
-        # -------------------------------------------------
+        # --- HEADER ---
         self.header = HeaderBar()
-
-        self.header.lbl_title.text = "Devices"
+        self.header.lbl_title.text = "Device Management"
         self.header.update_back_button("device_picker")
         root.add_widget(self.header)
 
-        # -------------------------------------------------
-        # BODY
-        # -------------------------------------------------
-        body = BoxLayout(
-            orientation="vertical",
-            padding=dp_scaled(16),
+        # --- BODY (Das 2-Spalten-Konzept) ---
+        # Wir nutzen ein horizontales BoxLayout für die zwei Scroll-Bereiche
+        self.content_layout = BoxLayout(
+            orientation="horizontal",
+            padding=dp_scaled(10),
             spacing=dp_scaled(10)
         )
 
-        scroll = ScrollView()
-        body.add_widget(scroll)
+        # LINKE SPALTE
+        scroll_left = ScrollView()
+        self.container_left = GridLayout(cols=1, spacing=dp_scaled(12), size_hint_y=None)
+        self.container_left.bind(minimum_height=self.container_left.setter("height"))
+        scroll_left.add_widget(self.container_left)
 
-        self.list_container = BoxLayout(
-            orientation="vertical",
-            spacing=dp_scaled(10),
-            size_hint_y=None
-        )
-        self.list_container.bind(
-            minimum_height=self.list_container.setter("height")
-        )
-        scroll.add_widget(self.list_container)
+        # RECHTE SPALTE
+        scroll_right = ScrollView()
+        self.container_right = GridLayout(cols=1, spacing=dp_scaled(12), size_hint_y=None)
+        self.container_right.bind(minimum_height=self.container_right.setter("height"))
+        scroll_right.add_widget(self.container_right)
 
-        root.add_widget(body)
+        self.content_layout.add_widget(scroll_left)
+        self.content_layout.add_widget(scroll_right)
+
+        root.add_widget(self.content_layout)
         self.add_widget(root)
 
     # -------------------------------------------------
@@ -70,22 +69,27 @@ class DevicePickerScreen(Screen):
     # UI Build
     # -------------------------------------------------
     def _build(self):
-        self.list_container.clear_widgets()
+        # Beide Container leeren
+        self.container_left.clear_widgets()
+        self.container_right.clear_widgets()
 
         import config
         cfg = config._init()
         devices = cfg.get("devices", {})
 
         if not devices:
-            self.list_container.add_widget(
-                Label(text="No devices configured")
-            )
+            # Falls leer, Nachricht in die linke Spalte
+            self.container_left.add_widget(Label(text="No devices configured"))
             return
 
-        for mac, dev in devices.items():
-            self.list_container.add_widget(
-                self._device_row(mac, dev)
-            )
+        # Verteilung: Wir gehen durch die Devices und werfen sie abwechselnd links/rechts rein
+        for i, (mac, dev) in enumerate(devices.items()):
+            row_widget = self._device_row(mac, dev)
+            
+            if i % 2 == 0:
+                self.container_left.add_widget(row_widget)
+            else:
+                self.container_right.add_widget(row_widget)
     # -------------------------------------------------
     # Device Order – swap up / down (CONFIG ONLY)
     # -------------------------------------------------

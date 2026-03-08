@@ -14,21 +14,23 @@ class MixedModeDataHandler:
             self.screen.panel.rebuild_device_list()
 
     def update_averages(self):
-        names = {"temp": "Temp", "hum": "Hum", "vpd": "VPD", "dew": "Dew"}
+        # Wir definieren nur die Anzeigenamen
+        display_names = {"temp": "TEMP", "hum": "HUM", "vpd": "VPD", "dew": "DEW"}
+        
         result = {}
         for key in ["temp", "hum", "vpd", "dew"]:
             full_key = f"mixed_avg_{key}"
-            val = self.GS.graph_engine.get_last_value(full_key)
-            unit = self.GS.get_unit(full_key) or ""
-            trend = self.GS.get_trend_icon(full_key) or ""
             
-            if val is not None:
-                result[key] = f"[size=18]{names[key]}:[/size] {val:.2f}[size=20]{unit} [font=FA]{trend}[/font][/size]"
-            else:
-                result[key] = f"[size=18]{names[key]}:[/size] --"
+            # Wir packen nur die nackten Rohdaten in ein Dictionary
+            result[key] = {
+                "name": display_names[key],
+                "val": self.GS.graph_engine.get_last_value(full_key),
+                "unit": self.GS.get_unit(full_key) or "",
+                "trend": self.GS.get_trend_icon(full_key) or ""
+            }
         
+        # Jetzt schicken wir das Paket (Dictionary) an das Panel
         self.screen.panel.set_averages(result)
-
     def get_device_list_snapshot(self):
         """Erstellt eine Liste aller Geräte mit allen Sensordetails."""
         device_list = self.GS.get_device_list()
@@ -111,4 +113,14 @@ class MixedModeDataHandler:
             if ch.get("external", {}).get("present"): return True
         return False
 
+    def refresh(self):
+        """Komplettes Refresh der UI (Liste neu bauen)."""
+        self.update_averages()
+        if self.screen.panel:
+            self.screen.panel.rebuild_device_list()
 
+    def update_live_data(self):
+        """Nur die Werte aktualisieren (für den Timer/Loop)."""
+        self.update_averages()
+        if self.screen.panel:
+            self.screen.panel.update_device_values()

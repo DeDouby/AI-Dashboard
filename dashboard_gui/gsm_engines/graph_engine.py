@@ -29,16 +29,9 @@ class GraphEngine:
         return None
 
     def get_buffer(self, key):
-        """Liefert Liste für Kivy Graph mit Schutz gegen Division by Zero."""
+        """Liefert Liste für Kivy Graph. Wenn leer, gib leere Liste zurück."""
         buf = self.graph_buffers.get(key)
-        data = list(buf) if buf else []
-        
-        # FIX: Wenn die Liste leer ist oder nur 1 Punkt hat, 
-        # schicken wir zwei Dummy-Punkte (0.0), damit Kivy Garden Graph nicht abstürzt.
-        if len(data) < 2:
-            return [0.0, 0.0]
-            
-        return data
+        return list(buf) if buf else [] # KEINE 0.0 DUMMY PUNKTE MEHR!
     def get_stats(self, key):
         """Liefert avg / min / max eines Graphbuffers."""
         buf = self.graph_buffers.get(key)
@@ -129,12 +122,6 @@ class GraphEngine:
         if diff < -threshold: return -1
         return 0
 
-    # ---------------------------------------------------------
-    # CONTROLS
-    # ---------------------------------------------------------
-    def start(self): self.running = True
-    def stop(self): self.running = False
-    
     def reset(self):
         print("[GraphEngine] RESET")
         self.graph_buffers.clear()

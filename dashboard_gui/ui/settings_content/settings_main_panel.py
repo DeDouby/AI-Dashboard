@@ -68,100 +68,90 @@ class SettingsMainPanel(BoxLayout):
         )
         container.bind(minimum_height=container.setter("height"))
 
-        # Helper: add slider
-        def add_slider(label_text, key, min_v, max_v, step):
-            row = BoxLayout(
-                size_hint_y=None,
-                height=dp_scaled(48),
-                spacing=dp_scaled(10)
-            )
-            lbl = Label(text=I18N.t(label_text), size_hint=(0.35,1), font_size=sp_scaled(16))
-            slider = Slider(min=min_v, max=max_v, step=step, value=float(self.cfg.get(key,0)), size_hint=(0.45,1))
-            val = Label(text=str(self.cfg.get(key,0)), size_hint=(0.20,1), font_size=sp_scaled(16))
-            slider.bind(value=lambda inst,v,lab=val: setattr(lab,"text",f"{v:.1f}"))
+# --- Haupt-Layout für den Inhalt (Horizontal) ---
+        # Dies hält die linke und die rechte Spalte nebeneinander
+        content_layout = BoxLayout(orientation="horizontal", spacing=dp_scaled(20))
+
+        # --- LINKE SPALTE ---
+        scroll_left = ScrollView(size_hint=(0.5, 1))
+        container_left = GridLayout(cols=1, spacing=dp_scaled(12), size_hint_y=None)
+        container_left.bind(minimum_height=container_left.setter("height"))
+        
+        # --- RECHTE SPALTE ---
+        scroll_right = ScrollView(size_hint=(0.5, 1))
+        container_right = GridLayout(cols=1, spacing=dp_scaled(12), size_hint_y=None)
+        container_right.bind(minimum_height=container_right.setter("height"))
+
+        # Überarbeiteter Helper: add_slider braucht jetzt ein "target_container"
+        def add_slider(label_text, key, min_v, max_v, step, target_container):
+            row = BoxLayout(size_hint_y=None, height=dp_scaled(48), spacing=dp_scaled(10))
+            
+            lbl = Label(text=I18N.t(label_text), size_hint=(0.4, 1), font_size=sp_scaled(14))
+            slider = Slider(min=min_v, max=max_v, step=step, value=float(self.cfg.get(key,0)), size_hint=(0.4, 1))
+            val = Label(text=str(self.cfg.get(key,0)), size_hint=(0.2, 1), font_size=sp_scaled(14))
+            
+            slider.bind(value=lambda inst, v, lab=val: setattr(lab, "text", f"{v:.1f}"))
             self.inputs[key] = slider
+            
             row.add_widget(lbl)
             row.add_widget(slider)
             row.add_widget(val)
 
+            # Dev-Check Logik bleibt gleich
             if not self.is_dev and key in ("refresh_interval","ui_refresh_interval","stale_timeout","tile_graph_window"):
-
                 row.height = 0
                 row.opacity = 0
                 row.disabled = True
 
-            container.add_widget(row)
+            target_container.add_widget(row)
 
-        # --- Sliders ---
-        # Min: 0.1, Max: 5.0, Schrittweite: 0.1
-        add_slider("settings.refresh_interval","refresh_interval",0.1,5.0,0.1)
-        add_slider("settings.ui_refresh_interval","ui_refresh_interval",0.1,5,0.1)
-        add_slider("settings.stale_timeout","stale_timeout",5,60,1)
-        add_slider("settings.tile_graph_window","tile_graph_window",30,5000,10)
-        add_slider("settings.temp_offset","temperature_offset",-10,10,0.1)
-        add_slider("settings.humidity_offset","humidity_offset",-20,20,1)
-        add_slider("settings.leaf_offset","leaf_offset",-10,10,0.1)
-        add_slider("LGS Send-Kanal", "lgs_mesh_channel_send", 0, 255, 1)
-        add_slider("LGS Recv-Kanal", "lgs_mesh_channel_recv", 0, 255, 1)
-        self._update_dev_visibility()
+        # --- Verteilung der Slider ---
+        
+        # LINKS: System & Intervalle
+        add_slider("settings.refresh_interval", "refresh_interval", 0.1, 5.0, 0.1, container_left)
+        add_slider("settings.ui_refresh_interval", "ui_refresh_interval", 0.1, 5, 0.1, container_left)
+        add_slider("settings.stale_timeout", "stale_timeout", 5, 60, 1, container_left)
+        add_slider("settings.tile_graph_window", "tile_graph_window", 30, 5000, 10, container_left)
+        
+        # RECHTS: Offsets & Mesh
+        add_slider("settings.temp_offset", "temperature_offset", -10, 10, 0.1, container_right)
+        add_slider("settings.humidity_offset", "humidity_offset", -20, 20, 1, container_right)
+        add_slider("settings.leaf_offset", "leaf_offset", -10, 10, 0.1, container_right)
+        add_slider("LGS Send-Kanal", "lgs_mesh_channel_send", 0, 255, 1, container_right)
+        add_slider("LGS Recv-Kanal", "lgs_mesh_channel_recv", 0, 255, 1, container_right)
 
-        # --- Temperature Unit Toggle ---
+        # --- Zusätzliche Controls (unten links/rechts verteilen) ---
+        
+        # Temperature Unit (Links)
         toggle_row = BoxLayout(size_hint_y=None, height=dp_scaled(48), spacing=dp_scaled(10))
-        toggle_row.add_widget(Label(text=I18N.t("settings.temperature_unit"), size_hint=(0.35,1), font_size=sp_scaled(16)))
+        toggle_row.add_widget(Label(text=I18N.t("settings.temperature_unit"), size_hint=(0.4,1), font_size=sp_scaled(14)))
         self.temp_unit = self.cfg.get("temperature_unit","C")
-        self.btn_C = Button(text="°C", font_size=sp_scaled(18), background_color=(0.4,0.7,1,1) if self.temp_unit=="C" else (0.3,0.3,0.3,1))
-        self.btn_F = Button(text="°F", font_size=sp_scaled(18), background_color=(0.4,0.7,1,1) if self.temp_unit=="F" else (0.3,0.3,0.3,1))
+        self.btn_C = Button(text="°C", background_color=(0.4,0.7,1,1) if self.temp_unit=="C" else (0.3,0.3,0.3,1))
+        self.btn_F = Button(text="°F", background_color=(0.4,0.7,1,1) if self.temp_unit=="F" else (0.3,0.3,0.3,1))
         self.btn_C.bind(on_release=lambda *_: self._set_unit("C"))
         self.btn_F.bind(on_release=lambda *_: self._set_unit("F"))
         toggle_row.add_widget(self.btn_C)
         toggle_row.add_widget(self.btn_F)
-        container.add_widget(toggle_row)
+        container_left.add_widget(toggle_row)
 
-        scroll.add_widget(container)
-        self.add_widget(scroll)
-
-        # --- Language Row ---
+        # Language Row (Rechts)
         lang_row = BoxLayout(size_hint_y=None, height=dp_scaled(48), spacing=dp_scaled(10))
-        lang_row.add_widget(Label(text=I18N.t("settings.language"), size_hint=(0.35,1), font_size=sp_scaled(16)))
-
+        lang_row.add_widget(Label(text=I18N.t("settings.language"), size_hint=(0.4,1), font_size=sp_scaled(14)))
         self.lang_buttons = {}
         for code, label in [("en","EN"),("de","DE"),("es","ES")]:
-            btn = Button(
-                text=label,
-                font_size=sp_scaled(16),
-                background_color=(0.4,0.7,1,1) if self.cfg.get("language","en")==code else (0.3,0.3,0.3,1)
-            )
+            btn = Button(text=label, background_color=(0.4,0.7,1,1) if self.cfg.get("language","en")==code else (0.3,0.3,0.3,1))
             btn.bind(on_release=lambda inst, c=code: self._set_language(c))
             self.lang_buttons[code] = btn
             lang_row.add_widget(btn)
+        container_right.add_widget(lang_row)
 
-        container.add_widget(lang_row)
-        # --- Theme Row ---
-        theme_row = BoxLayout(size_hint_y=None, height=dp_scaled(48), spacing=dp_scaled(10))
-        theme_row.add_widget(Label(
-            text="Theme",
-            size_hint=(0.35,1),
-            font_size=sp_scaled(16)
-        ))
+        # Zusammenbau
+        scroll_left.add_widget(container_left)
+        scroll_right.add_widget(container_right)
+        content_layout.add_widget(scroll_left)
+        content_layout.add_widget(scroll_right)
         
-        self.theme_buttons = {}
-        current_theme = self.cfg.get("theme", "tiles")
-        
-        for theme_id, label in [
-            ("tiles",  "Theme 1"),
-            ("tiles2", "Theme 2"),
-            ("tiles3", "Theme 3"),
-        ]:
-            btn = Button(
-                text=label,
-                font_size=sp_scaled(16),
-                background_color=(0.4,0.7,1,1) if current_theme==theme_id else (0.3,0.3,0.3,1)
-            )
-            btn.bind(on_release=lambda inst, t=theme_id: self._set_theme(t))
-            self.theme_buttons[theme_id] = btn
-            theme_row.add_widget(btn)
-        
-        container.add_widget(theme_row)
+        self.add_widget(content_layout) # Das fügt die zwei Spalten dem Hauptpanel hinzu
         # --- Bottom Buttons ---
         btn_row = BoxLayout(size_hint_y=None, height=dp_scaled(36), spacing=dp_scaled(10))
         btn_reset = Button(text=I18N.t("settings.reset_defaults"), font_size=sp_scaled(16), background_color=(0.45,0.45,0.45,1))

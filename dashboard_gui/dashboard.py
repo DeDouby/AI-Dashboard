@@ -61,7 +61,10 @@ class DashboardScreen(Screen):
         self.content = DashboardMainPanel(size_hint_y=1)
         self.root_layout.add_widget(self.content)
         # nur hinzufügen, ohne Callbacks:
-        self.controls = ControlButtons()
+# NEU (mit Verbindung zur Reset-Logik):
+        self.controls = ControlButtons(
+            on_reset=self.reset_from_global
+        )
         self.controls.size_hint = (1,None)
         self.controls.height = dp_scaled(40)
         self.controls.pos_hint = {'y':0}
@@ -148,13 +151,6 @@ class DashboardScreen(Screen):
         self.manager.current = "fullscreen"
 
 
-    # -----------------------------------------------------
-    # Dummy-API (Dashboard ist GSM-Driven)
-    # -----------------------------------------------------
-    def start_updates(self):
-        pass
 
-    def stop_updates(self):
-        pass
 
 

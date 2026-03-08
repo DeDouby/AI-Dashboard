@@ -1,8 +1,7 @@
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.properties import ObjectProperty, BooleanProperty
-from kivy.graphics import Color, RoundedRectangle # WICHTIG für den Hintergrund
-
+from kivy.graphics import Color, Rectangle
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.ui.i18n import I18N
@@ -37,10 +36,9 @@ class ControlButtons(BoxLayout):
         # --- NEU: SCHWARZ TRANSPARENTER HINTERGRUND ---
         with self.canvas.before:
             Color(*self.BG_COLOR)
-            self.bg_rect = RoundedRectangle(
-                pos=self.pos, 
-                size=self.size, 
-                radius=[(dp_scaled(15), dp_scaled(15)), (dp_scaled(15), dp_scaled(15)), (0, 0), (0, 0)] # Oben abgerundet, unten gerade
+            self.bg_rect = Rectangle(
+                pos=self.pos,
+                size=self.size
             )
         self.bind(pos=self._update_rect, size=self._update_rect)
 
@@ -94,20 +92,48 @@ class ControlButtons(BoxLayout):
             self.btn_toggle.text = "[font=FA]\uf04b[/font]  " + I18N.t(self.TXT_START)
             self.btn_toggle.color = (1, 1, 1, 0.8) # Leicht grünlicher Text
 
-    # ... Rest der Methoden bleibt gleich ...
-    def refresh_state(self):
-        self.sync_with_global()
+
+
+    def sync_with_global(self):
+        """Synchronisiert das Aussehen der Buttons mit dem globalen Status."""
+        # Wir fragen jetzt die neue Master-Engine im GSM
+        self.running = GLOBAL_STATE.graph_control.is_running
+        
+        if self.running:
+            # STOP MODUS ANZEIGEN (Wenn es läuft, zeigt der Button 'Pause')
+            self.btn_toggle.background_color = self.COLOR_STOP
+            self.btn_toggle.text = f"[font=FA]\uf04c[/font]  {I18N.t(self.TXT_STOP)}"
+            self.btn_toggle.color = (1, 1, 1, 0.8)
+        else:
+            # START MODUS ANZEIGEN (Wenn es steht, zeigt der Button 'Play')
+            self.btn_toggle.background_color = self.COLOR_START
+            self.btn_toggle.text = f"[font=FA]\uf04b[/font]  {I18N.t(self.TXT_START)}"
+            self.btn_toggle.color = (1, 1, 1, 0.8)
 
     def _toggle_release(self, *_):
-        if not GLOBAL_STATE.graph_engine.running:
-            GLOBAL_STATE.graph_engine.start()
+        """Schaltet global zwischen Start und Stop um."""
+        if not GLOBAL_STATE.graph_control.is_running:
+            # 1. Zentrale starten
+            GLOBAL_STATE.global_start()
+            # 2. Optionale Callbacks (falls noch irgendwo genutzt)
             if self.on_start: self.on_start()
         else:
-            GLOBAL_STATE.graph_engine.stop()
+            # 1. Zentrale stoppen
+            GLOBAL_STATE.global_stop()
+            # 2. Optionale Callbacks
             if self.on_stop: self.on_stop()
+        
+        # 3. UI Knöpfe überall synchronisieren
         GLOBAL_STATE.sync_ui_buttons()
 
     def _reset_release(self, *_):
-        GLOBAL_STATE.graph_engine.reset()
-        if self.on_reset: self.on_reset()
+        """Löst den globalen Reset aus."""
+        # Nur ein einziger Anruf beim Chef - der regelt Daten + alle Screens
+        GLOBAL_STATE.global_reset()
+        # Danach UI kurz refreshen
         GLOBAL_STATE.sync_ui_buttons()
+
+
+    # ... Rest der Methoden bleibt gleich ...
+    def refresh_state(self):
+        self.sync_with_global()        

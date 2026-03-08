@@ -37,7 +37,7 @@ class SensorMixedModeScreen(Screen):
         layout = BoxLayout(orientation="vertical")
         self.header = HeaderBar()
         layout.add_widget(self.header)
-        self.header.lbl_title.text = "Setup"
+        self.header.lbl_title.text = "Mixed-Mode"
         self.header.update_back_button("setup")
         self.panel = MixedModePanel(self)
         layout.add_widget(self.panel)
@@ -76,7 +76,8 @@ class SensorMixedModeScreen(Screen):
 
     def update_from_global(self, d):
         self.header.update_from_global(d)
-        self.handler.update_averages()
+        # HIER DIE ARCHITEKTUR-ÄNDERUNG:
+        self.handler.update_live_data() # Nur Werte schieben, nicht Liste killen
         self.draw_graph()
 
     def draw_graph(self):
@@ -136,3 +137,4 @@ class SensorMixedModeScreen(Screen):
                 # Optional: Ein ganz schwacher Schatten/Glow für die Tiefe
                 Color(color[0], color[1], color[2], 0.15)
                 Line(points=line_pts, width=dp_scaled(5), joint='round', cap='round')
+

@@ -403,29 +403,18 @@ class HeaderBar(BoxLayout):
         if not widget.collide_point(*touch.pos):
             return False
     
-        # Wenn offen -> zu. Wenn zu -> auf.
-        if self._signal_overlay:
-            self._signal_overlay.close()
+        # Wir fragen den globalen UI-Manager
+        ui = self.gsm.ui_handler
+        
+        if ui.active_inspector:
+            ui.close_signal_inspector()
         else:
-            self._open_signal_info()
+            ui.open_signal_inspector(parent_header=self)
     
         return True
 
-    def _open_signal_info(self):
-        """Erstellt den Inspector und befüllt ihn sofort aus dem GSM-Speicher"""
-        from dashboard_gui.global_state_manager import GLOBAL_STATE
-        from kivy.core.window import Window
-        
-        # Neu erstellen
-        self._signal_overlay = SignalInspector(parent_header=self)
-        Window.add_widget(self._signal_overlay)
-        
-        # PERSISTENZ: Den Graphen sofort mit den GSM-Daten füllen
-        if hasattr(GLOBAL_STATE, "rssi_history"):
-            for val in GLOBAL_STATE.rssi_history:
-                self._signal_overlay.graph.add_value(val)
-        
-        print("[Header] Signal Inspector opened with history")
+
+
 
     def _close_signal_overlay(self):
         """Falls extern geschlossen werden muss"""
@@ -473,15 +462,6 @@ class HeaderBar(BoxLayout):
         screen = self.parent.parent
         screen.add_widget(picker)
 
-    def _close_signal_overlay(self):
-        """Stoppt den Timer und entfernt das Fenster"""
-        if getattr(self, "_signal_update_event", None):
-            self._signal_update_event.cancel()
-            self._signal_update_event = None
-            
-        if self._signal_overlay and self._signal_overlay.parent:
-            self._signal_overlay.parent.remove_widget(self._signal_overlay)
-        self._signal_overlay = None
 
     # ---------------------------------------------------
     # ONE ENTRY-POINT FOR ALL SCREENS

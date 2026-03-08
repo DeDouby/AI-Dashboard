@@ -3,6 +3,7 @@ class UIManager:
     def __init__(self, gsm):
         self.gsm = gsm  # Rückreferenz auf den Boss (GSM)
         self.broadcast_buttons = []# Alle Screen-Referenzen zentral hier
+        self.active_inspector = None
         self.screens = {
             "dashboard": None, "fullscreen": None, "setup": None,
             "about": None, "settings": None, "vpd_scatter": None,
@@ -64,3 +65,29 @@ class UIManager:
     def get_device_label(self, dev_id):
         from dashboard_gui.global_state_manager import ACTIVE_CHANNEL_ENGINE
         return ACTIVE_CHANNEL_ENGINE.get_device_label(dev_id)
+
+    def reset_all_screens(self):
+        """Ruft auf JEDEM registrierten Screen die Reset-Logik auf."""
+        for name, screen in self.screens.items():
+            if hasattr(screen, 'reset_from_global'):
+                print(f"[UIManager] Sende Reset an Screen: {name}")
+                screen.reset_from_global()
+   
+    def open_signal_inspector(self, parent_header):
+        # Falls schon einer offen ist -> sauber schließen
+        if self.active_inspector:
+            self.active_inspector.close()
+        
+        # Neuen erstellen
+        from dashboard_gui.ui.common.signal_inspector import SignalInspector
+        self.active_inspector = SignalInspector(parent_header=parent_header)
+        
+        # Dem Hauptfenster hinzufügen
+        from kivy.core.window import Window
+        Window.add_widget(self.active_inspector)
+        
+    def close_signal_inspector(self):
+        if self.active_inspector:
+            # Die close() Methode im Inspector entfernt ihn vom Parent
+            self.active_inspector.close()
+            self.active_inspector = None

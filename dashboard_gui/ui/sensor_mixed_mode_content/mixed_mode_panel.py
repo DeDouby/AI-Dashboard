@@ -11,7 +11,7 @@ from kivy.uix.widget import Widget
 from kivy.uix.scrollview import ScrollView
 from kivy.graphics import Color, RoundedRectangle, Line
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
-
+from dashboard_gui.ui.formatters import UIFormatter
 class MixedModePanel(BoxLayout):
     def __init__(self, screen, **kw):
         super().__init__(orientation="horizontal", padding=dp_scaled(15), spacing=dp_scaled(20), **kw)
@@ -32,20 +32,35 @@ class MixedModePanel(BoxLayout):
         self.right_col = BoxLayout(orientation="vertical", size_hint_x=0.65)
         
         # Card-Container (Höhe auf 380 erhöht, damit die dicke Schrift Platz hat)
+# Erhöhe die Card-Größe etwas für Android-Sicherheit
         self.avg_card = BoxLayout(
             orientation="vertical", 
-            padding=dp_scaled(20), 
-            spacing=dp_scaled(10), # Spacing etwas verringert, da Schrift größer
+            padding=dp_scaled(15), 
+            spacing=dp_scaled(5), 
             size_hint=(None, None), 
-            size=(dp_scaled(400), dp_scaled(380)), 
+            size=(dp_scaled(420), dp_scaled(340)), # Etwas mehr Puffer
             pos_hint={"center_x": .5, "center_y": .5}
         )
         
         with self.avg_card.canvas.before:
-            Color(0, 0, 0, 0.5)
-            self.bg_rect = RoundedRectangle(radius=[dp_scaled(20)])
-            Color(1, 1, 1, 0.2)
-            self.title_line = Line(width=1)
+            Color(0, 0, 0, 0.4)
+            self.bg_rect = RoundedRectangle(
+                pos=self.avg_card.pos,
+                size=self.avg_card.size,
+                radius=[dp_scaled(20)]
+            )
+        
+            Color(0, 0.8, 1, 0.5)
+            self.outline = Line(
+                rounded_rectangle=(
+                    self.avg_card.x,
+                    self.avg_card.y,
+                    self.avg_card.width,
+                    self.avg_card.height,
+                    dp_scaled(20)
+                ),
+                width=1.2
+            )
             
         self.avg_card.bind(pos=self._update_rect, size=self._update_rect)
 
@@ -58,12 +73,14 @@ class MixedModePanel(BoxLayout):
         self.lbl_avg_title.bind(size=lambda s, w: setattr(s, 'text_size', (w[0], None)))
         self.avg_card.add_widget(self.lbl_avg_title)
 
-        # 2. Labels für Werte (Basis-Schriftgröße von 32 auf 42 erhöht)
-        # Die Legende und Pfeile werden über das Markup im Handler NOCH größer skaliert
-        self.lbl_temp = Label(text="--", markup=True, font_size=sp_scaled(42), color=(1, 0.4, 0.4, 1))
-        self.lbl_hum  = Label(text="--", markup=True, font_size=sp_scaled(42), color=(0.4, 0.7, 1, 1))
-        self.lbl_vpd  = Label(text="--", markup=True, font_size=sp_scaled(42), color=(0.4, 1, 0.7, 1))
-        self.lbl_dew  = Label(text="--", markup=True, font_size=sp_scaled(42), color=(0.8, 0.8, 1, 1))
+
+        # Wir erhöhen die Basis-Schriftgröße der Labels mit sp_scaled
+# Wir entfernen font_size aus den Labels, da wir sie oben im Handler 
+# Die Labels brauchen eine definierte Höhe, sonst "clippen" sie bei Markup
+        self.lbl_temp = Label(text="--", markup=True, color=(1, 0.4, 0.4, 1), size_hint_y=None, height=dp_scaled(60))
+        self.lbl_hum  = Label(text="--", markup=True, color=(0.4, 0.7, 1, 1), size_hint_y=None, height=dp_scaled(60))
+        self.lbl_vpd  = Label(text="--", markup=True, color=(0.4, 1, 0.7, 1), size_hint_y=None, height=dp_scaled(60))
+        self.lbl_dew  = Label(text="--", markup=True, color=(0.8, 0.8, 1, 1), size_hint_y=None, height=dp_scaled(60))
         
         for l in [self.lbl_temp, self.lbl_hum, self.lbl_vpd, self.lbl_dew]:
             self.avg_card.add_widget(l)
@@ -73,20 +90,55 @@ class MixedModePanel(BoxLayout):
         self.right_col.add_widget(Widget()) 
         self.add_widget(self.right_col)
 
-    def _update_rect(self, instance, value):
-        # Hintergrund-Rechteck aktualisieren
-        self.bg_rect.pos = instance.pos
-        self.bg_rect.size = instance.size
-        
-        # Trennlinie unter dem Titel positionieren
-        line_y = instance.top - dp_scaled(60)
-        self.title_line.points = [instance.x + dp_scaled(40), line_y, instance.right - dp_scaled(40), line_y]
+    def _update_rect(self, obj, *args):
+        self.bg_rect.pos = obj.pos
+        self.bg_rect.size = obj.size
+    
+        self.outline.rounded_rectangle = (
+            obj.x,
+            obj.y,
+            obj.width,
+            obj.height,
+            dp_scaled(20)
+        )
 
     def set_averages(self, data):
-        self.lbl_temp.text = data.get("temp", "--")
-        self.lbl_hum.text = data.get("hum", "--")
-        self.lbl_vpd.text = data.get("vpd", "--")
-        self.lbl_dew.text = data.get("dew", "--")
+        """Nimmt das Rohdaten-Paket und nutzt den UIFormatter für den Edel-Look."""
+        
+        # --- DEINE ZENTRALEN STELLHEBEL (JETZT VOLLSTÄNDIG SEPARIERT) ---
+# Diese Werte werden jetzt AUTOMATISCH skaliert!
+        GROESSE_WERT    = 42  # Sieht jetzt auf Desktop und Android gleich groß aus
+        GROESSE_NAME    = 18  
+        GROESSE_TREND   = 24  
+        GROESSE_UNIT    = 18
+        # --------------------------------------------------------------
+
+        mapping = [
+            ("temp", self.lbl_temp),
+            ("hum",  self.lbl_hum),
+            ("vpd",  self.lbl_vpd),
+            ("dew",  self.lbl_dew)
+        ]
+
+        for key, label_widget in mapping:
+            d = data.get(key, {})
+            
+            if d.get("val") is not None:
+                # Wir rufen die Engine mit allen VIER Größen auf:
+                label_widget.text = UIFormatter.format_sensor_label(
+                    name=d["name"],
+                    value=d["val"],
+                    unit=d["unit"],
+                    trend=d["trend"],
+                    sz_val=GROESSE_WERT,
+                    sz_name=GROESSE_NAME,
+                    sz_trend=GROESSE_TREND,
+                    sz_unit=GROESSE_UNIT
+                )
+            else:
+                # Fallback für "Keine Daten"
+                name = d.get("name", key.upper())
+                label_widget.text = f"[color=#666666][size={GROESSE_NAME}]{name}:[/size] [size={GROESSE_WERT}]--[/size][/color]"
 
     def rebuild_device_list(self):
         self.details_list.clear_widgets()
@@ -94,40 +146,137 @@ class MixedModePanel(BoxLayout):
         for dev in snapshot:
             self.details_list.add_widget(self._build_card(dev))
 
+    def update_device_values(self):
+        """Aktualisiert nur die Texte der Buttons mit der GLEICHEN Größe wie beim Build."""
+        snapshot = self.screen.handler.get_device_list_snapshot()
+        
+        # --- ZENTRALE STELLSCHRAUBE (Muss identisch mit _build_card sein) ---
+        s_name = int(sp_scaled(20))
+        s_detail = int(sp_scaled(18)) # Einheitlich auf 18 (oder dein Wunschwert)
+        
+        for dev_data in snapshot:
+            dev_id = dev_data["device_id"]
+            for card in self.details_list.children:
+                if getattr(card, 'device_id', None) == dev_id:
+                    # Suche den Button im Card-Container
+                    btn = next((c for c in card.children if isinstance(c, ToggleButton)), None)
+                    if btn:
+                        is_sel = btn.state == "down"
+                        
+                        if is_sel:
+                            name = f"[b][size={s_name}]{dev_data['label']}[/size][/b]"
+                        else:
+                            name = f"[size={s_name}]{dev_data['label']}[/size]"
+                        
+                        btn.text = (
+                            f"{name}\n"
+                            f"[size={s_detail}][color=#cccccc]{dev_data['values_str']}[/color][/size]"
+                        )
+                    break
+
     def _build_card(self, dev):
         is_sel = dev["selected"]
-        # Farbschema passend zu den Dashboard-Kacheln
-        active_color = (0, 0, 0, 0.5)
-        inactive_color = (0, 0, 0, 0.2)
+        h = dp_scaled(120) if (is_sel and dev["has_external"]) else dp_scaled(80)
+        card = BoxLayout(orientation="vertical", size_hint_y=None, height=h, spacing=dp_scaled(5))
+        card.device_id = dev["device_id"]
 
-        h = dp_scaled(115) if (is_sel and dev["has_external"]) else dp_scaled(75)
-        card = BoxLayout(orientation="vertical", size_hint_y=None, height=h, spacing=dp_scaled(4))
-        
-        # Haupt-Button für das Gerät
-        btn = ToggleButton(
-            text=f"[b]{dev['label']}[/b]\n[size=13][color=#aaaaaa]{dev['values_str']}[/color][/size]", 
-            markup=True, halign="center",
+        # --- GLEICHE STELLSCHRAUBE WIE OBEN ---
+        s_name = int(sp_scaled(20))
+        s_detail = int(sp_scaled(18)) 
+
+        btn = DeviceButton(
+            text="", # Wird gleich gesetzt
+            markup=True, 
+            halign="center",
             state="down" if is_sel else "normal",
-            background_normal='', background_down='',
-            background_color=active_color if is_sel else inactive_color
         )
+        
+        # Hier nutzen wir exakt das gleiche Format
+        if is_sel:
+            name = f"[b][size={s_name}]{dev['label']}[/size][/b]"
+        else:
+            name = f"[size={s_name}]{dev['label']}[/size]"
+        
+        btn.text = (
+            f"{name}\n"
+            f"[size={s_detail}][color=#cccccc]{dev['values_str']}[/color][/size]"
+        )
+        
         btn.bind(on_release=lambda x: self.screen._toggle_dev(dev["device_id"]))
         card.add_widget(btn)
 
-        # Auswahl der Modi (Internal/External)
+        # ... (Modus-Buttons für Internal/External bleiben gleich) ...
         if is_sel and dev["has_external"]:
-            modes = BoxLayout(spacing=dp_scaled(4), size_hint_y=None, height=dp_scaled(32))
+            # Hier auch sp_scaled nutzen für die Modus-Buttons
+            modes = BoxLayout(spacing=dp_scaled(4), size_hint_y=None, height=dp_scaled(35))
             for m in ["internal", "external"]:
                 m_active = m in dev["modes"]
-                m_btn = ToggleButton(
+                m_btn = DeviceButton(
                     text=m.upper(), 
                     state="down" if m_active else "normal",
-                    font_size=sp_scaled(11), bold=True,
-                    background_normal='', background_down='',
-                    background_color=(0, 0, 0, 0.5) if m_active else (0, 0, 0, 0.2),
+                    font_size=sp_scaled(16), bold=True,
+                    background_color=(0, 0, 0, 0.4) if m_active else (0, 0, 0, 0.3),
                     color=(1, 1, 1, 1) if m_active else (1, 1, 1, 0.5)
                 )
                 m_btn.bind(on_release=lambda x, m=m: self.screen._switch_mode(dev["device_id"], m))
                 modes.add_widget(m_btn)
             card.add_widget(modes)
+            
         return card
+    def rebuild_device_list(self):
+        """Baut die Liste komplett neu (nur bei Strukturänderungen nötig)."""
+        self.details_list.clear_widgets()
+        snapshot = self.screen.handler.get_device_list_snapshot()
+        for dev in snapshot:
+            card = self._build_card(dev)
+            card.device_id = dev["device_id"] # WICHTIG: ID an das Widget heften für späteres Update
+            self.details_list.add_widget(card)
+
+from kivy.uix.button import Button
+from kivy.graphics import Color, Line, RoundedRectangle
+from dashboard_gui.ui.scaling_utils import dp_scaled
+
+
+class DeviceButton(ToggleButton):
+    def __init__(self, **kw):
+        super().__init__(**kw)
+
+        self.background_normal = ""
+        self.background_down = ""
+        self.background_color = (0, 0, 0, 0)
+
+        with self.canvas.before:
+            # Hintergrund-Farbe (bleibt gleich)
+            Color(0, 0, 0, 0.4)
+            self.bg = RoundedRectangle(radius=[dp_scaled(12)])
+
+            # Rahmen-Farbe (bleibt gleich)
+            Color(0, 0.8, 1, 0.6)
+            self.outline = Line(
+                width=dp_scaled(1.2), # Start-Dicke
+                rounded_rectangle=(self.x, self.y, self.width, self.height, dp_scaled(12))
+            )
+
+        # Bindings für Position/Größe UND Status-Wechsel
+        self.bind(pos=self._update_canvas, size=self._update_canvas, state=self._update_canvas)
+
+    def _update_canvas(self, *args):
+        # 1. Position und Größe des Hintergrunds
+        self.bg.pos = self.pos
+        self.bg.size = self.size
+
+        # 2. Dynamische Linienstärke basierend auf dem Status
+        # Wenn gedrückt (down), zeichnen wir den Rahmen deutlich dicker
+        if self.state == 'down':
+            self.outline.width = dp_scaled(3.5)  # Schöner fetter Rahmen
+        else:
+            self.outline.width = dp_scaled(1.2)  # Standard dünner Rahmen
+
+        # 3. Rahmen-Geometrie aktualisieren
+        self.outline.rounded_rectangle = (
+            self.x,
+            self.y,
+            self.width,
+            self.height,
+            dp_scaled(12)
+        )

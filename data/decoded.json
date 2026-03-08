@@ -1,20 +1,73 @@
 [
   {
-    "timestamp": "2026-03-06T21:36:06.446+0000",
-    "device_id": "C898B4F2-B452-7502-1A67-0536E77D49EA",
-    "name": "sps",
+    "timestamp": "2026-03-08T02:27:02.558+0000",
+    "device_id": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
+    "name": "ThermoBeacon2",
     "adv": {
       "alive": true,
       "status": "active",
       "packet_counter": null,
-      "raw": "FE07CA1400239E2908",
+      "raw": "190019060000F1F07F10390121033601620357400000",
       "internal": {
         "temperature": {
-          "value": 20.46,
+          "value": 19.5625,
           "unit": "\u00b0C"
         },
         "humidity": {
-          "value": 53.22,
+          "value": 50.0625,
+          "unit": "%"
+        }
+      },
+      "external": {
+        "present": true,
+        "temperature": {
+          "value": 19.375,
+          "unit": "\u00b0C"
+        },
+        "humidity": {
+          "value": 54.125,
+          "unit": "%"
+        }
+      },
+      "vpd_internal": {
+        "value": 1.136,
+        "unit": "kPa"
+      },
+      "vpd_external": {
+        "value": 1.032,
+        "unit": "kPa"
+      },
+      "dew_point_internal": {
+        "value": 8.87,
+        "unit": "\u00b0C"
+      },
+      "dew_point_external": {
+        "value": 9.86,
+        "unit": "\u00b0C"
+      },
+      "coord": {
+        "internal": {
+          "x": 50.0625,
+          "y": 19.5625
+        },
+        "external": {
+          "x": 54.125,
+          "y": 19.375
+        }
+      }
+    },
+    "gatt": {
+      "alive": false,
+      "status": "offline",
+      "packet_counter": null,
+      "raw": null,
+      "internal": {
+        "temperature": {
+          "value": null,
+          "unit": "\u00b0C"
+        },
+        "humidity": {
+          "value": null,
           "unit": "%"
         }
       },
@@ -30,7 +83,7 @@
         }
       },
       "vpd_internal": {
-        "value": 1.032,
+        "value": null,
         "unit": "kPa"
       },
       "vpd_external": {
@@ -38,7 +91,7 @@
         "unit": "kPa"
       },
       "dew_point_internal": {
-        "value": 10.61,
+        "value": null,
         "unit": "\u00b0C"
       },
       "dew_point_external": {
@@ -47,8 +100,86 @@
       },
       "coord": {
         "internal": {
-          "x": 53.22,
-          "y": 19.060000000000002
+          "x": null,
+          "y": null
+        },
+        "external": {
+          "x": null,
+          "y": null
+        }
+      }
+    },
+    "bridge_alive": true,
+    "bridge_status": "OK",
+    "bridge_last_seen": 0.0,
+    "alive": true,
+    "status": "active",
+    "health": {
+      "uptime": {
+        "value": 443.33516812324524,
+        "unit": "s"
+      },
+      "battery": {
+        "value": null,
+        "unit": "%",
+        "voltage": null
+      },
+      "signal": {
+        "rssi": -72,
+        "quality": null
+      }
+    }
+  },
+  {
+    "timestamp": "2026-03-08T02:27:00.717+0000",
+    "device_id": "FF-FF-A1-00-00-01",
+    "name": "LGS_NODE_133",
+    "adv": {
+      "alive": true,
+      "status": "active",
+      "packet_counter": null,
+      "raw": "7445A18507A515127C",
+      "internal": {
+        "temperature": {
+          "value": 19.57,
+          "unit": "\u00b0C"
+        },
+        "humidity": {
+          "value": 53.94,
+          "unit": "%"
+        }
+      },
+      "external": {
+        "present": false,
+        "temperature": {
+          "value": null,
+          "unit": "\u00b0C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "vpd_internal": {
+        "value": 1.049,
+        "unit": "kPa"
+      },
+      "vpd_external": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "dew_point_internal": {
+        "value": 9.99,
+        "unit": "\u00b0C"
+      },
+      "dew_point_external": {
+        "value": null,
+        "unit": "\u00b0C"
+      },
+      "coord": {
+        "internal": {
+          "x": 53.94,
+          "y": 19.57
         },
         "external": {
           "x": null,
@@ -116,7 +247,138 @@
     "status": "active",
     "health": {
       "uptime": {
-        "value": 101.44663381576538,
+        "value": 443.33516812324524,
+        "unit": "s"
+      },
+      "battery": {
+        "value": null,
+        "unit": "%",
+        "voltage": null
+      },
+      "signal": {
+        "rssi": -61,
+        "quality": null
+      }
+    }
+  },
+  {
+    "timestamp": "2026-03-08T02:27:02.557+0000",
+    "device_id": "C898B4F2-B452-7502-1A67-0536E77D49EA",
+    "name": "sps",
+    "adv": {
+      "alive": true,
+      "status": "active",
+      "packet_counter": null,
+      "raw": "B307FD1400BE5E2908",
+      "internal": {
+        "temperature": {
+          "value": 19.71,
+          "unit": "\u00b0C"
+        },
+        "humidity": {
+          "value": 53.73,
+          "unit": "%"
+        }
+      },
+      "external": {
+        "present": false,
+        "temperature": {
+          "value": null,
+          "unit": "\u00b0C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "vpd_internal": {
+        "value": 1.063,
+        "unit": "kPa"
+      },
+      "vpd_external": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "dew_point_internal": {
+        "value": 10.06,
+        "unit": "\u00b0C"
+      },
+      "dew_point_external": {
+        "value": null,
+        "unit": "\u00b0C"
+      },
+      "coord": {
+        "internal": {
+          "x": 53.73,
+          "y": 19.71
+        },
+        "external": {
+          "x": null,
+          "y": null
+        }
+      }
+    },
+    "gatt": {
+      "alive": false,
+      "status": "offline",
+      "packet_counter": null,
+      "raw": null,
+      "internal": {
+        "temperature": {
+          "value": null,
+          "unit": "\u00b0C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external": {
+        "present": false,
+        "temperature": {
+          "value": null,
+          "unit": "\u00b0C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "vpd_internal": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "vpd_external": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "dew_point_internal": {
+        "value": null,
+        "unit": "\u00b0C"
+      },
+      "dew_point_external": {
+        "value": null,
+        "unit": "\u00b0C"
+      },
+      "coord": {
+        "internal": {
+          "x": null,
+          "y": null
+        },
+        "external": {
+          "x": null,
+          "y": null
+        }
+      }
+    },
+    "bridge_alive": true,
+    "bridge_status": "OK",
+    "bridge_last_seen": 0.0,
+    "alive": true,
+    "status": "active",
+    "health": {
+      "uptime": {
+        "value": 443.33516812324524,
         "unit": "s"
       },
       "battery": {
@@ -126,399 +388,6 @@
       },
       "signal": {
         "rssi": -71,
-        "quality": null
-      }
-    }
-  },
-  {
-    "timestamp": "2026-03-06T21:36:07.061+0000",
-    "device_id": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
-    "name": "ThermoBeacon2",
-    "adv": {
-      "alive": true,
-      "status": "active",
-      "packet_counter": null,
-      "raw": "190019060000F1F083104801370340016F0384DB1200",
-      "internal": {
-        "temperature": {
-          "value": 20.5,
-          "unit": "\u00b0C"
-        },
-        "humidity": {
-          "value": 51.4375,
-          "unit": "%"
-        }
-      },
-      "external": {
-        "present": true,
-        "temperature": {
-          "value": 20.0,
-          "unit": "\u00b0C"
-        },
-        "humidity": {
-          "value": 54.9375,
-          "unit": "%"
-        }
-      },
-      "vpd_internal": {
-        "value": 1.074,
-        "unit": "kPa"
-      },
-      "vpd_external": {
-        "value": 0.966,
-        "unit": "kPa"
-      },
-      "dew_point_internal": {
-        "value": 10.14,
-        "unit": "\u00b0C"
-      },
-      "dew_point_external": {
-        "value": 10.66,
-        "unit": "\u00b0C"
-      },
-      "coord": {
-        "internal": {
-          "x": 51.4375,
-          "y": 19.1
-        },
-        "external": {
-          "x": 54.9375,
-          "y": 18.6
-        }
-      }
-    },
-    "gatt": {
-      "alive": false,
-      "status": "offline",
-      "packet_counter": null,
-      "raw": null,
-      "internal": {
-        "temperature": {
-          "value": null,
-          "unit": "\u00b0C"
-        },
-        "humidity": {
-          "value": null,
-          "unit": "%"
-        }
-      },
-      "external": {
-        "present": false,
-        "temperature": {
-          "value": null,
-          "unit": "\u00b0C"
-        },
-        "humidity": {
-          "value": null,
-          "unit": "%"
-        }
-      },
-      "vpd_internal": {
-        "value": null,
-        "unit": "kPa"
-      },
-      "vpd_external": {
-        "value": null,
-        "unit": "kPa"
-      },
-      "dew_point_internal": {
-        "value": null,
-        "unit": "\u00b0C"
-      },
-      "dew_point_external": {
-        "value": null,
-        "unit": "\u00b0C"
-      },
-      "coord": {
-        "internal": {
-          "x": null,
-          "y": null
-        },
-        "external": {
-          "x": null,
-          "y": null
-        }
-      }
-    },
-    "bridge_alive": true,
-    "bridge_status": "OK",
-    "bridge_last_seen": 0.0,
-    "alive": true,
-    "status": "active",
-    "health": {
-      "uptime": {
-        "value": 101.44663381576538,
-        "unit": "s"
-      },
-      "battery": {
-        "value": null,
-        "unit": "%",
-        "voltage": null
-      },
-      "signal": {
-        "rssi": -59,
-        "quality": null
-      }
-    }
-  },
-  {
-    "timestamp": "2026-03-06T21:36:08.893+0000",
-    "device_id": "FF-FF-A1-00-00-01",
-    "name": "LGS_NODE_133",
-    "adv": {
-      "alive": true,
-      "status": "active",
-      "packet_counter": null,
-      "raw": "7445A18507EC14C63A",
-      "internal": {
-        "temperature": {
-          "value": 20.28,
-          "unit": "\u00b0C"
-        },
-        "humidity": {
-          "value": 53.18,
-          "unit": "%"
-        }
-      },
-      "external": {
-        "present": false,
-        "temperature": {
-          "value": null,
-          "unit": "\u00b0C"
-        },
-        "humidity": {
-          "value": null,
-          "unit": "%"
-        }
-      },
-      "vpd_internal": {
-        "value": 1.021,
-        "unit": "kPa"
-      },
-      "vpd_external": {
-        "value": null,
-        "unit": "kPa"
-      },
-      "dew_point_internal": {
-        "value": 10.43,
-        "unit": "\u00b0C"
-      },
-      "dew_point_external": {
-        "value": null,
-        "unit": "\u00b0C"
-      },
-      "coord": {
-        "internal": {
-          "x": 53.18,
-          "y": 18.880000000000003
-        },
-        "external": {
-          "x": null,
-          "y": null
-        }
-      }
-    },
-    "gatt": {
-      "alive": false,
-      "status": "offline",
-      "packet_counter": null,
-      "raw": null,
-      "internal": {
-        "temperature": {
-          "value": null,
-          "unit": "\u00b0C"
-        },
-        "humidity": {
-          "value": null,
-          "unit": "%"
-        }
-      },
-      "external": {
-        "present": false,
-        "temperature": {
-          "value": null,
-          "unit": "\u00b0C"
-        },
-        "humidity": {
-          "value": null,
-          "unit": "%"
-        }
-      },
-      "vpd_internal": {
-        "value": null,
-        "unit": "kPa"
-      },
-      "vpd_external": {
-        "value": null,
-        "unit": "kPa"
-      },
-      "dew_point_internal": {
-        "value": null,
-        "unit": "\u00b0C"
-      },
-      "dew_point_external": {
-        "value": null,
-        "unit": "\u00b0C"
-      },
-      "coord": {
-        "internal": {
-          "x": null,
-          "y": null
-        },
-        "external": {
-          "x": null,
-          "y": null
-        }
-      }
-    },
-    "bridge_alive": true,
-    "bridge_status": "OK",
-    "bridge_last_seen": 0.0,
-    "alive": true,
-    "status": "active",
-    "health": {
-      "uptime": {
-        "value": 101.44663381576538,
-        "unit": "s"
-      },
-      "battery": {
-        "value": null,
-        "unit": "%",
-        "voltage": null
-      },
-      "signal": {
-        "rssi": -56,
-        "quality": null
-      }
-    }
-  },
-  {
-    "timestamp": 1772832971.197902,
-    "device_id": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
-    "name": null,
-    "adv": {
-      "alive": false,
-      "status": "offline",
-      "packet_counter": null,
-      "raw": null,
-      "internal": {
-        "temperature": {
-          "value": null,
-          "unit": "\u00b0C"
-        },
-        "humidity": {
-          "value": null,
-          "unit": "%"
-        }
-      },
-      "external": {
-        "present": false,
-        "temperature": {
-          "value": null,
-          "unit": "\u00b0C"
-        },
-        "humidity": {
-          "value": null,
-          "unit": "%"
-        }
-      },
-      "vpd_internal": {
-        "value": null,
-        "unit": "kPa"
-      },
-      "vpd_external": {
-        "value": null,
-        "unit": "kPa"
-      },
-      "dew_point_internal": {
-        "value": null,
-        "unit": "\u00b0C"
-      },
-      "dew_point_external": {
-        "value": null,
-        "unit": "\u00b0C"
-      },
-      "coord": {
-        "internal": {
-          "x": null,
-          "y": null
-        },
-        "external": {
-          "x": null,
-          "y": null
-        }
-      }
-    },
-    "gatt": {
-      "alive": false,
-      "status": "offline",
-      "packet_counter": null,
-      "raw": null,
-      "internal": {
-        "temperature": {
-          "value": null,
-          "unit": "\u00b0C"
-        },
-        "humidity": {
-          "value": null,
-          "unit": "%"
-        }
-      },
-      "external": {
-        "present": false,
-        "temperature": {
-          "value": null,
-          "unit": "\u00b0C"
-        },
-        "humidity": {
-          "value": null,
-          "unit": "%"
-        }
-      },
-      "vpd_internal": {
-        "value": null,
-        "unit": "kPa"
-      },
-      "vpd_external": {
-        "value": null,
-        "unit": "kPa"
-      },
-      "dew_point_internal": {
-        "value": null,
-        "unit": "\u00b0C"
-      },
-      "dew_point_external": {
-        "value": null,
-        "unit": "\u00b0C"
-      },
-      "coord": {
-        "internal": {
-          "x": null,
-          "y": null
-        },
-        "external": {
-          "x": null,
-          "y": null
-        }
-      }
-    },
-    "bridge_alive": true,
-    "bridge_status": "OK",
-    "bridge_last_seen": 0.0,
-    "alive": false,
-    "status": "offline",
-    "health": {
-      "uptime": {
-        "value": null,
-        "unit": "s"
-      },
-      "battery": {
-        "value": null,
-        "unit": "%",
-        "voltage": null
-      },
-      "signal": {
-        "rssi": null,
         "quality": null
       }
     }
