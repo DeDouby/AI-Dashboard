@@ -2,39 +2,39 @@
   {
     "address": "827482CC-A977-43D7-835E-8E8B6978E66A",
     "gat_raw": null,
-    "timestamp": "2026-03-20T02:19:57.496+0000",
+    "timestamp": "2026-03-20T02:44:58.703+0000",
     "name": "LGS-Sensor",
-    "rssi": -67,
-    "adv_raw": "D302A21106FE14AD06FE0FA009F6017E92",
-    "log_raw": "D302A21106FE14AD06FE0FA009F6017E92",
+    "rssi": -69,
+    "adv_raw": "D302A21106F814A406FF0FA009F6017EB5",
+    "log_raw": "D302A21106F814A406FF0FA009F6017EB5",
     "note": "raw"
   },
   {
     "address": "C898B4F2-B452-7502-1A67-0536E77D49EA",
     "gat_raw": null,
-    "timestamp": "2026-03-20T02:19:47.725+0000",
+    "timestamp": "2026-03-20T02:44:54.004+0000",
     "name": "sps",
-    "rssi": -71,
-    "adv_raw": "E7077F16002EDA0F08",
-    "log_raw": "E7077F16002EDA0F08",
+    "rssi": -73,
+    "adv_raw": "CE07821600E2EC0F08",
+    "log_raw": "CE07821600E2EC0F08",
     "note": "raw"
   },
   {
     "address": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
     "gat_raw": null,
-    "timestamp": "2026-03-20T02:19:52.675+0000",
+    "timestamp": "2026-03-20T02:44:49.404+0000",
     "name": "ThermoBeacon2",
     "rssi": -63,
-    "adv_raw": "190019060000F1F05A1032014003FFFFFFFFEA101000",
-    "log_raw": "190019060000F1F05A1032014003FFFFFFFFEA101000",
+    "adv_raw": "190019060000F1F05A1031014003FFFFFFFFC2161000",
+    "log_raw": "190019060000F1F05A1031014003FFFFFFFFC2161000",
     "note": "raw"
   },
   {
     "address": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
     "gat_raw": null,
-    "timestamp": "2026-03-20T02:19:33.278+0000",
+    "timestamp": "2026-03-20T02:44:20.317+0000",
     "name": "TP351S (987A)",
-    "rssi": -80,
+    "rssi": -76,
     "adv_raw": "C2BA002E203301",
     "log_raw": "C2BA002E203301",
     "note": "raw"
@@ -48,5 +48,15 @@
     "adv_raw": "4C0012021402",
     "log_raw": "4C0012021402",
     "note": "raw"
+  },
+  {
+    "address": "FF-FF-A1-00-00-01",
+    "gat_raw": null,
+    "timestamp": "2026-03-20T02:44:57.380+0000",
+    "name": "LGS_NODE_17",
+    "rssi": -52,
+    "adv_raw": "7445A111077214500D",
+    "log_raw": "7445A111077214500D",
+    "note": "ch_17_active"
   }
 ]

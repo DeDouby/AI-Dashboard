@@ -148,6 +148,48 @@ class ExternalIcon(BoxLayout):
             self.text_label.text = "OFF"
             self.text_label.color = (0.4, 0.4, 0.4, 1)
 
+
+#######BATTERY
+class BatteryIcon(BoxLayout):
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.orientation = "horizontal"
+        self.spacing = dp_scaled(4)
+        self.size_hint = (None, 1)
+        self.width = dp_scaled(75) # Platz für Icon + "4.1V"
+
+        self.icon = IconLabel(font_size=sp_scaled(18))
+        self.text_label = Label(
+            text="--V",
+            font_size=sp_scaled(12),
+            color=(0.8, 0.8, 0.8, 1),
+            halign="left",
+            valign="middle"
+        )
+        self.text_label.bind(size=self.text_label.setter('text_size'))
+
+        self.add_widget(self.icon)
+        self.add_widget(self.text_label)
+
+    def set_voltage(self, voltage):
+        if voltage is None or voltage < 0.1:
+            self.icon.text = "\uf244" # Batterie leer Icon
+            self.icon.color = (0.4, 0.4, 0.4, 1)
+            self.text_label.text = "OFF"
+            return
+
+        self.text_label.text = f"{float(voltage):.2f}V"
+        
+        # Farblogik & Icons
+        if voltage >= 3.9:
+            self.icon.text = "\uf240" # Full
+            self.icon.color = (0.3, 1, 0.3, 1) # Grün
+        elif voltage >= 3.6:
+            self.icon.text = "\uf242" # Half
+            self.icon.color = (1, 0.8, 0.2, 1) # Gelb
+        else:
+            self.icon.text = "\uf243" # Low
+            self.icon.color = (1, 0.2, 0.2, 1) # Rot
 # -------------------------------------------------------
 # LED Circle – MODERN UI (NO LOGIC CHANGE)
 # -------------------------------------------------------
@@ -321,6 +363,7 @@ class HeaderBar(BoxLayout):
         self.signal = SignalBars(size_hint=(0.09, 1))
         self.signal.bind(on_touch_down=self._signal_click)
         self.external = ExternalIcon(size_hint=(0.08, 1))
+        self.battery = BatteryIcon(size_hint=(0.09, 1))
         self.led = LEDCircle(size_hint=(0.07, 1))
         # Broadcast Button (Inline wiederhergestellt – KEIN Refactoring jetzt!)
         from dashboard_gui.global_state_manager import GLOBAL_STATE
@@ -361,6 +404,7 @@ class HeaderBar(BoxLayout):
         self.add_widget(self.signal)
         self.add_widget(self.btn_broadcast) # <--- NEU HIER
         self.add_widget(self.external)
+        self.add_widget(self.battery) # <--- HIER EINREIHEN
         self.add_widget(self.led)
         self.add_widget(self.lbl_clock)
         self.add_widget(self.btn_menu)
@@ -486,7 +530,13 @@ class HeaderBar(BoxLayout):
             self.lbl_dev.text = f"{icon}  {label} [color=777777]· {tag}[/color]"
         else:
             self.lbl_dev.text = "---"
+# ... (dein bestehender Code) ...
 
+        # --- BATTERY UPDATE ---
+        health = frame.get("health", {})
+        # Wir nehmen die Spannung aus der health-Sektion, die du im Decoder befüllst
+        v_bat = health.get("battery", {}).get("voltage")
+        self.battery.set_voltage(v_bat)
         # --- Restliche Updates ---
         self.set_rssi_from_frame(frame)
         self.set_external_from_frame(frame)
