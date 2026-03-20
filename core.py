@@ -79,54 +79,82 @@ def _cleanup_ble_dump():
 # START – von main.py
 # ------------------------------------------------------------
 def start():
+    """
+    Startet das Core-System im Foreground Service Modus auf Android:
+    - Entfernt alte Dumps (decoded.json, ble_dump.json, ble_log_dump.json)
+    - Startet Foreground BLE Service via PythonService
+    - Initialisiert Bridges (ADV + GATT + Broadcast)
+    - Startet Decoder-Thread
+    - Startet Watchdog
+    """
     global _bridge, _watchdog
 
     print("[Core] Starte Core (Foreground Service Mode)…")
     print("[Core] is_android():", is_android())
 
+    # -----------------------------------------------------
+    # Alte Daten sauber entfernen
+    # -----------------------------------------------------
     _cleanup_decoded()
     _cleanup_ble_dump()
     _cleanup_ble_log_dump() 
 
     # -----------------------------------------------------
-    # 1. Android Foreground Service starten
+    # Android Foreground Service starten
     # -----------------------------------------------------
     if is_android():
+        try:
+            from permission_fix import check_permissions
+            check_permissions()
+        except Exception:
+            print("[Core] Permission check skipped")
+
         from jnius import autoclass
-        _bridge = get_bridge(prefer_mock=False)
-        
-        _bridge.start_adv()        
+
+        # Activity & Service holen
         PythonActivity = autoclass('org.kivy.android.PythonActivity')
-        Intent = autoclass('android.content.Intent')
-    
-        service_name = "org.hackintosh1980.blebridge.BleService"
-        ServiceClass = autoclass(service_name)
-    
         activity = PythonActivity.mActivity
-        intent = Intent(activity, ServiceClass)
-    
-        activity.startForegroundService(intent)
-        activity.startService(intent)
-    
-        print(f"[Core] Foreground Service {service_name} gestartet!")
 
-    # Decoder und Watchdog bleiben hier
-    start_decoder_thread(config.get_refresh_interval())
-    print("[Core] Decoder-Thread gestartet")
+        # PythonService starten (Foreground)
+        ServiceBle = autoclass("org.hackintosh1980.foregroundtest.ServiceBle_service")
+        ServiceBle.start(activity, "BLE service running")
+        print("[Core] BLE Python Service gestartet (Foreground)")
+
+        # -------------------------------------------------
+        # Bridges initialisieren (ADV/GATT + Broadcast)
+        # -------------------------------------------------
+        try:
+            _bridge = get_bridge(prefer_mock=False)
+            _bridge.start()             # ADV + GATT starten
+            _bridge.start_broadcast()   # Broadcast starten
+            print("[Core] Android-Bridges gestartet (ADV + GATT + BROADCAST)")
+        except Exception as e:
+            print("[Core] Bridge start failed:", e)
 
     # -----------------------------------------------------
-    # 3. Watchdog starten
+    # Decoder starten (liefert decoded.json)
     # -----------------------------------------------------
-    _watchdog = DumpWatchdog(
-        timeout=config.get_stale_timeout(),
-        interval=config.get_refresh_interval(),
-        callback=_wd_callback
-    )
-    _watchdog.start()
-    print("[Core] Watchdog gestartet")
+    try:
+        start_decoder_thread(config.get_refresh_interval())
+        print("[Core] Decoder-Thread gestartet")
+    except Exception as e:
+        print("[Core] Decoder-Thread start failed:", e)
 
-    print("[Core] System läuft stabil im Hintergrund.")
+    # -----------------------------------------------------
+    # Watchdog starten
+    # -----------------------------------------------------
+    try:
+        _watchdog = DumpWatchdog(
+            timeout=config.get_stale_timeout(),
+            interval=config.get_refresh_interval(),
+            callback=_wd_callback
+        )
+        _watchdog.start()
+        print("[Core] Watchdog gestartet")
+    except Exception as e:
+        print("[Core] Watchdog start failed:", e)
 
+    print("[Core] System läuft stabil im Hintergrund (Foreground Service Active).")
 def is_broadcast_active():
     return _broadcast_active
 

@@ -101,13 +101,13 @@ class DashboardApp(App):
         # nichts tun, nur resident bleiben
         return True
 
-    def on_resume(self):
-        try:
-            import core
-            print("[APP] resume → bridge restart")
-            core.restart_adv_bridge()
-        except Exception as e:
-            print("[APP] bridge restart failed:", e)
+#    def on_resume(self):
+#        try:
+#            import core
+#            print("[APP] resume → bridge restart")
+#            core.restart_adv_bridge()
+#        except Exception as e:
+#            print("[APP] bridge restart failed:", e)
 
 # -------------------------------------------------------
 # Offizieller Einstiegspunkt

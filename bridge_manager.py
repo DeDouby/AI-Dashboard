@@ -1,3 +1,4 @@
+#bridgemanager
 from kivy.utils import platform
 import os
 import config

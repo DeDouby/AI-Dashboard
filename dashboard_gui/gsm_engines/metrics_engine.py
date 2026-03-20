@@ -12,9 +12,17 @@ class MetricsEngine:
             "temp_in": ch.get("internal", {}).get("temperature"),
             "hum_in":  ch.get("internal", {}).get("humidity"),
             "vpd_in":  ch.get("vpd_internal"),
+            
             "temp_ex": ch.get("external", {}).get("temperature"),
             "hum_ex":  ch.get("external", {}).get("humidity"),
             "vpd_ex":  ch.get("vpd_external"),
+        
+            # --- JETZT SAUBER AUS EXTERNAL 2 ---
+            "leaf_temp": ch.get("external2", {}).get("leaf_temp"),
+            "vpd_leaf":  ch.get("external2", {}).get("vpd_leaf"),
+            
+            # Batterie bleibt im Root
+            "v_bat": {"value": ch.get("battery_voltage"), "unit": "V"} if ch.get("battery_voltage") else None
         }
 
         # 1. Daten-Verarbeitung (Läuft für ALLE Geräte im Hintergrund)

@@ -132,14 +132,8 @@ def _dev_enabled():
 # DECODIERUNG (roh → Werte)
 # ------------------------------------------------------------
 def decode_with_profile(raw_hex, prof):
-
-    if not raw_hex:
+    if not raw_hex or set(raw_hex) == {"0"}:
         return None
-
-    # 🔒 ABSICHERUNG: Null-Frames ignorieren
-    if set(raw_hex) == {"0"}:
-        return None
-
 
     fields = prof.get("fields")
     if not isinstance(fields, dict):
@@ -150,11 +144,10 @@ def decode_with_profile(raw_hex, prof):
     except Exception:
         return None
 
-    # Company-ID aus Profil (nur für ADV-Kompatibilität)
+    # Company-ID Check & MSD Handling (Lasse ich drin, falls du es brauchst)
     company_id = int(prof.get("company_id", 25))
     cid = (b[1] << 8) | b[0] if len(b) >= 2 else -1
 
-    # Falls CID nicht passt → MSD vorne dransetzen (ADV-Altlast, stört GATT nicht)
     if cid != company_id:
         msd = bytearray(2 + len(b))
         msd[0] = company_id & 0xFF
@@ -174,37 +167,36 @@ def decode_with_profile(raw_hex, prof):
     r16u = _be16u if endian == "be" else _le16u
 
     try:
-        ti = r16(b, pos + int(fields["T_i"]))
+        # Rohwerte lesen
+        ti_raw = r16(b, pos + int(fields["T_i"]))
+        hi_raw = r16u(b, pos + int(fields["H_i"]))
+        te_raw = r16(b, pos + int(fields["T_e"])) if "T_e" in fields else None
+        he_raw = r16u(b, pos + int(fields["H_e"])) if "H_e" in fields else None
+        tl_raw = r16(b, pos + int(fields["T_l"])) if "T_l" in fields else None
+        vb_raw = r16u(b, pos + int(fields["V_b"])) if "V_b" in fields else None
     
-        hi_mode = (prof.get("H_i_type") or "u16").lower()
-        if hi_mode == "u8":
-            hi = _u8(b, pos + int(fields["H_i"]))
-        else:
-            hi = r16u(b, pos + int(fields["H_i"]))
-    
-        te = None
-        he = None
-    
-        if int(fields.get("T_e", 100)) < 100:
-            te = r16(b, pos + int(fields["T_e"]))
-    
-        if int(fields.get("H_e", 100)) < 100:
-            he = r16u(b, pos + int(fields["H_e"]))
-    
+        sT = float(prof.get("scale_temperature", 100.0))
+        sH = float(prof.get("scale_humidity", 100.0))
+        sB = float(prof.get("scale_battery", 100.0))
+
+        # -0.5 Check für externe Sensoren und Blatt
+        te_final = te_raw / sT if (te_raw is not None and te_raw != -50) else None
+        he_final = he_raw / sH if (he_raw is not None and te_raw != -50) else None
+        tl_final = tl_raw / sT if (tl_raw is not None and tl_raw != -50) else None
+        
+        ti_final = ti_raw / sT if ti_raw is not None else None
+        hi_final = hi_raw / sH if hi_raw is not None else None
+        vb_final = vb_raw / sB if vb_raw is not None else None
+
     except Exception:
         return None
 
-    sT = float(prof.get("scale_temperature", 16))
-    sH = float(prof.get("scale_humidity", 16))
-
     return {
-        "raw": raw_hex,          # RAW bleibt unverändert sichtbar
-        "T_i": ti / sT if ti is not None else None,
-        "H_i": hi / sH if hi is not None else None,
-        "T_e": te / sT if te is not None else None,
-        "H_e": he / sH if he is not None else None,
+        "raw": raw_hex,
+        "T_i": ti_final, "H_i": hi_final,
+        "T_e": te_final, "H_e": he_final,
+        "T_l": tl_final, "V_b": vb_final
     }
-
 # -----------------------------------------------
 # MULTI-CHANNEL DECODER (ADV + GATT)
 # -----------------------------------------------
@@ -269,6 +261,21 @@ def decode_channel(entry, raw_key, profile_name,
     xe, ye = calculator.vpd_coord_external(T_e, H_e)
     dpi = calculator.dew_point_internal(T_i, H_i)
     dpe = calculator.dew_point_external(T_e, H_e)
+    
+    T_l = decoded.get("T_l")
+    V_b = decoded.get("V_b")
+    
+       
+# VPD Leaf Berechnung (Sture Formel gegen Internal Humidity)
+    vpd_l_val = None
+    if T_l is not None and T_i is not None and H_i is not None:
+        # SVP Blatt
+        svp_l = 0.61078 * (10**((7.5 * T_l) / (237.3 + T_l)))
+        # AVP Box-Luft (basierend auf T_i und H_i)
+        svp_i = 0.61078 * (10**((7.5 * T_i) / (237.3 + T_i)))
+        avp_i = svp_i * (H_i / 100.0)
+        vpd_l_val = round(svp_l - avp_i, 3)
+
     # --- Sauber zurückgeben ---
     return {
         "alive": True,
@@ -280,24 +287,27 @@ def decode_channel(entry, raw_key, profile_name,
             "temperature": {"value": calculator.to_unit(T_i), "unit": unit},
             "humidity": {"value": H_i, "unit": "%"},
         },
+        
         "external": {
             "present": decoded["T_e"] is not None,
             "temperature": {"value": calculator.to_unit(T_e), "unit": unit},
             "humidity": {"value": H_e, "unit": "%"},
         },
 
+        # 🔹 HIER IST DEIN EXTERNAL 2 ZWEIG (Blatt-Daten)
+        "external2": {
+            "present": T_l is not None,
+            "leaf_temp": {"value": calculator.to_unit(T_l), "unit": unit},
+            "vpd_leaf": {"value": vpd_l_val, "unit": "kPa"}
+        },
+
         "vpd_internal": {"value": calculator.vpd_internal(T_i, H_i), "unit": "kPa"},
         "vpd_external": {"value": calculator.vpd_external(T_e, H_e), "unit": "kPa"},
-
         
-        "dew_point_internal": {
-            "value": calculator.to_unit(dpi),
-            "unit": unit
-        },
-        "dew_point_external": {
-            "value": calculator.to_unit(dpe),
-            "unit": unit
-        },
+        "battery_voltage": V_b,
+
+        "dew_point_internal": {"value": calculator.to_unit(dpi), "unit": unit},
+        "dew_point_external": {"value": calculator.to_unit(dpe), "unit": unit},
 
         "coord": {
             "internal": {"x": xi, "y": yi},
@@ -305,34 +315,33 @@ def decode_channel(entry, raw_key, profile_name,
         }
     }
 
-
 def offline_channel_frame(raw_hex=None):
+    unit = f"°{config.get_temperature_unit().upper()}"
     return {
         "alive": False,
         "status": "offline",
         "packet_counter": None,
         "raw": raw_hex,
         "internal": {
-            "temperature": {"value": None, "unit": f"°{config.get_temperature_unit().upper()}"},
+            "temperature": {"value": None, "unit": unit},
             "humidity": {"value": None, "unit": "%"},
         },
         "external": {
             "present": False,
-            "temperature": {"value": None, "unit": f"°{config.get_temperature_unit().upper()}"},
+            "temperature": {"value": None, "unit": unit},
             "humidity": {"value": None, "unit": "%"},
+        },
+        # 🔹 NEU: Auch hier external2 für Konsistenz
+        "external2": {
+            "present": False,
+            "leaf_temp": {"value": None, "unit": unit},
+            "vpd_leaf": {"value": None, "unit": "kPa"}
         },
         "vpd_internal": {"value": None, "unit": "kPa"},
         "vpd_external": {"value": None, "unit": "kPa"},
-
-        "dew_point_internal": {
-            "value": None,
-            "unit": f"°{config.get_temperature_unit().upper()}"
-        },
-        "dew_point_external": {
-            "value": None,
-            "unit": f"°{config.get_temperature_unit().upper()}"
-        },
-
+        "battery_voltage": None,
+        "dew_point_internal": {"value": None, "unit": unit},
+        "dew_point_external": {"value": None, "unit": unit},
         "coord": {
             "internal": {"x": None, "y": None},
             "external": {"x": None, "y": None},
@@ -467,7 +476,7 @@ def step_decode():
         # FINAL FRAME
         # ------------------------------
         rssi_value = entry.get("rssi") if alive else None
-
+        v_bat = adv_dec.get("battery_voltage") or gatt_dec.get("battery_voltage")
         frames.append({
             "timestamp": entry.get("timestamp"),
             "device_id": mac,
@@ -485,11 +494,12 @@ def step_decode():
 
             "health": {
                 "uptime": {"value": now - UPTIME_START, "unit": "s"},
-                "battery": {"value": None, "unit": "%", "voltage": None},
-                "signal": {
-                    "rssi": rssi_value,
-                    "quality": None
+                "battery": {
+                    "value": None, # Wenn du keine %-Kurve hast
+                    "unit": "V",
+                    "voltage": v_bat 
                 },
+                "signal": {"rssi": rssi_value, "quality": None},
             }
         })
 

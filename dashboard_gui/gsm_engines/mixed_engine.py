@@ -144,7 +144,7 @@ class MixedEngine:
 
     def init_file(self):
     
-        path = os.path.join("data", "mixed.json")
+        path = os.path.join(config.DATA, "mixed.json")
     
         try:
     
@@ -161,7 +161,7 @@ class MixedEngine:
 
     def check_file(self):
     
-        path = os.path.join("data", "mixed.json")
+        path = os.path.join(config.DATA, "mixed.json")
     
         if not os.path.exists(path):
             return False
@@ -177,7 +177,7 @@ class MixedEngine:
             return False
 
     def write_json(self, results, device_ids=None):
-        path = os.path.join("data", "mixed.json")
+        path = os.path.join(config.DATA, "mixed.json")
 
         # FALL 1: Keine Ergebnisse da -> Datei leeren
         if not results:

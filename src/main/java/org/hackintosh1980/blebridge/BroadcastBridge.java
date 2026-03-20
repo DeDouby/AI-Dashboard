@@ -1,5 +1,4 @@
 package org.hackintosh1980.blebridge;
-
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.le.*;
 import android.content.Context;
@@ -57,18 +56,33 @@ public class BroadcastBridge {
         }
     }
 
+    private static long lastAdvertiseTime = 0;
+    
     private static void loop() {
+    
         while (running) {
+    
             try {
+    
                 byte[] currentPayload = encodeMixed();
-                
-                if (currentPayload.length > 0 && !Arrays.equals(currentPayload, lastPayload)) {
+                long now = System.currentTimeMillis();
+    
+                boolean payloadChanged = !Arrays.equals(currentPayload, lastPayload);
+                boolean watchdog = (now - lastAdvertiseTime) > 20000;
+    
+                if (currentPayload.length > 0 && (payloadChanged || watchdog)) {
+    
                     stopActiveAdvertising();
                     advertise(currentPayload);
+    
                     lastPayload = currentPayload;
+                    lastAdvertiseTime = now;
+    
+                    Log.i("BroadcastBridge", "Advertising refreshed");
                 }
-                
+    
                 Thread.sleep(5000);
+    
             } catch (InterruptedException e) {
                 break;
             } catch (Exception e) {
@@ -100,9 +114,10 @@ public class BroadcastBridge {
                 .build();
     
         AdvertiseSettings settings = new AdvertiseSettings.Builder()
-                .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_BALANCED)
+                .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
                 .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
                 .setConnectable(false)
+                .setTimeout(0)
                 .build();
         
         try {

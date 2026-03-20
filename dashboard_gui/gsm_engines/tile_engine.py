@@ -13,8 +13,12 @@ class TileEngine:
             "vpd_in",
             "temp_ex",
             "hum_ex",
+            "leaf_temp",  # NEU
+            "v_bat"       # NEU    
             "vpd_ex"
+        
         ]
+
 
         # aktuell aktive Tiles (UI synchronisiert diese)
         self.active_tiles = []

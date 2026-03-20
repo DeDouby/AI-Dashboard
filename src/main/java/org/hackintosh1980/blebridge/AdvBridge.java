@@ -1,12 +1,12 @@
 package org.hackintosh1980.blebridge;
-
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.le.*;
 import android.content.Context;
 import android.util.Log;
 import android.util.SparseArray;
-
+import java.util.List;
+import java.util.ArrayList;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -73,33 +73,55 @@ public class AdvBridge {
         if (scanWatchdog != null && scanWatchdog.isAlive()) return;
     
         scanWatchdog = new Thread(() -> {
-            lastPacketTime = System.currentTimeMillis(); 
+            lastPacketTime = System.currentTimeMillis();
+    
             while (running) {
                 try {
-                    Thread.sleep(2000); 
+                    android.os.SystemClock.sleep(2000);
                     long now = System.currentTimeMillis();
+    
                     if (now - lastPacketTime > 3500) {
                         Log.w(TAG, "Watchdog: Restarting Scan...");
+    
                         BluetoothLeScanner freshScanner = adapter.getBluetoothLeScanner();
+    
                         if (freshScanner != null && callback != null) {
-                            try { freshScanner.stopScan(callback); } catch (Throwable ignore) {}
+    
+                            try {
+                                if (scanner != null) {
+                                    scanner.stopScan(callback);
+                                }
+                            } catch (Throwable ignore) {}
+    
                             Thread.sleep(150);
+    
                             ScanSettings settings = new ScanSettings.Builder()
                                     .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
                                     .setCallbackType(ScanSettings.CALLBACK_TYPE_ALL_MATCHES)
                                     .setMatchMode(ScanSettings.MATCH_MODE_AGGRESSIVE)
                                     .setNumOfMatches(ScanSettings.MATCH_NUM_MAX_ADVERTISEMENT)
                                     .build();
+    
+                            List<ScanFilter> filters = new ArrayList<>();
+                            filters.add(new ScanFilter.Builder().build());
+    
                             try {
-                                freshScanner.startScan(null, settings, callback);
+                                freshScanner.startScan(filters, settings, callback);
                                 scanner = freshScanner;
                                 lastPacketTime = System.currentTimeMillis();
-                            } catch (Throwable t) { Log.e(TAG, "Watchdog Restart failed", t); }
+                            } catch (Throwable t) {
+                                Log.e(TAG, "Watchdog Restart failed", t);
+                            }
                         }
                     }
-                } catch (InterruptedException e) { break; }
+    
+                } catch (InterruptedException e) {
+                    break;
+                }
             }
+    
         }, "AdvScanWatchdog");
+    
         scanWatchdog.setDaemon(true);
         scanWatchdog.start();
     }
@@ -249,9 +271,13 @@ public class AdvBridge {
             }
         };
 
+        List<ScanFilter> filters = new ArrayList<>();
+        filters.add(new ScanFilter.Builder().build());
+        
         startScanWatchdog(ctx, adapter);
+        
         try {
-            scanner.startScan(null, settings, callback);
+            scanner.startScan(filters, settings, callback);
         } catch (Throwable t) {
             running = false;
             return "ERR_SCAN";

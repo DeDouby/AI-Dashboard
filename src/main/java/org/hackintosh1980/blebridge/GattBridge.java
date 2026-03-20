@@ -1,5 +1,4 @@
 package org.hackintosh1980.blebridge;
-
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothGatt;
