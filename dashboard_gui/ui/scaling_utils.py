@@ -1,20 +1,23 @@
-from kivy.core.window import Window
-from kivy.metrics import dp, sp
 import sys
-
+from kivy.config import Config
 
 # -------------------------------------------------------
-# 🖥️ Desktop Window-Startwert (BEVOR compute_ui_scale)
+# 🖥️ DESKTOP INITIALISIERUNG (VOR ALLEM ANDEREN)
 # -------------------------------------------------------
 if sys.platform not in ("android", "ios"):
-    try:
-        Window.size = (1400, 800)
-        Window.minimum_width = 900
-        Window.minimum_height = 600
-    except Exception:
-        pass
+    # Wir setzen die Werte direkt in die Kivy-Config, 
+    # damit sie beim Erstellen des Fensters bereits existieren.
+    Config.set('graphics', 'width', '1400')
+    Config.set('graphics', 'height', '800')
+    Config.set('graphics', 'minimum_width', '900')
+    Config.set('graphics', 'minimum_height', '600')
+    # Das hier verhindert, dass das Fenster beim Starten flackert:
+    Config.set('graphics', 'resizable', '1') 
+    Config.write() # Schreibt es intern fest für diesen Run
 
-
+# Erst JETZT die anderen Kivy-Sachen importieren
+from kivy.core.window import Window
+from kivy.metrics import dp, sp
 # -------------------------------------------------------
 # 🔧 Global UI scale berechnet aus Window DPI/Size
 # -------------------------------------------------------

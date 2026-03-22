@@ -174,18 +174,24 @@ def decode_with_profile(raw_hex, prof):
         he_raw = r16u(b, pos + int(fields["H_e"])) if "H_e" in fields else None
         tl_raw = r16(b, pos + int(fields["T_l"])) if "T_l" in fields else None
         vb_raw = r16u(b, pos + int(fields["V_b"])) if "V_b" in fields else None
-    
+        fr_raw = r16u(b, pos + int(fields["F_r"])) if "F_r" in fields else None
+
         sT = float(prof.get("scale_temperature", 100.0))
         sH = float(prof.get("scale_humidity", 100.0))
         sB = float(prof.get("scale_battery", 100.0))
 
-        # -0.5 Check für externe Sensoren und Blatt
-        te_final = te_raw / sT if (te_raw is not None and te_raw != -50) else None
-        he_final = he_raw / sH if (he_raw is not None and te_raw != -50) else None
-        tl_final = tl_raw / sT if (tl_raw is not None and tl_raw != -50) else None
+# -256.0 Check (Berücksichtigt Skalierung vom ESP32)
+        # Wenn der Rohwert -25600 ist (entspricht -256.0 nach Scale 100)
+        MISSING_VAL = -256.0 * sT 
+
+        te_final = te_raw / sT if (te_raw is not None and te_raw > MISSING_VAL) else None
+        he_final = he_raw / sH if (he_raw is not None and he_raw > MISSING_VAL) else None
+        tl_final = tl_raw / sT if (tl_raw is not None and tl_raw > MISSING_VAL) else None
         
-        ti_final = ti_raw / sT if ti_raw is not None else None
-        hi_final = hi_raw / sH if hi_raw is not None else None
+        # Internal NTC ebenfalls gegen den neuen Standard prüfen
+        ti_final = ti_raw / sT if (ti_raw is not None and ti_raw > MISSING_VAL) else None
+        hi_final = hi_raw / sH if (hi_raw is not None and hi_raw > MISSING_VAL) else None
+
         vb_final = vb_raw / sB if vb_raw is not None else None
 
     except Exception:
@@ -195,7 +201,8 @@ def decode_with_profile(raw_hex, prof):
         "raw": raw_hex,
         "T_i": ti_final, "H_i": hi_final,
         "T_e": te_final, "H_e": he_final,
-        "T_l": tl_final, "V_b": vb_final
+        "T_l": tl_final, "V_b": vb_final,
+        "F_r": fr_raw # <--- RPM zurückgeben
     }
 # -----------------------------------------------
 # MULTI-CHANNEL DECODER (ADV + GATT)
@@ -267,14 +274,21 @@ def decode_channel(entry, raw_key, profile_name,
     
        
 # VPD Leaf Berechnung (Sture Formel gegen Internal Humidity)
+    # --- NEUE VPD LEAF LOGIK (basiert auf Externen Werten) ---
     vpd_l_val = None
-    if T_l is not None and T_i is not None and H_i is not None:
-        # SVP Blatt
+    # Wir brauchen Blatttemp (T_l), sowie externe Lufttemp (T_e) und Luftfeuchte (H_e)
+    if T_l is not None and T_e is not None and H_e is not None:
+        # 1. SVP Blatt (Sättigungsdampfdruck bei Blatttemperatur)
         svp_l = 0.61078 * (10**((7.5 * T_l) / (237.3 + T_l)))
-        # AVP Box-Luft (basierend auf T_i und H_i)
-        svp_i = 0.61078 * (10**((7.5 * T_i) / (237.3 + T_i)))
-        avp_i = svp_i * (H_i / 100.0)
-        vpd_l_val = round(svp_l - avp_i, 3)
+        
+        # 2. AVP Luft (Aktueller Dampfdruck der Umgebungsluft via SHT31)
+        # Zuerst Sättigungsdampfdruck der Umgebungsluft berechnen
+        svp_e = 0.61078 * (10**((7.5 * T_e) / (237.3 + T_e)))
+        # Dann mit der echten Luftfeuchtigkeit (H_e) den tatsächlichen Druck ermitteln
+        avp_e = svp_e * (H_e / 100.0)
+        
+        # 3. Differenz bilden
+        vpd_l_val = round(svp_l - avp_e, 3)
 
     # --- Sauber zurückgeben ---
     return {
@@ -304,6 +318,10 @@ def decode_channel(entry, raw_key, profile_name,
         "vpd_internal": {"value": calculator.vpd_internal(T_i, H_i), "unit": "kPa"},
         "vpd_external": {"value": calculator.vpd_external(T_e, H_e), "unit": "kPa"},
         
+        "fan": {
+            "speed_rpm": decoded.get("F_r", 0),
+            "unit": "RPM"
+        },        
         "battery_voltage": V_b,
 
         "dew_point_internal": {"value": calculator.to_unit(dpi), "unit": unit},

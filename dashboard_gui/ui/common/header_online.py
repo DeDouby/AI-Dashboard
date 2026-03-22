@@ -16,7 +16,6 @@ from kivy.app import App
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.metrics import dp, sp
-from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 import config
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.ui.common.window_picker import WindowPicker
@@ -41,15 +40,15 @@ class IconLabel(Label):
 # -------------------------------------------------------
 # Signal Bars (PNG Version)
 # -------------------------------------------------------
+# --- NACHHER (OPTIMIERT) ---
 class SignalBars(BoxLayout):
     def __init__(self, **kw):
         super().__init__(**kw)
         self.size_hint = (None, 1)
-        self.width = dp_scaled(45) 
-        self.padding = [0, 0] # <--- WICHTIG: Kein Padding mehr hier!
-
+        self.width = dp_scaled(35) # Schmaler machen
+        self.padding = [0, dp_scaled(6)] # Oben/Unten 6dp Platz lassen, macht das Icon kleiner
         self.img = Image(
-            allow_stretch=True,
+            fit_mode="contain",
             keep_ratio=True,
             size_hint=(1, 1), # <--- Auf 1 setzen für maximale Größe
             pos_hint={'center_y': 0.5}
@@ -148,7 +147,34 @@ class ExternalIcon(BoxLayout):
             self.text_label.text = "OFF"
             self.text_label.color = (0.4, 0.4, 0.4, 1)
 
+# -------------------------------------------------------
+# Fan Icon – RPM Status
+# -------------------------------------------------------
+class FanIcon(BoxLayout):
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.orientation = "horizontal"
+        self.spacing = dp_scaled(2)
+        self.size_hint = (None, 1)
+        self.width = dp_scaled(45) 
 
+        self.icon = IconLabel(text="\uf863", font_size=sp_scaled(20))
+        self.add_widget(self.icon)
+        self.set_rpm(0)
+
+    def set_rpm(self, rpm):
+        try:
+            val = float(rpm) if rpm is not None else 0
+        except:
+            val = 0
+
+        # Nur statische Farbanpassung - schont die CPU & die Nerven
+        if val > 100: 
+            self.icon.color = (0.3, 1, 0.3, 1) # Giftgrün (Läuft)
+        else:
+            self.icon.color = (1, 0.2, 0.2, 1) # Knallrot (Stillstand/Fehler)
+
+            
 #######BATTERY
 class BatteryIcon(BoxLayout):
     def __init__(self, **kw):
@@ -217,7 +243,7 @@ class LEDCircle(Widget):
         self._u()
 
     def _u(self, *_):
-        size = dp_scaled(20)
+        size = dp_scaled(16)
         glow = size * 1.6
         ring = size * 1.15
 
@@ -324,7 +350,7 @@ class HeaderBar(BoxLayout):
             source=logo_path,
             size_hint=(None, 1),      # 1 bedeutet: Fülle die volle verfügbare Höhe
             width=dp_scaled(80),      # Gib ihm Platz in der Breite
-            allow_stretch=True,
+            fit_mode="contain",
             keep_ratio=True,
             # Das sorgt dafür, dass es wirklich mittig klebt
             pos_hint={'center_y': 0.5} 
@@ -363,6 +389,7 @@ class HeaderBar(BoxLayout):
         self.signal = SignalBars(size_hint=(0.09, 1))
         self.signal.bind(on_touch_down=self._signal_click)
         self.external = ExternalIcon(size_hint=(0.08, 1))
+        self.fan = FanIcon(size_hint=(0.06, 1)) # NEU
         self.battery = BatteryIcon(size_hint=(0.09, 1))
         self.led = LEDCircle(size_hint=(0.07, 1))
         # Broadcast Button (Inline wiederhergestellt – KEIN Refactoring jetzt!)
@@ -404,6 +431,7 @@ class HeaderBar(BoxLayout):
         self.add_widget(self.signal)
         self.add_widget(self.btn_broadcast) # <--- NEU HIER
         self.add_widget(self.external)
+        self.add_widget(self.fan) # NEU HIER EINREIHEN
         self.add_widget(self.battery) # <--- HIER EINREIHEN
         self.add_widget(self.led)
         self.add_widget(self.lbl_clock)
@@ -465,7 +493,9 @@ class HeaderBar(BoxLayout):
         if self._signal_overlay:
             self._signal_overlay.close()
 
-
+    def set_title(self, title):
+        if hasattr(self, 'lbl_title'):
+            self.lbl_title.text = title
     # ---------------------------------------------------
     # Menu overlay
     # ---------------------------------------------------
@@ -530,8 +560,15 @@ class HeaderBar(BoxLayout):
             self.lbl_dev.text = f"{icon}  {label} [color=777777]· {tag}[/color]"
         else:
             self.lbl_dev.text = "---"
-# ... (dein bestehender Code) ...
-
+        
+        # --- FAN RPM UPDATE ---
+        ch_name = frame.get("channel", "adv")
+        # Wir schauen direkt in den decodierten Kanal-Zweig (adv oder gatt)
+        ch_data = frame.get(ch_name, {})
+        
+        # Hol den Wert aus dem 'fan' Objekt, das dein Decoder liefert
+        rpm = ch_data.get("fan", {}).get("speed_rpm", 0)
+        self.fan.set_rpm(rpm)
         # --- BATTERY UPDATE ---
         health = frame.get("health", {})
         # Wir nehmen die Spannung aus der health-Sektion, die du im Decoder befüllst

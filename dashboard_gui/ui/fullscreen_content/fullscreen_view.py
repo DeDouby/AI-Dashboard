@@ -137,7 +137,12 @@ class FullScreenView(Screen):
             "temp_ex": {"color": [1, 0.4, 0.4, 1], "bg": "tile_bg_temp_out.png"},
             "hum_ex":  {"color": [0.3, 1, 1, 1],   "bg": "tile_bg_hum_out.png"},
             "vpd_ex":  {"color": [0.3, 1, 0.3, 1], "bg": "tile_bg_vpd_out.png"},
+            # ✅ NEU HINZUFÜGEN:
+            "leaf_temp": {"color": [0.2, 0.8, 0.2, 1], "bg": "tile_bg_temp_out.png"},
+            "vpd_leaf":  {"color": [0.6, 1, 0.2, 1],   "bg": "tile_bg_vpd_out.png"},
+            "v_bat":     {"color": [1, 0.8, 0.2, 1],   "bg": "tile_bg_batt.png"},
         }
+        
         
         # Daten holen oder Fallback auf Weiß/Leer
         c_data = config_map.get(tile_id, {"color": [1, 1, 1, 1], "bg": ""})
@@ -147,6 +152,7 @@ class FullScreenView(Screen):
         full_bg_path = os.path.join(asset_path, c_data["bg"]) if c_data["bg"] else ""
         
         return main_color, glow_color, full_bg_path
+
     def activate_tile(self, full_key):
         """Wird beim Klick oder Swipe aufgerufen."""
         print(f"[FS] Aktiviere: {full_key}")
@@ -155,7 +161,22 @@ class FullScreenView(Screen):
         # Tile-ID extrahieren (z.B. temp_in)
         parts = full_key.split("_")
         self.tile_id = "_".join(parts[2:]) if len(parts) > 2 else full_key
-        
+        # -------------- HEADER AKTUALISIEREN --------------
+        if hasattr(GLOBAL_STATE, 'tile_engine'):
+            # Nimm active_tiles aus der Engine
+            readable_name = self.tile_id.replace("_", " ").title()  # fallback
+            # Optional: du könntest hier auch ein Mapping in TileEngine hinterlegen
+            # wenn du fancy Names wie "Temp IN" brauchst
+            if self.tile_id in GLOBAL_STATE.tile_engine.active_tiles:
+                readable_name = self.tile_id.upper() if "vpd" in self.tile_id else self.tile_id.title()
+    
+            # Header setzen
+            # Header setzen
+            if hasattr(self.header, "set_title"):
+                self.header.set_title(readable_name)
+            else:
+                self.header.lbl_title.text = readable_name
+                
         # 1. Metrik-Konfig laden
         main_col, glow_col, bg_path = self._get_metric_config(self.tile_id)
         
@@ -332,3 +353,4 @@ class FullScreenView(Screen):
         if hasattr(GLOBAL_STATE, "ggm"):
             GLOBAL_STATE.ggm.handle_touch("fullscreen", "up", touch)
         return super().on_touch_up(touch)
+    

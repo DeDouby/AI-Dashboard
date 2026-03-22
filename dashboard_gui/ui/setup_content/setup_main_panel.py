@@ -62,7 +62,7 @@ class SetupMainPanel(BoxLayout):
         
         with self.canvas.before:
             if os.path.exists(bg_path):
-                self.bg_img = Image(source=bg_path, allow_stretch=True, keep_ratio=False)
+                self.bg_img = Image(source=bg_path, fit_mode="fill")
                 self.bg = Rectangle(texture=self.bg_img.texture)
             else:
                 # Fallback: einfache Farbe

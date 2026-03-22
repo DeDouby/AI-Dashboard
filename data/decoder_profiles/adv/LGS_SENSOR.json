@@ -1,7 +1,7 @@
 {
   "name": "LGS SENSOR S3",
   "vendor": "LGS",
-  "model": "LGS-S3-DUAL-EXT",
+  "model": "LGS-S3-DUAL-EXT-FAN",
 
   "company_id": 723,
   "mac_len": 0,
@@ -22,6 +22,7 @@
     "H_i": 8,
     "T_l": 10,
     "V_b": 12,
-    "packet": 14
+    "F_r": 14,
+    "packet": 16
   }
 }

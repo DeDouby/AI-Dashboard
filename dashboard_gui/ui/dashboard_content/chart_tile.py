@@ -39,8 +39,15 @@ class ChartTile(ButtonBehavior, BoxLayout):
         # -------------------------------------------------
         # 2. HEADER (Feste Höhe)
         # -------------------------------------------------
-        header = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp_scaled(40))
-        self.lbl_main_info = Label(text=title, markup=True, halign="left", valign="middle")
+        header = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp_scaled(50), padding=[dp_scaled(4), 0])
+        self.lbl_main_info = Label(
+            text=title, 
+            markup=True, 
+            halign="left", 
+            valign="top", # Text oben ausrichten für modernen Look
+            outline_width=1,
+            outline_color=(0,0,0,0.2)
+        )
         self.lbl_main_info.bind(size=self.lbl_main_info.setter('text_size'))
         header.add_widget(self.lbl_main_info)
         self.add_widget(header)
@@ -52,9 +59,12 @@ class ChartTile(ButtonBehavior, BoxLayout):
         
         # 1. Zuerst den Graphen (liegt ganz unten)
         self.graph = Graph(
-            draw_border=False, background_color=(0,0,0,0),
-            padding=dp_scaled(10), xmin=0, xmax=self.window, ymin=0, ymax=1,
-            size_hint=(1, 1), pos_hint={'x': 0, 'y': 0}
+            draw_border=False, 
+            background_color=(0,0,0,0),
+            padding=dp_scaled(15), # Mehr Platz zu den Rändern
+            xmin=0, xmax=self.window, ymin=0, ymax=1,
+            size_hint=(1, 1), 
+            pos_hint={'x': 0, 'y': 0}
         )
         
         self.plot = LinePlot(color=self.color, line_width=dp_scaled(2.2))
@@ -68,26 +78,28 @@ class ChartTile(ButtonBehavior, BoxLayout):
         # AVG (unten rechts)
         self.lbl_avg = Label(
             text="avg: --", 
-            font_size=sp_scaled(16),
-            color=(1, 1, 1, 0.8), # Alpha auf 0.8 für bessere Sichtbarkeit
+            font_size=sp_scaled(13), # Kleiner ist oft edler
+            color=(1, 1, 1, 0.5),    # Halbe Transparenz für Hintergrund-Feeling
             size_hint=(None, None),
-            size=(dp_scaled(140), dp_scaled(20)),
-            pos_hint={'right': 0.98, 'y': 0.05}, 
+            size=(dp_scaled(120), dp_scaled(20)),
+            pos_hint={'right': 0.98, 'top': 0.95}, # Nach oben verschoben
             halign="right"
         )
         self.lbl_avg.bind(size=lambda s, w: setattr(s, 'text_size', (w[0], None)))
 
         # MIN/MAX Box (unten links)
+        # MIN/MAX Box (Unten als horizontale Leiste statt vertikal gequetscht)
         self.minmax_box = BoxLayout(
-            orientation="vertical",
-            size_hint=(None, None),
-            size=(dp_scaled(140), dp_scaled(36)), # Etwas höher für die 16er Schrift
-            pos_hint={'x': 0.05, 'y': 0.05},
-            spacing=dp_scaled(-2)
+            orientation="horizontal", # Horizontal wirkt breiter/stabiler
+            size_hint=(1, None),
+            height=dp_scaled(20),
+            pos_hint={'x': 0, 'y': 0.02},
+            padding=[dp_scaled(10), 0],
+            spacing=dp_scaled(15)
         )
         
-        self.lbl_min = Label(text="min: --", font_size=sp_scaled(16), color=(1,1,1,0.7), halign="left")
-        self.lbl_max = Label(text="max: --", font_size=sp_scaled(16), color=(1,1,1,0.7), halign="left")
+        self.lbl_min = Label(text="min: --", font_size=sp_scaled(16), color=(1,1,1,0.4), halign="left")
+        self.lbl_max = Label(text="max: --", font_size=sp_scaled(16), color=(1,1,1,0.4), halign="left")
         
         for l in [self.lbl_min, self.lbl_max]:
             l.bind(size=lambda s, w: setattr(s, 'text_size', (w[0], None)))
