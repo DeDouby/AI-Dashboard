@@ -160,7 +160,16 @@ class DevicePickerScreen(Screen):
             size_hint_y=None,
             height=dp_scaled(42)
         )
-
+        # 2. NEU: IP-Adresse Input
+        ip_input = TextInput(
+            text=dev.get("ip_address", ""), # Holt die IP aus der Config
+            hint_text="Webserver IP (z.B. 192.168.1.50)",
+            multiline=False,
+            font_size=sp_scaled(16),
+            size_hint_y=None,
+            height=dp_scaled(42),
+            input_filter=None # Erlaubt Punkte und Zahlen
+        )
         # MAC label
         mac_lbl = Label(
             text=mac,
@@ -215,18 +224,25 @@ class DevicePickerScreen(Screen):
             background_color=(0.25, 0.35, 0.30, 1),
         )
 
-        def save_name(*_):
+        def save_device_data(*_):
             import config
             cfg = config._init()
-            cfg.setdefault("devices", {}).setdefault(mac, {})["name"] = name_input.text.strip()
+            device_entry = cfg.setdefault("devices", {}).setdefault(mac, {})
+            
+            # Beides in einem Rutsch speichern
+            device_entry["name"] = name_input.text.strip()
+            device_entry["ip_address"] = ip_input.text.strip()
+            
             config.save(cfg)
-
-        btn.bind(on_release=save_name)
-
+            print(f"[DevicePicker] Saved {mac}: {name_input.text} @ {ip_input.text}")
+    
+        btn.bind(on_release=save_device_data)
+    
+        # Widgets zur Box hinzufügen (Reihenfolge einhalten!)
         box.add_widget(name_input)
+        box.add_widget(ip_input) # IP jetzt unter dem Namen
         box.add_widget(mac_lbl)
         box.add_widget(order_row)
         box.add_widget(btn)
-
-
+    
         return box

@@ -5,6 +5,7 @@
       "adv_decoder": "LGS_SENSOR",
       "gatt_decoder": "",
       "bridge_profile": "",
+      "ip_address": "192.168.2.39",
       "mixed_enabled": true,
       "mixed_external": false
     },
@@ -15,18 +16,26 @@
       "bridge_profile": "Inkbird_Bridge",
       "mixed_enabled": true,
       "mixed_external": false
+    },
+    "FABCEA8B-7EC8-2594-4879-2B3B63989660": {
+      "name": "ThermoBeacon2",
+      "adv_decoder": "ThermoBeacon2_ADV",
+      "gatt_decoder": "",
+      "bridge_profile": "",
+      "mixed_enabled": true,
+      "mixed_external": false
     }
   },
   "bridge_profiles": {},
-  "refresh_interval": 0.1,
+  "refresh_interval": 0.30000000000000004,
   "stale_timeout": 15.0,
   "ui_refresh_interval": 1.0,
-  "tile_graph_window": 3100,
+  "tile_graph_window": 180,
   "temperature_unit": "C",
   "temperature_offset": 0.0,
   "humidity_offset": 0.0,
   "leaf_offset": 0.0,
-  "developer_mode": true,
+  "developer_mode": false,
   "theme": "tiles",
   "lgs_mesh_channel_send": 17,
   "lgs_mesh_channel_recv": 17,

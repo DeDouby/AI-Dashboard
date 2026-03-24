@@ -1,27 +1,20 @@
 # dashboard_gui/engines/tile_engine.py
 
 class TileEngine:
-
     def __init__(self, gsm):
-
         self.gsm = gsm
-
-        # bekannte Tile IDs (metriken)
+        # REIHENFOLGE DER WAHRHEIT
         self.available_tiles = [
-            "temp_in",
-            "hum_in",
-            "vpd_in",
-            "temp_ex",
-            "hum_ex",
-            "leaf_temp",  # NEU
-            "v_bat"       # NEU    
-            "vpd_ex"
-        
+            "temp_in", "hum_in", "vpd_in",
+            "temp_ex", "hum_ex", "vpd_ex",
+            "leaf_temp", "vpd_leaf", 
+            "fan_rpm",  # NEU
+            "v_bat"     # NEU
         ]
-
-
-        # aktuell aktive Tiles (UI synchronisiert diese)
         self.active_tiles = []
+
+
+
 
     # ---------------------------------------------------------
     # UI REGISTRATION

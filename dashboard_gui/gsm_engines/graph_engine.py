@@ -33,17 +33,23 @@ class GraphEngine:
         buf = self.graph_buffers.get(key)
         return list(buf) if buf else [] # KEINE 0.0 DUMMY PUNKTE MEHR!
     def get_stats(self, key):
-        """Liefert avg / min / max eines Graphbuffers."""
+        """Liefert avg / min / max eines Graphbuffers mit Crash-Schutz."""
         buf = self.graph_buffers.get(key)
     
-        if not buf or len(buf) == 0:
+        if not buf or len(buf) < 2:
             return None, None, None
     
         data = list(buf)
-    
         avg = sum(data) / len(data)
         mn = min(data)
         mx = max(data)
+    
+        # 🔥 DER FIX: Verhindert ZeroDivisionError in Kivy-Garden Graph
+        if mn == mx:
+            # Wenn die Werte gleich sind (z.B. Fan steht auf 800 RPM)
+            # geben wir dem Graphen einen winzigen Spielraum zum Rechnen
+            mn -= 0.1
+            mx += 0.1
     
         return avg, mn, mx
     def get_trend_icon(self, key):
@@ -68,17 +74,17 @@ class GraphEngine:
             current_unit = self.gsm.get_unit(key)
             
             # löschen wir den Puffer für diesen Key, damit es keinen Peak gibt.
+# --- UNIT SWITCH LOGIK ---
             if key in self._last_units and self._last_units[key] != current_unit:
                 print(f"[GraphEngine] Unit switch... Resetting buffer for {key}")
-                self.graph_buffers[key].clear()
-                self._trend_buffers[key].clear()
-                if key in self._last_smoothed_values:
-                    del self._last_smoothed_values[key]
                 
-                # SOFORT-FIX: Zwei Punkte einfügen, damit len() sofort > 1 ist
-                self.graph_buffers[key].append(val_float)
-                self.graph_buffers[key].append(val_float)
-            self._last_units[key] = current_unit
+                # Wir löschen nicht nur, wir initialisieren SOFORT mit zwei validen Punkten
+                # Damit len(buf) niemals 0 oder 1 ist, wenn die UI zugreift.
+                self.graph_buffers[key] = deque([val_float, val_float], maxlen=self.window)
+                self._trend_buffers[key] = deque([val_float, val_float], maxlen=self.window)
+                self._last_smoothed_values[key] = val_float
+                self._last_units[key] = current_unit
+                return # In diesem Durchlauf fertig, Struktur ist sicher
             # --- 1. SMOOTHING LOGIK ---
             # TIPP: Mixed-Werte sind schon berechnet, hier Smoothing fast deaktivieren
             f = 0.8 if "mixed" in key else self.smoothing_factor

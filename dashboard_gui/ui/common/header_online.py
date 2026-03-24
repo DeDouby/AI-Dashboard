@@ -23,7 +23,7 @@ from dashboard_gui.ui.common.device_picker_menu import DevicePickerMenu
 from dashboard_gui.ui.common.signal_inspector import SignalInspector
 from dashboard_gui.ui.common.broadcast_button import BroadcastButton
 from dashboard_gui.global_state_manager import GLOBAL_STATE
-
+from dashboard_gui.ui.common.circulation_fan_control import CirculationFanControl
 # -------------------------------------------------------
 # IconLabel
 # -------------------------------------------------------
@@ -147,32 +147,6 @@ class ExternalIcon(BoxLayout):
             self.text_label.text = "OFF"
             self.text_label.color = (0.4, 0.4, 0.4, 1)
 
-# -------------------------------------------------------
-# Fan Icon – RPM Status
-# -------------------------------------------------------
-class FanIcon(BoxLayout):
-    def __init__(self, **kw):
-        super().__init__(**kw)
-        self.orientation = "horizontal"
-        self.spacing = dp_scaled(2)
-        self.size_hint = (None, 1)
-        self.width = dp_scaled(45) 
-
-        self.icon = IconLabel(text="\uf863", font_size=sp_scaled(20))
-        self.add_widget(self.icon)
-        self.set_rpm(0)
-
-    def set_rpm(self, rpm):
-        try:
-            val = float(rpm) if rpm is not None else 0
-        except:
-            val = 0
-
-        # Nur statische Farbanpassung - schont die CPU & die Nerven
-        if val > 100: 
-            self.icon.color = (0.3, 1, 0.3, 1) # Giftgrün (Läuft)
-        else:
-            self.icon.color = (1, 0.2, 0.2, 1) # Knallrot (Stillstand/Fehler)
 
             
 #######BATTERY
@@ -365,7 +339,7 @@ class HeaderBar(BoxLayout):
         
         # TEXT & ICONS
         self.lbl_title = Label(
-            text="Dashboard",
+            text="LGS",
             font_size=sp_scaled(22),
             halign="left",
             size_hint=(0.28, 1)
@@ -389,7 +363,11 @@ class HeaderBar(BoxLayout):
         self.signal = SignalBars(size_hint=(0.09, 1))
         self.signal.bind(on_touch_down=self._signal_click)
         self.external = ExternalIcon(size_hint=(0.08, 1))
-        self.fan = FanIcon(size_hint=(0.06, 1)) # NEU
+        self.fan = CirculationFanControl(
+            parent_header=self,
+            size_hint=(0.06, 1)
+        )
+        
         self.battery = BatteryIcon(size_hint=(0.09, 1))
         self.led = LEDCircle(size_hint=(0.07, 1))
         # Broadcast Button (Inline wiederhergestellt – KEIN Refactoring jetzt!)
@@ -580,11 +558,14 @@ class HeaderBar(BoxLayout):
         self._update_clock()
 
     def set_rssi_from_frame(self, frame):
-        """Aktualisiert die Signal-Balken (PNG-Version)"""
-        # Daten aus dem neuen Paketformat holen
+        health = frame.get("health", {})
+        ch = frame.get("channel", "adv")
         health = frame.get("health", {})
         rssi = health.get("signal", {}).get("rssi")
-        
+        # Wenn Webserver aktiv ist, zeigen wir volle Balken (WLAN ist ja da)
+        if ch == "webserver":
+            self.signal.set_rssi(-50) # Täuscht 5 Balken vor
+            return        
         # Du hast in __init__: self.signal = SignalBars(...)
         # Wir rufen also die Methode der Klasse SignalBars auf
         if rssi is not None:

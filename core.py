@@ -8,7 +8,7 @@ import config
 from bridge_manager import get_bridge
 from watchdog_manager import DumpWatchdog
 from decoder import start_decoder_thread, update_bridge_state
-
+from web_client import WebClientThread
 # ------------------------------------------------------------
 # 🔥 100 % zuverlässige Android-Erkennung
 # ------------------------------------------------------------
@@ -21,7 +21,7 @@ def is_android():
 # globale Instanzen
 _bridge = None
 _watchdog = None
-
+_web_client = None
 
 # ------------------------------------------------------------
 # Watchdog Callback
@@ -131,6 +131,18 @@ def start():
         except Exception as e:
             print("[Core] Bridge start failed:", e)
 
+    
+    # -----------------------------------------------------
+    # WebClient starten (Die neue Datenquelle)
+    # -----------------------------------------------------
+    global _web_client
+    try:
+        _web_client = WebClientThread(interval=config.get_refresh_interval())
+        _web_client.start()
+        print("[Core] WebClient-Thread gestartet")
+    except Exception as e:
+        print("[Core] WebClient start failed:", e)    
+        
     # -----------------------------------------------------
     # Decoder starten (liefert decoded.json)
     # -----------------------------------------------------

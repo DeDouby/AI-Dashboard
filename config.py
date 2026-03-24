@@ -77,6 +77,18 @@ def save(cfg):
     os.replace(tmp, CONFIG_PATH)
 
 
+def get_device_ip(mac):
+    cfg = _init()
+    return cfg.get("devices", {}).get(mac, {}).get("ip_address", "")
+
+def set_device_ip(mac, ip):
+    cfg = _init()
+    devs = cfg.get("devices", {})
+    if mac not in devs:
+        devs[mac] = {}
+    devs[mac]["ip_address"] = ip.strip()
+    save(cfg)
+
 def get_devices():
     cfg = _init()
     devs = cfg.get("devices", {})

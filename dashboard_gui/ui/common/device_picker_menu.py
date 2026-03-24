@@ -176,6 +176,29 @@ class DevicePickerMenu(FloatLayout):
     
         b_gatt.bind(on_release=activate_gatt)
         self.panel_content.add_widget(b_gatt)
+
+        # --- WEBSERVER Button ---
+        b_web = Button(
+            text=f"[font=FA]\uf0ac[/font]  WLAN channel", # Weltkugel Icon
+            font_size=sp_scaled(20),
+            markup=True,
+            size_hint_y=None,
+            height=dp_scaled(50),
+            background_color=(0.15, 0.25, 0.35, 0.55), # Blau-Ton für WLAN
+            color=(0.95, 0.95, 0.98, 1),
+            halign="left",
+            valign="middle",
+            padding=(dp_scaled(15), 0)
+        )
+        b_web.bind(size=lambda inst, val: setattr(inst, 'text_size', (inst.width, None)))
+        
+        def activate_web(*_):
+            GLOBAL_STATE.set_active_channel("webserver")
+            GLOBAL_STATE.data_flow.process_cycle()
+            self.close()
+    
+        b_web.bind(on_release=activate_web)
+        self.panel_content.add_widget(b_web)
     # -----------------------------
     # Menü schließen
     # -----------------------------

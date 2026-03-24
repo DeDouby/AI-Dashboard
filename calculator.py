@@ -53,11 +53,17 @@ def to_unit(temp_c):
 # VPD (kPa)
 # ------------------------------------------------------------
 def _vpd(temp_c, rh):
-    if temp_c is None or rh is None:
-        return None
-    svp = 610.78 * math.exp((17.269 * temp_c) / (temp_c + 237.3))
-    avp = svp * (rh / 100.0)
-    return round((svp - avp) / 1000.0, 3)
+    # Falls rh fehlt, erzwingen wir deine 40.0
+    val_rh = rh if rh is not None else 40.0
+    val_t = temp_c if temp_c is not None else 0.0
+    
+    # Die Formel frisst jetzt alles
+    try:
+        svp = 610.78 * math.exp((17.269 * val_t) / (val_t + 237.3))
+        avp = svp * (val_rh / 100.0)
+        return round((svp - avp) / 1000.0, 3)
+    except:
+        return 999.99 # Falls math.exp explodiert (Overflow)
 
 
 def vpd_internal(T_i, H_i):

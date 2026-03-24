@@ -51,7 +51,10 @@ class GlobalStateManager:
         # Statt 0.5 nehmen wir den Wert aus der Config
         self._main_tick = Clock.schedule_interval(self._global_update, config.get_refresh_interval())
 
-
+        self.fan_rpm = 0
+        self.fan_pct = 0
+        self.active_mode = "man"
+        
         ######REFACTORING!!!!! ENGINES
         self.graph_engine = GraphEngine(self)
         self.ui_handler = UIManager(self)
@@ -95,6 +98,19 @@ class GlobalStateManager:
             print(f"[GSM] Error getting active device id: {e}")
         return None
 
+    def get_active_device_ip(self):
+        """Gibt die IP des aktuell aktiven Geräts zurück."""
+        dev_id = self.get_active_device_id()
+        if not dev_id:
+            return None  # Kein aktives Gerät
+        try:
+            cfg = config._init()
+            devices = cfg.get("devices", {})
+            return devices.get(dev_id, {}).get("ip_address")
+        except Exception as e:
+            print(f"[GSM] Error getting active device IP: {e}")
+            return None
+         
     def get_active_channel(self):
         # Wir delegieren die Anfrage an die tatsächliche Engine
         from dashboard_gui.gsm_engines.active_channel_engine import ACTIVE_CHANNEL

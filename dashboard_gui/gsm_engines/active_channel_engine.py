@@ -13,7 +13,8 @@ class ActiveChannelEngine:
     # Channel Management
     # ---------------------------------------------------------
     def set_active_channel(self, channel):
-        if channel not in ("adv", "gatt"):
+        # ERWEITERT: "webserver" zur Erlaubnisliste hinzufügen
+        if channel not in ("adv", "gatt", "webserver"):
             return
         if channel == self.active_channel:
             return

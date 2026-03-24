@@ -4,13 +4,20 @@ from dashboard_gui.ui.dashboard_content.chart_tile import ChartTile
 from dashboard_gui.ui.scaling_utils import dp_scaled
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 
+from kivy.uix.scrollview import ScrollView
+
 class DashboardMainPanel(GridLayout):
     def __init__(self, **kw):
         super().__init__(**kw)
+        self._gesture_mode = None  # "scroll" oder "swipe"
+        self._start_x = 0
+        self._start_y = 0
         self.cols = 3
         self.spacing = dp_scaled(12)
         self.padding = dp_scaled(12)
-
+        
+        self.size_hint_y = None # Erlaubt dem Panel höher als der Screen zu sein
+        self.bind(minimum_height=self.setter('height'))
         # ---------------------------------------------------
         # 1. TILES INITIALISIEREN
         # ---------------------------------------------------
@@ -25,12 +32,14 @@ class DashboardMainPanel(GridLayout):
         # NEU: External 2 (Blatt) & Batterie
         self.tile_leaf_temp = ChartTile("leaf_temp", "Leaf Temp", "—", [0.2, 0.8, 0.2, 1], bg="tile_bg_hum_out.png")
         self.tile_vpd_leaf  = ChartTile("vpd_leaf", "VPD Leaf", "kPa", [0.6, 1, 0.2, 1], bg="tile_bg_vpd_out.png")
+        # NEU: FAN RPM TILE
+        self.tile_fan_rpm   = ChartTile("fan_rpm", "Fan Speed", "RPM", [0.3, 1, 0.3, 1], bg="tile_bg_fan.png")
         self.tile_v_bat     = ChartTile("v_bat", "Battery", "V", [1, 0.8, 0.2, 1], bg="tile_bg_batt.png")
 
         self.tile_map = {
             "temp_in": self.tile_temp_in, "hum_in": self.tile_hum_in, "vpd_in": self.tile_vpd_in,
             "temp_ex": self.tile_temp_ex, "hum_ex": self.tile_hum_ex, "vpd_ex": self.tile_vpd_ex,
-            "leaf_temp": self.tile_leaf_temp, "vpd_leaf": self.tile_vpd_leaf, "v_bat": self.tile_v_bat
+            "leaf_temp": self.tile_leaf_temp, "vpd_leaf": self.tile_vpd_leaf, "fan_rpm": self.tile_fan_rpm, "v_bat": self.tile_v_bat
         }
 
         for tile in self.tile_map.values():
@@ -71,6 +80,12 @@ class DashboardMainPanel(GridLayout):
                 if ext2.get("leaf_temp", {}).get("value") is not None:       active_keys.append("leaf_temp")
                 if ext2.get("vpd_leaf", {}).get("value") is not None:        active_keys.append("vpd_leaf")
 
+
+            # NEU: FAN SICHTBARKEIT (Prüfen ob fan Objekt und speed_rpm da sind)
+            fan_data = stream.get("fan", {})
+            if fan_data.get("speed_rpm") is not None:
+                active_keys.append("fan_rpm")
+            
             # Batterie
             if stream.get("battery_voltage") is not None:
                 active_keys.append("v_bat")
@@ -112,6 +127,11 @@ class DashboardMainPanel(GridLayout):
                 u(self.tile_leaf_temp, ext2.get("leaf_temp"), "leaf_temp")
                 u(self.tile_vpd_leaf,  ext2.get("vpd_leaf"), "vpd_leaf")
 
+            # NEU: FAN UPDATE
+            fan_rpm = stream.get("fan", {}).get("speed_rpm")
+            if fan_rpm is not None:
+                self.tile_fan_rpm.update(fan_rpm, f"{prefix}_fan_rpm", render=is_active)
+
             # Batterie (Spannung direkt aus dem Stream-Root)
             bat_v = stream.get("battery_voltage")
             if bat_v is not None:
@@ -119,27 +139,68 @@ class DashboardMainPanel(GridLayout):
 
     def _apply_tile_visibility(self, active_keys):
         self.clear_widgets()
+        
+        from kivy.core.window import Window
+        # Header + Footer Abzug (ca. 150dp)
+        offset = dp_scaled(150)
+        available_height = Window.height - offset 
+        
+        num_tiles = len(active_keys)
+        
+        # Standard Abstände
+        base_padding = dp_scaled(12)
+        self.padding = [base_padding, base_padding, base_padding, base_padding]
+        self.spacing = dp_scaled(12)
+
+        # --- DER DYNAMISCHE SWITCH ---
+        if num_tiles <= 3:
+            # SZENARIO 1: 1-3 Kacheln -> ECHTES VOLLBILD (Einreihig)
+            # Nutzt 100% der verfügbaren Höhe
+            row_height = available_height 
+            self.rows = 1
+        else:
+            # SZENARIO 2: Mehr als 3 Kacheln -> 2 REIHEN SICHTBAR (6er Viewport)
+            # Alles was drüber ist, landet automatisch in der ScrollView
+            row_height = available_height / 2
+            self.rows = None # GridLayout darf nach unten wachsen
+
         order = [
             "temp_in", "hum_in", "vpd_in",
             "temp_ex", "hum_ex", "vpd_ex",
-            "leaf_temp", "vpd_leaf", "v_bat"
+            "leaf_temp", "vpd_leaf", "fan_rpm", "v_bat"
         ]
+        
         for key in order:
             if key in active_keys:
-                self.add_widget(self.tile_map[key])
+                t = self.tile_map[key]
+                t.size_hint_y = None
+                # Wir ziehen das vertikale Spacing ab, damit nichts unten rausguckt
+                t.height = row_height - self.spacing[1]
+                self.add_widget(t)
+
 
     # GESTURE DELEGATION
     def on_touch_down(self, touch):
-        if self.collide_point(*touch.pos) and hasattr(GLOBAL_STATE, "ggm"):
-            GLOBAL_STATE.ggm.handle_touch("dashboard", "down", touch)
+        if self.collide_point(*touch.pos):
+            self._gesture_mode = None
+            self._start_x = touch.x
+            self._start_y = touch.y
+    
+            if hasattr(GLOBAL_STATE, "ggm"):
+                GLOBAL_STATE.ggm.handle_touch("dashboard", "down", touch)
+    
         return super().on_touch_down(touch)
 
     def on_touch_move(self, touch):
         if hasattr(GLOBAL_STATE, "ggm"):
-            GLOBAL_STATE.ggm.handle_touch("dashboard", "move", touch)
+            handled = GLOBAL_STATE.ggm.handle_touch("dashboard", "move", touch)
+            if handled:
+                return True
         return super().on_touch_move(touch)
 
     def on_touch_up(self, touch):
         if hasattr(GLOBAL_STATE, "ggm"):
-            GLOBAL_STATE.ggm.handle_touch("dashboard", "up", touch)
+            handled = GLOBAL_STATE.ggm.handle_touch("dashboard", "up", touch)
+            if handled:
+                return True
         return super().on_touch_up(touch)

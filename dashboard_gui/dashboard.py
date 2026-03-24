@@ -8,7 +8,7 @@ import time
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.screenmanager import Screen
 from kivy.metrics import dp
-
+from kivy.uix.scrollview import ScrollView
 import config
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.common.header_online import HeaderBar
@@ -24,14 +24,10 @@ from dashboard_gui.ui.common.header_online import HeaderBar
 ASSET_ROOT = os.path.join("dashboard_gui", "assets")
 
 class DashboardScreen(Screen):
-    name = "dashboard"
-
     def __init__(self, **kw):
         super().__init__(**kw)
-
-        # ROOT Layout
         self.root_layout = BoxLayout(orientation="vertical")
-        
+
         # --- HIER: Hintergrund für den VOLLEN Screen ---
         with self.root_layout.canvas.before:
             from kivy.graphics import Rectangle, Color
@@ -57,14 +53,23 @@ class DashboardScreen(Screen):
         self.header = HeaderBar()
         self.root_layout.add_widget(self.header)
 
-        # MAIN PANEL
-        self.content = DashboardMainPanel(size_hint_y=1)
-        self.root_layout.add_widget(self.content)
-        # nur hinzufügen, ohne Callbacks:
-# NEU (mit Verbindung zur Reset-Logik):
-        self.controls = ControlButtons(
-            on_reset=self.reset_from_global
+        # SCROLLVIEW CONTAINER
+        self.scroll_container = ScrollView(
+            size_hint=(1, 1), # WICHTIG: Nimmt den Platz zwischen Header und Controls ein
+            do_scroll_x=False,
+            do_scroll_y=True,
+            bar_width=dp_scaled(2),
+            scroll_type=['bars', 'content']
         )
+
+        # MAIN PANEL (Das GridLayout)
+        self.content = DashboardMainPanel()
+        self.scroll_container.add_widget(self.content)
+        
+        self.root_layout.add_widget(self.scroll_container)
+
+        # CONTROLS
+        self.controls = ControlButtons(on_reset=self.reset_from_global)
         self.controls.size_hint = (1,None)
         self.controls.height = dp_scaled(40)
         self.controls.pos_hint = {'y':0}

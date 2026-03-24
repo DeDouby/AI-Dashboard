@@ -349,7 +349,6 @@ def offline_channel_frame(raw_hex=None):
             "temperature": {"value": None, "unit": unit},
             "humidity": {"value": None, "unit": "%"},
         },
-        # 🔹 NEU: Auch hier external2 für Konsistenz
         "external2": {
             "present": False,
             "leaf_temp": {"value": None, "unit": unit},
@@ -366,16 +365,25 @@ def offline_channel_frame(raw_hex=None):
         }
     }
 
-
 def offline_frame(mac, prof, now):
+    # Wir holen uns die IP aus der Config für den Frame
+    import config
+    ip = config.get_device_ip(mac)
+
+    off_frame = offline_channel_frame()
+    # Wir setzen die IP in den Webserver-Slot, damit die UI weiß, wo sie suchen könnte
+    web_frame = off_frame.copy()
+    web_frame["ip"] = ip 
+
     return {
         "timestamp": now,
         "device_id": mac,
-        "name": None,
+        "name": config.get_device_name(mac) or None,
 
-        # 🔒 WICHTIG: beide Kanäle IMMER vollständig
-        "adv": offline_channel_frame(),
-        "gatt": offline_channel_frame(),
+        # Die drei Säulen deiner Daten
+        "adv": off_frame,
+        "gatt": off_frame,
+        "webserver": web_frame, # <--- NEU: Die dritte Quelle
 
         "bridge_alive": BRIDGE_ALIVE,
         "bridge_status": BRIDGE_STATUS,
@@ -386,7 +394,7 @@ def offline_frame(mac, prof, now):
 
         "health": {
             "uptime": {"value": None, "unit": "s"},
-            "battery": {"value": None, "unit": "%", "voltage": None},
+            "battery": {"value": None, "unit": "V", "voltage": None},
             "signal": {"rssi": None, "quality": None},
         },
     }
@@ -420,7 +428,16 @@ def step_decode():
 
     if not isinstance(raw_list, list):
         return offline_all(cfg)
-
+    
+    # NEU: Web-Daten laden
+    web_data = {}
+    web_dump_path = os.path.join(DATA, "web_dump.json")
+    if os.path.exists(web_dump_path):
+        try:
+            with open(web_dump_path, "r") as f:
+                web_data = json.load(f)
+        except:
+            pass
     now = time.time()
     if UPTIME_START is None:
         UPTIME_START = now
@@ -437,87 +454,74 @@ def step_decode():
 
     for mac, dev_cfg in devs.items():
         entry = by_mac.get(mac)
+        
+        # --- 2. KANÄLE DECODIEREN ---
+        # ADV & GATT (wie bisher)
+        adv_dec = decode_channel(entry, "adv_raw", dev_cfg.get("adv_decoder", "unknown"), 
+                                 _LAST_ADV_RAW, _LAST_ADV_TS, timeout) if entry else offline_channel_frame()
+        
+        gatt_dec = decode_channel(entry, "gat_raw", dev_cfg.get("gatt_decoder", "unknown"), 
+                                  _LAST_GATT_RAW, _LAST_GATT_TS, timeout, is_gatt=True) if entry else offline_channel_frame()
 
-        # ------------------------------
-        # DEVICE OFFLINE
-        # ------------------------------
-        if entry is None:
-            pname = dev_cfg.get("adv_decoder") or dev_cfg.get("gatt_decoder") or "unknown"
-            prof = load_profile(pname) or {}
-            frames.append(offline_frame(mac, prof, now))
-            continue
+        # --- 3. NEU: WEBSERVER KANAL BEFÜLLEN ---
+# --- 3. NEU: WEBSERVER KANAL BEFÜLLEN ---
+        web_raw = web_data.get(mac)
+        web_dec = offline_channel_frame() # Hier wird die Basis-Struktur geholt
+        
+        # --- Ausschnitt aus deiner decoder.py (step_decode) ---
+        if web_raw:
+            web_dec["alive"] = True
+            web_dec["status"] = "active"
+            
+            # 1. Internal
+            web_dec["internal"]["temperature"]["value"] = calculator.to_unit(web_raw.get("temp_in"))
+            web_dec["internal"]["humidity"]["value"] = web_raw.get("humid_in", 40.0)
+            web_dec["vpd_internal"]["value"] = web_raw.get("vpd_in")
+        
+            # 2. External (Luft)
+            t_e = web_raw.get("temp_ext")
+            h_e = web_raw.get("humid_ext")
+            if t_e is not None:
+                web_dec["external"]["present"] = True
+                web_dec["external"]["temperature"]["value"] = calculator.to_unit(t_e)
+                web_dec["external"]["humidity"]["value"] = h_e
+                web_dec["vpd_external"]["value"] = web_raw.get("vpd_ext")
+        
+            # 3. External2 (Blatt-Daten) -> PASST JETZT ZU BLE
+            t_l = web_raw.get("temp_leaf", t_e) # Fallback auf temp_ext wenn nicht separat
+            v_l = web_raw.get("vpd_leaf")
+            if t_l is not None:
+                web_dec["external2"]["present"] = True
+                web_dec["external2"]["leaf_temp"]["value"] = calculator.to_unit(t_l)
+                web_dec["external2"]["vpd_leaf"]["value"] = v_l
+        
+         
 
-        # ------------------------------
-        # ADV
-        # ------------------------------
-        adv_dec = decode_channel(
-            entry, "adv_raw",
-            dev_cfg.get("adv_decoder", "unknown"),
-            _LAST_ADV_RAW, _LAST_ADV_TS,
-            timeout,
-            is_gatt=False
-        )
+            # --- FIX FÜR DEN KEYERROR ---
+            # Wir stellen sicher, dass "fan" existiert, bevor wir "speed_rpm" setzen
+            if "fan" not in web_dec:
+                web_dec["fan"] = {"speed_rpm": 0, "unit": "RPM"}
+            
+            web_dec["fan"]["speed_rpm"] = web_raw.get("rpm", 0)
+            web_dec["battery_voltage"] = web_raw.get("vbat")
+            
+        # --- 4. FINALER FRAME ---
+        # Alive ist das Gerät, wenn IRGENDEIN Kanal Daten liefert
+        alive = adv_dec.get("alive") or gatt_dec.get("alive") or web_dec.get("alive")
 
-        # ------------------------------
-        # GATT (Counter-Tick relevant)
-        # ------------------------------
-        gatt_dec = decode_channel(
-            entry, "gat_raw",
-            dev_cfg.get("gatt_decoder", "unknown"),
-            _LAST_GATT_RAW, _LAST_GATT_TS,
-            timeout,
-            is_gatt=True
-        )
-
-        # ------------------------------
-        # BEIDE TOT → OFFLINE
-        # ------------------------------
-        if not (adv_dec and adv_dec.get("alive")) and not (gatt_dec and gatt_dec.get("alive")):
-            pname = dev_cfg.get("adv_decoder") or dev_cfg.get("gatt_decoder") or "unknown"
-            prof = load_profile(pname) or {}
-            frames.append(offline_frame(mac, prof, now))
-            continue
-
-        # ------------------------------
-        # DEVICE STATUS
-        # ------------------------------
-        adv_alive  = bool(adv_dec and adv_dec.get("alive"))
-        gatt_alive = bool(gatt_dec and gatt_dec.get("alive"))
-        alive = adv_alive or gatt_alive
-
-        if not adv_alive:
-            adv_dec = offline_channel_frame(entry.get("adv_raw"))
-        if not gatt_alive:
-            gatt_dec = offline_channel_frame(entry.get("gat_raw"))
-
-        # ------------------------------
-        # FINAL FRAME
-        # ------------------------------
-        rssi_value = entry.get("rssi") if alive else None
-        v_bat = adv_dec.get("battery_voltage") or gatt_dec.get("battery_voltage")
         frames.append({
-            "timestamp": entry.get("timestamp"),
+            "timestamp": now,
             "device_id": mac,
-            "name": entry.get("name"),
-
+            "name": dev_cfg.get("name", mac),
             "adv": adv_dec,
             "gatt": gatt_dec,
-
-            "bridge_alive": BRIDGE_ALIVE,
-            "bridge_status": BRIDGE_STATUS,
-            "bridge_last_seen": BRIDGE_LAST_SEEN,
-
+            "webserver": web_dec, # <--- DA IST ER!
             "alive": alive,
             "status": "active" if alive else "offline",
-
             "health": {
                 "uptime": {"value": now - UPTIME_START, "unit": "s"},
-                "battery": {
-                    "value": None, # Wenn du keine %-Kurve hast
-                    "unit": "V",
-                    "voltage": v_bat 
-                },
-                "signal": {"rssi": rssi_value, "quality": None},
+                "battery": {"value": None, "unit": "V", "voltage": web_dec["battery_voltage"] or adv_dec.get("battery_voltage")},
+                "signal": {"rssi": entry.get("rssi") if entry else None, "quality": None},
             }
         })
 
