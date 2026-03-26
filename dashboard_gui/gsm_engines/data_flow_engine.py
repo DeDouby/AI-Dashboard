@@ -42,7 +42,10 @@ class DataFlowEngine:
                 if isinstance(ch_data, dict) and ch_data.get("alive"):
                     self.gsm.metrics_engine.process_metrics(dev_id, ch_type, ch_data)
                     self.gsm.metrics_engine.process_vpd_coords(dev_id, ch_type, ch_data)
-
+            # --- NEU: WEBSERVER METRICS (FEHLT KOMPLETT!) ---
+                web_ch = device_frame.get("webserver", {})
+                if isinstance(web_ch, dict) and web_ch.get("alive"):
+                    self.gsm.metrics_engine.process_webserver_metrics(dev_id, web_ch)
             # RSSI History für den Signal-Inspector (Hintergrund)
             self._update_background_rssi(dev_id, device_frame)
         # --- PHASE 2: UI FOKUS (Aktion für das ausgewählte Gerät) ---

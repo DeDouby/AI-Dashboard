@@ -18,7 +18,7 @@
       "adv_decoder": "Inkbird_ADV_Desktop",
       "gatt_decoder": "Inkbird_GATT",
       "bridge_profile": "Inkbird_Bridge",
-      "mixed_enabled": true,
+      "mixed_enabled": false,
       "mixed_external": false
     },
     "FABCEA8B-7EC8-2594-4879-2B3B63989660": {
