@@ -112,7 +112,7 @@ class FanOverlay(FloatLayout):
                     data = json.load(f).get(mac, {})
                     saved_min = data.get("fan_min", 0)
                     saved_max = data.get("fan_pct", 0)
-                    saved_mode = data.get("mode", "man")
+                    saved_mode = data.get("fan_mode", "man")
                     last_change = data.get("_last_change", 0)
             except: pass
 
@@ -161,7 +161,7 @@ class FanOverlay(FloatLayout):
         self._pending_updates.clear()
 
     def _set_mode(self, mode):
-        self._pending_updates["mode"] = mode
+        self._pending_updates["fan_mode"] = mode
         self._pending_updates["_last_change"] = time.time() # <--- Auch hier Stempel setzen!
         self._sync_to_file(0)
     def _touch_down(self, slider, touch):

@@ -1,6 +1,6 @@
 [
   {
-    "timestamp": 1774492020.21061,
+    "timestamp": 1774496630.120251,
     "device_id": "827482CC-A977-43D7-835E-8E8B6978E66A",
     "name": "LGS_Sensor",
     "adv": {
@@ -140,7 +140,7 @@
       "raw": null,
       "internal": {
         "temperature": {
-          "value": 17.59,
+          "value": 17.6,
           "unit": "\u00b0C"
         },
         "humidity": {
@@ -151,18 +151,18 @@
       "external": {
         "present": true,
         "temperature": {
-          "value": 17.6,
+          "value": 17.65,
           "unit": "\u00b0C"
         },
         "humidity": {
-          "value": 51.9,
+          "value": 52.0,
           "unit": "%"
         }
       },
       "external2": {
         "present": true,
         "leaf_temp": {
-          "value": 17.6,
+          "value": 17.65,
           "unit": "\u00b0C"
         },
         "vpd_leaf": {
@@ -171,7 +171,7 @@
         }
       },
       "vpd_internal": {
-        "value": 1.22,
+        "value": 1.21,
         "unit": "kPa"
       },
       "vpd_external": {
@@ -199,7 +199,7 @@
       },
       "light": {
         "brightness": 0,
-        "mode": "man"
+        "mode": "flicker"
       },
       "fan": {
         "speed_rpm": 480,
@@ -210,7 +210,7 @@
     "status": "active",
     "health": {
       "uptime": {
-        "value": 1814.568440914154,
+        "value": 1139.095725774765,
         "unit": "s"
       },
       "battery": {
@@ -225,7 +225,7 @@
     }
   },
   {
-    "timestamp": 1774492020.21061,
+    "timestamp": 1774496630.120251,
     "device_id": "C898B4F2-B452-7502-1A67-0536E77D49EA",
     "name": "sps",
     "adv": {
@@ -427,7 +427,7 @@
     "status": "offline",
     "health": {
       "uptime": {
-        "value": 1814.568440914154,
+        "value": 1139.095725774765,
         "unit": "s"
       },
       "battery": {
@@ -442,7 +442,7 @@
     }
   },
   {
-    "timestamp": 1774492020.21061,
+    "timestamp": 1774496630.120251,
     "device_id": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
     "name": "ThermoBeacon2",
     "adv": {
@@ -644,7 +644,7 @@
     "status": "offline",
     "health": {
       "uptime": {
-        "value": 1814.568440914154,
+        "value": 1139.095725774765,
         "unit": "s"
       },
       "battery": {

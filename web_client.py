@@ -17,21 +17,22 @@ class WebClientThread(threading.Thread):
         self.first_sync_done = False
 
     def _initial_import(self):
-        """Importiert einmalig die Ist-Werte in die Soll-Datei"""
         if self.first_sync_done: return
-        if not self.current_data: return # Noch keine Daten vom ESP da
+        if not self.current_data: return 
         
         sync_path = self.settings_path
-        # Wir importieren NUR, wenn die Datei noch gar nicht existiert
         if not os.path.exists(sync_path):
-            print("[WebClient] Initialer Import: Erstelle settings_sync.json aus Gerätedaten...")
+            print("[WebClient] Initialer Import: Erstelle settings_sync.json...")
             try:
-                # Wir extrahieren nur die steuerbaren Werte (Licht & Modus)
                 start_settings = {}
                 for mac, data in self.current_data.items():
                     start_settings[mac] = {
                         "light_pct": data.get("light_pct", 0),
-                        "light_mode": data.get("light_mode", "man")
+                        "light_mode": data.get("light_mode", "man"), # Licht-Modus
+                        "fan_pct": data.get("fan_pct", 0),
+                        "fan_min": data.get("fan_min", 0),
+                        "fan_mode": data.get("fan_mode", "man"),             # Fan-Modus
+                        "_last_change": 0
                     }
                 
                 with open(sync_path, "w") as f:
@@ -40,9 +41,7 @@ class WebClientThread(threading.Thread):
             except Exception as e:
                 print(f"Import Error: {e}")
         else:
-            # Datei existiert schon -> User-Settings sind wichtiger!
             self.first_sync_done = True
-
     def run(self):
         while self.running:
             has_changed = self.fetch_all_web_data()
@@ -71,27 +70,31 @@ class WebClientThread(threading.Thread):
                 arduino_status = self.current_data.get(mac, {})
                 if not arduino_status: continue
     
-                # Wann hat der User an DIESEM Handy das letzte Mal was gemacht?
                 last_action = local_settings.get("_last_change", 0)
-                is_user_active = (time.time() - last_action) < 10.0 # 10 Sek. "Macht-Fenster"
+                is_user_active = (time.time() - last_action) < 10.0 
     
-                for key in ["light_pct", "fan_pct", "mode", "fan_min"]:
+                # --- HIER WAR DER FEHLER: light_mode muss mit in die Liste! ---
+                all_keys = ["light_pct", "fan_pct", "fan_mode", "fan_min", "light_mode"]
+                
+                for key in all_keys:
                     if key not in local_settings: continue
                     
                     # Wenn Soll (Lokal) != Ist (Arduino)
                     if local_settings[key] != arduino_status.get(key):
                         if is_user_active:
-                            # FALL 1: User hat gerade geschoben -> Arduino muss folgen!
+                            # User hat die Macht: Befehl an Arduino senden
                             self.send_control(mac, {key: local_settings[key]})
                         else:
-                            # FALL 2: User ist inaktiv -> Arduino ist der Chef, Datei anpassen!
+                            # Arduino hat die Macht: Lokale Datei korrigieren (für das andere Handy)
                             local_settings[key] = arduino_status.get(key)
                             changed_locally = True
     
             if changed_locally:
-                # Speichere die korrigierten Werte lokal, damit der Slider nachzieht
-                with open(self.settings_path, "w") as f:
+                # Atomares Speichern der Korrektur
+                tmp_path = self.settings_path + ".tmp"
+                with open(tmp_path, "w") as f:
                     json.dump(local_data, f)
+                os.replace(tmp_path, self.settings_path)
                     
         except Exception as e:
             print(f"Sync-Conflict-Error: {e}")

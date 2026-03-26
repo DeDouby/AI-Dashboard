@@ -1,1 +1,1 @@
-{"827482CC-A977-43D7-835E-8E8B6978E66A": {"light_pct": 0, "fan_pct": 0, "fan_min": 0, "light_mode": "brth", "mode": "man", "_ts": 1774491830.321555, "_last_change": 1774491915.759586}, "FABCEA8B-7EC8-2594-4879-2B3B63989660": {"light_pct": 0, "_last_change": 1774491809.431377, "fan_pct": 29, "fan_min": 0}}
+{"827482CC-A977-43D7-835E-8E8B6978E66A": {"fan_mode": "nat", "_last_change": 1774496585.904403, "_ts": 1774496536.07308, "light_mode": "flicker", "fan_pct": 0, "fan_min": 0, "light_pct": 0}}
