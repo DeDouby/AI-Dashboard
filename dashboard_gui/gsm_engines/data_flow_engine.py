@@ -53,7 +53,14 @@ class DataFlowEngine:
         idx = min(active_idx, len(data)-1)
         d = data[idx] 
         d["channel"] = ch_name 
+                # --- WEB DATA MERGE (CLEAN FIX) ---
+        from web_client import WEB_CLIENT
         
+        mac = d.get("device_id")
+        if mac:
+            web_data = WEB_CLIENT.current_data.get(mac)
+            if web_data:
+                d["web"] = web_data
         dev_id = d.get("device_id")
         ch = d.get(ch_name, {})
         

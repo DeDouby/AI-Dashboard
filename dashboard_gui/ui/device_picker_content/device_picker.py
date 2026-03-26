@@ -170,6 +170,31 @@ class DevicePickerScreen(Screen):
             height=dp_scaled(42),
             input_filter=None # Erlaubt Punkte und Zahlen
         )
+
+        # User Input
+        user_input = TextInput(
+            text=dev.get("auth", {}).get("user", ""),
+            hint_text="Username",
+            multiline=False,
+            font_size=sp_scaled(16),
+            size_hint_y=None,
+            height=dp_scaled(42)
+        )
+        
+        # Password Input
+        pass_input = TextInput(
+            text=dev.get("auth", {}).get("pass", ""),
+            hint_text="Password",
+            password=True,
+            multiline=False,
+            font_size=sp_scaled(16),
+            size_hint_y=None,
+            height=dp_scaled(42)
+        )
+        
+        # Box einfügen
+
+
         # MAC label
         mac_lbl = Label(
             text=mac,
@@ -229,18 +254,25 @@ class DevicePickerScreen(Screen):
             cfg = config._init()
             device_entry = cfg.setdefault("devices", {}).setdefault(mac, {})
             
-            # Beides in einem Rutsch speichern
             device_entry["name"] = name_input.text.strip()
             device_entry["ip_address"] = ip_input.text.strip()
             
+            # NEU: Auth speichern
+            device_entry["auth"] = {
+                "user": user_input.text.strip(),
+                "pass": pass_input.text.strip()
+            }
+            
             config.save(cfg)
-            print(f"[DevicePicker] Saved {mac}: {name_input.text} @ {ip_input.text}")
+            print(f"[DevicePicker] Saved {mac}: {name_input.text} @ {ip_input.text} ({user_input.text})")
     
         btn.bind(on_release=save_device_data)
     
         # Widgets zur Box hinzufügen (Reihenfolge einhalten!)
         box.add_widget(name_input)
         box.add_widget(ip_input) # IP jetzt unter dem Namen
+        box.add_widget(user_input)
+        box.add_widget(pass_input)
         box.add_widget(mac_lbl)
         box.add_widget(order_row)
         box.add_widget(btn)

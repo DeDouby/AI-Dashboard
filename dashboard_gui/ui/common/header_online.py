@@ -24,6 +24,8 @@ from dashboard_gui.ui.common.signal_inspector import SignalInspector
 from dashboard_gui.ui.common.broadcast_button import BroadcastButton
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.common.circulation_fan_control import CirculationFanControl
+from dashboard_gui.ui.common.exhaust_fan_control import ExhaustFanControl  # <--- NEU
+from dashboard_gui.ui.common.light_control import LightControl
 # -------------------------------------------------------
 # IconLabel
 # -------------------------------------------------------
@@ -342,7 +344,8 @@ class HeaderBar(BoxLayout):
             text="LGS",
             font_size=sp_scaled(22),
             halign="left",
-            size_hint=(0.28, 1)
+            size_hint=(0.28, 1),
+            width=dp_scaled(80)  # Maximal 120dp breit
         )
         
         self.lbl_dev = Button(
@@ -367,7 +370,18 @@ class HeaderBar(BoxLayout):
             parent_header=self,
             size_hint=(0.06, 1)
         )
-        
+        # NEU: Exhaust Fan Instanz
+        self.exhaust = ExhaustFanControl(
+            parent_header=self,
+            size_hint=(0.06, 1)
+        )
+        # NEU: Light Control
+        self.light = LightControl(
+            parent_header=self,
+            size_hint=(0.06, 1)
+        )
+
+
         self.battery = BatteryIcon(size_hint=(0.09, 1))
         self.led = LEDCircle(size_hint=(0.07, 1))
         # Broadcast Button (Inline wiederhergestellt – KEIN Refactoring jetzt!)
@@ -410,6 +424,8 @@ class HeaderBar(BoxLayout):
         self.add_widget(self.btn_broadcast) # <--- NEU HIER
         self.add_widget(self.external)
         self.add_widget(self.fan) # NEU HIER EINREIHEN
+        self.add_widget(self.exhaust)  # Abluft (NEU)
+        self.add_widget(self.light)    # Licht (Neu)
         self.add_widget(self.battery) # <--- HIER EINREIHEN
         self.add_widget(self.led)
         self.add_widget(self.lbl_clock)
@@ -531,19 +547,39 @@ class HeaderBar(BoxLayout):
             
             # Hier holen wir den Kanal aus dem Frame, den ACE & DataFlowEngine gesetzt haben
             ch = frame.get("channel", "adv")
-            tag = str(ch).upper()
+            if ch == "webserver":
+                tag = "WEB"
+            else:
+                tag = str(ch).upper()
             
             icon = "[font=FA]\uf2c7[/font]"
             # Wir setzen das Label NUR HIER
             self.lbl_dev.text = f"{icon}  {label} [color=777777]· {tag}[/color]"
         else:
             self.lbl_dev.text = "---"
-        
-        # --- FAN RPM UPDATE ---
+
+        # --- DATEN AUS DEM AKTIVEN KANAL HOLEN ---
         ch_name = frame.get("channel", "adv")
-        # Wir schauen direkt in den decodierten Kanal-Zweig (adv oder gatt)
-        ch_data = frame.get(ch_name, {})
+        ch_data = frame.get(ch_name, {})        
         
+        
+        # --- LICHT UPDATE (FIXED) ---
+        # --- LICHT UPDATE (HYBRID) ---
+        web = frame.get("web", {})
+        ch_data = frame.get(frame.get("channel", "adv"), {})
+        
+        light_val = web.get("light_pct")
+        
+        if light_val is None:
+            light_val = ch_data.get("light", {}).get("brightness")
+        
+        self.light.set_status(light_val)
+        
+        # 2. Abluft RPM (Exhaust) 
+               
+        # ACHTUNG: Prüfe ob dein Decoder "exhaust_fan" oder "exhaust" nutzt!
+        rpm_ex = ch_data.get("exhaust_fan", {}).get("speed_rpm", 0)
+        self.exhaust.set_rpm(rpm_ex)  ######noch ungenutzt!!!!
         # Hol den Wert aus dem 'fan' Objekt, das dein Decoder liefert
         rpm = ch_data.get("fan", {}).get("speed_rpm", 0)
         self.fan.set_rpm(rpm)

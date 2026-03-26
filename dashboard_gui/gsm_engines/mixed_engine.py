@@ -58,53 +58,44 @@ class MixedEngine:
     
             active_modes = self.gsm.mixed_device_modes.get(dev_id, {"internal"})
     
-            for ch_name in ("adv", "gatt"):
+            for ch_name in ("adv", "gatt", "webserver"):
                 ch = frame.get(ch_name)
                 if not isinstance(ch, dict):
                     continue
-    
                 for mode in active_modes:
-                    vals = ch.get(mode)
+                    vals = ch.get(mode, {})
                     if not isinstance(vals, dict):
                         continue
-    
-                    temp_node = vals.get("temperature", {})
-                    hum_node = vals.get("humidity", {})
-    
-                    t = temp_node.get("value")
-                    h = hum_node.get("value")
-    
+            
+                    # Temperatur
+                    t = vals.get("temperature", {}).get("value")
                     if t is not None:
                         averaging_map["temp"].append(float(t))
                         if unit_map["temp"] is None:
-                            unit_map["temp"] = temp_node.get("unit")
-    
+                            unit_map["temp"] = vals.get("temperature", {}).get("unit")
+            
+                    # Luftfeuchte
+                    h = vals.get("humidity", {}).get("value")
                     if h is not None:
                         averaging_map["hum"].append(float(h))
                         if unit_map["hum"] is None:
-                            unit_map["hum"] = hum_node.get("unit")
-    
-                    v_key = f"vpd_{mode}"
-                    d_key = f"dew_point_{mode}"
-    
-                    v_node = ch.get(v_key, {})
-                    d_node = ch.get(d_key, {})
-    
-                    v = v_node.get("value")
-                    d = d_node.get("value")
-    
+                            unit_map["hum"] = vals.get("humidity", {}).get("unit")
+            
+                    # VPD
+                    v = ch.get(f"vpd_{mode}", {}).get("value")
                     if v is not None:
                         averaging_map["vpd"].append(float(v))
                         if unit_map["vpd"] is None:
-                            unit_map["vpd"] = v_node.get("unit")
-    
+                            unit_map["vpd"] = ch.get(f"vpd_{mode}", {}).get("unit")
+            
+                    # Taupunkt
+                    d = ch.get(f"dew_point_{mode}", {}).get("value")
                     if d is not None:
                         averaging_map["dew"].append(float(d))
                         if unit_map["dew"] is None:
-                            unit_map["dew"] = d_node.get("unit")
-    
-            active_device_ids.append(dev_id)
-    
+                            unit_map["dew"] = ch.get(f"dew_point_{mode}", {}).get("unit")
+        
+        active_device_ids.append(dev_id)
         # -----------------------------------------------
         # Ergebnisse berechnen
         # -----------------------------------------------

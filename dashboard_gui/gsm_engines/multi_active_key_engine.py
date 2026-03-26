@@ -19,10 +19,11 @@ class MultiActiveKeyEngine:
         """
         active: Set[str] = set()
 
-        for ch_name in ("adv", "gatt"):
+        for ch_name in ("adv", "gatt", "webserver"):
             ch = frame.get(ch_name)
             if not isinstance(ch, dict):
                 continue
+            # interne/externe Werte prüfen wie bisher
 
             internal = ch.get("internal", {})
             external = ch.get("external", {})

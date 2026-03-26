@@ -1,6 +1,6 @@
 [
   {
-    "timestamp": 1774378649.3138418,
+    "timestamp": 1774492020.21061,
     "device_id": "827482CC-A977-43D7-835E-8E8B6978E66A",
     "name": "LGS_Sensor",
     "adv": {
@@ -140,42 +140,42 @@
       "raw": null,
       "internal": {
         "temperature": {
-          "value": 17.67,
+          "value": 17.59,
           "unit": "\u00b0C"
         },
         "humidity": {
-          "value": 40.0,
+          "value": 0,
           "unit": "%"
         }
       },
       "external": {
         "present": true,
         "temperature": {
-          "value": 18.49,
+          "value": 17.6,
           "unit": "\u00b0C"
         },
         "humidity": {
-          "value": 53.0,
+          "value": 51.9,
           "unit": "%"
         }
       },
       "external2": {
         "present": true,
         "leaf_temp": {
-          "value": 18.49,
+          "value": 17.6,
           "unit": "\u00b0C"
         },
         "vpd_leaf": {
-          "value": 0.88,
+          "value": 0.85,
           "unit": "kPa"
         }
       },
       "vpd_internal": {
-        "value": 1.19,
+        "value": 1.22,
         "unit": "kPa"
       },
       "vpd_external": {
-        "value": 1.0,
+        "value": 0.97,
         "unit": "kPa"
       },
       "battery_voltage": 4.01,
@@ -197,8 +197,12 @@
           "y": null
         }
       },
+      "light": {
+        "brightness": 0,
+        "mode": "man"
+      },
       "fan": {
-        "speed_rpm": 990,
+        "speed_rpm": 480,
         "unit": "RPM"
       }
     },
@@ -206,7 +210,7 @@
     "status": "active",
     "health": {
       "uptime": {
-        "value": 1257.920899629593,
+        "value": 1814.568440914154,
         "unit": "s"
       },
       "battery": {
@@ -221,7 +225,7 @@
     }
   },
   {
-    "timestamp": 1774378649.3138418,
+    "timestamp": 1774492020.21061,
     "device_id": "C898B4F2-B452-7502-1A67-0536E77D49EA",
     "name": "sps",
     "adv": {
@@ -423,7 +427,7 @@
     "status": "offline",
     "health": {
       "uptime": {
-        "value": 1257.920899629593,
+        "value": 1814.568440914154,
         "unit": "s"
       },
       "battery": {
@@ -438,7 +442,7 @@
     }
   },
   {
-    "timestamp": 1774378649.3138418,
+    "timestamp": 1774492020.21061,
     "device_id": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
     "name": "ThermoBeacon2",
     "adv": {
@@ -640,7 +644,7 @@
     "status": "offline",
     "health": {
       "uptime": {
-        "value": 1257.920899629593,
+        "value": 1814.568440914154,
         "unit": "s"
       },
       "battery": {

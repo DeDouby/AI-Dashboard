@@ -1,38 +1,100 @@
-import threading, time, requests, json, os
+import threading
+import time
+import requests
+import json
+import os
 import config
 
 class WebClientThread(threading.Thread):
-    def __init__(self, interval=1.0):
+    def __init__(self, interval=1.3):
         super().__init__(daemon=True)
         self.interval = interval
         self.running = True
         self.path = os.path.join(config.DATA, "web_dump.json")
-        self._last_ts = {}  # Merkt sich, wann welches Gerät zuletzt online war
-        self.current_data = self._load_initial_data()
-        self.first_run = True 
+        self.current_data = {} # RAM-Cache für das Overlay
+        self._last_ts = {}
+        self.settings_path = os.path.join(config.DATA, "settings_sync.json")
+        self.first_sync_done = False
 
-    def _load_initial_data(self):
-        if os.path.exists(self.path):
+    def _initial_import(self):
+        """Importiert einmalig die Ist-Werte in die Soll-Datei"""
+        if self.first_sync_done: return
+        if not self.current_data: return # Noch keine Daten vom ESP da
+        
+        sync_path = self.settings_path
+        # Wir importieren NUR, wenn die Datei noch gar nicht existiert
+        if not os.path.exists(sync_path):
+            print("[WebClient] Initialer Import: Erstelle settings_sync.json aus Gerätedaten...")
             try:
-                with open(self.path, "r", encoding="utf-8") as f:
-                    return json.load(f)
-            except: pass
-        return {}
+                # Wir extrahieren nur die steuerbaren Werte (Licht & Modus)
+                start_settings = {}
+                for mac, data in self.current_data.items():
+                    start_settings[mac] = {
+                        "light_pct": data.get("light_pct", 0),
+                        "light_mode": data.get("light_mode", "man")
+                    }
+                
+                with open(sync_path, "w") as f:
+                    json.dump(start_settings, f, indent=2)
+                self.first_sync_done = True
+            except Exception as e:
+                print(f"Import Error: {e}")
+        else:
+            # Datei existiert schon -> User-Settings sind wichtiger!
+            self.first_sync_done = True
 
     def run(self):
         while self.running:
-            # 1. Daten abrufen
             has_changed = self.fetch_all_web_data()
             
-            # 2. Prüfen, ob Geräte "stale" (abgelaufen) sind
-            was_cleaned = self._cleanup_stale_data()
+            # NEU: Einmalig beim Start schauen
+            if not self.first_sync_done:
+                self._initial_import()
             
-            # 3. Schreiben wenn: Erster Lauf ODER Daten neu ODER Gerät abgelaufen
-            if has_changed or was_cleaned or self.first_run:
+            # Danach wie gehabt: Soll-Zustand erzwingen
+            self._sync_settings_to_devices()
+            
+            if has_changed:
                 self._save_to_disk()
-                self.first_run = False 
-                
             time.sleep(self.interval)
+
+    # Im WebClientThread
+    def _sync_settings_to_devices(self):
+        if not os.path.exists(self.settings_path): return
+        
+        try:
+            with open(self.settings_path, "r") as f:
+                local_data = json.load(f)
+                
+            changed_locally = False
+            for mac, local_settings in local_data.items():
+                arduino_status = self.current_data.get(mac, {})
+                if not arduino_status: continue
+    
+                # Wann hat der User an DIESEM Handy das letzte Mal was gemacht?
+                last_action = local_settings.get("_last_change", 0)
+                is_user_active = (time.time() - last_action) < 10.0 # 10 Sek. "Macht-Fenster"
+    
+                for key in ["light_pct", "fan_pct", "mode", "fan_min"]:
+                    if key not in local_settings: continue
+                    
+                    # Wenn Soll (Lokal) != Ist (Arduino)
+                    if local_settings[key] != arduino_status.get(key):
+                        if is_user_active:
+                            # FALL 1: User hat gerade geschoben -> Arduino muss folgen!
+                            self.send_control(mac, {key: local_settings[key]})
+                        else:
+                            # FALL 2: User ist inaktiv -> Arduino ist der Chef, Datei anpassen!
+                            local_settings[key] = arduino_status.get(key)
+                            changed_locally = True
+    
+            if changed_locally:
+                # Speichere die korrigierten Werte lokal, damit der Slider nachzieht
+                with open(self.settings_path, "w") as f:
+                    json.dump(local_data, f)
+                    
+        except Exception as e:
+            print(f"Sync-Conflict-Error: {e}")
 
     def fetch_all_web_data(self):
         changed = False
@@ -44,41 +106,46 @@ class WebClientThread(threading.Thread):
             ip = dev_cfg.get("ip_address", "").strip()
             if not ip: continue
             
-            url = f"http://{ip}/data"
+            user, pw = config.get_device_auth(mac)
             try:
-                response = requests.get(url, timeout=1.5, headers={
-                    'User-Agent': 'Mobile-ESP-App',
-                    'Connection': 'close'
-                })
-                
-                if response.status_code == 200:
-                    new_payload = response.json()
-                    self._last_ts[mac] = now # Zeitstempel aktualisieren
-                    
-                    if self.current_data.get(mac) != new_payload:
-                        self.current_data[mac] = new_payload
+                r = requests.get(f"http://{ip}/data", timeout=1.0, 
+                                 auth=(user, pw) if user and pw else None)
+                if r.status_code == 200:
+                    payload = r.json()
+                    self._last_ts[mac] = now
+                    if self.current_data.get(mac) != payload:
+                        self.current_data[mac] = payload
                         changed = True
             except:
-                # Bei Fehler (ESP offline) machen wir hier nichts, 
-                # cleanup_stale_data übernimmt das Löschen nach Timeout
                 continue
         return changed
 
+    def send_control(self, mac, payload):
+        """Wird vom Overlay aufgerufen, um Befehle zu senden"""
+        def _async_send():
+            cfg = config._init()
+            ip = cfg.get("devices", {}).get(mac, {}).get("ip_address", "")
+            user, pw = config.get_device_auth(mac)
+            if not ip: return
+            try:
+                requests.post(f"http://{ip}/control", json=payload, timeout=2.0, 
+                              auth=(user, pw) if user and pw else None)
+            except Exception as e:
+                print(f"[WebClient] Send-Error: {e}")
+        
+        threading.Thread(target=_async_send, daemon=True).start()
+
     def _cleanup_stale_data(self):
-        """ Entfernt abgelaufene Geräte und gibt True zurück, wenn gelöscht wurde """
         cleaned = False
         now = time.time()
         timeout = float(config.get_stale_timeout())
-        
-        # Liste der MACs, die zu lange nicht gesehen wurden
         stale_macs = [mac for mac, ts in self._last_ts.items() if (now - ts) > timeout]
-        
         for mac in stale_macs:
             if mac in self.current_data:
                 del self.current_data[mac]
                 del self._last_ts[mac]
                 cleaned = True
-                print(f"python: [WebClient] {mac} is STALE. Removing from dump.")
+                print(f"[WebClient] {mac} is STALE. Removed.")
         return cleaned
 
     def _save_to_disk(self):
@@ -89,4 +156,20 @@ class WebClientThread(threading.Thread):
                 json.dump(self.current_data, f, indent=2)
             os.replace(tmp_path, self.path)
         except Exception as e:
-            print(f"python: [WebClient] Write-Error: {e}")
+            print(f"[WebClient] Write-Error: {e}")
+    def sync_with_arduino_master(self, mac):
+        # 1. Hol den aktuellen Status vom ESP32 (enthält Ist UND Soll)
+        server_data = self.fetch_from_esp(mac) 
+        local_settings = self.load_local_settings(mac)
+    
+        # 2. Konflikt-Lösung (Wer gewinnt?)
+        # Wir führen einen "Last-Action-Timestamp" ein.
+        if local_settings.get("timestamp") > server_data.get("last_change"):
+            # Local gewinnt: Schicke Änderung zum ESP
+            self.send_to_esp(mac, local_settings)
+        else:
+            # Server gewinnt: Update die lokale Datei, damit der Slider nachzieht
+            self.update_local_file(mac, server_data)
+# --- WICHTIG: Erst NACH der Klasse instanziieren ---
+WEB_CLIENT = WebClientThread()
+WEB_CLIENT.start()

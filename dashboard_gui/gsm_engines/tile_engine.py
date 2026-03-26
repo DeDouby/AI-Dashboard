@@ -60,30 +60,34 @@ class TileEngine:
     # ---------------------------------------------------------
 
     def get_next_full_key(self, current_full_key, direction):
-        """
-        Idiotensicher: Zerlegt den Key, sucht den Nachbarn in der 'Wahrheit'
-        und baut den neuen Key zusammen.
-        """
         if not self.active_tiles:
             return current_full_key
 
         try:
-            parts = current_full_key.split("_")
-            dev_id = parts[0]
-            channel = parts[1]
-            current_tile_id = "_".join(parts[2:])
+            # Wir suchen, welches Tile aus 'active_tiles' im Key steckt
+            found_tile = None
+            for tile in self.active_tiles:
+                if current_full_key.endswith(tile):
+                    found_tile = tile
+                    break
             
-            # Index in der Liste der Wahrheit finden
-            if current_tile_id in self.active_tiles:
-                idx = self.active_tiles.index(current_tile_id)
-                new_idx = (idx + direction) % len(self.active_tiles)
-            else:
-                # Falls wir auf einem Tile sind, das gerade verschwunden ist
-                new_idx = 0
+            if not found_tile:
+                # Fallback: Wenn wir das Tile nicht identifizieren können
+                return current_full_key
+
+            # Präfix isolieren (Alles vor dem Tile-Namen, inkl. dem Unterstrich davor)
+            prefix = current_full_key[:-(len(found_tile) + 1)]
+            
+            # Index bestimmen
+            idx = self.active_tiles.index(found_tile)
+            new_idx = (idx + direction) % len(self.active_tiles)
             
             next_tile_id = self.active_tiles[new_idx]
-            return f"{dev_id}_{channel}_{next_tile_id}"
-        except:
+            
+            # Neuer Key: Präfix + Unterstrich + neues Tile
+            return f"{prefix}_{next_tile_id}"
+        except Exception as e:
+            print(f"[TileEngine] Navigation Error: {e}")
             return current_full_key
         
         def get_first_tile_key(self, dev_id, channel):

@@ -76,6 +76,19 @@ def save(cfg):
         json.dump(cfg, f, indent=2, ensure_ascii=False)
     os.replace(tmp, CONFIG_PATH)
 
+def get_device_auth(mac):
+    cfg = _init()
+    dev = cfg.get("devices", {}).get(mac, {})
+    auth = dev.get("auth", {})
+    return auth.get("user"), auth.get("pass")
+
+def set_device_auth(mac, user, pw):
+    """Speichert user/pass für ein Gerät"""
+    cfg = _init()
+    devs = cfg.setdefault("devices", {})
+    dev_entry = devs.setdefault(mac, {})
+    dev_entry["auth"] = {"user": user, "pass": pw}
+    save(cfg)
 
 def get_device_ip(mac):
     cfg = _init()

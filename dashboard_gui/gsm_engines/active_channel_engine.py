@@ -5,7 +5,7 @@ import core
 class ActiveChannelEngine:
     def __init__(self, gatt_config_engine):
         self.active_index = 0
-        self.active_channel = "adv"
+        self.active_channel = "webserver"
         self._last_counter = None
         self.gatt_config_engine = gatt_config_engine
 

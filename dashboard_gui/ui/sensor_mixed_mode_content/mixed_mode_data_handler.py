@@ -62,18 +62,16 @@ class MixedModeDataHandler:
         t_vals, h_vals, v_vals, d_vals = [], [], [], []
         
         # Wir prüfen beide Übertragungswege (Advertising und GATT)
-        for ch_name in ("adv", "gatt"):
+        for ch_name in ("adv", "gatt", "webserver"):
             ch = frame.get(ch_name, {})
             for mode in active_modes:
-                # Sensor-Daten für den Modus (z.B. 'internal') holen
                 m_data = ch.get(mode, {})
-                
+            
                 t = m_data.get("temperature", {}).get("value")
                 h = m_data.get("humidity", {}).get("value")
-                # VPD und Dew Point liegen oft direkt im Channel-Zweig
                 v = ch.get(f"vpd_{mode}", {}).get("value")
                 d = ch.get(f"dew_{mode}", {}).get("value")
-                
+            
                 if t is not None: t_vals.append(float(t))
                 if h is not None: h_vals.append(float(h))
                 if v is not None: v_vals.append(float(v))

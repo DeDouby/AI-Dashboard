@@ -85,6 +85,9 @@ class GlobalStateManager:
         """Triggert den Sync-Vorgang im UI Manager an."""
         self.ui_handler._refresh_all_buttons()
 
+    def get_active_device_mac(self):
+        """Alias für get_active_device_id, da diese die MAC zurückgibt."""
+        return self.get_active_device_id()
     def get_active_device_id(self):
         """Gibt die ID des aktuell angewählten Geräts zurück."""
         try:

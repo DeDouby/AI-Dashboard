@@ -469,40 +469,46 @@ def step_decode():
         web_dec = offline_channel_frame() # Hier wird die Basis-Struktur geholt
         
         # --- Ausschnitt aus deiner decoder.py (step_decode) ---
+        # In decoder.py innerhalb von step_decode bei "3. NEU: WEBSERVER KANAL BEFÜLLEN"
+        
         if web_raw:
             web_dec["alive"] = True
             web_dec["status"] = "active"
             
-            # 1. Internal
-            web_dec["internal"]["temperature"]["value"] = calculator.to_unit(web_raw.get("temp_in"))
-            web_dec["internal"]["humidity"]["value"] = web_raw.get("humid_in", 40.0)
-            web_dec["vpd_internal"]["value"] = web_raw.get("vpd_in")
+            # Einheit holen
+            unit = f"°{config.get_temperature_unit().upper()}"
         
-            # 2. External (Luft)
-            t_e = web_raw.get("temp_ext")
-            h_e = web_raw.get("humid_ext")
-            if t_e is not None:
-                web_dec["external"]["present"] = True
-                web_dec["external"]["temperature"]["value"] = calculator.to_unit(t_e)
-                web_dec["external"]["humidity"]["value"] = h_e
-                web_dec["vpd_external"]["value"] = web_raw.get("vpd_ext")
+            # WICHTIG: Immer als Dict {'value': x, 'unit': y} verpacken!
+            web_dec["internal"] = {
+                "temperature": {"value": web_raw.get("temp_in"), "unit": unit},
+                "humidity": {"value": web_raw.get("humid_in", 0), "unit": "%"}
+            }
+            web_dec["vpd_internal"] = {"value": web_raw.get("vpd_in"), "unit": "kPa"}
         
-            # 3. External2 (Blatt-Daten) -> PASST JETZT ZU BLE
-            t_l = web_raw.get("temp_leaf", t_e) # Fallback auf temp_ext wenn nicht separat
-            v_l = web_raw.get("vpd_leaf")
-            if t_l is not None:
-                web_dec["external2"]["present"] = True
-                web_dec["external2"]["leaf_temp"]["value"] = calculator.to_unit(t_l)
-                web_dec["external2"]["vpd_leaf"]["value"] = v_l
+            # External
+            te = web_raw.get("temp_ext")
+            he = web_raw.get("humid_ext")
+            web_dec["external"] = {
+                "present": te is not None,
+                "temperature": {"value": te, "unit": unit},
+                "humidity": {"value": he, "unit": "%"}
+            }
+            web_dec["vpd_external"] = {"value": web_raw.get("vpd_ext"), "unit": "kPa"}
         
-         
-
-            # --- FIX FÜR DEN KEYERROR ---
-            # Wir stellen sicher, dass "fan" existiert, bevor wir "speed_rpm" setzen
-            if "fan" not in web_dec:
-                web_dec["fan"] = {"speed_rpm": 0, "unit": "RPM"}
-            
-            web_dec["fan"]["speed_rpm"] = web_raw.get("rpm", 0)
+            # External 2 (Blatt)
+            tl = web_raw.get("temp_leaf") or web_raw.get("temp_ext") # Fallback
+            web_dec["external2"] = {
+                "present": tl is not None,
+                "leaf_temp": {"value": tl, "unit": unit},
+                "vpd_leaf": {"value": web_raw.get("vpd_leaf"), "unit": "kPa"}
+            }
+            # Neu: Licht-Status für das Overlay mit aufnehmen
+            web_dec["light"] = {
+                "brightness": web_raw.get("light_pct", 0),
+                "mode": web_raw.get("light_mode", "man")
+            }
+            # Fan & Batterie
+            web_dec["fan"] = {"speed_rpm": web_raw.get("rpm", 0), "unit": "RPM"}
             web_dec["battery_voltage"] = web_raw.get("vbat")
             
         # --- 4. FINALER FRAME ---
