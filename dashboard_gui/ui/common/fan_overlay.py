@@ -80,6 +80,7 @@ class FanOverlay(FloatLayout):
         btn_close = Button(text="FERTIG", size_hint_y=None, height=dp_scaled(45), background_color=(0.2, 0.2, 0.2, 1), bold=True)
         btn_close.bind(on_release=lambda *_: self.close())
         self.panel.add_widget(btn_close)
+        Clock.schedule_once(self._init_values, 0)
         self.add_widget(self.panel)
 
     def _create_styled_btn(self, text):
@@ -164,6 +165,8 @@ class FanOverlay(FloatLayout):
         self._pending_updates["fan_mode"] = mode
         self._pending_updates["_last_change"] = time.time() # <--- Auch hier Stempel setzen!
         self._sync_to_file(0)
+        self.update_ui()  # 🔥 direkt Feedback
+
     def _touch_down(self, slider, touch):
         if slider.collide_point(*touch.pos): self._user_active = True
 
@@ -182,3 +185,45 @@ class FanOverlay(FloatLayout):
         if self._sync_event: self._sync_event.cancel()
         if self.parent: self.parent.remove_widget(self)
         GLOBAL_STATE.ui_handler.active_fan_overlay = None
+
+    def _init_values(self, *_):
+        mac = GLOBAL_STATE.get_active_device_id()
+        if not mac:
+            return
+    
+        saved_min = 0
+        saved_max = 0
+        saved_mode = "man"
+    
+        # 1. settings_sync.json lesen
+        if os.path.exists(self.sync_path):
+            try:
+                with open(self.sync_path, "r") as f:
+                    data = json.load(f).get(mac, {})
+                    saved_min = data.get("fan_min", 0)
+                    saved_max = data.get("fan_pct", 0)
+                    saved_mode = data.get("fan_mode", "man")
+            except:
+                pass
+    
+        # 2. FALLBACK → LIVE DATEN (KRITISCH)
+        if saved_max == 0:
+            live = WEB_CLIENT.current_data.get(mac, {})
+            if live:
+                saved_max = live.get("fan_pct", saved_max)
+                saved_min = live.get("fan_min", saved_min)
+    
+        # 3. SOFORT setzen → KEIN FLASH
+        self.slider_min.value = saved_min
+        self.slider_max.value = saved_max
+        self.lbl_val.text = f"{int(saved_min)}% - {int(saved_max)}%"
+    
+        # Buttons setzen
+        self.btn_man.background_color = (0, 1, 0, 0.6) if saved_mode == "man" else (0.2, 0.2, 0.2, 1)
+        self.btn_nat.background_color = (0, 1, 0, 0.6) if saved_mode == "nat" else (0.2, 0.2, 0.2, 1)
+        self.btn_chao.background_color = (0, 1, 0, 0.6) if saved_mode == "chao" else (0.2, 0.2, 0.2, 1)
+    
+        # RPM direkt setzen (Bonus)
+        server_data = WEB_CLIENT.current_data.get(mac)
+        if server_data:
+            self.lbl_rpm.text = f"RPM: {server_data.get('rpm', 0)}"

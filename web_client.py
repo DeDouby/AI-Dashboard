@@ -46,15 +46,18 @@ class WebClientThread(threading.Thread):
         while self.running:
             has_changed = self.fetch_all_web_data()
             
-            # NEU: Einmalig beim Start schauen
+            # 🔥 NEU: STALE CLEANUP (KRITISCH)
+            cleaned = self._cleanup_stale_data()
+            
             if not self.first_sync_done:
                 self._initial_import()
             
-            # Danach wie gehabt: Soll-Zustand erzwingen
             self._sync_settings_to_devices()
             
-            if has_changed:
+            # 🔥 wichtig: auch bei cleanup speichern!
+            if has_changed or cleaned:
                 self._save_to_disk()
+                
             time.sleep(self.interval)
 
     # Im WebClientThread
@@ -66,27 +69,31 @@ class WebClientThread(threading.Thread):
                 local_data = json.load(f)
                 
             changed_locally = False
+            now = time.time()
+
             for mac, local_settings in local_data.items():
                 arduino_status = self.current_data.get(mac, {})
                 if not arduino_status: continue
     
                 last_action = local_settings.get("_last_change", 0)
-                is_user_active = (time.time() - last_action) < 10.0 
+                # "Macht-Fenster": Hat der User in den letzten 10 Sek. was getan?
+                is_user_active = (now - last_action) < 10.0 
     
-                # --- HIER WAR DER FEHLER: light_mode muss mit in die Liste! ---
                 all_keys = ["light_pct", "fan_pct", "fan_mode", "fan_min", "light_mode"]
                 
+                # In WebClientThread._sync_settings_to_devices
                 for key in all_keys:
                     if key not in local_settings: continue
                     
-                    # Wenn Soll (Lokal) != Ist (Arduino)
                     if local_settings[key] != arduino_status.get(key):
                         if is_user_active:
-                            # User hat die Macht: Befehl an Arduino senden
+                            # User schiebt gerade -> Befehl an Arduino
                             self.send_control(mac, {key: local_settings[key]})
                         else:
-                            # Arduino hat die Macht: Lokale Datei korrigieren (für das andere Handy)
+                            # User ist inaktiv -> Arduino-Wert in Datei übernehmen
                             local_settings[key] = arduino_status.get(key)
+                            # CRITICAL FIX: Stempel löschen, damit Overlay nicht "frisch" triggert
+                            local_settings["_last_change"] = 0 
                             changed_locally = True
     
             if changed_locally:
@@ -98,7 +105,6 @@ class WebClientThread(threading.Thread):
                     
         except Exception as e:
             print(f"Sync-Conflict-Error: {e}")
-
     def fetch_all_web_data(self):
         changed = False
         cfg = config._init()

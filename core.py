@@ -45,7 +45,21 @@ def _cleanup_decoded():
             print("[Core] decoded.json entfernt")
     except:
         pass
+# ------------------------------------------------------------
+# web_dump.json löschen / clean
+# ------------------------------------------------------------
+def _cleanup_web_dump():
+    try:
+        import json
+        path = os.path.join(config.DATA, "web_dump.json")
 
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump({}, f)  # ⚠️ WICHTIG: dict, nicht Liste!
+
+        print(f"[Core] web_dump.json geleert: {path}")
+
+    except Exception as e:
+        print("[Core] web_dump cleanup failed:", e)
 # ------------------------------------------------------------
 # ble_log_dump.json löschen / clean
 # ------------------------------------------------------------
@@ -98,7 +112,7 @@ def start():
     _cleanup_decoded()
     _cleanup_ble_dump()
     _cleanup_ble_log_dump() 
-
+    _cleanup_web_dump()   # 🔥 NEU
     # -----------------------------------------------------
     # Android Foreground Service starten
     # -----------------------------------------------------

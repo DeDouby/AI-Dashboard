@@ -32,7 +32,6 @@ class LightOverlay(FloatLayout):
         bg.bind(on_release=lambda *_: self.close())
         self.add_widget(bg)
         # Im Overlay beim Ändern:
-        self._pending_updates["_ts"] = time.time()
         # 2. DAS PANEL
         self.panel = BoxLayout(
             orientation="vertical", 
@@ -101,7 +100,7 @@ class LightOverlay(FloatLayout):
         )
         btn_close.bind(on_release=lambda *_: self.close())
         self.panel.add_widget(btn_close)
-        
+        Clock.schedule_once(self._init_values, 0)
         self.add_widget(self.panel)
 
     def _create_styled_btn(self, text):
@@ -110,25 +109,27 @@ class LightOverlay(FloatLayout):
 
     def _on_slider_change(self, instance, value):
         self.lbl_val.text = f"{int(value)}%"
-        # Grow Berechnungen
+        # Grow Stats (Berechnung bleibt, aber Logik ist jetzt Fan-Style)
         ppfd = int(value * 12)
         dli = (ppfd * 0.0864) * 0.75
         self.lbl_ppfd.text = f"PPFD: {ppfd} µmol/m²/s"
         self.lbl_dli.text = f"DLI: {dli:.1f} mol/m²/d"
-        # In Pending-Specher für Sync
+
+        # EXAKT WIE BEIM FAN:
+        now = time.time()
         self._pending_updates["light_pct"] = int(value)
-        self._pending_updates["_last_change"] = time.time()
-        
+        self._pending_updates["_last_change"] = now  # <--- Der "Macht-Stempel"
+        self._last_user_action = now
+
     def update_ui(self, *_):
         if self._user_active: return 
         
         mac = GLOBAL_STATE.get_active_device_id()
         if not mac: return
 
-        # 1. Wir holen uns die PERSISTENTEN Einstellungen
+        # 1. Daten aus settings_sync.json (Soll-Werte)
+        saved_val, saved_mode, last_change = 0, "man", 0
         sync_path = os.path.join(config.DATA, "settings_sync.json")
-        saved_val = 0
-        saved_mode = "man"
         
         if os.path.exists(sync_path):
             try:
@@ -136,21 +137,27 @@ class LightOverlay(FloatLayout):
                     data = json.load(f).get(mac, {})
                     saved_val = data.get("light_pct", 0)
                     saved_mode = data.get("light_mode", "man")
+                    last_change = data.get("_last_change", 0)
             except: pass
 
-        # 2. Slider wird NUR auf den gespeicherten Wert gesetzt
+        # 2. Das "Macht-Fenster" (Fan-Logik: 8.0 Sekunden)
+        is_fresh = (time.time() - last_change) < 8.0
+
         if not self._pending_updates:
+            # Wenn der User NICHT schiebt, Slider auf gespeicherten Wert
             self.slider.value = saved_val
             
-            # Button-Farben basierend auf gespeicherten Settings
+            # Button Farben
             self.btn_man.background_color = (0, 1, 0, 0.6) if saved_mode == "man" else (0.2, 0.2, 0.2, 1)
             self.btn_brth.background_color = (0, 1, 0, 0.6) if saved_mode == "brth" else (0.2, 0.2, 0.2, 1)
             self.btn_flck.background_color = (0, 1, 0, 0.6) if saved_mode == "flicker" else (0.2, 0.2, 0.2, 1)
 
-        # 3. OPTIONAL: Anzeige des echten Status vom Gerät (als kleiner Text/Label)
-        # actual_val = WEB_CLIENT.current_data.get(mac, {}).get("light_pct", 0)
-        # self.lbl_actual.text = f"Ist: {actual_val}%"
-    # In LightOverlay._sync_to_client
+        # Echtzeit-Daten (PPFD/DLI) immer aktuell vom Server zeigen
+        server_data = WEB_CLIENT.current_data.get(mac)
+        if server_data:
+            # Hier zeigen wir die echten Ist-Werte vom Gerät
+            actual_pct = server_data.get('light_pct', 0)
+            # Optional: Hier könnte man ein "Ist: X%" Label füttern
     def _sync_to_client(self, dt):
         if not self._pending_updates: return
         mac = GLOBAL_STATE.get_active_device_id()
@@ -189,6 +196,7 @@ class LightOverlay(FloatLayout):
         self._pending_updates["light_mode"] = mode 
         self._pending_updates["_last_change"] = time.time()
         self._sync_to_client(0)
+        self.update_ui()  # 🔥 direkt Feedback
 
     def _touch_down(self, slider, touch):
         if slider.collide_point(*touch.pos): self._user_active = True
@@ -208,3 +216,38 @@ class LightOverlay(FloatLayout):
         if self._sync_event: self._sync_event.cancel()
         if self.parent: self.parent.remove_widget(self)
         GLOBAL_STATE.ui_handler.active_light_overlay = None
+
+    def _init_values(self, *_):
+        mac = GLOBAL_STATE.get_active_device_id()
+        if not mac:
+            return
+    
+        saved_val = 0
+        saved_mode = "man"
+    
+        sync_path = os.path.join(config.DATA, "settings_sync.json")
+    
+        # 1. settings_sync versuchen
+        if os.path.exists(sync_path):
+            try:
+                with open(sync_path, "r") as f:
+                    data = json.load(f).get(mac, {})
+                    saved_val = data.get("light_pct", 0)
+                    saved_mode = data.get("light_mode", "man")
+            except:
+                pass
+    
+        # 2. FALLBACK → LIVE DATEN (KRITISCH)
+        if saved_val == 0:
+            live_val = WEB_CLIENT.current_data.get(mac, {}).get("light_pct")
+            if live_val is not None:
+                saved_val = live_val
+    
+        # 3. SOFORT setzen (kein 0% mehr sichtbar)
+        self.slider.value = saved_val
+        self.lbl_val.text = f"{int(saved_val)}%"
+    
+        # Buttons
+        self.btn_man.background_color = (0, 1, 0, 0.6) if saved_mode == "man" else (0.2, 0.2, 0.2, 1)
+        self.btn_brth.background_color = (0, 1, 0, 0.6) if saved_mode == "brth" else (0.2, 0.2, 0.2, 1)
+        self.btn_flck.background_color = (0, 1, 0, 0.6) if saved_mode == "flicker" else (0.2, 0.2, 0.2, 1)
