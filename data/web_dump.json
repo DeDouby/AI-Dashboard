@@ -1,17 +1,17 @@
 {
   "827482CC-A977-43D7-835E-8E8B6978E66A": {
-    "temp_in": 17.29,
-    "temp_ext": 17.19,
-    "humid_ext": 47.2,
-    "vpd_ext": 1.03,
-    "rpm": 0,
-    "fan_pct": 12,
-    "fan_min": 12,
+    "temp_in": 16.91,
+    "temp_ext": 17.84,
+    "humid_ext": 45.8,
+    "vpd_ext": 1.11,
+    "rpm": 900,
+    "fan_pct": 100,
+    "fan_min": 0,
     "vbat": 4.01,
-    "vpd_leaf": 0.91,
-    "vpd_in": 1.17,
-    "light_pct": 83,
-    "light_mode": "brth",
-    "fan_mode": "man"
+    "vpd_leaf": 0.97,
+    "vpd_in": 1.15,
+    "light_pct": 0,
+    "light_mode": "man",
+    "fan_mode": "nat"
   }
 }
