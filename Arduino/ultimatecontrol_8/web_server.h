@@ -1,0 +1,16 @@
+#ifndef WEB_SERVER_H
+#define WEB_SERVER_H
+
+#include <WiFi.h>
+#include <WebServer.h>
+
+// Wir machen den Server extern verfügbar, falls andere Module ihn brauchen
+extern WebServer server;
+
+namespace WebModule {
+    void init(const char* ssid, const char* password);
+    void update();
+    bool isConnected();
+}
+
+#endif

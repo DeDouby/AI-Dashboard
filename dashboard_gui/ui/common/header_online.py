@@ -253,12 +253,21 @@ class LEDCircle(Widget):
             self._pulse()
 
     def _apply(self, s):
-        if s in ("nodata", "stale"):
+        # Wenn wir im Flow/Stale sind, aber aktiv (Webserver online), 
+        # nutzen wir ein sattes Grün als Basis, kein Gelb.
+        if s == "stale":
+            # Hier kannst du entscheiden: 
+            # Gelb (1, 0.8, 0) für "Daten stehen, aber alt"
+            # Oder ein gedimmtes Grün (0, 0.6, 0) für "Web-Verbindung steht"
+            self._set_color(0, 0.6, 0) 
+            return
+            
+        if s == "nodata":
             self._set_color(1, 0.8, 0); return
         if s == "error":
             self._set_color(1, 0, 0); return
         if s == "offline":
-            self._set_color(0.9, 0.1, 0.1); return
+            self._set_color(0.4, 0.1, 0.1); return # Dunkles Rot
 
         self._set_color(0.5, 0.5, 0.5)
 
@@ -275,7 +284,7 @@ class LEDCircle(Widget):
         self.glow_color.a = 0.45
 
         self._pulse_event = Clock.schedule_once(
-            lambda *_: self._end(), 0.20
+            lambda *_: self._end(), 0.2
         )
 
     def _end(self, *_):

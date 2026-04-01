@@ -11,100 +11,63 @@ class WebClientThread(threading.Thread):
         self.interval = interval
         self.running = True
         self.path = os.path.join(config.DATA, "web_dump.json")
-        self.current_data = {} # RAM-Cache für das Overlay
+        self.current_data = {} 
         self._last_ts = {}
         self.settings_path = os.path.join(config.DATA, "settings_sync.json")
         self.first_sync_done = False
+        self.ready = False
 
     def _initial_import(self):
-        if self.first_sync_done: return
-        if not self.current_data: return 
+        if self.first_sync_done or not self.current_data: return 
         
-        sync_path = self.settings_path
-        if not os.path.exists(sync_path):
-            print("[WebClient] Initialer Import: Erstelle settings_sync.json...")
+        if not os.path.exists(self.settings_path):
             try:
                 start_settings = {}
                 for mac, data in self.current_data.items():
+                    # FIX: Wir nehmen den Modus, den der ESP32 meldet!
+                    reported_mode = data.get("light_mode", "man") 
+                    
                     start_settings[mac] = {
-                        "light_pct": data.get("light_pct", 0),
-                        "light_mode": data.get("light_mode", "man"), # Licht-Modus
-                        "fan_pct": data.get("fan_pct", 0),
-                        "fan_min": data.get("fan_min", 0),
-                        "fan_mode": data.get("fan_mode", "man"),             # Fan-Modus
+                        "light_pct": data.get("light_target", 0),
+                        "light_mode": reported_mode, # NICHT mehr fest "man"
+                        "l_start_h": data.get("light_timer_start", 480) // 60,
+                        "l_start_m": data.get("light_timer_start_m", 0), # NEU: Minuten
+                        "l_dur": data.get("light_timer_dur", 12),
+                        "l_sun": data.get("light_sunrise_min", 30),      # NEU: Sunrise
+                        "rev": int(data.get("rev", 0)),
                         "_last_change": 0
                     }
-                
-                with open(sync_path, "w") as f:
+                with open(self.settings_path, "w") as f:
                     json.dump(start_settings, f, indent=2)
                 self.first_sync_done = True
             except Exception as e:
-                print(f"Import Error: {e}")
-        else:
-            self.first_sync_done = True
+                print(f"[WebClient] Import Error: {e}")
+
     def run(self):
         while self.running:
-            has_changed = self.fetch_all_web_data()
-            
-            # 🔥 NEU: STALE CLEANUP (KRITISCH)
-            cleaned = self._cleanup_stale_data()
-            
-            if not self.first_sync_done:
-                self._initial_import()
-            
-            self._sync_settings_to_devices()
-            
-            # 🔥 wichtig: auch bei cleanup speichern!
-            if has_changed or cleaned:
-                self._save_to_disk()
+            try:
+                # Intervall dynamisch aus Config holen
+                current_interval = config.get_refresh_interval()
                 
-            time.sleep(self.interval)
-
-    # Im WebClientThread
+                has_changed = self.fetch_all_web_data()
+                cleaned = self._cleanup_stale_data()
+                
+                if not self.first_sync_done:
+                    self._initial_import()
+                
+                self._sync_settings_to_devices()
+                
+                if has_changed or cleaned:
+                    self._save_to_disk()
+                    
+                time.sleep(current_interval) # Nutze das Intervall aus der Config
+            except Exception as e:
+                print(f"[WebClient] Loop Error: {e}")
+                time.sleep(1) # Kurze Pause bei Fehler
     def _sync_settings_to_devices(self):
-        if not os.path.exists(self.settings_path): return
-        
-        try:
-            with open(self.settings_path, "r") as f:
-                local_data = json.load(f)
-                
-            changed_locally = False
-            now = time.time()
-
-            for mac, local_settings in local_data.items():
-                arduino_status = self.current_data.get(mac, {})
-                if not arduino_status: continue
-    
-                last_action = local_settings.get("_last_change", 0)
-                # "Macht-Fenster": Hat der User in den letzten 10 Sek. was getan?
-                is_user_active = (now - last_action) < 10.0 
-    
-                all_keys = ["light_pct", "fan_pct", "fan_mode", "fan_min", "light_mode"]
-                
-                # In WebClientThread._sync_settings_to_devices
-                for key in all_keys:
-                    if key not in local_settings: continue
-                    
-                    if local_settings[key] != arduino_status.get(key):
-                        if is_user_active:
-                            # User schiebt gerade -> Befehl an Arduino
-                            self.send_control(mac, {key: local_settings[key]})
-                        else:
-                            # User ist inaktiv -> Arduino-Wert in Datei übernehmen
-                            local_settings[key] = arduino_status.get(key)
-                            # CRITICAL FIX: Stempel löschen, damit Overlay nicht "frisch" triggert
-                            local_settings["_last_change"] = 0 
-                            changed_locally = True
-    
-            if changed_locally:
-                # Atomares Speichern der Korrektur
-                tmp_path = self.settings_path + ".tmp"
-                with open(tmp_path, "w") as f:
-                    json.dump(local_data, f)
-                os.replace(tmp_path, self.settings_path)
-                    
-        except Exception as e:
-            print(f"Sync-Conflict-Error: {e}")
+        # RADIKALER SCHNITT: Python synchronisiert NICHTS mehr im Hintergrund.
+        # Python ist nur noch der Postbote für die UI.
+        pass
     def fetch_all_web_data(self):
         changed = False
         cfg = config._init()
@@ -114,71 +77,128 @@ class WebClientThread(threading.Thread):
         for mac, dev_cfg in devices.items():
             ip = dev_cfg.get("ip_address", "").strip()
             if not ip: continue
-            
             user, pw = config.get_device_auth(mac)
             try:
-                r = requests.get(f"http://{ip}/data", timeout=1.0, 
-                                 auth=(user, pw) if user and pw else None)
+                r = requests.get(f"http://{ip}/data", timeout=1.0, auth=(user, pw) if user else None)
                 if r.status_code == 200:
                     payload = r.json()
+                    
+                    # --- DER FIX: ZEITSTEMPEL IMMER INJIZIEREN ---
+                    # Wir fügen den Zeitstempel DIREKT in das Payload ein,
+                    # bevor wir es vergleichen oder speichern.
+                    payload["timestamp"] = now 
+                    
                     self._last_ts[mac] = now
-                    if self.current_data.get(mac) != payload:
-                        self.current_data[mac] = payload
-                        changed = True
-            except:
+                    
+                    # Wir speichern es jetzt immer, damit der Zeitstempel 
+                    # in der DataFlowEngine als "neu" erkannt wird.
+                    self.current_data[mac] = payload
+                    changed = True
+            except Exception as e:
+                # print(f"Error fetching {mac}: {e}")
                 continue
+                
+        self.ready = True
         return changed
 
     def send_control(self, mac, payload):
-        """Wird vom Overlay aufgerufen, um Befehle zu senden"""
+        if not hasattr(self, '_ignore_until'): self._ignore_until = {}
+        self._ignore_until[mac] = time.time() + 3.0
+    
+        # 🔥 NEU: REV LOCAL SPEICHERN
+        if "rev" in payload:
+            try:
+                data = {}
+                if os.path.exists(self.settings_path):
+                    with open(self.settings_path, "r") as f:
+                        data = json.load(f)
+    
+                if mac not in data:
+                    data[mac] = {}
+    
+                data[mac]["rev"] = int(payload["rev"])
+    
+                with open(self.settings_path, "w") as f:
+                    json.dump(data, f, indent=2)
+            except Exception as e:
+                print(f"[REV SAVE ERROR]: {e}")
         def _async_send():
             cfg = config._init()
             ip = cfg.get("devices", {}).get(mac, {}).get("ip_address", "")
             user, pw = config.get_device_auth(mac)
             if not ip: return
             try:
-                requests.post(f"http://{ip}/control", json=payload, timeout=2.0, 
-                              auth=(user, pw) if user and pw else None)
-            except Exception as e:
-                print(f"[WebClient] Send-Error: {e}")
-        
+                requests.post(f"http://{ip}/control", json=payload, timeout=2.0, auth=(user, pw) if user else None)
+            except: pass
         threading.Thread(target=_async_send, daemon=True).start()
 
+    def _save_to_disk(self):
+        if not self.current_data:
+            return 
+    
+        tmp_path = self.path + ".tmp"
+        try:
+            # 1. Sicherstellen, dass das Verzeichnis existiert (Prävention)
+            os.makedirs(os.path.dirname(self.path), exist_ok=True)
+
+            # 2. Schreiben
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                json.dump(self.current_data, f)
+                f.flush()
+                os.fsync(f.fileno()) 
+            
+            # 3. Atomares Ersetzen mit Retry-Logik
+            # Falls macOS/Spotlight die Datei kurz sperrt, versuchen wir es 3x
+            for i in range(3):
+                try:
+                    if os.path.exists(tmp_path):
+                        os.replace(tmp_path, self.path)
+                        break
+                except OSError:
+                    time.sleep(0.05) # 50ms warten
+        except Exception as e:
+            print(f"[WebClient] Kritischer Speicherfehler: {e}")
+            # Falls die .tmp Datei verwaist ist, versuchen wir sie zu löschen
+            try:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            except: pass
     def _cleanup_stale_data(self):
         cleaned = False
         now = time.time()
-        timeout = float(config.get_stale_timeout())
-        stale_macs = [mac for mac, ts in self._last_ts.items() if (now - ts) > timeout]
-        for mac in stale_macs:
-            if mac in self.current_data:
-                del self.current_data[mac]
-                del self._last_ts[mac]
-                cleaned = True
-                print(f"[WebClient] {mac} is STALE. Removed.")
+        
+        # Hol den Wert dynamisch aus der Config (Standard 15.0, falls was schiefgeht)
+        timeout = config.get_stale_timeout()
+        
+        # Jetzt mit dem variablen Timeout vergleichen
+        stale_macs = [m for m, ts in self._last_ts.items() if (now - ts) > timeout]
+        
+        for m in stale_macs:
+            # Sicherheitscheck: Nur löschen, wenn es wirklich existiert
+            if m in self.current_data:
+                del self.current_data[m]
+            if m in self._last_ts:
+                del self._last_ts[m]
+            cleaned = True
+            
+        if cleaned:
+            print(f"[WebClient] Cleaned {len(stale_macs)} stale devices (Timeout: {timeout}s)")
+            
         return cleaned
 
-    def _save_to_disk(self):
+    def is_synced(self, mac):
+        if mac not in self.current_data: return False
+
         try:
-            os.makedirs(os.path.dirname(self.path), exist_ok=True)
-            tmp_path = self.path + ".tmp"
-            with open(tmp_path, "w", encoding="utf-8") as f:
-                json.dump(self.current_data, f, indent=2)
-            os.replace(tmp_path, self.path)
-        except Exception as e:
-            print(f"[WebClient] Write-Error: {e}")
-    def sync_with_arduino_master(self, mac):
-        # 1. Hol den aktuellen Status vom ESP32 (enthält Ist UND Soll)
-        server_data = self.fetch_from_esp(mac) 
-        local_settings = self.load_local_settings(mac)
-    
-        # 2. Konflikt-Lösung (Wer gewinnt?)
-        # Wir führen einen "Last-Action-Timestamp" ein.
-        if local_settings.get("timestamp") > server_data.get("last_change"):
-            # Local gewinnt: Schicke Änderung zum ESP
-            self.send_to_esp(mac, local_settings)
-        else:
-            # Server gewinnt: Update die lokale Datei, damit der Slider nachzieht
-            self.update_local_file(mac, server_data)
-# --- WICHTIG: Erst NACH der Klasse instanziieren ---
+            with open(self.settings_path, "r") as f:
+                local_rev = json.load(f).get(mac, {}).get("rev", 0)
+            return int(self.current_data[mac].get("rev", -1)) == int(local_rev)
+        except: return False
+    # Pseudo-Code für deinen WebClient
+    def on_success(self, mac, response_json):
+        # Füge einen Zeitstempel hinzu, falls nicht vorhanden
+        if "timestamp" not in response_json:
+            response_json["timestamp"] = time.time()
+        self.current_data[mac] = response_json
 WEB_CLIENT = WebClientThread()
 WEB_CLIENT.start()

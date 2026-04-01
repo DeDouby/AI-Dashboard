@@ -67,7 +67,8 @@ def load_profile(name):
     for p in candidates:
         if os.path.exists(p):
             try:
-                prof = json.load(open(p, "r", encoding="utf-8"))
+                with open(p, "r", encoding="utf-8") as f:
+                    prof = json.load(f)
                 if isinstance(prof, dict) and prof.get("fields"):
                     return prof
                 print("[Decoder] Invalid profile:", p)
@@ -430,14 +431,19 @@ def step_decode():
         return offline_all(cfg)
     
     # NEU: Web-Daten laden
+# Web-Daten sicher laden
     web_data = {}
     web_dump_path = os.path.join(DATA, "web_dump.json")
+    
     if os.path.exists(web_dump_path):
         try:
-            with open(web_dump_path, "r") as f:
-                web_data = json.load(f)
-        except:
-            pass
+            with open(web_dump_path, "r", encoding="utf-8") as f:
+                raw_content = f.read()
+                if raw_content.strip(): # Nur laden, wenn nicht leer
+                    web_data = json.loads(raw_content)
+        except Exception:
+            # Falls die Datei gerade im Zugriff ist: Überspringen (kein Flackern!)
+            return
     now = time.time()
     if UPTIME_START is None:
         UPTIME_START = now
@@ -463,55 +469,88 @@ def step_decode():
         gatt_dec = decode_channel(entry, "gat_raw", dev_cfg.get("gatt_decoder", "unknown"), 
                                   _LAST_GATT_RAW, _LAST_GATT_TS, timeout, is_gatt=True) if entry else offline_channel_frame()
 
-        # --- 3. NEU: WEBSERVER KANAL BEFÜLLEN ---
-# --- 3. NEU: WEBSERVER KANAL BEFÜLLEN ---
+
+
+        # --- 3. NEU: WEBSERVER KANAL BEFÜLLEN (Fix: Mit Calculator-Logik) ---
         web_raw = web_data.get(mac)
-        web_dec = offline_channel_frame() # Hier wird die Basis-Struktur geholt
+        web_dec = offline_channel_frame() 
         
-        # --- Ausschnitt aus deiner decoder.py (step_decode) ---
-        # In decoder.py innerhalb von step_decode bei "3. NEU: WEBSERVER KANAL BEFÜLLEN"
-        
-        if web_raw:
+        # In der Schleife für jedes Gerät:
+       
+        if web_raw and "temp_in" in web_raw and "humid_in" in web_raw:
             web_dec["alive"] = True
             web_dec["status"] = "active"
-            
-            # Einheit holen
             unit = f"°{config.get_temperature_unit().upper()}"
-        
-            # WICHTIG: Immer als Dict {'value': x, 'unit': y} verpacken!
+
+            # 1. Rohwerte aus dem Web-Dump extrahieren
+            T_i_raw = web_raw.get("temp_in")
+            H_i_raw = web_raw.get("humid_in")
+            T_e_raw = web_raw.get("temp_ext")
+            H_e_raw = web_raw.get("humid_ext")
+            T_l_raw = web_raw.get("temp_leaf") or T_e_raw # Fallback auf Extern
+
+            # 2. Offsets anwenden (WICHTIG für Konsistenz!)
+            T_i, H_i, T_e, H_e = calculator.apply_offsets(T_i_raw, H_i_raw, T_e_raw, H_e_raw)
+            # T_l (Blatt) bekommt meist keine Offsets, oder wird separat behandelt. 
+            # Hier nutzen wir T_l_raw direkt für die VPD_Leaf Berechnung.
+
+            # 3. Berechnungen via Calculator (Dewpoint & Coords)
+            xi, yi = calculator.vpd_coord_internal(T_i, H_i)
+            xe, ye = calculator.vpd_coord_external(T_e, H_e)
+            dpi = calculator.dew_point_internal(T_i, H_i)
+            dpe = calculator.dew_point_external(T_e, H_e)
+
+            # 4. Datenstruktur befüllen
             web_dec["internal"] = {
-                "temperature": {"value": web_raw.get("temp_in"), "unit": unit},
-                "humidity": {"value": web_raw.get("humid_in", 0), "unit": "%"}
+                "temperature": {"value": calculator.to_unit(T_i), "unit": unit},
+                "humidity": {"value": H_i, "unit": "%"}
             }
-            web_dec["vpd_internal"] = {"value": web_raw.get("vpd_in"), "unit": "kPa"}
-        
-            # External
-            te = web_raw.get("temp_ext")
-            he = web_raw.get("humid_ext")
             web_dec["external"] = {
-                "present": te is not None,
-                "temperature": {"value": te, "unit": unit},
-                "humidity": {"value": he, "unit": "%"}
+                "present": T_e is not None,
+                "temperature": {"value": calculator.to_unit(T_e), "unit": unit},
+                "humidity": {"value": H_e, "unit": "%"}
             }
-            web_dec["vpd_external"] = {"value": web_raw.get("vpd_ext"), "unit": "kPa"}
-        
-            # External 2 (Blatt)
-            tl = web_raw.get("temp_leaf") or web_raw.get("temp_ext") # Fallback
+
+            # VPD Werte (neu berechnet statt nur geschleift)
+            web_dec["vpd_internal"] = {"value": calculator.vpd_internal(T_i, H_i), "unit": "kPa"}
+            web_dec["vpd_external"] = {"value": calculator.vpd_external(T_e, H_e), "unit": "kPa"}
+            
+            # Koordinaten für das Dashboard (DAS hat gefehlt!)
+            web_dec["coord"] = {
+                "internal": {"x": xi, "y": yi},
+                "external": {"x": xe, "y": ye},
+            }
+
+            # Taupunkte
+            web_dec["dew_point_internal"] = {"value": calculator.to_unit(dpi), "unit": unit}
+            web_dec["dew_point_external"] = {"value": calculator.to_unit(dpe), "unit": unit}
+
+            # Blatt-VPD (Speziallogik beibehalten)
+            vpd_l_val = None
+            if T_l_raw is not None and T_e is not None and H_e is not None:
+                svp_l = 0.61078 * (10**((7.5 * T_l_raw) / (237.3 + T_l_raw)))
+                svp_e = 0.61078 * (10**((7.5 * T_e) / (237.3 + T_e)))
+                avp_e = svp_e * (H_e / 100.0)
+                vpd_l_val = round(svp_l - avp_e, 3)
+
             web_dec["external2"] = {
-                "present": tl is not None,
-                "leaf_temp": {"value": tl, "unit": unit},
-                "vpd_leaf": {"value": web_raw.get("vpd_leaf"), "unit": "kPa"}
+                "present": T_l_raw is not None,
+                "leaf_temp": {"value": calculator.to_unit(T_l_raw), "unit": unit},
+                "vpd_leaf": {"value": vpd_l_val, "unit": "kPa"}
             }
-            # Neu: Licht-Status für das Overlay mit aufnehmen
+
+            # Restliche Metadaten
             web_dec["light"] = {
                 "brightness": web_raw.get("light_pct", 0),
                 "mode": web_raw.get("light_mode", "man")
             }
-            # Fan & Batterie
             web_dec["fan"] = {"speed_rpm": web_raw.get("rpm", 0), "unit": "RPM"}
             web_dec["battery_voltage"] = web_raw.get("vbat")
-            
-        # --- 4. FINALER FRAME ---
+        else:
+            # Falls Daten fehlen, behalte den letzten Status oder markiere als Offline
+            web_dec = offline_channel_frame()
+
+        # --- 4. FINALER FRAME ZUSAMMENBAU (Das hat gefehlt!) ---
         # Alive ist das Gerät, wenn IRGENDEIN Kanal Daten liefert
         alive = adv_dec.get("alive") or gatt_dec.get("alive") or web_dec.get("alive")
 
@@ -521,30 +560,51 @@ def step_decode():
             "name": dev_cfg.get("name", mac),
             "adv": adv_dec,
             "gatt": gatt_dec,
-            "webserver": web_dec, # <--- DA IST ER!
+            "webserver": web_dec,
             "alive": alive,
             "status": "active" if alive else "offline",
             "health": {
                 "uptime": {"value": now - UPTIME_START, "unit": "s"},
-                "battery": {"value": None, "unit": "V", "voltage": web_dec["battery_voltage"] or adv_dec.get("battery_voltage")},
+                "battery": {
+                    "value": None, 
+                    "unit": "V", 
+                    "voltage": web_dec.get("battery_voltage") or adv_dec.get("battery_voltage")
+                },
                 "signal": {"rssi": entry.get("rssi") if entry else None, "quality": None},
             }
         })
 
+    # NACH der for-schleife über alle MACs:
     _write(frames)
-
 
 # ------------------------------------------------------------
 def _write(frames):
-    tmp = DEC_FILE + ".tmp"
-    json.dump(frames, open(tmp, "w"), indent=2)
-    os.replace(tmp, DEC_FILE)
-
+    """Haupt-Schreibfunktion für die fertigen Daten"""
+    if not frames:
+        return
+    _write_atomic(DEC_FILE, frames)
+    
+    # Optional: CSV nur schreiben, wenn im Dev-Modus
     if _dev_enabled():
         _write_csv(frames)
-        print("[Decoder] decoded.json + log.csv written")
-    else:
-        _ensure_csv_cleared()
+
+def _write_atomic(filename, data):
+    """Garantiert, dass die UI niemals eine halbfertige Datei liest"""
+    tmp = filename + ".tmp"
+    try:
+        # Erst den JSON-String im Arbeitsspeicher (RAM) erstellen
+        # Das dauert am längsten, blockiert aber die Datei noch nicht
+        json_string = json.dumps(data, indent=2)
+        
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(json_string)
+            f.flush()
+            os.fsync(f.fileno())
+            
+        # Jetzt die Datei blitzschnell ersetzen
+        os.replace(tmp, filename)
+    except Exception as e:
+        print(f"[Decoder] Atomic Write Error: {e}")
 
 def _write_csv(frames):
     file_exists = os.path.exists(CSV_FILE)

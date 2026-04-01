@@ -1,0 +1,63 @@
+Das ist ein hervorragendes Beispiel für ein **State-Synchronisations-System** zwischen einer hardwarenahen Steuerung (ESP32/Arduino) und einer modernen UI (Kivy/Python).
+
+Warum das so "gut" und flüssig funktioniert, liegt an der **entkoppelten Revisions-Logik** und der Trennung von *Wunsch-Zustand* (Target) und *Ist-Zustand* (Effective). Hier ist die semantische Analyse und Dokumentation deiner Module.
+
+---
+
+## 1. Die Architektur: "Source of Truth" & Sync-Logik
+
+Das System nutzt ein **Asynchrones Request-Response-Modell** mit einer zusätzlichen Revisions-Ebene (`rev`).
+
+### Warum der Sync so stabil ist:
+1.  **Optimistic UI & Revisions-Check:** Wenn du den Slider in Kivy bewegst, wird eine neue `rev` (Timestamp) generiert. Die UI zeigt "Orange" (Syncing), solange der Server (Arduino) noch eine ältere `rev` zurückmeldet. Erst wenn `server_rev >= local_rev`, springt das Icon auf Grün. Das verhindert das "Zurückspringen" von Slidern bei Latenz.
+2.  **Latenz-Toleranz:** Durch `_last_user_action` wartet die UI 2 Sekunden nach der letzten Berührung, bevor sie Daten vom Server wieder hart in die UI-Elemente schreibt. Das verhindert "Zittern", während du noch einstellst.
+3.  **Atomares Speichern:** In Python nutzt du `os.replace(tmp_path, sync_path)`. Das garantiert, dass die Konfigurationsdatei niemals korrumpiert wird, selbst wenn der Strom während des Schreibens ausfällt.
+
+---
+
+## 2. Modul-Dokumentation
+
+### A. Python/Kivy Client (`LightOverlay`)
+Dieses Modul ist das Gehirn der Benutzerführung. Es verwaltet den lokalen Zustand und die Kommunikation zum `WEB_CLIENT`.
+
+* **`update_ui()`**: Der Herzschlag der UI (1.0s Intervall). Prüft, ob der User gerade aktiv ist. Falls nicht, gleicht es die Anzeige mit den Daten vom ESP32 ab.
+* **`_on_slider_change()`**: Triggert sofort eine neue Revision. Es schickt nicht nur den Wert, sondern setzt die UI semantisch in den "Wartezustand".
+* **`_force_sync()`**: Der "Master-Knopf". Er nimmt den aktuellen visuellen Zustand der UI und schickt ihn als absolute Wahrheit an den Arduino (erzwingt eine neue Revision).
+* **`_init_values()`**: Verhindert Geisterwerte. Die UI bleibt gesperrt (`disabled=True`), bis die ersten validen Daten vom echten Gerät geladen wurden.
+
+### B. Arduino Light Control (`light_control.cpp`)
+Das physikalische Steuermodul. Es berechnet die tatsächliche PWM-Ausgabe.
+
+* **`light_update()`**: Die Logik-Engine. Hier wird der Unterschied zwischen `target_brightness` (was der User will) und `effective_brightness` (was die Lampe tut) berechnet.
+* **Sunrise-Logik**: Errechnet über `elapsed_in_window` einen Prozentsatz (`p`), um die Helligkeit weich von 25% auf das Ziel-Niveau zu faren.
+* **Midnight-Handling**: Die Logik in `light_update` ist robust gegenüber dem Datumswechsel (z.B. Start 22:00 Uhr, Ende 06:00 Uhr).
+
+### C. Arduino Webserver (`web_server.cpp`)
+Die Schnittstelle (API) zwischen Hardware und Netzwerk.
+
+* **`handleData()`**: Serialisiert den kompletten Maschinenstatus in ein JSON-Objekt. Wichtig: Es berechnet auch `light_remaining`, damit die UI die Restzeit anzeigen kann, ohne selbst rechnen zu müssen.
+* **`handleControlJSON()`**: Der Empfänger für Steuerbefehle. Er nutzt `StaticJsonDocument`, was auf dem ESP32 kritisch ist, um Speicherfragmentierung (und damit Abstürze) zu verhindern.
+
+---
+
+## 3. Semantischer Datenfluss (Das "Warum")
+
+| Aktion | Semantischer Ablauf | Visuelle Auswirkung |
+| :--- | :--- | :--- |
+| **Slider bewegen** | UI generiert `rev: 171196...`, sendet via POST. | Icon wird **Orange** (Warten auf Hardware-Bestätigung). |
+| **Hardware empfängt** | Übernimmt `rev`, setzt `target_brightness`, speichert in `Preferences`. | Lampe dimmt physikalisch. |
+| **Nächster Poll** | `handleData` liefert neue `rev` zurück an Kivy. | Icon wird **Grün** (Sync abgeschlossen). |
+| **Modus-Wechsel** | `light_set_timer` berechnet Unix-Zeitstempel neu. | UI passt Farben an (Blau für Timer, Grün für Manuell). |
+
+### Der "Sunrise-Zauber"
+In deiner `light_update` Funktion passiert etwas Kluges:
+```cpp
+float p = (float)elapsed_in_window / (float)sunrise_offset_sec;
+effective_brightness = 25 + (target_brightness - 25) * p;
+```
+Das sorgt dafür, dass die Pflanzen nicht geschockt werden. Die UI zeigt dabei immer den Endwert an, während die Hardware die Rampe fährt.
+
+---
+
+## Zusammenfassung für deine Doku
+> Das System nutzt eine **State-Machine auf dem Mikrocontroller** und einen **Reactive-Proxy in der Python-UI**. Die Synchronität wird nicht durch "Dauersenden" erreicht, sondern durch **Versionierung (Revisions)**. Dies erlaubt eine flüssige Bedienung selbst bei schlechter WLAN-Verbindung, da die UI immer weiß, ob die Hardware den letzten Befehl bereits "verdaut" hat oder noch verarbeitet.

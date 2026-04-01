@@ -2,41 +2,41 @@
   {
     "address": "827482CC-A977-43D7-835E-8E8B6978E66A",
     "gat_raw": null,
-    "timestamp": "2026-03-26T10:32:57.022+0000",
+    "timestamp": "2026-04-01T21:22:11.797+0000",
     "name": "LGS_Sensor",
-    "rssi": -62,
-    "adv_raw": "D302A21106F711EC06980FA009F6019103C021",
-    "log_raw": "D302A21106F711EC06980FA009F6019103C021",
+    "rssi": -67,
+    "adv_raw": "D302A21106F81314070F0FA009F601A3000099",
+    "log_raw": "D302A21106F81314070F0FA009F601A3000099",
     "note": "raw"
   },
   {
     "address": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
     "gat_raw": null,
-    "timestamp": "2026-03-26T10:32:57.012+0000",
+    "timestamp": "2026-04-01T21:22:11.210+0000",
     "name": "ThermoBeacon2",
-    "rssi": -55,
-    "adv_raw": "190019060000F1F042103601EE02FFFFFFFF9B6D1800",
-    "log_raw": "190019060000F1F042103601EE02FFFFFFFF9B6D1800",
+    "rssi": -50,
+    "adv_raw": "190019060000F1F0311037011403FFFFFFFFE7EE2000",
+    "log_raw": "190019060000F1F0311037011403FFFFFFFFE7EE2000",
     "note": "raw"
   },
   {
     "address": "C898B4F2-B452-7502-1A67-0536E77D49EA",
     "gat_raw": null,
-    "timestamp": "2026-03-26T10:32:25.613+0000",
+    "timestamp": "2026-04-01T21:22:08.403+0000",
     "name": "sps",
-    "rssi": -57,
-    "adv_raw": "C808D2170068791F08",
-    "log_raw": "C808D2170068791F08",
+    "rssi": -70,
+    "adv_raw": "FE07891600D32A1E08",
+    "log_raw": "FE07891600D32A1E08",
     "note": "raw"
   },
   {
     "address": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
     "gat_raw": null,
-    "timestamp": "2026-03-26T10:32:39.100+0000",
+    "timestamp": "2026-04-01T21:22:11.212+0000",
     "name": "TP351S (987A)",
-    "rssi": -81,
-    "adv_raw": "C2B6002D203301",
-    "log_raw": "C2B6002D203301",
+    "rssi": -77,
+    "adv_raw": "C2BC002C203301",
+    "log_raw": "C2BC002C203301",
     "note": "raw"
   }
 ]

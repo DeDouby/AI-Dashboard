@@ -140,21 +140,38 @@ class DataFlowEngine:
 
         # LED Logik
         alive = ch.get("alive", False)
+        
+        # NEU: Auch wenn der Kanal selbst (webserver) nicht 'alive' im BLE-Sinne ist,
+        # prüfen wir, ob wir Web-Daten im Merge-Objekt haben.
+        web_data = d.get("web", {})
+        if ch_name == "webserver" and web_data:
+            alive = True 
+
         if not alive:
             self.gsm.led_engine.offline()
             return
 
-        counter = ch.get("packet_counter")
-        raw = ch.get("raw") or ch.get("adv_raw") or ch.get("gat_raw")
+        # --- FLOW ERKENNUNG ---
+        if ch_name == "webserver":
+            # Wir nutzen den Zeitstempel der Web-Antwort als "Paketzähler"
+            current_web_ts = web_data.get("timestamp")
+            if current_web_ts and current_web_ts != getattr(self, "_last_web_ts", None):
+                self.gsm.led_engine.flow()
+                self._last_web_ts = current_web_ts
+            else:
+                self.gsm.led_engine.stale()
 
-        if ch_name == "adv":
+        elif ch_name == "adv":
+            raw = ch.get("raw") or ch.get("adv_raw") or ch.get("gat_raw")
             if raw and raw != self._last_raw:
                 self.gsm.led_engine.flow()
             else:
                 self.gsm.led_engine.stale()
             self._last_raw = raw
-        else: 
-            if counter != self._last_counter:
+            
+        else: # GATT-Kanal
+            counter = ch.get("packet_counter")
+            if counter is not None and counter != self._last_counter:
                 self.gsm.led_engine.flow()
             else:
                 self.gsm.led_engine.stale()
