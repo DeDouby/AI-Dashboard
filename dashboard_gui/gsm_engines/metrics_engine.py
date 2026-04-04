@@ -18,7 +18,7 @@ class MetricsEngine:
             "vpd_ex":  ch.get("vpd_external"),
             "leaf_temp": ch.get("external2", {}).get("leaf_temp"),
             "vpd_leaf":  ch.get("external2", {}).get("vpd_leaf"),
-            "fan_rpm":  ch.get("fan", {}).get("speed_rpm"),
+            "circulation_fan_rpm": ch.get("circulation_fan", {}).get("circulation_fan_rpm"),
             "v_bat": {"value": ch.get("battery_voltage"), "unit": "V"} if ch.get("battery_voltage") else None
         }
 
@@ -32,7 +32,7 @@ class MetricsEngine:
                 unit = node.get("unit", "")
             elif isinstance(node, (int, float)):
                 val = node
-                unit = "RPM" if m_name == "fan_rpm" else ""
+                unit = "RPM" if m_name == "circulation_fan_rpm" else ""
 
             if val is not None:
                 key = f"{dev_id}_{ch_name}_{m_name}"

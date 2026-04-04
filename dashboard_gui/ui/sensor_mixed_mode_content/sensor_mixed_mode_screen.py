@@ -4,6 +4,7 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.graphics import Rectangle, Color, Line
 from kivy.uix.widget import Widget
 import os
+import config
 from kivy.uix.boxlayout import BoxLayout  # <-- DIESER HAT GEFEHLT
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.common.header_online import HeaderBar
@@ -59,19 +60,40 @@ class SensorMixedModeScreen(Screen):
         self.handler.refresh()
 
     def _toggle_dev(self, dev_id):
+        # 1. RAM Update
         if dev_id in self.GS.mixed_selected_buffers:
             self.GS.mixed_selected_buffers.remove(dev_id)
+            # NEU: Speichern in config.json
+            config.set_mixed_enabled(dev_id, False) 
         else:
             self.GS.mixed_selected_buffers.add(dev_id)
+            # NEU: Speichern in config.json
+            config.set_mixed_enabled(dev_id, True)
+            # Sicherstellen, dass ein Modus existiert, falls noch nie gesetzt
+            if dev_id not in self.GS.mixed_device_modes:
+                self.GS.mixed_device_modes[dev_id] = {"internal"}
+                config.set_mixed_external(dev_id, False)
+
         self.handler.refresh()
 
     def _switch_mode(self, dev_id, mode):
         modes = self.GS.mixed_device_modes.get(dev_id, {"internal"}).copy()
+        
+        # Mode Toggle Logik
         if mode in modes:
-            if len(modes) > 1: modes.remove(mode)
+            if len(modes) > 1: 
+                modes.remove(mode)
         else:
             modes.add(mode)
+        
+        # 1. RAM Update
         self.GS.mixed_device_modes[dev_id] = modes
+        
+        # 2. NEU: Speichern in config.json
+        # Wir prüfen einfach, ob "external" im Set ist
+        is_external = "external" in modes
+        config.set_mixed_external(dev_id, is_external)
+        
         self.handler.refresh()
 
     def update_from_global(self, d):

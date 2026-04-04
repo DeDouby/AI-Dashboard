@@ -179,7 +179,7 @@ class DevicePickerMenu(FloatLayout):
 
         # --- WEBSERVER Button ---
         b_web = Button(
-            text=f"[font=FA]\uf0ac[/font]  WLAN channel", # Weltkugel Icon
+            text=f"[font=FA]\uf0ac[/font]  WEB channel", # Weltkugel Icon
             font_size=sp_scaled(20),
             markup=True,
             size_hint_y=None,

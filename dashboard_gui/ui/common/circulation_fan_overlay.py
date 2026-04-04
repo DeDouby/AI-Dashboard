@@ -120,7 +120,7 @@ class RangeSlider(Widget):
         else:
             # Rechten Griff schieben, aber nicht unter den linken
             self.max_value = max(val, self.min_value)
-class ExhaustFanOverlay(FloatLayout):
+class CirculationFanOverlay(FloatLayout):
     def __init__(self, parent_header, **kwargs):
         super().__init__(**kwargs)
         self.parent_header = parent_header
@@ -160,7 +160,7 @@ class ExhaustFanOverlay(FloatLayout):
         # --- TITEL-ZEILE MIT SYNC-BUTTON ---
         title_row = BoxLayout(size_hint_y=None, height=dp_scaled(30), spacing=dp_scaled(5))
         self.lbl_title = Label(
-            text="EXHAUST FAN CONTROL", 
+            text="NATURAL FAN CONTROL", 
             bold=True, color=(0, 1, 0, 1),
             font_size=sp_scaled(16),
             halign="left"
@@ -204,14 +204,14 @@ class ExhaustFanOverlay(FloatLayout):
         # Modi-Buttons
         btn_row = BoxLayout(size_hint_y=None, height=dp_scaled(45), spacing=dp_scaled(10))
         self.btn_man = self._create_styled_btn("MANUAL")
-        self.btn_auto = self._create_styled_btn("AUTOMATIC")
+        self.btn_nat = self._create_styled_btn("NATURAL")
         self.btn_chao = self._create_styled_btn("CHAOTIC")
         
         self.btn_man.bind(on_release=lambda *_: self._set_mode("man"))
-        self.btn_auto.bind(on_release=lambda *_: self._set_mode("auto"))
+        self.btn_nat.bind(on_release=lambda *_: self._set_mode("nat"))
         self.btn_chao.bind(on_release=lambda *_: self._set_mode("chao"))
         
-        btn_row.add_widget(self.btn_man); btn_row.add_widget(self.btn_auto); btn_row.add_widget(self.btn_chao)
+        btn_row.add_widget(self.btn_man); btn_row.add_widget(self.btn_nat); btn_row.add_widget(self.btn_chao)
         self.panel.add_widget(btn_row)
 
         btn_close = Button(
@@ -249,9 +249,9 @@ class ExhaustFanOverlay(FloatLayout):
             with open(self.sync_path, "r") as f:
                 data = json.load(f).get(mac, {})
             payload = {
-                "exhaust_fan_pct": data.get("exhaust_fan_pct", 0),
-                "exhaust_fan_min": data.get("exhaust_fan_min", 0),
-                "exhaust_fan_mode": data.get("exhaust_fan_mode", "man"),
+                "circulation_fan_pct": data.get("circulation_fan_pct", 0),
+                "circulation_fan_min": data.get("circulation_fan_min", 0),
+                "circulation_fan_mode": data.get("circulation_fan_mode", "man"),
                 "rev": int(time.time())
             }
             WEB_CLIENT.send_control(mac, payload)
@@ -276,10 +276,10 @@ class ExhaustFanOverlay(FloatLayout):
         if not server_data: return
     
         # Werte extrahieren
-        srv_min = server_data.get('exhaust_fan_min', 0)
-        srv_max = server_data.get('exhaust_fan_pct', 0) # 'pct' ist hier dein Max
-        srv_mode = server_data.get('exhaust_fan_mode', 'man')
-        srv_rpm = server_data.get('exhaust_fan_rpm', 0)
+        srv_min = server_data.get('circulation_fan_min', 0)
+        srv_max = server_data.get('circulation_fan_pct', 0) # 'pct' ist hier dein Max
+        srv_mode = server_data.get('circulation_fan_mode', 'man')
+        srv_rpm = server_data.get('circulation_fan_rpm', 0)
         server_rev = int(server_data.get('rev', 0))
     
         # --- 3. SYNC-CHECK (Das Herzstück für das grüne Icon) ---
@@ -314,7 +314,7 @@ class ExhaustFanOverlay(FloatLayout):
     def _apply_button_styles(self, mode):
         # Hilfsfunktion für konsistente Farben
         self.btn_man.background_color = (0, 1, 0, 0.6) if mode == "man" else (0.2, 0.2, 0.2, 1)
-        self.btn_auto.background_color = (0, 0.7, 1, 0.6) if mode == "auto" else (0.2, 0.2, 0.2, 1)
+        self.btn_nat.background_color = (0, 0.7, 1, 0.6) if mode == "nat" else (0.2, 0.2, 0.2, 1)
         self.btn_chao.background_color = (1, 0.5, 0, 0.6) if mode == "chao" else (0.2, 0.2, 0.2, 1)
     def _send_current_range_to_server(self):
         mac = GLOBAL_STATE.get_active_device_id()
@@ -328,8 +328,8 @@ class ExhaustFanOverlay(FloatLayout):
         
         print(f"[UI] Sende finalen Range-Wert: {min_v}-{max_v}%")
         WEB_CLIENT.send_control(mac, {
-            "exhaust_fan_pct": max_v,
-            "exhaust_fan_min": min_v,
+            "circulation_fan_pct": max_v,
+            "circulation_fan_min": min_v,
             "rev": new_rev
         })
     def _sync_to_client(self, dt):
@@ -367,14 +367,14 @@ class ExhaustFanOverlay(FloatLayout):
 
         # KORREKTUR HIER: Zugriff auf die richtigen Properties des RangeSliders
         payload = {
-            "exhaust_fan_pct": int(self.range_slider.max_value), # Nicht .max.value
-            "exhaust_fan_min": int(self.range_slider.min_value), # Nicht .min.value
-            "exhaust_fan_mode": mode,
+            "circulation_fan_pct": int(self.range_slider.max_value), # Nicht .max.value
+            "circulation_fan_min": int(self.range_slider.min_value), # Nicht .min.value
+            "circulation_fan_mode": mode,
             "rev": new_rev
         }
         WEB_CLIENT.send_control(mac, payload)
         
-        self._pending_updates.update({"exhaust_fan_mode": mode, "rev": new_rev})
+        self._pending_updates.update({"circulation_fan_mode": mode, "rev": new_rev})
         self._sync_to_client(0)
     def _touch_down(self, instance, touch):
         if instance.collide_point(*touch.pos):
@@ -399,7 +399,7 @@ class ExhaustFanOverlay(FloatLayout):
         if self._update_event: self._update_event.cancel()
         if self._sync_event: self._sync_event.cancel()
         if self.parent: self.parent.remove_widget(self)
-        GLOBAL_STATE.ui_handler.active_exhaust_fan_overlay = None
+        GLOBAL_STATE.ui_handler.active_circulation_fan_overlay = None
 
     def _init_values(self, *_):
         mac = GLOBAL_STATE.get_active_device_id()
@@ -410,14 +410,14 @@ class ExhaustFanOverlay(FloatLayout):
         
         # Wenn der Server Daten hat, nehmen wir die als Basis für unsere UI
         if server_data:
-            saved_min = server_data.get("exhaust_fan_min", 20)
-            saved_max = server_data.get("exhaust_fan_pct", 60)
-            saved_mode = server_data.get("exhaust_fan_mode", "auto")
+            saved_min = server_data.get("circulation_fan_min", 20)
+            saved_max = server_data.get("circulation_fan_pct", 60)
+            saved_mode = server_data.get("circulation_fan_mode", "nat")
         else:
             # Nur wenn gar nichts da ist, aus Datei oder Default
             saved_min = 20
             saved_max = 60
-            saved_mode = "auto"
+            saved_mode = "nat"
     
         self.range_slider.min_value = saved_min
         self.range_slider.max_value = saved_max
@@ -429,5 +429,5 @@ class ExhaustFanOverlay(FloatLayout):
 
     def _set_mode_ui_only(self, mode):
         self.btn_man.background_color = (0, 1, 0, 0.6) if mode == "man" else (0.2, 0.2, 0.2, 1)
-        self.btn_auto.background_color = (0, 0.7, 1, 0.6) if mode == "auto" else (0.2, 0.2, 0.2, 1)
+        self.btn_nat.background_color = (0, 0.7, 1, 0.6) if mode == "nat" else (0.2, 0.2, 0.2, 1)
         self.btn_chao.background_color = (1, 0.2, 0.2, 0.6) if mode == "chao" else (0.2, 0.2, 0.2, 1)

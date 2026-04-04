@@ -1,3 +1,4 @@
+#circulation_fan_control.py
 from kivy.uix.boxlayout import BoxLayout
 from kivy.clock import Clock
 from kivy.metrics import dp
@@ -7,7 +8,7 @@ from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 
 # Overlay import (kommt gleich)
-from dashboard_gui.ui.common.fan_overlay import FanOverlay
+from dashboard_gui.ui.common.circulation_fan_overlay import CirculationFanOverlay
 
 
 class IconLabel(Label):
@@ -41,9 +42,13 @@ class CirculationFanControl(BoxLayout):
         """
         try:
             if rpm is None:
-                self.icon.color = (0.4, 0.4, 0.4, 1) # Grau
+                self.icon.color = (0.4, 0.4, 0.4, 1)  # nicht vorhanden
                 return
-
+            
+            # zusätzlicher Schutz:
+            if isinstance(rpm, (str, dict)):
+                self.icon.color = (0.4, 0.4, 0.4, 1)
+                return
             val = int(rpm)
             
             if val > 0:
@@ -58,11 +63,11 @@ class CirculationFanControl(BoxLayout):
     def on_touch_down(self, touch):
         if not self.collide_point(*touch.pos): return False
         ui = GLOBAL_STATE.ui_handler
-        if getattr(ui, "active_fan_overlay", None):
-            ui.active_fan_overlay.close()
+        if getattr(ui, "active_circulation_fan_overlay", None):
+            ui.active_circulation_fan_overlay.close()
         else:
-            overlay = FanOverlay(parent_header=self) # Wir übergeben uns selbst als Referenz
-            ui.active_fan_overlay = overlay
+            overlay = CirculationFanOverlay(parent_header=self) # Wir übergeben uns selbst als Referenz
+            ui.active_circulation_fan_overlay = overlay
             from kivy.app import App
             App.get_running_app().root.current_screen.add_widget(overlay)
         return True

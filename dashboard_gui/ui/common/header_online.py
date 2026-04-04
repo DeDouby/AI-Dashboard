@@ -375,12 +375,14 @@ class HeaderBar(BoxLayout):
         self.signal = SignalBars(size_hint=(0.09, 1))
         self.signal.bind(on_touch_down=self._signal_click)
         self.external = ExternalIcon(size_hint=(0.08, 1))
-        self.fan = CirculationFanControl(
+
+        # NEU: Circulation Fan Instanz
+        self.circulation_fan = CirculationFanControl(
             parent_header=self,
             size_hint=(0.06, 1)
         )
         # NEU: Exhaust Fan Instanz
-        self.exhaust = ExhaustFanControl(
+        self.exhaust_fan = ExhaustFanControl(
             parent_header=self,
             size_hint=(0.06, 1)
         )
@@ -432,8 +434,8 @@ class HeaderBar(BoxLayout):
         self.add_widget(self.signal)
         self.add_widget(self.btn_broadcast) # <--- NEU HIER
         self.add_widget(self.external)
-        self.add_widget(self.fan) # NEU HIER EINREIHEN
-        self.add_widget(self.exhaust)  # Abluft (NEU)
+        self.add_widget(self.circulation_fan) # NEU HIER EINREIHEN
+        self.add_widget(self.exhaust_fan)  # Abluft (NEU)
         self.add_widget(self.light)    # Licht (Neu)
         self.add_widget(self.battery) # <--- HIER EINREIHEN
         self.add_widget(self.led)
@@ -567,9 +569,13 @@ class HeaderBar(BoxLayout):
         else:
             self.lbl_dev.text = "---"
 
-        # --- DATEN AUS DEM AKTIVEN KANAL HOLEN ---
-        ch_name = frame.get("channel", "adv")
-        ch_data = frame.get(ch_name, {})        
+        # PRIORITÄT: webserver → gatt → adv
+        if frame.get("webserver", {}).get("alive"):
+            ch_data = frame.get("webserver", {})
+        elif frame.get("gatt", {}).get("alive"):
+            ch_data = frame.get("gatt", {})
+        else:
+            ch_data = frame.get("adv", {})
         
         
         # --- LICHT UPDATE (FIXED) ---
@@ -577,21 +583,21 @@ class HeaderBar(BoxLayout):
         web = frame.get("web", {})
         ch_data = frame.get(frame.get("channel", "adv"), {})
         
-        light_val = web.get("light_pct")
+        light_val = web.get("light_pct", None)
         
         if light_val is None:
-            light_val = ch_data.get("light", {}).get("brightness")
+            light_val = ch_data.get("light", {}).get("brightness", None)
         
         self.light.set_status(light_val)
         
         # 2. Abluft RPM (Exhaust) 
                
         # ACHTUNG: Prüfe ob dein Decoder "exhaust_fan" oder "exhaust" nutzt!
-        rpm_ex = ch_data.get("exhaust_fan", {}).get("speed_rpm", 0)
-        self.exhaust.set_rpm(rpm_ex)  ######noch ungenutzt!!!!
-        # Hol den Wert aus dem 'fan' Objekt, das dein Decoder liefert
-        rpm = ch_data.get("fan", {}).get("speed_rpm", 0)
-        self.fan.set_rpm(rpm)
+        rpm_ex = ch_data.get("exhaust_fan", {}).get("exhaust_fan_rpm", None)
+        self.exhaust_fan.set_rpm(rpm_ex)  ######noch ungenutzt!!!!
+        # Hol den Wert aus dem 'circulation_fan' Objekt, das dein Decoder liefert
+        rpm = ch_data.get("circulation_fan", {}).get("circulation_fan_rpm", None)
+        self.circulation_fan.set_rpm(rpm)
         # --- BATTERY UPDATE ---
         health = frame.get("health", {})
         # Wir nehmen die Spannung aus der health-Sektion, die du im Decoder befüllst

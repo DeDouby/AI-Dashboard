@@ -2,6 +2,7 @@
 import os
 import json
 from datetime import datetime
+from kivy.clock import Clock
 import config
 class MixedEngine:
 
@@ -16,15 +17,17 @@ class MixedEngine:
         # -----------------------------------------------
         # INITIALISIERUNGSFLAG: beim ersten Aufruf nichts löschen
         # -----------------------------------------------
+        # 1. Sofort-Abbruch, wenn keine Geräte in der Config gewählt sind
+        if not self.gsm.mixed_selected_buffers:
+            return
+        
         if not hasattr(self, "_initialized"):
             self._initialized = True
             # Erstes Update beim Start -> Buffers werden noch nicht geleert
             if not all_data:
                 return
     
-        if self._config_loaded:
-            self.sync_config()
-    
+
         selected = self.gsm.mixed_selected_buffers
     
         # -----------------------------------------------
@@ -215,20 +218,39 @@ class MixedEngine:
             print(f"[MixedEngine] write_json failed: {e}")
 
     def load_from_config(self):
-    
         devices = config.get_devices()
-    
         for dev in devices:
-    
             if config.get_mixed_enabled(dev):
                 self.gsm.mixed_selected_buffers.add(dev)
-    
                 if config.get_mixed_external(dev):
                     self.gsm.mixed_device_modes[dev] = {"external"}
                 else:
                     self.gsm.mixed_device_modes[dev] = {"internal"}
-    
+        
         self._config_loaded = True
+
+        # --- NEU: Der "idiotensichere" Start-Trigger ---
+        # Wir warten 1 Sekunde, damit das UI und die anderen Engines bereit sind
+        Clock.schedule_once(self.init_broadcast_on_startup, 3.0)
+
+    def init_broadcast_on_startup(self, dt):
+        """
+        Prüft beim App-Start, ob bereits eine valide mixed.json existiert
+        und startet ggf. sofort den Broadcast.
+        """
+        print("[MixedEngine] Startup-Check läuft...")
+        
+        # Falls wir schon Daten in der Datei haben, setzen wir den Status sofort
+        if self.check_file():
+            print("[MixedEngine] Bestehende mixed.json gefunden, aktiviere Broadcast.")
+            self.gsm.broadcast_engine.set_available(True)
+            
+            # Falls nicht manuell deaktiviert, direkt Feuer frei
+            be = self.gsm.broadcast_engine
+            if not be.active and not be.user_disabled:
+                be.set_active(True)
+        else:
+            print("[MixedEngine] Keine Start-Daten gefunden, warte auf erstes Update.")
 
     def sync_config(self):
     

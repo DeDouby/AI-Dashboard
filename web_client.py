@@ -133,36 +133,20 @@ class WebClientThread(threading.Thread):
         threading.Thread(target=_async_send, daemon=True).start()
 
     def _save_to_disk(self):
-        if not self.current_data:
-            return 
-    
-        tmp_path = self.path + ".tmp"
+        # Vorher: if not self.current_data: return -> DAS WAR DER FEHLER
+        # Wir wollen eine leere Datei schreiben, wenn keine Daten mehr da sind!
+        
         try:
-            # 1. Sicherstellen, dass das Verzeichnis existiert (Prävention)
-            os.makedirs(os.path.dirname(self.path), exist_ok=True)
-
-            # 2. Schreiben
+            tmp_path = self.path + ".tmp"
             with open(tmp_path, "w", encoding="utf-8") as f:
+                # Wir schreiben immer, auch wenn es ein leeres Dict {} ist
                 json.dump(self.current_data, f)
                 f.flush()
-                os.fsync(f.fileno()) 
+                os.fsync(f.fileno())
             
-            # 3. Atomares Ersetzen mit Retry-Logik
-            # Falls macOS/Spotlight die Datei kurz sperrt, versuchen wir es 3x
-            for i in range(3):
-                try:
-                    if os.path.exists(tmp_path):
-                        os.replace(tmp_path, self.path)
-                        break
-                except OSError:
-                    time.sleep(0.05) # 50ms warten
+            os.replace(tmp_path, self.path)
         except Exception as e:
             print(f"[WebClient] Kritischer Speicherfehler: {e}")
-            # Falls die .tmp Datei verwaist ist, versuchen wir sie zu löschen
-            try:
-                if os.path.exists(tmp_path):
-                    os.remove(tmp_path)
-            except: pass
     def _cleanup_stale_data(self):
         cleaned = False
         now = time.time()

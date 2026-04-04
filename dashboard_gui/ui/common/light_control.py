@@ -29,23 +29,30 @@ class LightControl(BoxLayout):
         self.add_widget(self.icon)
 
     def set_status(self, brightness):
-            try:
-                if brightness is None:
-                    self.icon.color = (0.3, 0.3, 0.3, 1) # Offline/Kein Wert
-                    return
-                
-                val = int(brightness)
-                if val > 0:
-                    # AN: Icon auf "Solid" und Gelb
-                    self.icon.text = "\uf0eb"  # FA: Lightbulb Solid
-                    self.icon.color = (1, 0.9, 0, 1) # Gelb
-                else:
-                    # AUS: Icon auf "Outline" oder einfach Dunkelgrau
-                    self.icon.text = "\uf0eb" 
-                    self.icon.color = (0.25, 0.25, 0.25, 1) # Dunkelgrau (Aus)
-            except:
-                self.icon.color = (0.4, 0, 0, 1) # Fehler
-
+        # 1. NICHT VORHANDEN / OFFLINE
+        if brightness is None:
+            self.icon.text = "\uf0eb"
+            self.icon.color = (0.3, 0.3, 0.3, 1)  # Grau
+            return
+    
+        # 2. SAFE CAST
+        try:
+            val = int(brightness)
+        except:
+            self.icon.text = "\uf0eb"
+            self.icon.color = (0.3, 0.3, 0.3, 1)  # Grau bei Müll
+            return
+    
+        # 3. SEMANTIK
+        if val > 0:
+            # AN
+            self.icon.text = "\uf0eb"
+            self.icon.color = (0.2, 1, 0.2, 1)   # Grün
+        else:
+            # AUS (explizit!)
+            self.icon.text = "\uf0eb"
+            self.icon.color = (1, 0.2, 0.2, 1)   # Rot
+            
     def on_touch_down(self, touch):
         if not self.collide_point(*touch.pos): return False
         

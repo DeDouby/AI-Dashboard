@@ -43,10 +43,10 @@ class ExhaustFanControl(BoxLayout):
         # Pfad ggf. anpassen, falls die Datei anders heißt
         from dashboard_gui.ui.common.exhaust_fan_overlay import ExhaustFanOverlay
         
-        if getattr(ui, "active_exhaust_overlay", None):
-            ui.active_exhaust_overlay.close()
+        if getattr(ui, "active_exhaust_fan_overlay", None):
+            ui.active_exhaust_fan_overlay.close()
         else:
             overlay = ExhaustFanOverlay(parent_header=self)
-            ui.active_exhaust_overlay = overlay
+            ui.active_exhaust_fan_overlay = overlay
             App.get_running_app().root.current_screen.add_widget(overlay)
         return True

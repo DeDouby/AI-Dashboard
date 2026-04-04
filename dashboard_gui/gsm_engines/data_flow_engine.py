@@ -42,6 +42,13 @@ class DataFlowEngine:
                 if isinstance(ch_data, dict) and ch_data.get("alive"):
                     self.gsm.metrics_engine.process_metrics(dev_id, ch_type, ch_data)
                     self.gsm.metrics_engine.process_vpd_coords(dev_id, ch_type, ch_data)
+            
+            # --- NEU: MIXED ENGINE IMMER UPDATEN (Falls Config geladen) ---
+            if hasattr(self.gsm, "mixed_engine"):
+                # Wir prüfen hier NICHT auf mixed_mode_active, 
+                # sondern lassen die Engine selbst entscheiden (anhand der Config)
+                self.gsm.mixed_engine.update(data)            
+            
             # --- NEU: WEBSERVER METRICS (FEHLT KOMPLETT!) ---
                 web_ch = device_frame.get("webserver", {})
                 if isinstance(web_ch, dict) and web_ch.get("alive"):

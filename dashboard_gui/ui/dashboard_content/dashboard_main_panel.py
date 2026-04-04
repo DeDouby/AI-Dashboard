@@ -33,13 +33,13 @@ class DashboardMainPanel(GridLayout):
         self.tile_leaf_temp = ChartTile("leaf_temp", "Leaf Temp", "—", [0.2, 0.8, 0.2, 1], bg="tile_bg_hum_out.png")
         self.tile_vpd_leaf  = ChartTile("vpd_leaf", "VPD Leaf", "kPa", [0.6, 1, 0.2, 1], bg="tile_bg_vpd_out.png")
         # NEU: FAN RPM TILE
-        self.tile_fan_rpm   = ChartTile("fan_rpm", "Fan Speed", "RPM", [0.3, 1, 0.3, 1], bg="tile_bg_fan.png")
+        self.tile_circulation_fan_rpm   = ChartTile("circulation_fan_rpm", "Fan Speed", "RPM", [0.3, 1, 0.3, 1], bg="tile_bg_fan.png")
         self.tile_v_bat     = ChartTile("v_bat", "Battery", "V", [1, 0.8, 0.2, 1], bg="tile_bg_batt.png")
 
         self.tile_map = {
             "temp_in": self.tile_temp_in, "hum_in": self.tile_hum_in, "vpd_in": self.tile_vpd_in,
             "temp_ex": self.tile_temp_ex, "hum_ex": self.tile_hum_ex, "vpd_ex": self.tile_vpd_ex,
-            "leaf_temp": self.tile_leaf_temp, "vpd_leaf": self.tile_vpd_leaf, "fan_rpm": self.tile_fan_rpm, "v_bat": self.tile_v_bat
+            "leaf_temp": self.tile_leaf_temp, "vpd_leaf": self.tile_vpd_leaf, "circulation_fan_rpm": self.tile_circulation_fan_rpm, "v_bat": self.tile_v_bat
         }
 
         for tile in self.tile_map.values():
@@ -82,9 +82,9 @@ class DashboardMainPanel(GridLayout):
 
 
             # NEU: FAN SICHTBARKEIT (Prüfen ob fan Objekt und speed_rpm da sind)
-            fan_data = stream.get("fan", {})
-            if fan_data.get("speed_rpm") is not None:
-                active_keys.append("fan_rpm")
+            fan_data = stream.get("circulation_fan", {})
+            if fan_data.get("circulation_fan_rpm") is not None:
+                active_keys.append("circulation_fan_rpm")
             
             # Batterie
             if stream.get("battery_voltage") is not None:
@@ -128,9 +128,9 @@ class DashboardMainPanel(GridLayout):
                 u(self.tile_vpd_leaf,  ext2.get("vpd_leaf"), "vpd_leaf")
 
             # NEU: FAN UPDATE
-            fan_rpm = stream.get("fan", {}).get("speed_rpm")
-            if fan_rpm is not None:
-                self.tile_fan_rpm.update(fan_rpm, f"{prefix}_fan_rpm", render=is_active)
+            circulation_fan_rpm = stream.get("circulation_fan", {}).get("circulation_fan_rpm")
+            if circulation_fan_rpm is not None:
+                self.tile_circulation_fan_rpm.update(circulation_fan_rpm, f"{prefix}_circulation_fan_rpm", render=is_active)
 
             # Batterie (Spannung direkt aus dem Stream-Root)
             bat_v = stream.get("battery_voltage")
@@ -167,7 +167,7 @@ class DashboardMainPanel(GridLayout):
         order = [
             "temp_in", "hum_in", "vpd_in",
             "temp_ex", "hum_ex", "vpd_ex",
-            "leaf_temp", "vpd_leaf", "fan_rpm", "v_bat"
+            "leaf_temp", "vpd_leaf", "circulation_fan_rpm", "v_bat"
         ]
         
         for key in order:

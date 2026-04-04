@@ -53,14 +53,14 @@ class MultiActiveKeyEngine:
     # Mixed Mode Device Selection Helpers
     # ---------------------------------------------------------
     def toggle_device_selection(self, dev_id: str):
-        """Device in Mixed Mode selektieren / deselect"""
         selected = self.gsm.mixed_selected_buffers
         if dev_id in selected:
             selected.remove(dev_id)
-            self.gsm.mixed_device_modes.pop(dev_id, None)
+            # Hier sollte eigentlich stehen:
+            # config.set_mixed_enabled(dev_id, False)
         else:
             selected.add(dev_id)
-            self.gsm.mixed_device_modes[dev_id] = {"internal"}
+            # config.set_mixed_enabled(dev_id, True)
 
     def toggle_device_mode(self, dev_id: str, mode: str):
         """Internal / External Mode Toggle pro Device"""

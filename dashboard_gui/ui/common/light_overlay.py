@@ -105,7 +105,14 @@ class LightOverlay(FloatLayout):
         # --- WERTE-ANZEIGE ---
         self.lbl_val = Label(text="SYNC...", font_size=sp_scaled(45), bold=True, color=(1, 0.5, 0, 1))
         self.content.add_widget(self.lbl_val)
-        
+        # In der __init__ nach self.lbl_val hinzufügen:
+        self.lbl_status_text = Label(
+            text="TIMER: SCHLÄFT", 
+            font_size=sp_scaled(14), 
+            bold=True,
+            color=(0.5, 0.5, 0.5, 1) # Grau wenn aus
+        )
+        self.content.add_widget(self.lbl_status_text)
         # Slider initial deaktivieren
         self.slider = Slider(
             min=0, max=100, step=1,
@@ -247,77 +254,75 @@ class LightOverlay(FloatLayout):
         self.sync_icon.color = (1, 1, 0, 1)
 
     def update_ui(self, *_):
-        
+        # 1. Sicherheits-Checks am Anfang
         if not getattr(WEB_CLIENT, "ready", False) or not self._init_done: 
-            return # Nichts tun, solange _init_done nicht True ist
-        # 1. Sicherheits-Checks
+            return
         
         now = time.time()
-        if not self._init_done or self._user_active or (now - self._last_user_action < 2.0):
+        # Sperre während der User schiebt + 2 Sekunden "Beruhigungszeit"
+        if self._user_active or (now - self._last_user_action < 2.0):
             return
         
         mac = GLOBAL_STATE.get_active_device_id()
         if not mac: return
-    
-        # 2. Daten vom Web-Client holen
+        
         server_data = WEB_CLIENT.current_data.get(mac)
         if not server_data: return
-    
-        # Werte extrahieren
-        arduino_target = server_data.get('light_target', 0)
-        arduino_effective = server_data.get('light_pct', 0)
+
+        # --- WERTE EXTRAHIEREN ---
+        arduino_target = server_data.get('light_target', 0)    
+        arduino_effective = server_data.get('light_pct', 0)   
         arduino_mode = server_data.get('light_mode', 'man')
         remaining = server_data.get('light_remaining', -1)
         server_rev = int(server_data.get('rev', 0))
-    
-        # --- 3. SYNC-CHECK (Das Herzstück) ---
         last_sent = getattr(self, '_last_sent_rev', 0)
-        
+
+        # --- 1. STATUS-TEXT & RESTZEIT LOGIK ---
+        if arduino_mode == "tim":
+            if arduino_effective > 0:
+                self.lbl_status_text.text = f"TIMER: AKTIV (Ziel: {int(arduino_target)}%)"
+                self.lbl_status_text.color = (0, 1, 0, 1) # Grün
+                self.lbl_val.color = (1, 1, 1, 1) # Hell
+            else:
+                self.lbl_status_text.text = f"TIMER: SCHLÄFT (Ziel: {int(arduino_target)}%)"
+                self.lbl_status_text.color = (0.3, 0.6, 1, 1) # Blau
+                self.lbl_val.color = (0.5, 0.5, 0.5, 1) # Ausgegraut
+            
+            # Restzeit Anzeige
+            if remaining >= 0:
+                self.lbl_remaining.text = f"Wechsel in: {remaining} Min."
+            else:
+                self.lbl_remaining.text = ""
+        else:
+            self.lbl_status_text.text = "MODUS: MANUELL"
+            self.lbl_status_text.color = (1, 1, 1, 0.6)
+            self.lbl_val.color = (1, 1, 1, 1)
+            self.lbl_remaining.text = ""
+
+        # --- 2. DIE REALE LEISTUNG (Große Zahl) ---
+        self.lbl_val.text = f"{int(arduino_effective)}%"
+
+        # --- 3. SYNC-CHECK (Revision) ---
         if server_rev < last_sent:
-            # ESP ist noch beim alten Stand -> Bleib im Sync-Modus (Orange)
             self.sync_icon.text = "[font=FA]\uf021[/font]"
             self.sync_icon.color = (1, 0.5, 0, 1)
-            # WICHTIG: Wir brechen hier NICHT ab, aber wir überspringen das 
-            # Update der Button-Farben, damit diese nicht zurückspringen!
-            sync_pending = True
-        else:
-            # Alles paletti -> Grün!
-            self.sync_icon.text = "[font=FA]\uf058[/font]"
-            self.sync_icon.color = (0, 1, 0, 1)
-            sync_pending = False
-    
-        # --- 4. UI-ELEMENTE AKTUALISIEREN ---
-        self.lbl_val.text = f"{int(arduino_effective)}%"
+            return # Blockiere Slider/Buttons bis Sync fertig
+
+        # --- 4. HARMONISIERUNG (Sync OK) ---
+        self.sync_icon.text = "[font=FA]\uf058[/font]"
+        self.sync_icon.color = (0, 1, 0, 1)
         
-        # Slider nachziehen (nur wenn kein Sync aussteht)
-        if not sync_pending and not self._pending_updates:
-            if abs(self.slider.value - arduino_target) > 0.5:
-                self.slider.value = arduino_target
-    
-        # Restzeit nur im Timer-Modus
-        if arduino_mode == "tim" and remaining >= 0:
-            self.lbl_remaining.text = f"Wechsel in: {remaining} Min."
-        else:
-            self.lbl_remaining.text = ""
-    
-        # Button-Farben NUR übernehmen, wenn der Sync abgeschlossen ist
-        if not sync_pending:
-            self._apply_button_styles(arduino_mode)
-            
-            # Titel-Farbe passend zum Modus
-            if arduino_mode == "tim":
-                self.lbl_title.text = "LIGHT CONTROL (TIMER)"
-                self.lbl_title.color = (0, 0.7, 1, 1) # Blau
-            else:
-                self.lbl_title.text = "LIGHT CONTROL PRO"
-                self.lbl_title.color = (0, 1, 0, 1) # Grün
-    
-        # 5. GROW-STATS
+        # Slider auf das ZIEL nachziehen
+        if abs(self.slider.value - arduino_target) > 0.5:
+            self.slider.value = arduino_target
+        
+        self._apply_button_styles(arduino_mode)
+
+        # --- 5. GROW-STATS ---
         ppfd = int(arduino_effective * 8.5) 
         self.lbl_ppfd.text = f"PPFD: {ppfd} µmol/m²/s"
         dli = (ppfd * 3600 * 12) / 1000000 
-        self.lbl_dli.text = f"DLI: {dli:.1f} mol/m²/d"
-    
+        self.lbl_dli.text = f"DLI (Vorschau): {dli:.1f} mol/m²/d"
     # Hilfsfunktion für die Button-Optik (um Code-Duplikate zu vermeiden)
     def _apply_button_styles(self, mode):
         self.btn_man.background_color = (0, 1, 0, 0.6) if mode == "man" else (0.2, 0.2, 0.2, 1)
@@ -357,23 +362,30 @@ class LightOverlay(FloatLayout):
 
     def _on_slider_change(self, instance, value):
         if not self._init_done: return
+        # NUR die lokale Anzeige updaten, damit es flüssig aussieht
         self.lbl_val.text = f"{int(value)}%"
         
-        # SOFORT-FEEDBACK: UI geht auf "Syncing" (Orange)
+        # Icon auf Orange (User werkelt gerade)
         self.sync_icon.text = "[font=FA]\uf021[/font]"
-        self.sync_icon.color = (1, 0.5, 0, 1) # Sattes Orange
-        
-        mac = GLOBAL_STATE.get_active_device_id()
-        if mac:
-            # Wir generieren eine neue Revision basierend auf dem Zeitstempel
+        self.sync_icon.color = (1, 0.5, 0, 1)
+
+    def _touch_up(self, slider, touch):
+        if slider.collide_point(*touch.pos) or self._user_active:
+            self._user_active = False
+            self._last_user_action = time.time()
+            
+            # JETZT erst schicken wir den finalen Wert mit neuer Revision
             new_rev = int(time.time())
-            payload = {
-                "light_pct": int(value),
-                "rev": new_rev
-            }
-            # Wir merken uns die Revision lokal, um sie mit dem nächsten /data zu vergleichen
-            self._last_sent_rev = new_rev 
-            WEB_CLIENT.send_control(mac, payload)
+            self._last_sent_rev = new_rev
+            
+            mac = GLOBAL_STATE.get_active_device_id()
+            if mac:
+                payload = {
+                    "light_pct": int(slider.value),
+                    "rev": new_rev
+                }
+                WEB_CLIENT.send_control(mac, payload)
+            return False
 
     def _on_sunrise_change(self, instance, value):
         val = int(value)
@@ -438,15 +450,7 @@ class LightOverlay(FloatLayout):
     def _touch_down(self, slider, touch):
         if slider.collide_point(*touch.pos): self._user_active = True
 
-    def _touch_up(self, slider, touch):
-        # Wir prüfen nicht nur collide_point, sondern setzen den Timestamp immer, 
-        # wenn der Slider losgelassen wird.
-        if slider.collide_point(*touch.pos) or self._user_active:
-            self._user_active = False
-            self._last_user_action = time.time() # Startet den 2-Sekunden-Countdown
-            
-            # OPTIONAL: Schicke den Wert beim Loslassen noch einmal zur Sicherheit
-            self._on_slider_change(slider, slider.value)
+
     def _u(self, *_):
         self.bg_rect.pos = self.panel.pos
         self.bg_rect.size = self.panel.size

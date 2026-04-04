@@ -319,10 +319,7 @@ def decode_channel(entry, raw_key, profile_name,
         "vpd_internal": {"value": calculator.vpd_internal(T_i, H_i), "unit": "kPa"},
         "vpd_external": {"value": calculator.vpd_external(T_e, H_e), "unit": "kPa"},
         
-        "fan": {
-            "speed_rpm": decoded.get("F_r", 0),
-            "unit": "RPM"
-        },        
+         
         "battery_voltage": V_b,
 
         "dew_point_internal": {"value": calculator.to_unit(dpi), "unit": unit},
@@ -544,11 +541,15 @@ def step_decode():
                 "brightness": web_raw.get("light_pct", 0),
                 "mode": web_raw.get("light_mode", "man")
             }
-            web_dec["fan"] = {"speed_rpm": web_raw.get("rpm", 0), "unit": "RPM"}
+            web_dec["circulation_fan"] = {"circulation_fan_rpm": web_raw.get("circulation_fan_rpm", 0), "unit": "RPM"}
+            web_dec["exhaust_fan"] = {"exhaust_fan_rpm": web_raw.get("exhaust_fan_rpm", 0), "unit": "RPM"}
+
             web_dec["battery_voltage"] = web_raw.get("vbat")
         else:
             # Falls Daten fehlen, behalte den letzten Status oder markiere als Offline
             web_dec = offline_channel_frame()
+            web_dec["alive"] = False
+            web_dec["status"] = "offline"
 
         # --- 4. FINALER FRAME ZUSAMMENBAU (Das hat gefehlt!) ---
         # Alive ist das Gerät, wenn IRGENDEIN Kanal Daten liefert
