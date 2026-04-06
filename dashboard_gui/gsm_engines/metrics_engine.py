@@ -19,6 +19,8 @@ class MetricsEngine:
             "leaf_temp": ch.get("external2", {}).get("leaf_temp"),
             "vpd_leaf":  ch.get("external2", {}).get("vpd_leaf"),
             "circulation_fan_rpm": ch.get("circulation_fan", {}).get("circulation_fan_rpm"),
+            "exhaust_fan_rpm": ch.get("exhaust_fan", {}).get("exhaust_fan_rpm"),
+
             "v_bat": {"value": ch.get("battery_voltage"), "unit": "V"} if ch.get("battery_voltage") else None
         }
 

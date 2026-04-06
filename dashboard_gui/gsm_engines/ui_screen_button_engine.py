@@ -8,7 +8,7 @@ class UIManager:
             "dashboard": None, "fullscreen": None, "setup": None,
             "about": None, "settings": None, "vpd_scatter": None,
             "debug": None, "csv_viewer": None, "cam_viewer": None,
-            "device_picker": None, "sensor_mixed_mode": None, "grow_rooms": None
+            "device_picker": None, "sensor_mixed_mode": None, "grow_controller": None
         }
 
     def attach_screen(self, name, ref):

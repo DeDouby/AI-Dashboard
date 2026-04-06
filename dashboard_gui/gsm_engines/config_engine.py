@@ -17,7 +17,11 @@ class ConfigEngine:
         self.gsm.max_history = new_window
         
         if hasattr(self.gsm, "graph_engine"):
-            self.gsm.graph_engine.window = new_window
+            self.gsm.graph_engine.rebuild_buffers()
+
+            # UI neu zeichnen lassen, falls Graph-Screens aktiv sind.
+            if hasattr(self.gsm, 'ui_handler') and hasattr(self.gsm.ui_handler, 'reset_all_screens'):
+                Clock.schedule_once(lambda *_: self.gsm.ui_handler.reset_all_screens(), 0)
 
         # 3. RSSI Buffer trimmen (Der Fix!)
         # Die History liegt jetzt in der data_flow Engine

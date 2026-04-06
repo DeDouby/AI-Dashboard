@@ -47,12 +47,12 @@ class SignalBars(BoxLayout):
     def __init__(self, **kw):
         super().__init__(**kw)
         self.size_hint = (None, 1)
-        self.width = dp_scaled(35) # Schmaler machen
-        self.padding = [0, dp_scaled(6)] # Oben/Unten 6dp Platz lassen, macht das Icon kleiner
+        self.width = dp_scaled(40)  # Fixed breite
+        self.padding = [0, dp_scaled(8)]  # Oben/Unten Padding für bessere Proportion
         self.img = Image(
             fit_mode="contain",
             keep_ratio=True,
-            size_hint=(1, 1), # <--- Auf 1 setzen für maximale Größe
+            size_hint=(1, 1),
             pos_hint={'center_y': 0.5}
         )
         self.add_widget(self.img)
@@ -118,10 +118,10 @@ class ExternalIcon(BoxLayout):
         self.orientation = "horizontal" # Von vertikal auf horizontal gewechselt
         self.spacing = dp_scaled(4)
         self.size_hint = (None, 1)
-        self.width = dp_scaled(65)      # Etwas breiter für Icon + Text nebeneinander
+        self.width = dp_scaled(40)      # Etwas breiter für Icon + Text nebeneinander
 
         # Icon etwas kleiner, damit es nicht "schreit"
-        self.icon = IconLabel(font_size=sp_scaled(18))
+        self.icon = IconLabel(font_size=sp_scaled(22))
         
         # Text-Label zentrieren
         self.text_label = Label(
@@ -303,20 +303,20 @@ class HeaderBar(BoxLayout):
         self.gsm = GLOBAL_STATE
         self.orientation = "horizontal"
         self.size_hint_y = None
-        self.height = dp_scaled(40)   # <--- DEIN FIX (überall gleich)
-        self.spacing = dp_scaled(12)
-        # Weniger Padding oben/unten, damit das Logo größer wirken kann
-        self.padding = [dp_scaled(10), dp_scaled(2), dp_scaled(10), dp_scaled(2)]
+        self.height = dp_scaled(40)   # Etwas höher für besseres Layout
+        self.spacing = dp_scaled(10)   # Kleineres Spacing für kompaktere Icons
+        # Minimal Padding, Icon-Heavy Design
+        self.padding = [dp_scaled(6), dp_scaled(2), dp_scaled(6), dp_scaled(2)]
         self._signal_overlay = None
-        self._signal_update_event = None  # für auto-refresh
+        self._signal_update_event = None
         with self.canvas.before:
             Color(0.1, 0.1, 0.15, 0.65)
             self.bg = Rectangle(pos=self.pos, size=self.size)
         self.bind(pos=self._u_bg, size=self._u_bg)
 
-        # BACK BUTTON (stabil)
+        # BACK BUTTON (stabil, bleibt rechts)
         self.btn_back = Button(
-            text="\uf060",   # FontAwesome icon
+            text="\uf060",
             font_name="FA",
             size_hint=(None, 1),
             width=dp_scaled(40),
@@ -326,122 +326,171 @@ class HeaderBar(BoxLayout):
             opacity=0,
             disabled=True,
         )
-        self.btn_back.size_hint_x = None
         self.btn_back.bind(on_release=lambda *_: self._go_back())
 
-        # LOGO FIX
+        # LOGO - Fixed Width, nicht proportional
         logo_path = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "logo.png")
         self.device_icon = Image(
             source=logo_path,
-            size_hint=(None, 1),      # 1 bedeutet: Fülle die volle verfügbare Höhe
-            width=dp_scaled(80),      # Gib ihm Platz in der Breite
+            size_hint=(None, 1),
+            width=dp_scaled(40),  # Fixed, nicht fluid
             fit_mode="contain",
             keep_ratio=True,
-            # Das sorgt dafür, dass es wirklich mittig klebt
-            pos_hint={'center_y': 0.5} 
+            pos_hint={'center_y': 0.5}
         )
-        self.device_icon.height = self.height
         
-        # Logo an Header-Höhe binden
-        def _update_logo_size(*_):
-            self.device_icon.height = self.height
-            # Breite proportional, automatisch wegen keep_ratio
-        self.bind(height=_update_logo_size)
-        
-        # TEXT & ICONS
+        # TITLE - Auch Fixed, für Fenster-Beschriftung
         self.lbl_title = Label(
             text="LGS",
-            font_size=sp_scaled(22),
+            font_size=sp_scaled(18),
             halign="left",
-            size_hint=(0.28, 1),
-            width=dp_scaled(80)  # Maximal 120dp breit
+            valign="middle",
+            size_hint=(None, 1),
+            width=dp_scaled(80),  # Mehr Breite für Titel
+            text_size=(dp_scaled(80), None),  # Text passt in Breite
+            shorten=True,
+            shorten_from='right'
         )
         
+        # DEVICE NAME - Klickbar, Flexible Breite (SPACER)
         self.lbl_dev = Button(
             text="---",
-  
             markup=True,
-            font_size=sp_scaled(20),
-            size_hint=(0.22, 1),
+            font_size=sp_scaled(16),
+            size_hint=(1, 1),      # Flexible Mitte
+            width=dp_scaled(170),  # Anfangsbreite für Device Name mit Channel
             background_color=(0, 0, 0, 0),
             color=(0.95, 0.95, 0.98, 1),
             halign="left",
             valign="middle",
-            padding=(dp_scaled(6), 0),
-            text_size=(None, None),
+            padding=(dp_scaled(3), 0),
+            shorten=True,
+            shorten_from='right',
+            text_size=(dp_scaled(170), None),  # Text passt in feste Breite, nicht zweizeilig
         )
+        self.lbl_dev.bind(size=lambda instance, _: setattr(instance, 'text_size', (instance.width, instance.height)))
         self.lbl_dev.bind(on_release=lambda *_: self._open_device_menu())
         
-        self.signal = SignalBars(size_hint=(0.09, 1))
+        # --- ICONS SECTION (Rechts, alle Fixed Width) ---
+        # Signalstärke
+        self.signal = SignalBars(size_hint=(None, 1))
+        self.signal.width = dp_scaled(40)  # Gleichmäßige Breite
         self.signal.bind(on_touch_down=self._signal_click)
-        self.external = ExternalIcon(size_hint=(0.08, 1))
+        
+        # Externer Sensor
+        self.external = ExternalIcon(size_hint=(None, 1))
+        self.external.width = dp_scaled(75)  # Gleichmäßige Breite
 
-        # NEU: Circulation Fan Instanz
+        # Circulation Fan
         self.circulation_fan = CirculationFanControl(
             parent_header=self,
-            size_hint=(0.06, 1)
+            size_hint=(None, 1),
+            width=dp_scaled(40)  # Gleichmäßige Breite
         )
-        # NEU: Exhaust Fan Instanz
+        
+        # Exhaust Fan
         self.exhaust_fan = ExhaustFanControl(
             parent_header=self,
-            size_hint=(0.06, 1)
+            size_hint=(None, 1),
+            width=dp_scaled(40)  # Gleichmäßige Breite
         )
-        # NEU: Light Control
+        
+        # Light Control
         self.light = LightControl(
             parent_header=self,
-            size_hint=(0.06, 1)
+            size_hint=(None, 1),
+            width=dp_scaled(40)  # Gleichmäßige Breite
         )
 
-
-        self.battery = BatteryIcon(size_hint=(0.09, 1))
-        self.led = LEDCircle(size_hint=(0.07, 1))
-        # Broadcast Button (Inline wiederhergestellt – KEIN Refactoring jetzt!)
-        from dashboard_gui.global_state_manager import GLOBAL_STATE
+        # Battery
+        self.battery = BatteryIcon(size_hint=(None, 1))
+        self.battery.width = dp_scaled(70)  # Gleichmäßige Breite
         
+        # LED Status
+        self.led = LEDCircle(size_hint=(None, 1))
+        self.led.width = dp_scaled(40)  # Gleichmäßige Breite
+        
+        # Broadcast Button
         self.btn_broadcast = BroadcastButton(
             text="\uf09e",
             font_name="FA",
-            size_hint=(0.08, 1),
+            size_hint=(None, 1),
+            width=dp_scaled(40),  # Gleichmäßige Breite
             background_color=(0, 0, 0, 0),
             color=(0.7, 0.7, 0.7, 1),
-            font_size=sp_scaled(22)
+            font_size=sp_scaled(18)
         )
         
-        # NEU: BROADCAST TOGGLE BUTTON
-        from dashboard_gui.global_state_manager import GLOBAL_STATE
-
-        self.lbl_clock = Label(text="--:--", font_size=sp_scaled(20),
-                               size_hint=(0.10, 1))
+        # Clock
+        self.lbl_clock = Label(
+            text="--:--",
+            font_size=sp_scaled(16),
+            size_hint=(None, 1),
+            width=dp_scaled(40)  # Gleichmäßige Breite
+        )
         Clock.schedule_interval(self._update_clock, 1)
 
-
-        # MENU BUTTON
+        # MENU BUTTON (Links neben Back)
         self.btn_menu = Button(
-            text="\uf0c9",   # FA "bars"
+            text="\uf0c9",
             font_name="FA",
-            size_hint=(0.08, 1),
+            size_hint=(None, 1),
+            width=dp_scaled(40),  # Gleichmäßige Breite
             background_color=(0.22, 0.25, 0.30, 0.9),
             color=(0.95, 0.95, 0.98, 1),
             font_size=sp_scaled(22)
         )
         self.btn_menu.bind(on_release=lambda *_: self._open_menu())
 
-        # assemble
-        # Widgets in der richtigen Reihenfolge adden:
+        # ASSEMBLY - EDGE-LOCK + FLEX-CENTER SYSTEM
+        # Left edge anchor: Back and Logo
+
         self.add_widget(self.device_icon)
-        self.add_widget(self.lbl_title)
-        self.add_widget(self.lbl_dev)
+
+        # Center flexible area: branding + device label
+        self.center_zone = BoxLayout(size_hint=(1, 1), spacing=dp_scaled(6))
+        self.lbl_title.size_hint = (None, 1)
+        self.lbl_title.width = dp_scaled(70)
+        self.lbl_dev.size_hint = (1, 1)
+        self.lbl_dev.width = dp_scaled(170)
+        self.center_zone.add_widget(self.lbl_title)
+        self.center_zone.add_widget(self.lbl_dev)
+        self.add_widget(self.center_zone)
+
+        # Right edge icon chain: status, less-important actions, menu anchor
         self.add_widget(self.signal)
-        self.add_widget(self.btn_broadcast) # <--- NEU HIER
-        self.add_widget(self.external)
-        self.add_widget(self.circulation_fan) # NEU HIER EINREIHEN
-        self.add_widget(self.exhaust_fan)  # Abluft (NEU)
-        self.add_widget(self.light)    # Licht (Neu)
-        self.add_widget(self.battery) # <--- HIER EINREIHEN
+        self.add_widget(self.circulation_fan)
+        self.add_widget(self.exhaust_fan)
+        self.add_widget(self.light)
+        self.add_widget(self.btn_broadcast)
         self.add_widget(self.led)
+        self.add_widget(self.external)
+       
+        self.add_widget(self.battery)
         self.add_widget(self.lbl_clock)
+        
         self.add_widget(self.btn_menu)
-        self.add_widget(self.btn_back)
+        self.add_widget(self.btn_back)   # << HIERHIN
+
+
+        self._responsive_items = [
+            (self.lbl_clock, 4),
+            (self.btn_broadcast, 4),
+            (self.battery, 3),
+            (self.light, 3),
+            (self.exhaust_fan, 3),
+            (self.circulation_fan, 3),
+            (self.external, 2)
+        ]
+        self._responsive_defaults = {}
+        for widget, _ in self._responsive_items:
+            self._responsive_defaults[widget] = {
+                'width': widget.width,
+                'size_hint_x': widget.size_hint_x,
+            }
+
+        self.bind(width=self._on_width)
+        self._on_width()
 
         self._menu_overlay = None
         self.device_menu = None
@@ -467,6 +516,36 @@ class HeaderBar(BoxLayout):
 
     def _go_back(self, *_):
         App.get_running_app().root.current = getattr(self, "_back_target", "dashboard")
+
+    def _set_responsive_widget(self, widget, visible):
+        defaults = self._responsive_defaults.get(widget, {})
+        if visible:
+            widget.opacity = 1
+            widget.disabled = False
+            widget.size_hint_x = defaults.get('size_hint_x', None)
+            if defaults.get('width') is not None:
+                widget.width = defaults['width']
+        else:
+            widget.opacity = 0
+            widget.disabled = True
+            widget.size_hint_x = None
+            widget.width = 0
+
+    def _on_width(self, *_):
+        width = self.width or Window.width
+        hide_priority4 = width < dp_scaled(520)
+        hide_priority3 = width < dp_scaled(470)
+        hide_priority2 = width < dp_scaled(400)
+
+        for widget, priority in self._responsive_items:
+            if priority == 4:
+                self._set_responsive_widget(widget, not hide_priority4)
+            elif priority == 3:
+                self._set_responsive_widget(widget, not hide_priority3)
+            elif priority == 2:
+                self._set_responsive_widget(widget, not hide_priority2)
+            else:
+                self._set_responsive_widget(widget, True)
 
 
 
@@ -617,8 +696,7 @@ class HeaderBar(BoxLayout):
         if ch == "webserver":
             self.signal.set_rssi(-50) # Täuscht 5 Balken vor
             return        
-        # Du hast in __init__: self.signal = SignalBars(...)
-        # Wir rufen also die Methode der Klasse SignalBars auf
+
         if rssi is not None:
             self.signal.set_rssi(rssi)
         else:

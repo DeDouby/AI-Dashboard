@@ -7,8 +7,9 @@ class GraphEngine:
         self.running = True
       
         # Buffers
-        self.graph_buffers = defaultdict(lambda: deque())
-        self._trend_buffers = defaultdict(lambda: deque())
+        self.window = config.get_tile_graph_window()
+        self.graph_buffers = defaultdict(self._new_buffer)
+        self._trend_buffers = defaultdict(self._new_buffer)
         self._last_smoothed_values = {}
         self._last_units = {}  # NEU: Speichert die Einheit des letzten Wertes
         # Trends
@@ -16,8 +17,9 @@ class GraphEngine:
         
         # Settings
         self.smoothing_factor = 0.1
-        self.window = config.get_tile_graph_window()
 
+    def _new_buffer(self):
+        return deque(maxlen=self.window)
     # ---------------------------------------------------------
     # DATA ACCESS (Wichtig für Mixed Mode & Tiles)
     # ---------------------------------------------------------
@@ -135,8 +137,15 @@ class GraphEngine:
         self._last_smoothed_values.clear()
         self.global_trends.clear()
 
-    def refresh_config(self):
+    def rebuild_buffers(self):
+        """Rebuild deque buffers after the config window changes."""
         self.window = config.get_tile_graph_window()
-        for key in self.graph_buffers:
-            if len(self.graph_buffers[key]) > self.window:
-                self.graph_buffers[key] = deque(list(self.graph_buffers[key])[-self.window:])
+        for key in list(self.graph_buffers.keys()):
+            old_buf = list(self.graph_buffers[key])[-self.window:]
+            self.graph_buffers[key] = deque(old_buf, maxlen=self.window)
+        for key in list(self._trend_buffers.keys()):
+            old_buf = list(self._trend_buffers[key])[-self.window:]
+            self._trend_buffers[key] = deque(old_buf, maxlen=self.window)
+
+    def refresh_config(self):
+        self.rebuild_buffers()

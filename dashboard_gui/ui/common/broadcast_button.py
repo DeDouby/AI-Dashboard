@@ -1,3 +1,4 @@
+# broadcast_button.py - Ein Button, um die Broadcast-Bridge zu steuern und ihren Status anzuzeigen.
 from kivy.uix.button import Button
 from dashboard_gui.ui.scaling_utils import sp_scaled
 from dashboard_gui.global_state_manager import GLOBAL_STATE
@@ -8,7 +9,7 @@ class BroadcastButton(Button):
 
         self.font_name = "FA"
         self.font_size = sp_scaled(22)
-        self.size_hint = (0.08, 1)
+        self.size_hint = (None, 1)
 
         self.background_color = (0, 0, 0, 0)
         self.color = (0.7, 0.7, 0.7, 1)

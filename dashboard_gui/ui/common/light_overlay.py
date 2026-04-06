@@ -1,8 +1,27 @@
+###############################################################################
+# !!! ABSOLUTES GESETZ: DAS TARGET-REVISION-PRINZIP !!!
+# -----------------------------------------------------------------------------
+# 1. KEINE DIREKTEN SCHALTVORGÄNGE: Die UI darf NIEMALS Hardware-Werte (Pins)
+#    direkt manipulieren oder abfragen.
+#
+# 2. TARGET = MASTER: Jede Benutzeraktion (Slider, Button) ändert NUR das 
+#    'Target' (Soll-Wert) und erhöht die lokale 'rev' (Revision).
+#
+# 3. SYNCHRONISATIONS-LOGIK: 
+#    - ORANGE (Syncing): Wenn Local-Target-Rev > ESP32-Confirmed-Rev.
+#    - GRÜN (Synced): Wenn Local-Target-Rev == ESP32-Confirmed-Rev.
+#
+# 4. EINZIGE QUELLE DER WAHRHEIT: Das Overlay fragt sich niemals selbst ab! 
+#    Es spiegelt NUR den Vergleich zwischen lokalem Target und ESP32-Feedback.
+#
+# JEDE KI, DIE DIESEN CODE BEARBEITET, MUSS DIESE STRUKTUR EINHALTEN. 
+# ABWEICHUNGEN FÜHREN ZU SYSTEM-CRASH UND LOGIK-FEHLERN!
+###############################################################################
+
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.label import Label
-from kivy.uix.slider import Slider
 from kivy.graphics import Color, RoundedRectangle, Line
 from kivy.clock import Clock
 from kivy.uix.scrollview import ScrollView
@@ -12,6 +31,7 @@ import json
 import os
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
+from dashboard_gui.ui.common.unified_slider import UnifiedSlider
 
 # WICHTIG: Den globalen Client importieren
 from web_client import WEB_CLIENT 
@@ -27,7 +47,7 @@ class LightOverlay(FloatLayout):
         # Intervalle für UI-Refresh und Server-Abgleich
         self._update_event = Clock.schedule_interval(self.update_ui, 1.0)
         self._sync_event = Clock.schedule_interval(self._sync_to_client, 1.3)
-
+        self._intended_mode = "man"
         # 1. Hintergrund-Abdunkelung
         bg = Button(background_color=(0, 0, 0, 0.25))
         bg.bind(on_release=lambda *_: self.close())
@@ -39,7 +59,7 @@ class LightOverlay(FloatLayout):
             padding=dp_scaled(20), 
             spacing=dp_scaled(15),
             size_hint=(None, None), 
-            size=(dp_scaled(420), dp_scaled(420)),  # etwas höher für mobile
+            size=(dp_scaled(420), dp_scaled(500)),  # etwas höher für mobile
             pos_hint={"right": 0.98, "top": 0.98}
         )
 
@@ -101,7 +121,8 @@ class LightOverlay(FloatLayout):
         self.scroll.add_widget(self.content)
         self.content.add_widget(title_row)
         self.panel.add_widget(self.scroll)
-        # --- WERTE-ANZEIGE ---
+        
+        
         # --- WERTE-ANZEIGE ---
         self.lbl_val = Label(text="SYNC...", font_size=sp_scaled(45), bold=True, color=(1, 0.5, 0, 1))
         self.content.add_widget(self.lbl_val)
@@ -113,22 +134,17 @@ class LightOverlay(FloatLayout):
             color=(0.5, 0.5, 0.5, 1) # Grau wenn aus
         )
         self.content.add_widget(self.lbl_status_text)
-        # Slider initial deaktivieren
-        self.slider = Slider(
-            min=0, max=100, step=1,
-            size_hint_y=None, height=dp_scaled(45),
-            disabled=True # <--- WICHTIG: Erst nach Sync freigeben
+        # Main brightness slider - now UnifiedSlider in single-mode
+        # Functionally identical to Slider but supports future 2-point expansion
+        self.slider = UnifiedSlider(
+            min=0, max=100, range_min=0, range_max=100, 
+            mode='single',
+            size_hint_y=None, height=dp_scaled(45)
         )
         self.slider.bind(value=self._on_slider_change, on_touch_down=self._touch_down, on_touch_up=self._touch_up)
         self.content.add_widget(self.slider)
 
-        # Grow Stats
-        self.stats_box = BoxLayout(orientation="vertical", spacing=dp_scaled(5), size_hint_y=None, height=dp_scaled(60))
-        self.lbl_ppfd = Label(text="PPFD: 0 µmol/m²/s", font_size=sp_scaled(14), color=(0.7, 0.7, 1, 1))
-        self.lbl_dli = Label(text="DLI: 0.0 mol/m²/d", font_size=sp_scaled(14), color=(0.7, 0.7, 1, 1))
-        self.stats_box.add_widget(self.lbl_ppfd)
-        self.stats_box.add_widget(self.lbl_dli)
-        self.content.add_widget(self.stats_box)
+ 
         
         
         # Restzeit Anzeige
@@ -157,21 +173,34 @@ class LightOverlay(FloatLayout):
         btn_row.add_widget(self.btn_off)
         self.content.add_widget(btn_row)
 
-        self.sunrise_box = BoxLayout(orientation="vertical", size_hint_y=None, height=dp_scaled(60))
+        # --- SUNRISE/SUNSET RAMPEN (2-Punkt Slider) ---
+        self.sunrise_sunset_box = BoxLayout(orientation="vertical", size_hint_y=None, height=dp_scaled(90), spacing=dp_scaled(5))
         
-        self.lbl_sunrise = Label(text="SUNRISE: 30 min", font_size=sp_scaled(14))
-        
-        self.slider_sunrise = Slider(
-            min=0, max=60, step=1,
-            value=30,
-            size_hint_y=None, height=dp_scaled(30)
+        self.lbl_sunrise_sunset = Label(
+            text="[font=FA]\uf185[/font] SUNRISE: 1h ↑ / [font=FA]\uf186[/font] SUNSET: 1h ↓", 
+            font_size=sp_scaled(14),
+            color=(1, 0.8, 0.2, 1),
+            markup=True
         )
-        self.slider_sunrise.bind(value=self._on_sunrise_change)
         
-        self.sunrise_box.add_widget(self.lbl_sunrise)
-        self.sunrise_box.add_widget(self.slider_sunrise)
+        # 2-Punkt Slider: min=Sunrise-Minuten im Timer, max=Sunset-Minuten im Timer
+        self.slider_sunrise_sunset = UnifiedSlider(
+            min=1, max=96, range_min=1, range_max=96,  # Steps (1 Step = 15min)
+            mode='range',
+            fill_entire_track=True,  # Exklusiv für diesen Slider: voller Track grün
+            size_hint_y=None, height=dp_scaled(45)
+        )
+        self.slider_sunrise_sunset.bind(
+            min_value=self._on_sunrise_sunset_change,
+            max_value=self._on_sunrise_sunset_change,
+            on_touch_down=self._touch_down,
+            on_touch_up=self._touch_up
+        )
         
-        self.content.add_widget(self.sunrise_box)
+        self.sunrise_sunset_box.add_widget(self.lbl_sunrise_sunset)
+        self.sunrise_sunset_box.add_widget(self.slider_sunrise_sunset)
+        self.content.add_widget(self.sunrise_sunset_box)
+
         # --- TIMER-EINSTELLUNG (NEU: Wie im Browser) ---
         # --- TIMER-EINSTELLUNG (FLEXIBEL) ---
         self.timer_box = BoxLayout(orientation="vertical", size_hint_y=None, height=dp_scaled(120), spacing=dp_scaled(5))
@@ -179,23 +208,31 @@ class LightOverlay(FloatLayout):
         # STARTZEIT (15 MIN RASTER)
         self.lbl_start = Label(text="START: 08:00", font_size=sp_scaled(14))
         
-        self.slider_start = Slider(
-            min=0, max=95, step=1,  # 96 steps = 24h / 15min
-            value=32,  # 08:00
-            size_hint_y=None, height=dp_scaled(30)
+        self.slider_start = UnifiedSlider(
+            min=0, max=95, range_min=0, range_max=95,
+            mode='single',
+            size_hint_y=None, height=dp_scaled(45)
         )
-        self.slider_start.bind(value=self._on_start_change)
+        self.slider_start.value = 32
+        self.slider_start.bind(
+            value=self._on_start_change,
+            on_touch_down=self._touch_down,
+            on_touch_up=self._touch_up
+        )        
+        # DAUER (15-min Raster: 15min bis 24h = 15 bis 1440 Minuten)
+        self.lbl_dur = Label(text="DAUER: 720 min", font_size=sp_scaled(14))
         
-        # DAUER (0–24h)
-        self.lbl_dur = Label(text="DAUER: 12 h", font_size=sp_scaled(14))
-        
-        self.slider_dur = Slider(
-            min=0, max=24, step=1,
-            value=12,
-            size_hint_y=None, height=dp_scaled(30)
+        self.slider_dur = UnifiedSlider(
+            min=1, max=96, range_min=1, range_max=96,  # 1 = 15min, 96 = 24h
+            mode='single',
+            size_hint_y=None, height=dp_scaled(45)
         )
-        self.slider_dur.bind(value=self._on_dur_change)
-        
+        self.slider_dur.value = 48  # 48 * 15min = 720min = 12h
+        self.slider_dur.bind(
+            value=self._on_dur_change,
+            on_touch_down=self._touch_down,
+            on_touch_up=self._touch_up
+        )        
         self.timer_box.add_widget(self.lbl_start)
         self.timer_box.add_widget(self.slider_start)
         self.timer_box.add_widget(self.lbl_dur)
@@ -214,119 +251,235 @@ class LightOverlay(FloatLayout):
 
 
     def _force_sync(self, *_):
+        """
+        GEWALT-MODUS: Erhebt den aktuellen UI-Zustand zum Gesetz.
+        Erhöht die Revision massiv, damit der ESP32 alle internen 
+        Zustände mit den UI-Werten überschreibt.
+        """
         mac = GLOBAL_STATE.get_active_device_id()
         if not mac: return
     
-        print("[UI] FORCE SYNC: Sende aktuellen UI-Zustand als Master...")
-    
-        # Wir nehmen NICHT die Datei, sondern das, was wir GERADE SEHEN
+        # Wir erzeugen eine neue Zeitstempel-Revision
+        new_rev = int(time.time())
+        self._last_sent_rev = new_rev
+        self._last_user_action = time.time() # Sperrt UI-Overwrite für 2 Sek
+
+        # Wir lesen die WÜNSCHE der UI aus (Targets)
         try:
             start_step = int(self.slider_start.value)
-            total_min = start_step * 15
+            h, m = (start_step * 15) // 60, (start_step * 15) % 60
             
-            h = total_min // 60
-            m = total_min % 60
+            current_intended_mode = "tim" if self.btn_tim.background_color[1] > 0.5 else "man"
             
-            d = int(self.slider_dur.value)
-        except:
-            h, d = 8, 12
+            # Dauer in Minuten
+            dur_steps = int(self.slider_dur.value)
+            dur_min = dur_steps * 15
+            
+            # Sunrise/Sunset: min_value = Anfang, max_value = vom Ende
+            sr_steps = int(self.slider_sunrise_sunset.min_value)
+            ss_steps = int(self.slider_sunrise_sunset.range_max - self.slider_sunrise_sunset.max_value)
+            sr_min = sr_steps * 15
+            ss_min = ss_steps * 15
 
-        # Wir bestimmen den Modus anhand der Button-Farben/Logik
-        # (Oder wir speichern den letzten gedrückten Modus in self.current_ui_mode)
-        current_mode = "man"
-        if self.btn_tim.background_color[1] > 0.5: current_mode = "tim"
-
-        payload = {
-            "light_pct": int(self.slider.value),
-            "light_mode": current_mode,
-            "l_start_h": h,
-            "l_dur": d,
-            "l_start_m": m,
-
-            "l_sun": int(self.slider_sunrise.value),
-            "rev": int(time.time()) # Neue Revision erzwingen
-        }
+            payload = {
+                "light_pct": int(self.slider.value),
+                "light_mode": current_intended_mode,
+                "l_start_h": h,
+                "l_start_m": m,
+                "l_dur": dur_min,
+                "l_sunrise": sr_min,
+                "l_sunset": ss_min,
+                "rev": new_rev
+            }
     
-        # Direkt raus damit
-        WEB_CLIENT.send_control(mac, payload)
-        
-        # Optisches Feedback
-        self.sync_icon.color = (1, 1, 0, 1)
+            WEB_CLIENT.send_control(mac, payload)
+            
+            self.sync_icon.text = "[font=FA]\uf021[/font]"
+            self.sync_icon.color = (1, 0.5, 0, 1) 
+        except Exception as e:
+            print(f"Force Sync Error: {e}")
+
+    def _set_mode(self, mode):
+        """
+        Ändert nur den WUNSCH-Modus.
+        Die UI-Farbe ändert sich erst in update_ui(), wenn der ESP32 
+        die Revision bestätigt hat.
+        """
+        # Lokale Revision erhöhen
+        new_rev = int(time.time())
+        self._last_sent_rev = new_rev
+        self._last_user_action = time.time()
+        self._intended_mode = "man"
+        # Wir senden den Modus-Wunsch sofort ab
+        mac = GLOBAL_STATE.get_active_device_id()
+        if mac:
+            payload = {"light_mode": mode, "rev": new_rev}
+            WEB_CLIENT.send_control(mac, payload)
+            
+        # UI-Feedback: Wir "erwarten" den Modus (optional: leichtes Dimmen der Buttons)
+        # Aber wir setzen NICHT die finale 'Active'-Farbe.
 
     def update_ui(self, *_):
-        # 1. Sicherheits-Checks am Anfang
-        if not getattr(WEB_CLIENT, "ready", False) or not self._init_done: 
-            return
-        
-        now = time.time()
-        # Sperre während der User schiebt + 2 Sekunden "Beruhigungszeit"
-        if self._user_active or (now - self._last_user_action < 2.0):
+        # 1. Grundlegende Sicherheits-Checks
+        if not self._init_done or not getattr(WEB_CLIENT, "ready", False):
             return
         
         mac = GLOBAL_STATE.get_active_device_id()
-        if not mac: return
-        
-        server_data = WEB_CLIENT.current_data.get(mac)
-        if not server_data: return
-
-        # --- WERTE EXTRAHIEREN ---
-        arduino_target = server_data.get('light_target', 0)    
-        arduino_effective = server_data.get('light_pct', 0)   
-        arduino_mode = server_data.get('light_mode', 'man')
-        remaining = server_data.get('light_remaining', -1)
+        server_data = WEB_CLIENT.current_data.get(mac) if mac else None
+        if not server_data: 
+            return
+    
+        # --- 2. DAS TARGET-REVISION-GESETZ ---
         server_rev = int(server_data.get('rev', 0))
         last_sent = getattr(self, '_last_sent_rev', 0)
+        
+        # Zeit-Faktor: Wie lange ist die letzte Interaktion her?
+        time_since_action = time.time() - self._last_user_action
+        
+        # SYNC-BEDINGUNG: Wir sind nur synchron, wenn der Server unsere Rev bestätigt hat
+        # UND der User nicht gerade aktiv am Slider schiebt.
+        is_synced = (server_rev >= last_sent) and not self._user_active and (time_since_action > 2.0)
 
-        # --- 1. STATUS-TEXT & RESTZEIT LOGIK ---
-        if arduino_mode == "tim":
-            if arduino_effective > 0:
-                self.lbl_status_text.text = f"TIMER: AKTIV (Ziel: {int(arduino_target)}%)"
-                self.lbl_status_text.color = (0, 1, 0, 1) # Grün
-                self.lbl_val.color = (1, 1, 1, 1) # Hell
-            else:
-                self.lbl_status_text.text = f"TIMER: SCHLÄFT (Ziel: {int(arduino_target)}%)"
-                self.lbl_status_text.color = (0.3, 0.6, 1, 1) # Blau
-                self.lbl_val.color = (0.5, 0.5, 0.5, 1) # Ausgegraut
+        # IST-WERTE (Diese zeigen wir IMMER an, egal ob Sync oder nicht)
+        arduino_effective = server_data.get('light_pct', 0)
+        self.lbl_val.text = f"{int(arduino_effective)}%"
+
+        if not is_synced:
+            # STATUS: ORANGE (Warten auf Hardware-Bestätigung)
+            self.sync_icon.text = "[font=FA]\uf021[/font]" # Spin/Sync Icon
+            self.sync_icon.color = (1, 0.5, 0, 1)          # Orange
             
-            # Restzeit Anzeige
+            # BLOCKADE: Wir springen hier raus. Die Slider bleiben auf der 
+            # Position, die der User gewählt hat, bis der ESP32 "OK" sagt.
+            return 
+    
+        # --- 3. SYNC OK: Hardware hat Target bestätigt ---
+        self.sync_icon.text = "[font=FA]\uf058[/font]" # Check-Circle
+        self.sync_icon.color = (0, 1, 0, 1)             # Grün
+    
+        # Werte vom Server extrahieren (Das sind jetzt die validierten Targets)
+        arduino_target = server_data.get('light_target', 0)
+        arduino_mode = server_data.get('light_mode', 'man')
+        
+        srv_h = server_data.get('l_start_h', 8)
+        srv_m = server_data.get('l_start_m', 0)
+        srv_dur = server_data.get('l_dur', 720)  # MINUTEN
+        srv_sunrise = server_data.get('l_sunrise', 60)  # MINUTEN
+        srv_sunset = server_data.get('l_sunset', 60)    # MINUTEN
+    
+        # --- 4. SLIDER SYNCHRONISATION ---
+        if abs(self.slider.value - arduino_target) > 0.5:
+            self.slider.value = arduino_target
+    
+        target_step = (srv_h * 60 + srv_m) // 15
+        if abs(self.slider_start.value - target_step) >= 1:
+            self.slider_start.value = target_step
+    
+        # FIX: Sunrise/Sunset Mapping korrekt (REIHENFOLGE KRITISCH!)
+        # 1. ERST die Dauer setzen, damit range_max aktuell ist
+        srv_dur_steps = srv_dur // 15
+        if abs(self.slider_dur.value - srv_dur_steps) >= 1:
+            self.slider_dur.value = srv_dur_steps
+            # WICHTIG: Range_max sofort nachziehen
+            self.slider_sunrise_sunset.range_max = srv_dur_steps
+        
+        # 2. Sunrise (linker Punkt)
+        sr_steps = srv_sunrise // 15
+        if abs(self.slider_sunrise_sunset.min_value - sr_steps) >= 1:
+            self.slider_sunrise_sunset.min_value = sr_steps
+        
+        # 3. Sunset (rechter Punkt)
+        ss_steps = srv_sunset // 15
+        # Der Zielwert für den Slider-Handle ist: Aktuelle Range - Sunset-Abstand
+        ss_max_val = self.slider_sunrise_sunset.range_max - ss_steps
+        if abs(self.slider_sunrise_sunset.max_value - ss_max_val) >= 1:
+            self.slider_sunrise_sunset.max_value = ss_max_val
+    
+        # --- 5. MODUS & BUTTON STYLES ---
+        # Die Buttons leuchten erst hier final im korrekten Modus auf
+        self._apply_button_styles(arduino_mode)
+        
+        # --- 6. STATUS TEXTE & SMART-INFOS ---
+        remaining = server_data.get('light_remaining', -1)
+        
+        if arduino_mode == "tim":
+            # Unterscheidung: Ist die Lampe laut Timer gerade an oder aus?
+            is_active = arduino_effective > 0
+            status_str = "AKTIV" if is_active else "SCHLÄFT"
+            self.lbl_status_text.text = f"TIMER: {status_str} (Ziel: {int(arduino_target)}%)"
+            self.lbl_status_text.color = (0, 1, 0, 1) if is_active else (0.3, 0.6, 1, 1)
+            
             if remaining >= 0:
-                self.lbl_remaining.text = f"Wechsel in: {remaining} Min."
+                h_rem = remaining // 60
+                m_rem = remaining % 60
+                time_str = f"{h_rem}h {m_rem}m" if h_rem > 0 else f"{m_rem} min"
+                self.lbl_remaining.text = f"Nächster Schaltpunkt in: {time_str}"
             else:
                 self.lbl_remaining.text = ""
         else:
             self.lbl_status_text.text = "MODUS: MANUELL"
             self.lbl_status_text.color = (1, 1, 1, 0.6)
-            self.lbl_val.color = (1, 1, 1, 1)
-            self.lbl_remaining.text = ""
+            self.lbl_remaining.text = "Timer deaktiviert"
 
-        # --- 2. DIE REALE LEISTUNG (Große Zahl) ---
-        self.lbl_val.text = f"{int(arduino_effective)}%"
 
-        # --- 3. SYNC-CHECK (Revision) ---
-        if server_rev < last_sent:
-            self.sync_icon.text = "[font=FA]\uf021[/font]"
-            self.sync_icon.color = (1, 0.5, 0, 1)
-            return # Blockiere Slider/Buttons bis Sync fertig
-
-        # --- 4. HARMONISIERUNG (Sync OK) ---
-        self.sync_icon.text = "[font=FA]\uf058[/font]"
-        self.sync_icon.color = (0, 1, 0, 1)
-        
-        # Slider auf das ZIEL nachziehen
-        if abs(self.slider.value - arduino_target) > 0.5:
-            self.slider.value = arduino_target
-        
-        self._apply_button_styles(arduino_mode)
-
-        # --- 5. GROW-STATS ---
-        ppfd = int(arduino_effective * 8.5) 
-        self.lbl_ppfd.text = f"PPFD: {ppfd} µmol/m²/s"
-        dli = (ppfd * 3600 * 12) / 1000000 
-        self.lbl_dli.text = f"DLI (Vorschau): {dli:.1f} mol/m²/d"
-    # Hilfsfunktion für die Button-Optik (um Code-Duplikate zu vermeiden)
+    
     def _apply_button_styles(self, mode):
-        self.btn_man.background_color = (0, 1, 0, 0.6) if mode == "man" else (0.2, 0.2, 0.2, 1)
-        self.btn_tim.background_color = (0, 0.7, 1, 0.6) if mode == "tim" else (0.2, 0.2, 0.2, 1)
+        """
+        Setzt die Button-Farben basierend auf dem vom ESP32 bestätigten Modus.
+        Keine weiße Standard-Optik, sondern Dark-Mode mit Glow-Effekt.
+        """
+        # Farben definieren (RGBA)
+        color_active_man = (0, 1, 0, 0.8)    # Kräftiges Neon-Grün
+        color_active_tim = (0, 0.6, 1, 0.8)  # Elektro-Blau
+        color_active_off = (1, 0.2, 0.2, 0.8) # Warn-Rot für AUS
+        color_inactive   = (0.15, 0.15, 0.15, 1) # Tiefes Anthrazit (Hintergrund)
+        color_text_dim   = (0.5, 0.5, 0.5, 1)    # Grauer Text für inaktive Buttons
+        color_text_on    = (1, 1, 1, 1)          # Weißer Text für aktive Buttons
+
+        # MANUELL Button
+        if mode == "man":
+            self.btn_man.background_color = color_active_man
+            self.btn_man.color = color_text_on
+            self.btn_man.text = "[b]MANUELL[/b]"
+        else:
+            self.btn_man.background_color = color_inactive
+            self.btn_man.color = color_text_dim
+            self.btn_man.text = "MANUELL"
+
+        # TIMER Button
+        if mode == "tim":
+            self.btn_tim.background_color = color_active_tim
+            self.btn_tim.color = color_text_on
+            self.btn_tim.text = "[b]TIMER[/b]"
+        else:
+            self.btn_tim.background_color = color_inactive
+            self.btn_tim.color = color_text_dim
+            self.btn_tim.text = "TIMER"
+
+        # AUS/STOP Button (Sonderlogik: Leuchtet nur kurz bei Action oder wenn Helligkeit 0)
+        # Hier checken wir zusätzlich das Target, um "AUS" zu markieren
+        is_off = (self.slider.value < 1 and mode == "man")
+        if is_off:
+            self.btn_off.background_color = color_active_off
+            self.btn_off.color = color_text_on
+        else:
+            self.btn_off.background_color = color_inactive
+            self.btn_off.color = color_text_dim
+
+    def _create_styled_btn(self, text):
+        """
+        Erstellt das Grund-Styling für die Buttons beim Initialisieren.
+        """
+        return Button(
+            text=text,
+            markup=True,
+            background_normal="", # Entfernt den Kivy-Standard-Verlauf
+            background_color=(0.15, 0.15, 0.15, 1),
+            color=(0.5, 0.5, 0.5, 1),
+            bold=False,
+            font_size=sp_scaled(12),
+            background_down="", # Verhindert das hässliche Grau beim Klicken
+        )
     def _sync_to_client(self, dt):
         if not self._pending_updates: return
         mac = GLOBAL_STATE.get_active_device_id()
@@ -373,24 +526,69 @@ class LightOverlay(FloatLayout):
         if slider.collide_point(*touch.pos) or self._user_active:
             self._user_active = False
             self._last_user_action = time.time()
-            
-            # JETZT erst schicken wir den finalen Wert mit neuer Revision
+            self._intended_mode = "man"
             new_rev = int(time.time())
             self._last_sent_rev = new_rev
-            
-            mac = GLOBAL_STATE.get_active_device_id()
-            if mac:
-                payload = {
-                    "light_pct": int(slider.value),
-                    "rev": new_rev
-                }
-                WEB_CLIENT.send_control(mac, payload)
-            return False
-
-    def _on_sunrise_change(self, instance, value):
-        val = int(value)
-        self.lbl_sunrise.text = f"SUNRISE: {val} min"
     
+            mac = GLOBAL_STATE.get_active_device_id()
+            if not mac:
+                return False
+    
+            # 🔥 IMMER KOMPLETTE TIMER STATE BILDEN
+            start_step = int(self.slider_start.value)
+            total_min = start_step * 15
+    
+            h = total_min // 60
+            m = total_min % 60
+            
+            # MODE BESTIMMEN
+            current_mode = "man"
+            if self.btn_tim.background_color[1] > 0.5:
+                current_mode = "tim"
+            
+            # Sunrise/Sunset in Minuten aus 2-Punkt Slider (15er-Raster)
+            sr_steps = int(self.slider_sunrise_sunset.min_value)
+            ss_steps = int(self.slider_sunrise_sunset.range_max - self.slider_sunrise_sunset.max_value)
+            sr_min = sr_steps * 15
+            ss_min = ss_steps * 15
+            
+            # Dauer in Minuten
+            dur_steps = int(self.slider_dur.value)
+            dur_min = dur_steps * 15
+            
+            payload = {
+                "light_pct": int(self.slider.value),
+
+                "l_start_h": h,
+                "l_start_m": m,
+                "l_dur": dur_min,      # MINUTEN
+                "l_sunrise": sr_min,   # MINUTEN
+                "l_sunset": ss_min,    # MINUTEN
+
+                "light_mode": current_mode,
+
+                "rev": new_rev
+            }
+            WEB_CLIENT.send_control(mac, payload)
+    
+            return False
+    
+    def _on_sunrise_sunset_change(self, instance, value):
+        """Callback für 2-Punkt Sunrise/Sunset Slider (in Minuten, 15er-Raster)"""
+        sr_steps = int(self.slider_sunrise_sunset.min_value)
+        ss_steps = int(self.slider_sunrise_sunset.range_max - self.slider_sunrise_sunset.max_value)
+        sr_min = sr_steps * 15
+        ss_min = ss_steps * 15
+        
+        sr_h = sr_min // 60
+        sr_m = sr_min % 60
+        ss_h = ss_min // 60
+        ss_m = ss_min % 60
+        
+        self.lbl_sunrise_sunset.text = f"[font=FA]\uf185[/font] SUNRISE: {sr_h}h {sr_m:02d}m ↑ / [font=FA]\uf186[/font] SUNSET: {ss_h}h {ss_m:02d}m ↓"
+        
+        self.sync_icon.text = "[font=FA]\uf021[/font]"
+        self.sync_icon.color = (1, 0.5, 0, 1)
     
     def _on_start_change(self, instance, value):
         step = int(value)
@@ -403,49 +601,27 @@ class LightOverlay(FloatLayout):
     
     
     def _on_dur_change(self, instance, value):
-        val = int(value)
-        self.lbl_dur.text = f"DAUER: {val} h"
-    def _set_mode(self, mode):
-        mac = GLOBAL_STATE.get_active_device_id()
-        if not mac: return
-
-        # 1. Werte sicher aus den TextInputs auslesen
-        try:
-            start_step = int(self.slider_start.value)
-            total_min = start_step * 15
-            
-            h = total_min // 60
-            m = total_min % 60
-            
-            d = int(self.slider_dur.value)
-            s = int(self.slider_sunrise.value)
-        except Exception as e:
-            print(f"[UI] Fehler beim Lesen der Timer-Felder: {e}")
-            h, m, d, s = 8, 0, 12, 30 # Fallback-Werte, falls ein Feld leer ist
-
-        # 2. Visuelles Feedback
-        self.sync_icon.text = "[font=FA]\uf021[/font]"
-        self.sync_icon.color = (1, 0.5, 0, 1) # Orange
+        """Dauer in 15-Minuten-Schritten"""
+        steps = int(value)  # Jeder Step = 15 Minuten
+        minutes = steps * 15
+        hours = minutes // 60
+        mins = minutes % 60
         
-        # 3. Neue Revision
-        new_rev = int(time.time())
-        self._last_sent_rev = new_rev 
-
-        # 4. Payload bauen (jetzt mit definiertem 's')
-        payload = {
-            "light_mode": mode,
-            "l_start_h": h,
-            "l_start_m": m,
-            "l_dur": d,
-            "l_sun": s,     # <--- Jetzt kennt er 's'
-            "rev": new_rev
-        }
-
-        # 5. Absenden
-        WEB_CLIENT.send_control(mac, payload)
+        self.lbl_dur.text = f"DAUER: {minutes} min" if minutes < 60 else f"DAUER: {hours}h {mins:02d}m"
         
-        # 6. Button-Styles vorab anpassen
-        self._apply_button_styles(mode)
+        # KRITISCH: Bevor wir range_max ändern, merken wir uns den alten Sunset-Abstand
+        old_max = self.slider_sunrise_sunset.range_max
+        old_ss_steps = old_max - self.slider_sunrise_sunset.max_value
+        
+        # Jetzt den neuen Bereich setzen
+        self.slider_sunrise_sunset.range_max = steps
+        
+        # Den rechten Slider-Punkt proportional anpassen (Sunset-Abstand bleibt gleich)
+        new_max_val = steps - old_ss_steps
+        if new_max_val < self.slider_sunrise_sunset.min_value:
+            new_max_val = self.slider_sunrise_sunset.min_value + 1
+        
+        self.slider_sunrise_sunset.max_value = max(0, new_max_val)
 
     def _touch_down(self, slider, touch):
         if slider.collide_point(*touch.pos): self._user_active = True
@@ -464,41 +640,57 @@ class LightOverlay(FloatLayout):
 
     def _init_values(self, *_):
         mac = GLOBAL_STATE.get_active_device_id()
-        if not mac: return
+        if not mac:
+            return
         
-        # Hol dir die aktuellen Daten
         arduino_data = WEB_CLIENT.current_data.get(mac, {})
         
-        # PRÜFUNG: Haben wir echte Daten oder nur ein leeres Dictionary?
-        if not arduino_data or "light_target" not in arduino_data:
-            # Noch keine Daten da? In 0.2 Sekunden nochmal probieren
-            Clock.schedule_once(self._init_values, 0.2)
+        if not arduino_data:
+            Clock.schedule_once(self._init_values, 0.3)
             return
     
-        # WENN WIR HIER SIND, HABEN WIR DATEN!
         mode = arduino_data.get("light_mode", "man")
         val = arduino_data.get("light_target", 0)
+    
+        # Startzeit laden (h und m)
+        h = arduino_data.get("l_start_h", 8)
+        m = arduino_data.get("l_start_m", 0)
+        step = (h * 60 + m) // 15  # Konvertierung zu 15-min Steps
+    
+        # Dauer laden (jetzt in Minuten!)
+        dur_min = arduino_data.get("l_dur", 720)  # Default 12h = 720 min
+        dur_steps = dur_min // 15  # Konvertierung zu Steps
         
-        # UI befüllen
+        # UI setzen
         self.slider.value = val
-        h = arduino_data.get("light_timer_start", 8)
-        m = arduino_data.get("light_timer_start_m", 0)
-        
-        step = (h * 60 + m) // 15
         self.slider_start.value = step
+        self.slider_dur.value = dur_steps
         
-        self.slider_dur.value = arduino_data.get("light_timer_dur", 12)
-        self.slider_sunrise.value = arduino_data.get("light_sunrise_min", 30)
+        # 2-Punkt Sunrise/Sunset Slider laden (in Minuten!)
+        sr_min = arduino_data.get("l_sunrise", 60)  # Minuten
+        ss_min = arduino_data.get("l_sunset", 60)   # Minuten
+        sr_steps = sr_min // 15
+        ss_steps = ss_min // 15
+        
+        self.slider_sunrise_sunset.min_value = sr_steps
+        # max_value = range_max - ss_steps (vom Ende!)
+        self.slider_sunrise_sunset.max_value = self.slider_sunrise_sunset.range_max - ss_steps
+        
+        # Label Update
+        sr_h = sr_min // 60
+        sr_m = sr_min % 60
+        ss_h = ss_min // 60
+        ss_m = ss_min % 60
+        self.lbl_sunrise_sunset.text = f"[font=FA]\uf185[/font] SUNRISE: {sr_h}h {sr_m:02d}m ↑ / [font=FA]\uf186[/font] SUNSET: {ss_h}h {ss_m:02d}m ↓"
+    
         self._apply_button_styles(mode)
-        
-        # UI "scharf" schalten
+    
         self.lbl_val.text = f"{int(val)}%"
-        self.lbl_val.color = (1, 1, 1, 1) # Wieder weiß/normal
+        self.lbl_val.color = (1, 1, 1, 1)
         self.slider.disabled = False
-        
+    
         self._pending_updates.clear()
         self._init_done = True
-
     def _update_button_colors(self, mode):
         # Blau für Timer (wie im Browser), Grün für Manuell
         self.btn_man.background_color = (0, 1, 0, 0.6) if mode == "man" else (0.2, 0.2, 0.2, 1)

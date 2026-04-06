@@ -41,7 +41,7 @@
   "temperature_offset": 0.0,
   "humidity_offset": 0.0,
   "leaf_offset": 0.0,
-  "developer_mode": false,
+  "developer_mode": true,
   "theme": "tiles",
   "lgs_mesh_channel_send": 17,
   "lgs_mesh_channel_recv": 17,

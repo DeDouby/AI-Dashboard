@@ -1,125 +1,41 @@
+###############################################################################
+# !!! ABSOLUTES GESETZ: DAS TARGET-REVISION-PRINZIP !!!
+# -----------------------------------------------------------------------------
+# 1. KEINE DIREKTEN SCHALTVORGÄNGE: Die UI darf NIEMALS Hardware-Werte (Pins)
+#    direkt manipulieren oder abfragen.
+#
+# 2. TARGET = MASTER: Jede Benutzeraktion (Slider, Button) ändert NUR das 
+#    'Target' (Soll-Wert) und erhöht die lokale 'rev' (Revision).
+#
+# 3. SYNCHRONISATIONS-LOGIK: 
+#    - ORANGE (Syncing): Wenn Local-Target-Rev > ESP32-Confirmed-Rev.
+#    - GRÜN (Synced): Wenn Local-Target-Rev == ESP32-Confirmed-Rev.
+#
+# 4. EINZIGE QUELLE DER WAHRHEIT: Das Overlay fragt sich niemals selbst ab! 
+#    Es spiegelt NUR den Vergleich zwischen lokalem Target und ESP32-Feedback.
+#
+# JEDE KI, DIE DIESEN CODE BEARBEITET, MUSS DIESE STRUKTUR EINHALTEN. 
+# ABWEICHUNGEN FÜHREN ZU SYSTEM-CRASH UND LOGIK-FEHLERN!
+###############################################################################
+
+
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.label import Label
-from kivy.uix.slider import Slider
 from kivy.graphics import Color, RoundedRectangle, Line
 from kivy.clock import Clock
-from kivy.uix.widget import Widget
-from kivy.properties import NumericProperty, ReferenceListProperty
-from kivy.graphics import Color, RoundedRectangle, Ellipse
 import config 
 import time 
 import json 
 import os
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
+from dashboard_gui.ui.common.unified_slider import UnifiedSlider
 
 # WICHTIG: Den globalen Client importieren
 from web_client import WEB_CLIENT 
 
-class RangeSlider(Widget):
-    min_value = NumericProperty(0)
-    max_value = NumericProperty(100)
-    range_min = NumericProperty(0)
-    range_max = NumericProperty(100)
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.bind(pos=self._update_canvas, size=self._update_canvas, 
-                  min_value=self._update_canvas, max_value=self._update_canvas)
-
-    def _update_canvas(self, *args):
-        self.canvas.after.clear()
-    
-        # Größenparameter (EASY später tweakbar)
-        track_h = 10
-        active_h = 14
-        handle_size = 34
-    
-        with self.canvas.after:
-            # =====================
-            # 1. BACK TRACK
-            # =====================
-            Color(0.15, 0.15, 0.15, 1)
-            RoundedRectangle(
-                pos=(self.x, self.center_y - track_h / 2),
-                size=(self.width, track_h),
-                radius=[6]
-            )
-    
-            # =====================
-            # 2. ACTIVE RANGE
-            # =====================
-            x_min = self.x + (self.min_value / self.range_max) * self.width
-            x_max = self.x + (self.max_value / self.range_max) * self.width
-    
-            Color(0, 1, 0, 0.75)
-            RoundedRectangle(
-                pos=(x_min, self.center_y - active_h / 2),
-                size=(x_max - x_min, active_h),
-                radius=[8]
-            )
-    
-            # =====================
-            # 3. HANDLES (DEUTLICH DICKER)
-            # =====================
-            Color(1, 1, 1, 1)
-    
-            Ellipse(
-                pos=(x_min - handle_size / 2, self.center_y - handle_size / 2),
-                size=(handle_size, handle_size)
-            )
-    
-            Ellipse(
-                pos=(x_max - handle_size / 2, self.center_y - handle_size / 2),
-                size=(handle_size, handle_size)
-            )
-
-    def on_touch_down(self, touch):
-        if self.collide_point(*touch.pos):
-            self._handle_touch(touch)
-            return True
-
-    def on_touch_move(self, touch):
-        if self.collide_point(*touch.pos):
-            self._handle_touch(touch)
-            return True
-
-    def _handle_touch(self, touch):
-        # 1. Relative Position (0–1 clampen!)
-        relative_x = (touch.x - self.x) / self.width
-        relative_x = max(0.0, min(1.0, relative_x))
-    
-        # 2. Auf Range skalieren (0-100)
-        raw_val = relative_x * (self.range_max - self.range_min) + self.range_min
-        val = int(round(raw_val))
-    
-        # 3. HARD SNAP TO ZERO (Unsere mühsame Abschalt-Funktion)
-        # Wenn der Finger ganz links (unter 3%) ist, schalten wir ALLES auf 0
-        if relative_x < 0.03:
-            self.min_value = 0
-            self.max_value = 0
-            return # Wichtig: Hier abbrechen, damit die Griff-Logik nicht überschreibt
-    
-        # 4. Normale Range-Begrenzung (Falls nicht 0, dann mindestens 1)
-        val = max(1, min(self.range_max, val))
-    
-        # 5. Griff-Logik (Wer ist näher am Finger?)
-        dist_min = abs(val - self.min_value)
-        dist_max = abs(val - self.max_value)
-    
-        # Spezialfall: Wenn beide auf 0 stehen und wir ziehen nach rechts
-        if self.max_value == 0:
-            self.max_value = val
-            return
-
-        if dist_min < dist_max:
-            # Linken Griff schieben, aber nicht über den rechten
-            self.min_value = min(val, self.max_value)
-        else:
-            # Rechten Griff schieben, aber nicht unter den linken
-            self.max_value = max(val, self.min_value)
 class ExhaustFanOverlay(FloatLayout):
     def __init__(self, parent_header, **kwargs):
         super().__init__(**kwargs)
@@ -145,7 +61,7 @@ class ExhaustFanOverlay(FloatLayout):
             padding=dp_scaled(20), 
             spacing=dp_scaled(12),
             size_hint=(None, None), 
-            size=(dp_scaled(420), dp_scaled(420)),
+            size=(dp_scaled(420), dp_scaled(500)),
             pos_hint={"right": 0.98, "top": 0.98}
         )
 
@@ -157,7 +73,7 @@ class ExhaustFanOverlay(FloatLayout):
 
         self.panel.bind(pos=self._u, size=self._u)
 
-        # --- TITEL-ZEILE MIT SYNC-BUTTON ---
+# --- TITEL-ZEILE MIT SYNC-BUTTON ---
         title_row = BoxLayout(size_hint_y=None, height=dp_scaled(30), spacing=dp_scaled(5))
         self.lbl_title = Label(
             text="EXHAUST FAN CONTROL", 
@@ -173,9 +89,9 @@ class ExhaustFanOverlay(FloatLayout):
             size_hint=(None, None), 
             width=dp_scaled(45), height=dp_scaled(45),
             background_normal="", 
-            background_down="", # Verhindert grauen Kasten beim Drücken
-            background_color=(0, 0, 0, 0), # Hintergrund komplett UNSICHTBAR
-            color=(1, 1, 1, 1) # Icon startet weiß
+            background_down="", 
+            background_color=(0, 0, 0, 0), 
+            color=(1, 1, 1, 1) 
         )
         self.sync_icon.bind(on_release=self._force_sync)
         
@@ -190,17 +106,58 @@ class ExhaustFanOverlay(FloatLayout):
         self.lbl_rpm = Label(text="RPM: 0", font_size=sp_scaled(18), color=(0.7, 0.7, 1, 1))
         self.panel.add_widget(self.lbl_rpm)
 
-        # --- NEUER RANGE SLIDER ---
+
+        # NEU: Das Live-Output Label
+        self.lbl_live_speed = Label(
+            text="LIVE OUTPUT: 0%", 
+            font_size=sp_scaled(22), 
+            bold=True, 
+            color=(0, 1, 1, 1) # Ein schickes Cyan/Blau für den Ist-Wert
+        )
+        self.panel.add_widget(self.lbl_live_speed)
+
+
+        # --- SPEED RANGE SLIDER ---
         self.panel.add_widget(Label(text="SPEED RANGE (MIN - MAX)", font_size=sp_scaled(11), color=(0,1,0,0.5), size_hint_y=None, height=dp_scaled(15)))
         
-        self.range_slider = RangeSlider(size_hint_y=None, height=dp_scaled(40))
-        # Wir binden die Werte-Änderung an deine bestehende Logik
+        self.range_slider = UnifiedSlider(min=0, max=100, range_min=0, range_max=100, mode='range', size_hint_y=None, height=dp_scaled(45))
         self.range_slider.bind(min_value=self._on_slider_change, max_value=self._on_slider_change)
-        # Für das User-Active-Flag nutzen wir touch events
         self.range_slider.bind(on_touch_down=self._touch_down, on_touch_up=self._touch_up)
-        
         self.panel.add_widget(self.range_slider)
 
+        # --- TEMP RANGE (HIER WAR DIE LÜCKE) ---
+        self.panel.add_widget(Label(
+            text="TEMP TARGET RANGE", 
+            font_size=sp_scaled(11), 
+            color=(0,1,0,0.5),
+            size_hint_y=None, height=dp_scaled(15)
+        ))
+        
+        self.temp_slider = UnifiedSlider(min=15, max=30, range_min=15, range_max=30, mode='range', size_hint_y=None, height=dp_scaled(45))
+        self.temp_slider.bind(min_value=self._on_env_slider_change, max_value=self._on_env_slider_change)
+        self.temp_slider.bind(on_touch_down=self._touch_down, on_touch_up=self._touch_up)
+        self.panel.add_widget(self.temp_slider)
+        
+        self.lbl_temp = Label(text="Temp: 0° - 0°", font_size=sp_scaled(14))
+        self.panel.add_widget(self.lbl_temp)
+        
+        # --- HUMIDITY RANGE ---
+        self.panel.add_widget(Label(
+            text="HUMIDITY TARGET RANGE", 
+            font_size=sp_scaled(11), 
+            color=(0,1,0,0.5),
+            size_hint_y=None, height=dp_scaled(15)
+        ))
+        
+        self.hum_slider = UnifiedSlider(min=0, max=100, range_min=0, range_max=100, mode='range', size_hint_y=None, height=dp_scaled(45))
+        self.hum_slider.bind(min_value=self._on_env_slider_change, max_value=self._on_env_slider_change)
+        self.hum_slider.bind(on_touch_down=self._touch_down, on_touch_up=self._touch_up)
+        self.panel.add_widget(self.hum_slider)
+        
+        self.lbl_hum = Label(text="Hum: 0% - 0%", font_size=sp_scaled(14))
+        self.panel.add_widget(self.lbl_hum)
+
+        # --- MODI-BUTTONS ---
         # Modi-Buttons
         btn_row = BoxLayout(size_hint_y=None, height=dp_scaled(45), spacing=dp_scaled(10))
         self.btn_man = self._create_styled_btn("MANUAL")
@@ -214,14 +171,7 @@ class ExhaustFanOverlay(FloatLayout):
         btn_row.add_widget(self.btn_man); btn_row.add_widget(self.btn_auto); btn_row.add_widget(self.btn_chao)
         self.panel.add_widget(btn_row)
 
-        btn_close = Button(
-            text="FERTIG",
-            size_hint_y=None, height=dp_scaled(45),
-            background_normal="", background_color=(0.2, 0.2, 0.2, 1),
-            bold=True
-        )
-        btn_close.bind(on_release=lambda *_: self.close())
-        self.panel.add_widget(btn_close)
+
         
         Clock.schedule_once(self._init_values, 0)
         self.add_widget(self.panel)
@@ -230,6 +180,20 @@ class ExhaustFanOverlay(FloatLayout):
         return Button(text=text, background_normal="", background_color=(0.2, 0.2, 0.2, 1), 
                       bold=True, font_size=sp_scaled(10))
 
+
+
+    def _on_env_slider_change(self, *_):
+        if not self._init_done: return
+    
+        t_min, t_max = int(self.temp_slider.min_value), int(self.temp_slider.max_value)
+        h_min, h_max = int(self.hum_slider.min_value), int(self.hum_slider.max_value)
+    
+        self.lbl_temp.text = f"Temp: {t_min}° - {t_max}°"
+        self.lbl_hum.text = f"Hum: {h_min}% - {h_max}%"
+    
+        # Sync Icon Orange signalisiert: UI ist weiter als Hardware
+        self.sync_icon.text = "[font=FA]\uf021[/font]"
+        self.sync_icon.color = (1, 0.5, 0, 1)
     def _on_slider_change(self, instance, value):
         if not self._init_done: return
         
@@ -245,18 +209,46 @@ class ExhaustFanOverlay(FloatLayout):
     def _force_sync(self, *_):
         mac = GLOBAL_STATE.get_active_device_id()
         if not mac: return
-        try:
-            with open(self.sync_path, "r") as f:
-                data = json.load(f).get(mac, {})
-            payload = {
-                "exhaust_fan_pct": data.get("exhaust_fan_pct", 0),
-                "exhaust_fan_min": data.get("exhaust_fan_min", 0),
-                "exhaust_fan_mode": data.get("exhaust_fan_mode", "man"),
-                "rev": int(time.time())
-            }
-            WEB_CLIENT.send_control(mac, payload)
-            self.sync_icon.color = (1, 1, 0, 1)
-        except: pass
+        
+        print(f"[UI] FORCE SYNC EXHAUST: Sende aktuellen Slider-Stand {int(self.range_slider.min_value)}-{int(self.range_slider.max_value)}% als Master...")
+        
+        # Wir holen die Werte direkt von der UI, NICHT aus einer alten Datei
+        min_v = int(self.range_slider.min_value)
+        max_v = int(self.range_slider.max_value)
+        
+        # Modus bestimmen (wir schauen, welcher Button gerade aktiv/grün leuchtet)
+# 1. Modus anhand der Button-Farben bestimmen
+        current_mode = "man" # Default, falls nichts passt
+        
+        # Wir prüfen, welcher Button gerade die "aktive" Farbe hat
+        if self.btn_auto.background_color[1] > 0.5: 
+            current_mode = "auto"
+        elif self.btn_chao.background_color[0] > 0.5: # Chaotic ist oft Orange/Rot-lastig
+            current_mode = "chao"
+        elif self.btn_man.background_color[1] > 0.5:
+            current_mode = "man"
+
+        new_rev = int(time.time())
+        self._last_sent_rev = new_rev
+
+        payload = {
+            "exhaust_fan_min": min_v,
+            "exhaust_fan_pct": max_v, # Dein Max-Wert
+            "exhaust_fan_mode": current_mode,
+            "exhaust_fan_target": max_v,
+            "rev": new_rev
+        }
+        
+        # Direkt an den Web-Client senden
+        WEB_CLIENT.send_control(mac, payload)
+        
+        # Optisches Feedback: Icon wird gelb/orange bis der Server mit der neuen Rev antwortet
+        self.sync_icon.text = "[font=FA]\uf021[/font]"
+        self.sync_icon.color = (1, 1, 0, 1)
+        
+        # Zusätzlich das lokale File-Backup triggern
+        self._pending_updates.update(payload)
+        self._sync_to_client(0)
 
 # --- ZUSÄTZLICHE OPTIMIERUNG DER UPDATE-LOGIK ---
     def update_ui(self, *_):
@@ -281,7 +273,15 @@ class ExhaustFanOverlay(FloatLayout):
         srv_mode = server_data.get('exhaust_fan_mode', 'man')
         srv_rpm = server_data.get('exhaust_fan_rpm', 0)
         server_rev = int(server_data.get('rev', 0))
-    
+        t_min = server_data.get('target_temp_min', 20)
+        t_max = server_data.get('target_temp_max', 30)
+        
+        h_min = server_data.get('target_humidity_min', 40)
+        h_max = server_data.get('target_humidity_max', 70)
+
+        # HIER DEN LIVE-WERT HOLEN:
+        srv_live = server_data.get('exhaust_fan_speed_now', 0)
+        
         # --- 3. SYNC-CHECK (Das Herzstück für das grüne Icon) ---
         last_sent = getattr(self, '_last_sent_rev', 0)
         
@@ -300,6 +300,9 @@ class ExhaustFanOverlay(FloatLayout):
         self.lbl_val.text = f"{int(srv_min)}% - {int(srv_max)}%"
         self.lbl_rpm.text = f"RPM: {int(srv_rpm)}"
         
+        self.lbl_live_speed.text = f"LIVE OUTPUT: {int(srv_live)}%"
+        self.lbl_temp.text = f"Temp: {int(t_min)}° - {int(t_max)}°"
+        self.lbl_hum.text = f"Hum: {int(h_min)}% - {int(h_max)}%"
         # Slider nur nachziehen, wenn nicht gerade synchronisiert wird
         if not sync_pending:
             # Kleine Toleranz beim Vergleich (0.5)
@@ -307,7 +310,15 @@ class ExhaustFanOverlay(FloatLayout):
                 self.range_slider.min_value = srv_min
             if abs(self.range_slider.max_value - srv_max) > 0.5:
                 self.range_slider.max_value = srv_max
+            if abs(self.temp_slider.min_value - t_min) > 0.5:
+                self.temp_slider.min_value = t_min
+            if abs(self.temp_slider.max_value - t_max) > 0.5:
+                self.temp_slider.max_value = t_max
             
+            if abs(self.hum_slider.min_value - h_min) > 0.5:
+                self.hum_slider.min_value = h_min
+            if abs(self.hum_slider.max_value - h_max) > 0.5:
+                self.hum_slider.max_value = h_max           
             # Button Farben setzen
             self._apply_button_styles(srv_mode)
 
@@ -316,22 +327,27 @@ class ExhaustFanOverlay(FloatLayout):
         self.btn_man.background_color = (0, 1, 0, 0.6) if mode == "man" else (0.2, 0.2, 0.2, 1)
         self.btn_auto.background_color = (0, 0.7, 1, 0.6) if mode == "auto" else (0.2, 0.2, 0.2, 1)
         self.btn_chao.background_color = (1, 0.5, 0, 0.6) if mode == "chao" else (0.2, 0.2, 0.2, 1)
+    
     def _send_current_range_to_server(self):
         mac = GLOBAL_STATE.get_active_device_id()
         if not mac: return
         
-        min_v = int(self.range_slider.min_value)
-        max_v = int(self.range_slider.max_value)
-        
+        # Erhöhung der lokalen Revision für das Target-Revision-Prinzip
         new_rev = int(time.time())
         self._last_sent_rev = new_rev
         
-        print(f"[UI] Sende finalen Range-Wert: {min_v}-{max_v}%")
-        WEB_CLIENT.send_control(mac, {
-            "exhaust_fan_pct": max_v,
-            "exhaust_fan_min": min_v,
+        payload = {
+            "exhaust_fan_min": int(self.range_slider.min_value),
+            "exhaust_fan_pct": int(self.range_slider.max_value), # Max Speed
+            "target_temp_min": int(self.temp_slider.min_value),
+            "target_temp_max": int(self.temp_slider.max_value),
+            "target_humidity_min": int(self.hum_slider.min_value),
+            "target_humidity_max": int(self.hum_slider.max_value),
             "rev": new_rev
-        })
+        }
+        
+        WEB_CLIENT.send_control(mac, payload)
+        self._pending_updates.update(payload)
     def _sync_to_client(self, dt):
         if not self._pending_updates: return
         mac = GLOBAL_STATE.get_active_device_id()
@@ -367,9 +383,19 @@ class ExhaustFanOverlay(FloatLayout):
 
         # KORREKTUR HIER: Zugriff auf die richtigen Properties des RangeSliders
         payload = {
-            "exhaust_fan_pct": int(self.range_slider.max_value), # Nicht .max.value
-            "exhaust_fan_min": int(self.range_slider.min_value), # Nicht .min.value
+            "exhaust_fan_min": int(self.range_slider.min_value),
+            "exhaust_fan_pct": int(self.range_slider.max_value),
+        
+            "exhaust_fan_target": int(self.range_slider.max_value),  # ← FEHLTE
+        
             "exhaust_fan_mode": mode,
+        
+            "target_temp_min": int(self.temp_slider.min_value),
+            "target_temp_max": int(self.temp_slider.max_value),
+        
+            "target_humidity_min": int(self.hum_slider.min_value),
+            "target_humidity_max": int(self.hum_slider.max_value),
+        
             "rev": new_rev
         }
         WEB_CLIENT.send_control(mac, payload)
@@ -418,7 +444,11 @@ class ExhaustFanOverlay(FloatLayout):
             saved_min = 20
             saved_max = 60
             saved_mode = "auto"
-    
+        self.temp_slider.min_value = server_data.get("target_temp_min", 22)
+        self.temp_slider.max_value = server_data.get("target_temp_max", 28)
+
+        self.hum_slider.min_value = server_data.get("target_humidity_min", 40)
+        self.hum_slider.max_value = server_data.get("target_humidity_max", 70)
         self.range_slider.min_value = saved_min
         self.range_slider.max_value = saved_max
         self._set_mode_ui_only(saved_mode) # Neue Hilfsfunktion für Farben

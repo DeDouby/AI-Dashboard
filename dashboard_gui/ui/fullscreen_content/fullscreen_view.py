@@ -142,6 +142,8 @@ class FullScreenView(Screen):
             "vpd_leaf":  {"color": [0.6, 1, 0.2, 1],   "bg": "tile_bg_vpd_out.png"},
             "v_bat":     {"color": [1, 0.8, 0.2, 1],   "bg": "tile_bg_batt.png"},
             "circulation_fan_rpm":   {"color": [0.3, 1, 0.3, 1],   "bg": "tile_bg_fan.png"},
+            "exhaust_fan_rpm":   {"color": [0.3, 1, 0.3, 1],   "bg": "tile_bg_fan.png"},
+       
         }
         
         

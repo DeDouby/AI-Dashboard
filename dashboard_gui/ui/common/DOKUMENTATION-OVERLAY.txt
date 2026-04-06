@@ -1,63 +1,71 @@
-Das ist ein hervorragendes Beispiel für ein **State-Synchronisations-System** zwischen einer hardwarenahen Steuerung (ESP32/Arduino) und einer modernen UI (Kivy/Python).
+Ich verstehe dich absolut. Neun Stunden Debugging brennen sich ein – das will man nicht noch einmal durchmachen müssen. Damit du (oder jeder andere, der jemals in deinen Code schaut) genau versteht, warum dieses "Kartenhaus" jetzt so stabil steht, habe ich dir hier die **vollständige technische Dokumentation** der Synchronisations-Logik erstellt.
 
-Warum das so "gut" und flüssig funktioniert, liegt an der **entkoppelten Revisions-Logik** und der Trennung von *Wunsch-Zustand* (Target) und *Ist-Zustand* (Effective). Hier ist die semantische Analyse und Dokumentation deiner Module.
-
----
-
-## 1. Die Architektur: "Source of Truth" & Sync-Logik
-
-Das System nutzt ein **Asynchrones Request-Response-Modell** mit einer zusätzlichen Revisions-Ebene (`rev`).
-
-### Warum der Sync so stabil ist:
-1.  **Optimistic UI & Revisions-Check:** Wenn du den Slider in Kivy bewegst, wird eine neue `rev` (Timestamp) generiert. Die UI zeigt "Orange" (Syncing), solange der Server (Arduino) noch eine ältere `rev` zurückmeldet. Erst wenn `server_rev >= local_rev`, springt das Icon auf Grün. Das verhindert das "Zurückspringen" von Slidern bei Latenz.
-2.  **Latenz-Toleranz:** Durch `_last_user_action` wartet die UI 2 Sekunden nach der letzten Berührung, bevor sie Daten vom Server wieder hart in die UI-Elemente schreibt. Das verhindert "Zittern", während du noch einstellst.
-3.  **Atomares Speichern:** In Python nutzt du `os.replace(tmp_path, sync_path)`. Das garantiert, dass die Konfigurationsdatei niemals korrumpiert wird, selbst wenn der Strom während des Schreibens ausfällt.
+Das ist das "Gesetzbuch" für dein System.
 
 ---
 
-## 2. Modul-Dokumentation
+## 📘 System-Dokumentation: Master-Sync & Overlay-Architektur
 
-### A. Python/Kivy Client (`LightOverlay`)
-Dieses Modul ist das Gehirn der Benutzerführung. Es verwaltet den lokalen Zustand und die Kommunikation zum `WEB_CLIENT`.
+Diese Dokumentation beschreibt das Zusammenspiel zwischen den Kivy-Overlays (Light/Fan), dem `WebClientThread` und dem ESP32-Controller.
 
-* **`update_ui()`**: Der Herzschlag der UI (1.0s Intervall). Prüft, ob der User gerade aktiv ist. Falls nicht, gleicht es die Anzeige mit den Daten vom ESP32 ab.
-* **`_on_slider_change()`**: Triggert sofort eine neue Revision. Es schickt nicht nur den Wert, sondern setzt die UI semantisch in den "Wartezustand".
-* **`_force_sync()`**: Der "Master-Knopf". Er nimmt den aktuellen visuellen Zustand der UI und schickt ihn als absolute Wahrheit an den Arduino (erzwingt eine neue Revision).
-* **`_init_values()`**: Verhindert Geisterwerte. Die UI bleibt gesperrt (`disabled=True`), bis die ersten validen Daten vom echten Gerät geladen wurden.
-
-### B. Arduino Light Control (`light_control.cpp`)
-Das physikalische Steuermodul. Es berechnet die tatsächliche PWM-Ausgabe.
-
-* **`light_update()`**: Die Logik-Engine. Hier wird der Unterschied zwischen `target_brightness` (was der User will) und `effective_brightness` (was die Lampe tut) berechnet.
-* **Sunrise-Logik**: Errechnet über `elapsed_in_window` einen Prozentsatz (`p`), um die Helligkeit weich von 25% auf das Ziel-Niveau zu faren.
-* **Midnight-Handling**: Die Logik in `light_update` ist robust gegenüber dem Datumswechsel (z.B. Start 22:00 Uhr, Ende 06:00 Uhr).
-
-### C. Arduino Webserver (`web_server.cpp`)
-Die Schnittstelle (API) zwischen Hardware und Netzwerk.
-
-* **`handleData()`**: Serialisiert den kompletten Maschinenstatus in ein JSON-Objekt. Wichtig: Es berechnet auch `light_remaining`, damit die UI die Restzeit anzeigen kann, ohne selbst rechnen zu müssen.
-* **`handleControlJSON()`**: Der Empfänger für Steuerbefehle. Er nutzt `StaticJsonDocument`, was auf dem ESP32 kritisch ist, um Speicherfragmentierung (und damit Abstürze) zu verhindern.
+### 1. Das Kern-Konzept: "The Source of Truth"
+Das System folgt einer **Hybrid-Autorität**:
+* **Offline/Start:** Die `settings_sync.json` auf dem Host ist die vorläufige Wahrheit.
+* **Online/Laufzeit:** Der ESP32 ist die finale Bestätigung.
+* **Der "Sync-Status" (Icon):** Das Icon wird **nur dann Grün**, wenn die lokale Revisions-Nummer (`local_rev`) exakt mit der Revisions-Nummer des Arduinos (`arduino_rev`) übereinstimmt.
 
 ---
 
-## 3. Semantischer Datenfluss (Das "Warum")
+### 2. Die `_init_values` & der `Clock`-Trick
+Dies ist der wichtigste Teil für dein "Initial-Grün".
 
-| Aktion | Semantischer Ablauf | Visuelle Auswirkung |
-| :--- | :--- | :--- |
-| **Slider bewegen** | UI generiert `rev: 171196...`, sendet via POST. | Icon wird **Orange** (Warten auf Hardware-Bestätigung). |
-| **Hardware empfängt** | Übernimmt `rev`, setzt `target_brightness`, speichert in `Preferences`. | Lampe dimmt physikalisch. |
-| **Nächster Poll** | `handleData` liefert neue `rev` zurück an Kivy. | Icon wird **Grün** (Sync abgeschlossen). |
-| **Modus-Wechsel** | `light_set_timer` berechnet Unix-Zeitstempel neu. | UI passt Farben an (Blau für Timer, Grün für Manuell). |
+**Das Problem:** Beim Starten der App weiß das Handy nicht, ob der ESP32 noch auf dem alten Stand ist. Ein passives Warten führt oft zu "Dauer-Orange".
+**Die Lösung:** Der **Auto-Button-Sync**.
 
-### Der "Sunrise-Zauber"
-In deiner `light_update` Funktion passiert etwas Kluges:
-```cpp
-float p = (float)elapsed_in_window / (float)sunrise_offset_sec;
-effective_brightness = 25 + (target_brightness - 25) * p;
+```python
+Clock.schedule_once(lambda dt: self._force_sync(), 0.1)
 ```
-Das sorgt dafür, dass die Pflanzen nicht geschockt werden. Die UI zeigt dabei immer den Endwert an, während die Hardware die Rampe fährt.
+
+* **Warum 0.1s Verzögerung?** Kivy muss die UI-Elemente (Slider, Buttons) erst initialisieren. Ohne diese minimale Pause würde `_force_sync()` auf Variablen zugreifen, die noch im "Nirgendwo" hängen.
+* **Was passiert dabei?** Das Overlay tut beim Öffnen so, als hätte der User den Sync-Button manuell gedrückt. Es generiert einen brandneuen Zeitstempel als `rev` und schickt ihn an den ESP32.
 
 ---
 
-## Zusammenfassung für deine Doku
-> Das System nutzt eine **State-Machine auf dem Mikrocontroller** und einen **Reactive-Proxy in der Python-UI**. Die Synchronität wird nicht durch "Dauersenden" erreicht, sondern durch **Versionierung (Revisions)**. Dies erlaubt eine flüssige Bedienung selbst bei schlechter WLAN-Verbindung, da die UI immer weiß, ob die Hardware den letzten Befehl bereits "verdaut" hat oder noch verarbeitet.
+### 3. Der Revisions-Kreislauf (The Green Path)
+Damit das Icon grün wird, muss dieser 4-Schritte-Zyklus abgeschlossen sein:
+
+1.  **Handy (Init):** Erzeugt `rev: 17115600`. Schickt dies per POST an `/control`.
+2.  **ESP32:** Empfängt das JSON, stellt den Lüfter/Licht ein und speichert die `17115600` in seinem RAM.
+3.  **WebClient (Poll):** Fragt alle 1.3s per GET `/data` den Status ab. Der ESP32 antwortet mit `{..., "rev": 17115600}`.
+4.  **Vergleich:** Der WebClient prüft `is_synced()`. Da `17115600 == 17115600`, meldet er dem Overlay: **"Alles synchron!"** -> Icon wird **Grün**.
+
+---
+
+### 4. Der WebClient: `is_synced` & `Remote-Interference`
+Der WebClient ist der "Schiedsrichter". Er erkennt, ob eine Änderung von **diesem** Handy oder von einem **anderen** Gerät (z.B. Handy B) kam.
+
+* **Fremdsteuerung erkennen:** Wenn der ESP32 einen neuen Wert sendet, aber das lokale Handy keine aktive Benutzeraktion (`is_user_active`) hat, wird die lokale `rev` in der `settings_sync.json` auf `0` gesetzt.
+* **Resultat:** `local_rev (0) != arduino_rev (Timestamp)`. Das Icon wird **Orange**. Das signalisiert: *"Achtung, jemand anderes hat etwas verstellt, ich habe nur die Werte übernommen!"*
+
+---
+
+### 5. Zusammenfassung der Komponenten
+
+| Komponente | Aufgabe | Kritischer Moment |
+| :--- | :--- | :--- |
+| **`settings_sync.json`** | Permanenter Speicher auf dem Handy. | Verhindert Datenverlust nach App-Neustart. |
+| **`_pending_updates`** | RAM-Buffer für Slider-Bewegungen. | Verhindert "Befehls-Gewitter" (spart WLAN-Last). |
+| **`_force_sync()`** | Erzwingt den Master-Status des Handys. | Wird jetzt automatisch durch `Clock` getriggert. |
+| **`rev` (Revision)** | Eindeutiger Zeitstempel einer Änderung. | Der Schlüssel für die Farbe des Sync-Icons. |
+
+---
+
+### Wichtige Wartungshinweise
+> **ACHTUNG:** Wenn du einen neuen Slider oder Button hinzufügst, musst du ihn in **drei** Stellen eintragen:
+> 1. In `all_keys` im `WebClient` (damit er überwacht wird).
+> 2. In `_init_values` im Overlay (damit er geladen wird).
+> 3. In `_on_slider_change` oder `_set_mode` (damit er gesendet wird).
+
+Das ist dein Fundament. Mit dieser Dokumentation im Rücken wird dich kein "Mimik-Bug" mehr 9 Stunden lang aufhalten! 
+
+**Soll ich dir diese Doku als Text-Datei zusammenfassen, damit du sie direkt in deinen Projekt-Ordner legen kannst?**

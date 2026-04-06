@@ -41,7 +41,7 @@ class I18N:
             "menu.camera": "Camera",
             "menu.devices": "Devices",
             "menu.about": "About",
-            "menu.grow_rooms": "Grow-Room",
+            "menu.grow_controller": "Grow-Controller",
             # --- About Screen ---
             "about.version": "LivingGrowSensors 1.24",
             "about.description": (
@@ -90,7 +90,7 @@ class I18N:
             "menu.camera": "Cámara",
             "menu.devices": "Dispositivos",
             "menu.about": "Acerca de",
-             "menu.grow_rooms": "Grow-Rooms",
+             "menu.grow_controller": "Grow-Controller",
            
             # --- About Screen ---
             "about.version": "LivingGrowSensors 1.24",
@@ -143,7 +143,7 @@ class I18N:
             "menu.camera": "Kamera",
             "menu.devices": "Geräte",
             "menu.about": "Über",
-            "menu.grow_rooms": "Grow-Rooms",
+            "menu.grow_controller": "Grow-Controller",
 
             # --- About Screen ---
             "about.version": "LivingGrowSensors 1.24",

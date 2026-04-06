@@ -1,3 +1,24 @@
+###############################################################################
+# !!! ABSOLUTES GESETZ: DAS TARGET-REVISION-PRINZIP !!!
+# -----------------------------------------------------------------------------
+# 1. KEINE DIREKTEN SCHALTVORGÄNGE: Die UI darf NIEMALS Hardware-Werte (Pins)
+#    direkt manipulieren oder abfragen.
+#
+# 2. TARGET = MASTER: Jede Benutzeraktion (Slider, Button) ändert NUR das 
+#    'Target' (Soll-Wert) und erhöht die lokale 'rev' (Revision).
+#
+# 3. SYNCHRONISATIONS-LOGIK: 
+#    - ORANGE (Syncing): Wenn Local-Target-Rev > ESP32-Confirmed-Rev.
+#    - GRÜN (Synced): Wenn Local-Target-Rev == ESP32-Confirmed-Rev.
+#
+# 4. EINZIGE QUELLE DER WAHRHEIT: Das Overlay fragt sich niemals selbst ab! 
+#    Es spiegelt NUR den Vergleich zwischen lokalem Target und ESP32-Feedback.
+#
+# JEDE KI, DIE DIESEN CODE BEARBEITET, MUSS DIESE STRUKTUR EINHALTEN. 
+# ABWEICHUNGEN FÜHREN ZU SYSTEM-CRASH UND LOGIK-FEHLERN!
+###############################################################################
+
+
 import threading
 import time
 import requests
