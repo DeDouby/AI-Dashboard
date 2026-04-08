@@ -58,7 +58,7 @@ class ExhaustFanOverlay(FloatLayout):
         # 2. Das Haupt-Panel
         self.panel = BoxLayout(
             orientation="vertical", 
-            padding=dp_scaled(20), 
+            padding=dp_scaled(30), 
             spacing=dp_scaled(12),
             size_hint=(None, None), 
             size=(dp_scaled(420), dp_scaled(500)),

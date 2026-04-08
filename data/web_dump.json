@@ -1,1 +1,41 @@
-{"827482CC-A977-43D7-835E-8E8B6978E66A": {"temp_in": 17.95605, "temp_ext": 29.74, "humid_ext": 42.79, "humid_in": 40, "vpd_ext": 2.392907, "vpd_in": 1.227073, "vpd_leaf": 2.131274, "vbat": 4.2, "rev": 1775514550, "exhaust_fan_rpm": 15150, "exhaust_fan_pct": 98, "exhaust_fan_min": 0, "exhaust_fan_speed_now": 98, "exhaust_fan_mode": "man", "target_temp_min": 16, "target_temp_max": 22, "target_humidity_min": 10, "target_humidity_max": 51, "circulation_fan_rpm": 0, "circulation_fan_pct": 71, "circulation_fan_min": 14, "circulation_fan_mode": "nat", "light_pct": 0, "light_target": 100, "l_start_h": 11, "l_start_m": 0, "l_dur": 705, "l_sunrise": 120, "l_sunset": 135, "light_mode": "tim", "light_remaining": 599, "timestamp": 1775516424.505633}}
+{
+  "827482CC-A977-43D7-835E-8E8B6978E66A": {
+    "health": {
+      "signal": {
+        "rssi": -62
+      }
+    },
+    "temp_in": 17.22363,
+    "temp_ext": 17.54,
+    "humid_ext": 65.48,
+    "humid_in": 40,
+    "vpd_ext": 0.690773,
+    "vpd_in": 1.157521,
+    "vpd_leaf": 0.608238,
+    "vbat": 4.191,
+    "rev": 1775636036,
+    "exhaust_fan_rpm": 480,
+    "exhaust_fan_pct": 75,
+    "exhaust_fan_min": 0,
+    "exhaust_fan_speed_now": 0,
+    "exhaust_fan_mode": "auto",
+    "target_temp_min": 16,
+    "target_temp_max": 21,
+    "target_humidity_min": 10,
+    "target_humidity_max": 74,
+    "circulation_fan_rpm": 0,
+    "circulation_fan_pct": 78,
+    "circulation_fan_min": 28,
+    "circulation_fan_mode": "nat",
+    "light_pct": 0,
+    "light_target": 51,
+    "l_start_h": 11,
+    "l_start_m": 45,
+    "l_dur": 705,
+    "l_sunrise": 240,
+    "l_sunset": 120,
+    "light_mode": "tim",
+    "light_remaining": 77,
+    "timestamp": 1775636839.419443
+  }
+}

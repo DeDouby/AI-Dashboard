@@ -1,65 +1,63 @@
-# data_buffer.py – erweitert für LED-Status-Flow
-
 import os
 import json
+import time
 
 class DataBuffer:
     def __init__(self):
         self.path = os.path.join("data", "decoded.json")
-        self.data = None
+        # Wir behalten 'self.data', damit kein AttributeError kommt
+        self.data = [] 
 
-        # neue Felder für LED-Flow
         self.file_exists = False
         self.data_ok = False
         self.alive_flag = False
 
     def load(self):
-        # Datei existiert?
         self.file_exists = os.path.exists(self.path)
 
         if not self.file_exists:
-            self.data = None
-            self.data_ok = False
-            self.alive_flag = False
-            return None
+            # Wenn Datei weg, behalten wir den RAM-Stand (self.data) einfach bei
+            return self.data
 
         try:
             with open(self.path, "r", encoding="utf-8") as f:
-                self.data = json.load(f)
-        except:
-            self.data = None
-
-        # gültige Daten?
-        if isinstance(self.data, list):
-            self.data_ok = True
-        
-            if len(self.data) > 0:
-                d = self.data[0]
-                self.alive_flag = bool(d.get("alive", False))
+                new_content = json.load(f)
+                
+            # Validitäts-Check: Nur überschreiben, wenn wir echtes JSON haben
+            if isinstance(new_content, list):
+                self.data = new_content
+                self.data_ok = True
+                
+                if len(self.data) > 0:
+                    self.alive_flag = bool(self.data[0].get("alive", False))
+                else:
+                    self.alive_flag = False
             else:
-                # leere Liste = bewusst kein Frame
-                self.alive_flag = False
-        else:
-            self.data_ok = False
-            self.alive_flag = False
+                self.data_ok = False
+
+        except (json.JSONDecodeError, IOError, PermissionError):
+            # Falls Datei gesperrt oder kaputt: Nichts tun! 
+            # self.data behält den alten Stand -> KEIN FLACKERN
+            self.data_ok = False 
+            
+        return self.data
+
+    def get(self):
+        return self.data
+
+    def soft_reload(self):
+        return self.load()
+
     def clear(self):
-        """Leert den aktuellen Frame-Speicher komplett."""
-        self.data = None
+        self.data = []
         self.data_ok = False
         self.alive_flag = False
-        # Optional: Die Datei auf der Disk auch leeren, 
-        # damit beim Neustart kein 'Müll' geladen wird
         if os.path.exists(self.path):
             try:
                 with open(self.path, "w") as f:
                     f.write("[]") 
             except:
                 pass
-    def get(self):
-        return self.data
-
-    def soft_reload(self):
-        return self.load()
 
 # global Singleton
 BUFFER = DataBuffer()

@@ -11,19 +11,23 @@
         "pass": "1234"
       },
       "mixed_enabled": true,
-      "mixed_external": false
+      "mixed_external": true
     },
     "C898B4F2-B452-7502-1A67-0536E77D49EA": {
       "name": "sps",
       "adv_decoder": "Inkbird_ADV_Desktop",
       "gatt_decoder": "Inkbird_GATT",
-      "bridge_profile": "Inkbird_Bridge"
+      "bridge_profile": "Inkbird_Bridge",
+      "mixed_enabled": true,
+      "mixed_external": false
     },
     "FF-FF-A1-00-00-01": {
       "name": "LGS_NODE_17",
       "adv_decoder": "LGS_ADV",
       "gatt_decoder": "",
-      "bridge_profile": ""
+      "bridge_profile": "",
+      "mixed_enabled": false,
+      "mixed_external": false
     },
     "FABCEA8B-7EC8-2594-4879-2B3B63989660": {
       "name": "ThermoBeacon2",
@@ -35,13 +39,13 @@
   "bridge_profiles": {},
   "refresh_interval": 0.1,
   "stale_timeout": 13.0,
-  "ui_refresh_interval": 1.0,
-  "tile_graph_window": 30,
+  "ui_refresh_interval": 0.1,
+  "tile_graph_window": 660,
   "temperature_unit": "C",
   "temperature_offset": 0.0,
   "humidity_offset": 0.0,
   "leaf_offset": 0.0,
-  "developer_mode": true,
+  "developer_mode": false,
   "theme": "tiles",
   "lgs_mesh_channel_send": 17,
   "lgs_mesh_channel_recv": 17,

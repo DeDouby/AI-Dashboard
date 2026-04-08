@@ -1,6 +1,89 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
+###############################################################################
+# !!! ABSOLUTES GESETZ: DECODER-DATENHOHEIT & SIGNAL-INTEGRITÄT !!!
+# -----------------------------------------------------------------------------
+# 0. SINGLE SOURCE OF TRUTH
+#    Der Decoder ist die EINZIGE gültige Datenquelle im gesamten System.
+#    Alle Komponenten (UI, Dashboard, Engines) dürfen AUSSCHLIESSLICH
+#    aus decoded.json lesen – niemals direkt aus RAW, WebClient oder BLE.
+#
+# -----------------------------------------------------------------------------
+# 1. KEIN FRAME = KEIN STATUSWECHSEL
+#    Fehlende, leere oder nicht lesbare Daten dürfen NIEMALS einen
+#    Zustandswechsel (z. B. offline) auslösen.
+#
+# -----------------------------------------------------------------------------
+# 2. LAST-GOOD-PRINZIP (PFLICHT)
+#    Für jede Datenquelle (ADV, GATT, WEB) wird der letzte gültige Zustand
+#    pro Gerät gespeichert und bei Glitches wiederverwendet.
+#
+# -----------------------------------------------------------------------------
+# 3. OFFLINE NUR DURCH ZEIT
+#    Ein Gerät darf ausschließlich durch echten Timeout (keine gültigen
+#    Updates über definierte Zeitspanne) auf "offline" wechseln.
+#    NIEMALS durch:
+#      - fehlende Felder
+#      - None-Werte
+#      - leere JSONs
+#      - Read/Parse Fehler
+#
+# -----------------------------------------------------------------------------
+# 4. UNVOLLSTÄNDIGE DATEN ≠ OFFLINE
+#    Partielle Frames sind gültig und müssen verarbeitet werden.
+#    Fehlende Werte werden als None geführt – nicht als Offline interpretiert.
+#
+# -----------------------------------------------------------------------------
+# 5. QUELLEN SIND UNSICHER (BLE / WEB / FILE I/O)
+#    Jede Datenquelle kann temporär:
+#      - unvollständig
+#      - leer
+#      - veraltet
+#      - korrupt gelesen werden
+#    Der Decoder MUSS diese Zustände aktiv abfangen und stabilisieren.
+#
+# -----------------------------------------------------------------------------
+# 6. DECODER = STABILISATOR (NICHT VERSTÄRKER)
+#    Instabile Eingangsdaten dürfen NICHT ungefiltert weitergegeben werden.
+#    Der Decoder glättet, cached und schützt vor Zustandsflattern.
+#
+# -----------------------------------------------------------------------------
+# 7. KANAL-ISOLATION
+#    ADV, GATT und WEB werden unabhängig stabilisiert.
+#    Ein Fehler in einem Kanal darf NIEMALS andere Kanäle auf offline ziehen.
+#
+# -----------------------------------------------------------------------------
+# 8. FINALER FRAME IST ATOMAR & KONSISTENT
+#    Jeder erzeugte Frame (decoded.json) muss vollständig und in sich stabil sein.
+#    Keine Mischung aus:
+#      - alten und neuen Zuständen
+#      - teilweise fehlenden Kanälen
+#
+# -----------------------------------------------------------------------------
+# 9. VERBOTENE MUSTER
+#    ❌ if not data → offline
+#    ❌ missing key → offline
+#    ❌ read error → offline
+#    ❌ einzelne Quelle bestimmt Gesamtstatus direkt
+#
+# -----------------------------------------------------------------------------
+# 10. ERLAUBTE MUSTER
+#    ✅ last_good übernehmen bei Glitch
+#    ✅ Timeout-basierter Statuswechsel
+#    ✅ partielle Daten weiterverarbeiten
+#    ✅ Decoder entscheidet finalen Zustand
+#
+# -----------------------------------------------------------------------------
+# 11. UI / DASHBOARD REGEL
+#    UI ist PASSIV:
+#    - keine Logik
+#    - keine Interpretation
+#    - kein Zugriff auf RAW-Daten
+#
+#    UI zeigt ausschließlich:
+#    → decoded.json
+#
+###############################################################################
 import os, json, time, threading, csv
 from kivy.utils import platform
 import config
@@ -43,7 +126,7 @@ _LAST_ADV_TS = {}
 
 _LAST_GATT_RAW = {}
 _LAST_GATT_TS = {}
-
+_LAST_WEB = {}
 def update_bridge_state(alive, status, last_seen):
     global BRIDGE_ALIVE, BRIDGE_STATUS, BRIDGE_LAST_SEEN
     BRIDGE_ALIVE = alive
@@ -223,8 +306,18 @@ def decode_channel(entry, raw_key, profile_name,
     else:
         signal = entry.get(raw_key)
 
-    if mac is None or signal is None:
+    if mac is None:
         return offline_channel_frame(entry.get(raw_key))
+    
+    # signal fehlt → NICHT offline!
+    if signal is None:
+        # letzten Zustand behalten
+        last_ts = last_ts_dict.get(mac)
+        if last_ts and (time.time() - last_ts) < float(timeout):
+            # KEEP ALIVE (kein neues Signal, aber noch gültig)
+            pass
+        else:
+            return offline_channel_frame(entry.get(raw_key))
 
     last_signal = last_signal_dict.get(mac)
     last_ts = last_ts_dict.get(mac)
@@ -409,6 +502,16 @@ def offline_all(cfg):
 # ------------------------------------------------------------
 # DECODER-STEP
 # ------------------------------------------------------------
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import os, json, time, threading, csv
+from kivy.utils import platform
+import config
+import calculator
+
+# ... (Pfad-Logik und Helper bleiben identisch bis decode_channel) ...
+
 def step_decode():
     global UPTIME_START
 
@@ -416,144 +519,125 @@ def step_decode():
     devs = cfg.get("devices", {})
 
     if not devs or not os.path.exists(RAW_FILE):
-
         return offline_all(cfg)
 
     try:
-        raw_list = json.load(open(RAW_FILE, "r"))
+        with open(RAW_FILE, "r") as f:
+            raw_list = json.load(f)
     except:
         return offline_all(cfg)
 
     if not isinstance(raw_list, list):
         return offline_all(cfg)
     
-    # NEU: Web-Daten laden
-# Web-Daten sicher laden
+    # --- WEB DATA LOAD (Sicherer gemacht) ---
     web_data = {}
     web_dump_path = os.path.join(DATA, "web_dump.json")
-    
     if os.path.exists(web_dump_path):
-        try:
-            with open(web_dump_path, "r", encoding="utf-8") as f:
-                raw_content = f.read()
-                if raw_content.strip(): # Nur laden, wenn nicht leer
-                    web_data = json.loads(raw_content)
-        except Exception:
-            # Falls die Datei gerade im Zugriff ist: Überspringen (kein Flackern!)
-            return
+        for _ in range(3): # 3 Versuche, falls Datei gerade im Zugriff
+            try:
+                with open(web_dump_path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                    if content.strip():
+                        web_data = json.loads(content)
+                        break # Erfolgreich gelesen!
+            except:
+                time.sleep(0.01) # 10ms warten
+
     now = time.time()
     if UPTIME_START is None:
         UPTIME_START = now
 
     timeout = float(config.get_stale_timeout())
-
-    by_mac = {
-        e.get("address"): e
-        for e in raw_list
-        if isinstance(e, dict) and e.get("address")
-    }
+    by_mac = {e.get("address"): e for e in raw_list if isinstance(e, dict) and e.get("address")}
 
     frames = []
 
     for mac, dev_cfg in devs.items():
         entry = by_mac.get(mac)
         
-        # --- 2. KANÄLE DECODIEREN ---
-        # ADV & GATT (wie bisher)
+        # 1. BLE Kanäle (ADV & GATT)
         adv_dec = decode_channel(entry, "adv_raw", dev_cfg.get("adv_decoder", "unknown"), 
                                  _LAST_ADV_RAW, _LAST_ADV_TS, timeout) if entry else offline_channel_frame()
         
         gatt_dec = decode_channel(entry, "gat_raw", dev_cfg.get("gatt_decoder", "unknown"), 
                                   _LAST_GATT_RAW, _LAST_GATT_TS, timeout, is_gatt=True) if entry else offline_channel_frame()
 
-
-
-        # --- 3. NEU: WEBSERVER KANAL BEFÜLLEN (Fix: Mit Calculator-Logik) ---
+        # 2. WEBSERVER KANAL (Vollständiges Merging & Aufbereitung)
         web_raw = web_data.get(mac)
-        web_dec = offline_channel_frame() 
         
-        # In der Schleife für jedes Gerät:
-       
-        if web_raw and "temp_in" in web_raw and "humid_in" in web_raw:
+        if web_raw:
+            _LAST_WEB[mac] = web_raw
+        else:
+            web_raw = _LAST_WEB.get(mac)
+
+        if not isinstance(web_raw, dict):
+            web_raw = None    
+        web_dec = offline_channel_frame()
+        
+        if web_raw:
+            web_dec["alive"] = True
             web_dec["alive"] = True
             web_dec["status"] = "active"
             unit = f"°{config.get_temperature_unit().upper()}"
 
-            # 1. Rohwerte aus dem Web-Dump extrahieren
-            T_i_raw = web_raw.get("temp_in")
-            H_i_raw = web_raw.get("humid_in")
-            T_e_raw = web_raw.get("temp_ext")
-            H_e_raw = web_raw.get("humid_ext")
-            T_l_raw = web_raw.get("temp_leaf") or T_e_raw # Fallback auf Extern
+            # Rohwerte & Offsets
+            T_i, H_i, T_e, H_e = calculator.apply_offsets(
+                web_raw.get("temp_in"), web_raw.get("humid_in"),
+                web_raw.get("temp_ext"), web_raw.get("humid_ext")
+            )
+            T_l = web_raw.get("temp_leaf") or T_e
 
-            # 2. Offsets anwenden (WICHTIG für Konsistenz!)
-            T_i, H_i, T_e, H_e = calculator.apply_offsets(T_i_raw, H_i_raw, T_e_raw, H_e_raw)
-            # T_l (Blatt) bekommt meist keine Offsets, oder wird separat behandelt. 
-            # Hier nutzen wir T_l_raw direkt für die VPD_Leaf Berechnung.
-
-            # 3. Berechnungen via Calculator (Dewpoint & Coords)
+            # Berechnungen
             xi, yi = calculator.vpd_coord_internal(T_i, H_i)
             xe, ye = calculator.vpd_coord_external(T_e, H_e)
             dpi = calculator.dew_point_internal(T_i, H_i)
             dpe = calculator.dew_point_external(T_e, H_e)
 
-            # 4. Datenstruktur befüllen
-            web_dec["internal"] = {
-                "temperature": {"value": calculator.to_unit(T_i), "unit": unit},
-                "humidity": {"value": H_i, "unit": "%"}
-            }
-            web_dec["external"] = {
-                "present": T_e is not None,
-                "temperature": {"value": calculator.to_unit(T_e), "unit": unit},
-                "humidity": {"value": H_e, "unit": "%"}
-            }
+            web_dec.update({
+                "internal": {"temperature": {"value": calculator.to_unit(T_i), "unit": unit}, "humidity": {"value": H_i, "unit": "%"}},
+                "external": {"present": T_e is not None, "temperature": {"value": calculator.to_unit(T_e), "unit": unit}, "humidity": {"value": H_e, "unit": "%"}},
+                "vpd_internal": {"value": calculator.vpd_internal(T_i, H_i), "unit": "kPa"},
+                "vpd_external": {"value": calculator.vpd_external(T_e, H_e), "unit": "kPa"},
+                "coord": {"internal": {"x": xi, "y": yi}, "external": {"x": xe, "y": ye}},
+                "dew_point_internal": {"value": calculator.to_unit(dpi), "unit": unit},
+                "dew_point_external": {"value": calculator.to_unit(dpe), "unit": unit},
+                "circulation_fan": {"circulation_fan_rpm": web_raw.get("circulation_fan_rpm", 0), "unit": "RPM"},
+                "exhaust_fan": {"exhaust_fan_rpm": web_raw.get("exhaust_fan_rpm", 0), "unit": "RPM"},
+                "light_pct": web_raw.get("light_pct", 0),  # <--- HIER DAS LICHT REIN!
+                "light_mode": web_raw.get("light_mode", "off"), # Bonus: Modus (tim/man)
+                "battery_voltage": web_raw.get("vbat"),
+                "rev": web_raw.get("rev"),
+                "health": web_raw.get("health"),
+                "timestamp": web_raw.get("timestamp") 
+            })
 
-            # VPD Werte (neu berechnet statt nur geschleift)
-            web_dec["vpd_internal"] = {"value": calculator.vpd_internal(T_i, H_i), "unit": "kPa"}
-            web_dec["vpd_external"] = {"value": calculator.vpd_external(T_e, H_e), "unit": "kPa"}
-            
-            # Koordinaten für das Dashboard (DAS hat gefehlt!)
-            web_dec["coord"] = {
-                "internal": {"x": xi, "y": yi},
-                "external": {"x": xe, "y": ye},
-            }
-
-            # Taupunkte
-            web_dec["dew_point_internal"] = {"value": calculator.to_unit(dpi), "unit": unit}
-            web_dec["dew_point_external"] = {"value": calculator.to_unit(dpe), "unit": unit}
-
-            # Blatt-VPD (Speziallogik beibehalten)
-            vpd_l_val = None
-            if T_l_raw is not None and T_e is not None and H_e is not None:
-                svp_l = 0.61078 * (10**((7.5 * T_l_raw) / (237.3 + T_l_raw)))
+            # Blatt-VPD Speziallogik
+            if T_l is not None and T_e is not None and H_e is not None:
+                svp_l = 0.61078 * (10**((7.5 * T_l) / (237.3 + T_l)))
                 svp_e = 0.61078 * (10**((7.5 * T_e) / (237.3 + T_e)))
                 avp_e = svp_e * (H_e / 100.0)
-                vpd_l_val = round(svp_l - avp_e, 3)
+                web_dec["external2"] = {
+                    "present": True,
+                    "leaf_temp": {"value": calculator.to_unit(T_l), "unit": unit},
+                    "vpd_leaf": {"value": round(svp_l - avp_e, 3), "unit": "kPa"}
+                }
 
-            web_dec["external2"] = {
-                "present": T_l_raw is not None,
-                "leaf_temp": {"value": calculator.to_unit(T_l_raw), "unit": unit},
-                "vpd_leaf": {"value": vpd_l_val, "unit": "kPa"}
-            }
+        # 3. FINALER MERGE (Header-Daten hochziehen)
+        alive = adv_dec["alive"] or gatt_dec["alive"] or web_dec["alive"]
+        
+        # Welcher Kanal liefert die Health-Daten für den Header?
 
-            # Restliche Metadaten
-            web_dec["light"] = {
-                "brightness": web_raw.get("light_pct", 0),
-                "mode": web_raw.get("light_mode", "man")
-            }
-            web_dec["circulation_fan"] = {"circulation_fan_rpm": web_raw.get("circulation_fan_rpm", 0), "unit": "RPM"}
-            web_dec["exhaust_fan"] = {"exhaust_fan_rpm": web_raw.get("exhaust_fan_rpm", 0), "unit": "RPM"}
-
-            web_dec["battery_voltage"] = web_raw.get("vbat")
-        else:
-            # Falls Daten fehlen, behalte den letzten Status oder markiere als Offline
-            web_dec = offline_channel_frame()
-            web_dec["alive"] = False
-            web_dec["status"] = "offline"
-
-        # --- 4. FINALER FRAME ZUSAMMENBAU (Das hat gefehlt!) ---
-        # Alive ist das Gerät, wenn IRGENDEIN Kanal Daten liefert
         alive = adv_dec.get("alive") or gatt_dec.get("alive") or web_dec.get("alive")
+
+# --- RSSI LOGIK FIX ---
+        # Wir versuchen erst den RSSI vom Webserver zu bekommen, 
+        # falls der nicht da ist, nehmen wir den BLE-RSSI (entry).
+        web_rssi = None
+        if web_dec.get("health"):
+            web_rssi = web_dec["health"].get("signal", {}).get("rssi")
+        
+        final_rssi = web_rssi if web_rssi is not None else (entry.get("rssi") if entry else None)
 
         frames.append({
             "timestamp": now,
@@ -571,13 +655,14 @@ def step_decode():
                     "unit": "V", 
                     "voltage": web_dec.get("battery_voltage") or adv_dec.get("battery_voltage")
                 },
-                "signal": {"rssi": entry.get("rssi") if entry else None, "quality": None},
-            }
+                "signal": {"rssi": final_rssi, "quality": None}, # <--- FIX ANGEWANDT
+                "status": web_dec.get("health") 
+            },
+            "rev": web_dec.get("rev") or adv_dec.get("rev")
         })
 
-    # NACH der for-schleife über alle MACs:
     _write(frames)
-
+# ------------------------------------------------------------
 # ------------------------------------------------------------
 def _write(frames):
     """Haupt-Schreibfunktion für die fertigen Daten"""

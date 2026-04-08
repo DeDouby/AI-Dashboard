@@ -58,10 +58,11 @@ class CirculationFanOverlay(FloatLayout):
         # 2. Das Haupt-Panel
         self.panel = BoxLayout(
             orientation="vertical", 
-            padding=dp_scaled(20), 
             spacing=dp_scaled(12),
             size_hint=(None, None), 
             size=(dp_scaled(420), dp_scaled(420)),
+            padding=[dp_scaled(30), 0, dp_scaled(30), 0], # LINKS und RECHTS Padding hinzufügen
+
             pos_hint={"right": 0.98, "top": 0.98}
         )
 
@@ -130,14 +131,7 @@ class CirculationFanOverlay(FloatLayout):
         btn_row.add_widget(self.btn_man); btn_row.add_widget(self.btn_nat); btn_row.add_widget(self.btn_chao)
         self.panel.add_widget(btn_row)
 
-        btn_close = Button(
-            text="FERTIG",
-            size_hint_y=None, height=dp_scaled(45),
-            background_normal="", background_color=(0.2, 0.2, 0.2, 1),
-            bold=True
-        )
-        btn_close.bind(on_release=lambda *_: self.close())
-        self.panel.add_widget(btn_close)
+ 
         
         Clock.schedule_once(self._init_values, 0)
         self.add_widget(self.panel)

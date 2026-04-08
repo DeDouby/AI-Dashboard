@@ -48,7 +48,7 @@ class SignalBars(BoxLayout):
         super().__init__(**kw)
         self.size_hint = (None, 1)
         self.width = dp_scaled(40)  # Fixed breite
-        self.padding = [0, dp_scaled(8)]  # Oben/Unten Padding für bessere Proportion
+        self.padding = [0, dp_scaled(2)]  # Oben/Unten Padding für bessere Proportion
         self.img = Image(
             fit_mode="contain",
             keep_ratio=True,
@@ -625,81 +625,75 @@ class HeaderBar(BoxLayout):
     # ONE ENTRY-POINT FOR ALL SCREENS
     # ---------------------------------------------------
     def update_from_global(self, frame):
-        """Wird im Takt der DataFlowEngine gerufen - Einzige Quelle für das Label!"""
+        """Wird im Takt der DataFlowEngine gerufen. REIN LOKAL."""
         if not isinstance(frame, dict):
             return
 
-        # --- DEVICE & CHANNEL LABEL ---
-        self._last_frame = frame  # <--- DIESE ZEILE MUSS REIN!
-        mac = frame.get("device_id")
-        if mac:
-            label = GLOBAL_STATE.get_device_label(mac)
-            
-            # Hier holen wir den Kanal aus dem Frame, den ACE & DataFlowEngine gesetzt haben
-            ch = frame.get("channel", "adv")
-            if ch == "webserver":
-                tag = "WEB"
-            else:
-                tag = str(ch).upper()
-            
-            icon = "[font=FA]\uf2c7[/font]"
-            # Wir setzen das Label NUR HIER
-            self.lbl_dev.text = f"{icon}  {label} [color=777777]· {tag}[/color]"
-        else:
-            self.lbl_dev.text = "---"
-
-        # PRIORITÄT: webserver → gatt → adv
-        if frame.get("webserver", {}).get("alive"):
-            ch_data = frame.get("webserver", {})
-        elif frame.get("gatt", {}).get("alive"):
-            ch_data = frame.get("gatt", {})
-        else:
-            ch_data = frame.get("adv", {})
-        
-        
-        # --- LICHT UPDATE (FIXED) ---
-        # --- LICHT UPDATE (HYBRID) ---
-        web = frame.get("web", {})
-        ch_data = frame.get(frame.get("channel", "adv"), {})
-        
-        light_val = web.get("light_pct", None)
-        
-        if light_val is None:
-            light_val = ch_data.get("light", {}).get("brightness", None)
-        
-        self.light.set_status(light_val)
-        
-        # 2. Abluft RPM (Exhaust) 
-               
-        # ACHTUNG: Prüfe ob dein Decoder "exhaust_fan" oder "exhaust" nutzt!
-        rpm_ex = ch_data.get("exhaust_fan", {}).get("exhaust_fan_rpm", None)
-        self.exhaust_fan.set_rpm(rpm_ex)  ######noch ungenutzt!!!!
-        # Hol den Wert aus dem 'circulation_fan' Objekt, das dein Decoder liefert
-        rpm = ch_data.get("circulation_fan", {}).get("circulation_fan_rpm", None)
-        self.circulation_fan.set_rpm(rpm)
-        # --- BATTERY UPDATE ---
+        # 1. Daten-Quellen definieren (NUR aus dem Frame!)
+        web_ch = frame.get("webserver", {})
         health = frame.get("health", {})
-        # Wir nehmen die Spannung aus der health-Sektion, die du im Decoder befüllst
-        v_bat = health.get("battery", {}).get("voltage")
+        
+        # --- DEVICE LABEL ---
+        self._last_frame = frame
+        mac = frame.get("device_id")
+        label = GLOBAL_STATE.get_device_label(mac) if mac else "---"
+        
+        # Welcher Kanal ist gerade aktiv? (Wichtig für das Icon)
+        ch_name = frame.get("channel", "adv")
+        tag = "WEB" if ch_name == "webserver" else ch_name.upper()
+        
+        # icon_temp = "\uf2c7" # Thermometer
+        self.lbl_dev.text = f"[font=FA]\uf2c7[/font]  {label} [color=777777]· {tag}[/color]"
+
+        # --- BATTERIE (Kein Web-Zugriff, nur Frame-Daten) ---
+        # Prio 1: Health-Block (global), Prio 2: Webserver-Kanal-Snapshot
+        v_bat = health.get("battery", {}).get("voltage") or web_ch.get("battery_voltage")
         self.battery.set_voltage(v_bat)
-        # --- Restliche Updates ---
-        self.set_rssi_from_frame(frame)
+
+        # --- SIGNAL (RSSI) ---
+        # Wir nehmen den RSSI-Wert, den der Decoder bereits in den Health-Block gemappt hat
+        rssi = health.get("signal", {}).get("rssi")
+        self.signal.set_rssi(rssi)
+
+        # --- FANS / RPM (Aus dem Webserver-Snapshot im Frame) ---
+        # Hier greifen wir NICHT auf den Webclient zu, sondern auf das, was der Decoder
+        # aus dem web_dump.json in den Frame geschrieben hat.
+        rpm_ex = web_ch.get("exhaust_fan", {}).get("exhaust_fan_rpm")
+        self.exhaust_fan.set_rpm(rpm_ex)
+        
+        rpm_circ = web_ch.get("circulation_fan", {}).get("circulation_fan_rpm")
+        self.circulation_fan.set_rpm(rpm_circ)
+
+        # --- LICHT ---
+        light_val = web_ch.get("light_pct")
+        self.light.set_status(light_val)
+
+        # --- STATUS LED ---
+        # Nutzt den vom Decoder berechneten Status
+        self.set_led(frame)
         self.set_external_from_frame(frame)
         self._update_clock()
-
+   
+   
     def set_rssi_from_frame(self, frame):
+        # 1. 'health' Dictionary holen (Default leeres Dict)
         health = frame.get("health", {})
-        ch = frame.get("channel", "adv")
-        health = frame.get("health", {})
-        rssi = health.get("signal", {}).get("rssi")
-        # Wenn Webserver aktiv ist, zeigen wir volle Balken (WLAN ist ja da)
-        if ch == "webserver":
-            self.signal.set_rssi(-50) # Täuscht 5 Balken vor
-            return        
-
+        
+        # 2. 'signal' Dictionary aus 'health' holen
+        signal = health.get("signal", {})
+        
+        # 3. Den eigentlichen 'rssi' Wert extrahieren
+        rssi = signal.get("rssi")
+    
+        # --- DEBUG PRINT (Optional, nimm es raus wenn es nervt) ---
+        # print(f"[DEBUG] RSSI Empfangen: {rssi}")
+    
+        # 4. Den Wert an das UI-Widget weitergeben
         if rssi is not None:
+            # Hier landet jetzt dein -65 aus dem Dump
             self.signal.set_rssi(rssi)
         else:
+            # Falls gar nichts da ist (z.B. Sensorfehler)
             self.signal.set_rssi(None)
     # ---------------------------------------------------
     # Helpers

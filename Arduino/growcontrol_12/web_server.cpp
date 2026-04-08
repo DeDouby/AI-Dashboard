@@ -52,7 +52,18 @@ void handleData() {
 
     StaticJsonDocument<1024> doc;
     JsonObject obj = doc.to<JsonObject>();
-
+    
+    // --- NEU: Health & Signal Status ---
+    // Wir erstellen ein verschachteltes Objekt für die System-Gesundheit
+    JsonObject health = obj.createNestedObject("health");
+    JsonObject signal = health.createNestedObject("signal");
+    
+    // WiFi.RSSI() liefert den Wert in dBm (z.B. -65)
+    if (WiFi.status() == WL_CONNECTED) {
+        signal["rssi"] = WiFi.RSSI();
+    } else {
+        signal["rssi"] = -256; // Unser besprochener Pseudo-Wert für "Offline"
+    }
     // Sensoren (Direkt aus sensor.h / globals)
     obj["temp_in"] = getTempIn();
     obj["temp_ext"] = getTempExt();
@@ -63,7 +74,7 @@ void handleData() {
     obj["vpd_leaf"] = currentVPDLeaf;
     obj["vbat"] = get_battery_voltage_now();
     obj["rev"] = current_rev;
-
+    
     // Module befüllen den Rest
     exhaust_fan_get_status(obj);
     circulation_fan_get_status(obj);

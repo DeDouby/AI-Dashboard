@@ -154,20 +154,37 @@ class WebClientThread(threading.Thread):
         threading.Thread(target=_async_send, daemon=True).start()
 
     def _save_to_disk(self):
-        # Vorher: if not self.current_data: return -> DAS WAR DER FEHLER
-        # Wir wollen eine leere Datei schreiben, wenn keine Daten mehr da sind!
-        
-        try:
-            tmp_path = self.path + ".tmp"
-            with open(tmp_path, "w", encoding="utf-8") as f:
-                # Wir schreiben immer, auch wenn es ein leeres Dict {} ist
-                json.dump(self.current_data, f)
-                f.flush()
-                os.fsync(f.fileno())
+        if not self.current_data:
+            return
             
-            os.replace(tmp_path, self.path)
+        tmp_path = self.path + ".tmp"
+        try:
+            # 1. Daten im RAM vorbereiten
+            payload = json.dumps(self.current_data, indent=2) 
+            
+            # 2. In die temporäre Datei schreiben
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                f.write(payload)
+                f.flush()
+                os.fsync(f.fileno()) # Erzwingt das Schreiben auf die Platte
+            
+            # 3. Sicherstellen, dass die Zieldatei nicht blockiert ist
+            # os.replace ist unter Unix atomar, kann aber bei Dateikonflikten hängen
+            if os.path.exists(tmp_path):
+                os.replace(tmp_path, self.path)
+            
+        except OSError as e:
+            # Das passiert, wenn das OS den Zugriff verweigert
+            print(f"[WebClient] OS-Zugriffsfehler (Flicker-Gefahr): {e}")
+            # Kleiner Fallback: Wenn replace fehlschlägt, versuchen wir es im nächsten Zyklus erneut
         except Exception as e:
             print(f"[WebClient] Kritischer Speicherfehler: {e}")
+        finally:
+            # Aufräumen, falls die tmp Datei noch da ist
+            if os.path.exists(tmp_path):
+                try: os.remove(tmp_path)
+                except: pass
+            
     def _cleanup_stale_data(self):
         cleaned = False
         now = time.time()

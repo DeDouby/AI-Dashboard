@@ -113,6 +113,7 @@ class LightOverlay(FloatLayout):
         self.content = BoxLayout(
             orientation="vertical",
             spacing=dp_scaled(15),
+            padding=[dp_scaled(20), 0, dp_scaled(20), 0], # LINKS und RECHTS Padding hinzufügen
             size_hint_y=None
         )
         
