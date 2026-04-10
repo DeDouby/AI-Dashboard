@@ -29,6 +29,7 @@ Preferences circulation_fanPrefs;
 int current_circulation_fan_speed = 60;
 circulation_fanMode current_circulation_fan_mode = circulation_fan_MODE_NATURAL; // Direkt mit Natural starten
 int current_circulation_fan_min_speed = 20; // Standardmäßig 20% Min-Speed
+int effective_circulation_fan_speed = 0;    // Das ist das SPEED_NOW (Ist)
 volatile int circulation_fan_pulse_count = 0; 
 static uint32_t last_circulation_fan_rpm_check = 0;
 static int current_circulation_fan_rpm = 0;
@@ -125,37 +126,38 @@ int circulation_fan_get_rpm() {
 }
 
 void circulation_fan_update() {
-    if (current_circulation_fan_mode == circulation_fan_MODE_MANUAL) return;
+    // Falls Manuell: Der effektive Wert ist einfach das Target
+    if (current_circulation_fan_mode == circulation_fan_MODE_MANUAL) {
+        effective_circulation_fan_speed = current_circulation_fan_speed;
+        return; 
+    }
 
     static uint32_t last_wind_change = 0;
     if (millis() - last_wind_change > 1500) {
         float mix_factor = 0;
 
         if (current_circulation_fan_mode == circulation_fan_MODE_NATURAL) {
-            // Schwingt sauber zwischen 0.0 und 1.0
             mix_factor = 0.5 + (sin(millis() / 3000.0) * 0.5);
         } 
         else if (current_circulation_fan_mode == circulation_fan_MODE_CHAOTIC) {
             mix_factor = random(0, 101) / 100.0;
         }
 
-        // DER CLOU: Wir skalieren den Mix-Faktor auf den Bereich zwischen MIN und MAX
-        // Formel: Min + (Differenz * Mix)
         int diff = current_circulation_fan_speed - current_circulation_fan_min_speed;
-        if (diff < 0) diff = 0; // Sicherheitshalber
+        if (diff < 0) diff = 0; 
 
-        int dynamic_speed = current_circulation_fan_min_speed + (int)(diff * mix_factor);
+        // Berechnung des aktuellen IST-Wertes
+        effective_circulation_fan_speed = current_circulation_fan_min_speed + (int)(diff * mix_factor);
         
-        // PWM Mapping (unser Mars Gaming Schutz bleibt!)
+        // PWM Mapping
         uint32_t duty = 0;
-        if (dynamic_speed > 0) {
-            duty = map(dynamic_speed, 1, 100, 65, 255);
+        if (effective_circulation_fan_speed > 0) {
+            duty = map(effective_circulation_fan_speed, 1, 100, 65, 255);
         }
         
         ledcWrite(_circulation_fan_pin, duty);
         last_wind_change = millis();
     }
-
 }
 
 void circulation_fan_process_json(JsonObject doc) {
@@ -195,6 +197,7 @@ void circulation_fan_process_json(JsonObject doc) {
 void circulation_fan_get_status(JsonObject doc) {
     doc["circulation_fan_rpm"] = circulation_fan_get_rpm();
     doc["circulation_fan_pct"] = current_circulation_fan_speed;
+    doc["circulation_fan_speed_now"] = effective_circulation_fan_speed; // Realer Speed (Anzeige)
     doc["circulation_fan_min"] = current_circulation_fan_min_speed;
     doc["circulation_fan_mode"] = (current_circulation_fan_mode == circulation_fan_MODE_NATURAL) ? "nat" : 
                                  (current_circulation_fan_mode == circulation_fan_MODE_CHAOTIC) ? "chao" : "man";

@@ -110,6 +110,16 @@ class CirculationFanOverlay(FloatLayout):
         # --- NEUER RANGE SLIDER ---
         self.panel.add_widget(Label(text="SPEED RANGE (MIN - MAX)", font_size=sp_scaled(11), color=(0,1,0,0.5), size_hint_y=None, height=dp_scaled(15)))
         
+        # NEU: Das Live-Output Label
+        self.lbl_live_speed = Label(
+            text="LIVE OUTPUT: 0%", 
+            font_size=sp_scaled(22), 
+            bold=True, 
+            color=(0, 1, 1, 1) # Ein schickes Cyan/Blau für den Ist-Wert
+        )
+        self.panel.add_widget(self.lbl_live_speed)
+
+
         self.range_slider = UnifiedSlider(min=0, max=100, range_min=0, range_max=100, mode='range', size_hint_y=None, height=dp_scaled(45))
         # Wir binden die Werte-Änderung an deine bestehende Logik
         self.range_slider.bind(min_value=self._on_slider_change, max_value=self._on_slider_change)
@@ -190,12 +200,15 @@ class CirculationFanOverlay(FloatLayout):
 
         # --- DAS TARGET-REVISION-GESETZ ---
         server_rev = int(server_data.get('rev', 0))
+        srv_live = server_data.get('circulation_fan_speed_now', 0)
+
         last_sent = getattr(self, '_last_sent_rev', 0)
         is_synced = (server_rev >= last_sent) and not self._user_active and (time.time() - self._last_user_action > 2.0)
 
         # Echtzeit-Werte (RPM) immer zeigen
         srv_rpm = server_data.get('circulation_fan_rpm', 0)
         self.lbl_rpm.text = f"RPM: {int(srv_rpm)}"
+        self.lbl_live_speed.text = f"LIVE OUTPUT: {int(srv_live)}%"
 
         if not is_synced:
             self.sync_icon.text = "[font=FA]\uf021[/font]" # Syncing Icon

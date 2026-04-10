@@ -1,1 +1,42 @@
-[]
+[
+  {
+    "address": "827482CC-A977-43D7-835E-8E8B6978E66A",
+    "gat_raw": null,
+    "timestamp": "2026-04-10T12:05:30.398+0000",
+    "name": "LGS_Sensor",
+    "rssi": -69,
+    "adv_raw": "D302A211073C169D07500FA009F601A20000BC",
+    "log_raw": "D302A211073C169D07500FA009F601A20000BC",
+    "note": "raw"
+  },
+  {
+    "address": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
+    "gat_raw": null,
+    "timestamp": "2026-04-10T12:05:28.876+0000",
+    "name": "ThermoBeacon2",
+    "rssi": -58,
+    "adv_raw": "190019060000F1F01A104501FD02FFFFFFFF184A2C00",
+    "log_raw": "190019060000F1F01A104501FD02FFFFFFFF184A2C00",
+    "note": "raw"
+  },
+  {
+    "address": "C898B4F2-B452-7502-1A67-0536E77D49EA",
+    "gat_raw": null,
+    "timestamp": "2026-04-10T12:05:20.113+0000",
+    "name": "sps",
+    "rssi": -56,
+    "adv_raw": "5D08D51700D5A51B08",
+    "log_raw": "5D08D51700D5A51B08",
+    "note": "raw"
+  },
+  {
+    "address": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
+    "gat_raw": null,
+    "timestamp": "2026-04-10T12:04:17.414+0000",
+    "name": "TP351S (987A)",
+    "rssi": -69,
+    "adv_raw": "C2BC0031203301",
+    "log_raw": "C2BC0031203301",
+    "note": "raw"
+  }
+]

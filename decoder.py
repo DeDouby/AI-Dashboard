@@ -1,87 +1,55 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 ###############################################################################
-# !!! ABSOLUTES GESETZ: DECODER-DATENHOHEIT & SIGNAL-INTEGRITÄT !!!
+# !!! ABSOLUTES GESETZ v2.0: HYBRIDE STABILITÄT & RAM-DOMINANZ !!!
 # -----------------------------------------------------------------------------
-# 0. SINGLE SOURCE OF TRUTH
-#    Der Decoder ist die EINZIGE gültige Datenquelle im gesamten System.
-#    Alle Komponenten (UI, Dashboard, Engines) dürfen AUSSCHLIESSLICH
-#    aus decoded.json lesen – niemals direkt aus RAW, WebClient oder BLE.
+# 0. SINGLE SOURCE OF TRUTH (DIE QUELLE)
+#    Der Decoder ist der alleinige Herrscher über den Systemstatus. 
+#    UI und Engines lesen NUR die 'decoded.json'. Der Decoder liest für WEB
+#    direkt aus dem RAM (_LIVE_WEB_DATA) – die Festplatte ist für WEB-Validierung tot.
 #
 # -----------------------------------------------------------------------------
-# 1. KEIN FRAME = KEIN STATUSWECHSEL
-#    Fehlende, leere oder nicht lesbare Daten dürfen NIEMALS einen
-#    Zustandswechsel (z. B. offline) auslösen.
+# 1. RAM-INJEKTION VOR DISK-I/O
+#    Web-Daten fließen per Direkt-Injektion in den Arbeitsspeicher. 
+#    Ein langsames Dateisystem (SD-Karte/Android-I/O) darf niemals die 
+#    Aktualität der Daten bremsen oder Flackern verursachen.
 #
 # -----------------------------------------------------------------------------
-# 2. LAST-GOOD-PRINZIP (PFLICHT)
-#    Für jede Datenquelle (ADV, GATT, WEB) wird der letzte gültige Zustand
-#    pro Gerät gespeichert und bei Glitches wiederverwendet.
+# 2. AUTONOME TIMEOUT-HOHEIT (DAS ENDE DES FLACKERNS)
+#    Der Decoder berechnet den Offline-Status für WEB-Geräte SELBSTSTÄNDIG:
+#    (Aktuelle_Zeit - Paket_Zeitstempel) > config.stale_timeout.
+#    Der externe Watchdog-Status wird für WEB ignoriert, um Fehlalarme 
+#    durch Netzwerk-Latenz zu eliminieren.
 #
 # -----------------------------------------------------------------------------
-# 3. OFFLINE NUR DURCH ZEIT
-#    Ein Gerät darf ausschließlich durch echten Timeout (keine gültigen
-#    Updates über definierte Zeitspanne) auf "offline" wechseln.
-#    NIEMALS durch:
-#      - fehlende Felder
-#      - None-Werte
-#      - leere JSONs
-#      - Read/Parse Fehler
+# 3. KANAL-ISOLATION & GNADENFRIST
+#    Ein stockender Web-Request darf weder die BLE-Daten (ADV/GATT) stören, 
+#    noch das Gerät sofort auf "offline" reißen. Solange der Cache innerhalb 
+#    der Config-Zeit liegt, bleibt der Status "active".
 #
 # -----------------------------------------------------------------------------
-# 4. UNVOLLSTÄNDIGE DATEN ≠ OFFLINE
-#    Partielle Frames sind gültig und müssen verarbeitet werden.
-#    Fehlende Werte werden als None geführt – nicht als Offline interpretiert.
+# 4. LAST-GOOD-DATA (KEIN DATENVAKUUM)
+#    Bei einem misslungenen Request oder korrupten Paket wird zwingend der 
+#    letzte gültige Stand aus dem RAM-Cache serviert. "Leere" Frames 
+#    zwischen zwei erfolgreichen Updates sind streng verboten.
 #
 # -----------------------------------------------------------------------------
-# 5. QUELLEN SIND UNSICHER (BLE / WEB / FILE I/O)
-#    Jede Datenquelle kann temporär:
-#      - unvollständig
-#      - leer
-#      - veraltet
-#      - korrupt gelesen werden
-#    Der Decoder MUSS diese Zustände aktiv abfangen und stabilisieren.
+# 5. ATOMARE KONSISTENZ
+#    Die 'decoded.json' wird nur geschrieben, wenn der Frame in sich logisch ist.
+#    Mischmasch aus uralten Web-Daten und frischen BLE-Daten wird durch 
+#    individuelle Zeitstempel pro Kanal innerhalb des Objekts verhindert.
 #
 # -----------------------------------------------------------------------------
-# 6. DECODER = STABILISATOR (NICHT VERSTÄRKER)
-#    Instabile Eingangsdaten dürfen NICHT ungefiltert weitergegeben werden.
-#    Der Decoder glättet, cached und schützt vor Zustandsflattern.
+# 6. VERBOTENE MUSTER (TODSÜNDEN)
+#    ❌ Watchdog sagt "offline" -> sofortiges Ausgrauen in der UI (WEB-Kanal)
+#    ❌ config.stale_timeout ignorieren oder hartcodieren
+#    ❌ Direktes Lesen der web_dump.json für die Status-Logik
 #
 # -----------------------------------------------------------------------------
-# 7. KANAL-ISOLATION
-#    ADV, GATT und WEB werden unabhängig stabilisiert.
-#    Ein Fehler in einem Kanal darf NIEMALS andere Kanäle auf offline ziehen.
-#
-# -----------------------------------------------------------------------------
-# 8. FINALER FRAME IST ATOMAR & KONSISTENT
-#    Jeder erzeugte Frame (decoded.json) muss vollständig und in sich stabil sein.
-#    Keine Mischung aus:
-#      - alten und neuen Zuständen
-#      - teilweise fehlenden Kanälen
-#
-# -----------------------------------------------------------------------------
-# 9. VERBOTENE MUSTER
-#    ❌ if not data → offline
-#    ❌ missing key → offline
-#    ❌ read error → offline
-#    ❌ einzelne Quelle bestimmt Gesamtstatus direkt
-#
-# -----------------------------------------------------------------------------
-# 10. ERLAUBTE MUSTER
-#    ✅ last_good übernehmen bei Glitch
-#    ✅ Timeout-basierter Statuswechsel
-#    ✅ partielle Daten weiterverarbeiten
-#    ✅ Decoder entscheidet finalen Zustand
-#
-# -----------------------------------------------------------------------------
-# 11. UI / DASHBOARD REGEL
-#    UI ist PASSIV:
-#    - keine Logik
-#    - keine Interpretation
-#    - kein Zugriff auf RAW-Daten
-#
-#    UI zeigt ausschließlich:
-#    → decoded.json
+# 7. ERLAUBTE MUSTER (GOLD STANDARD)
+#    ✅ RAM-Cache (_LAST_WEB) als primäre Validierung
+#    ✅ 'now - timestamp' gegen Config-Wert prüfen
+#    ✅ Den Watchdog nur noch für passive Kanäle (BLE) als Berater nutzen
 #
 ###############################################################################
 import os, json, time, threading, csv
@@ -127,6 +95,16 @@ _LAST_ADV_TS = {}
 _LAST_GATT_RAW = {}
 _LAST_GATT_TS = {}
 _LAST_WEB = {}
+from watchdog_manager import DumpWatchdog
+
+watchdog = DumpWatchdog(
+    timeout=config.get_stale_timeout(),
+    interval=1.0,
+    callback=lambda x: x
+)
+
+watchdog_result = watchdog.check_status()
+
 def update_bridge_state(alive, status, last_seen):
     global BRIDGE_ALIVE, BRIDGE_STATUS, BRIDGE_LAST_SEEN
     BRIDGE_ALIVE = alive
@@ -502,93 +480,119 @@ def offline_all(cfg):
 # ------------------------------------------------------------
 # DECODER-STEP
 # ------------------------------------------------------------
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 
-import os, json, time, threading, csv
-from kivy.utils import platform
-import config
-import calculator
 
-# ... (Pfad-Logik und Helper bleiben identisch bis decode_channel) ...
 
+
+
+# Ganz oben in decoder.py (bei den Variablen)
+_LIVE_WEB_DATA = {} # Das hier ist unser neuer Hochgeschwindigkeits-Speicher
+
+def inject_web_data(mac, payload):
+    """Wird direkt vom WebClient aufgerufen - Umgeht das Dateisystem!"""
+    global _LIVE_WEB_DATA
+    _LIVE_WEB_DATA[mac] = payload
+_WEB_CACHE = {}
 def step_decode():
-    global UPTIME_START
-
+    global UPTIME_START, _LAST_ADV_RAW, _LAST_GATT_RAW, _LAST_WEB, _LIVE_WEB_DATA
     cfg = config._init()
     devs = cfg.get("devices", {})
-
-    if not devs or not os.path.exists(RAW_FILE):
-        return offline_all(cfg)
-
-    try:
-        with open(RAW_FILE, "r") as f:
-            raw_list = json.load(f)
-    except:
-        return offline_all(cfg)
-
-    if not isinstance(raw_list, list):
-        return offline_all(cfg)
-    
-    # --- WEB DATA LOAD (Sicherer gemacht) ---
-    web_data = {}
-    web_dump_path = os.path.join(DATA, "web_dump.json")
-    if os.path.exists(web_dump_path):
-        for _ in range(3): # 3 Versuche, falls Datei gerade im Zugriff
-            try:
-                with open(web_dump_path, "r", encoding="utf-8") as f:
-                    content = f.read()
-                    if content.strip():
-                        web_data = json.loads(content)
-                        break # Erfolgreich gelesen!
-            except:
-                time.sleep(0.01) # 10ms warten
-
     now = time.time()
-    if UPTIME_START is None:
-        UPTIME_START = now
+    if UPTIME_START is None: UPTIME_START = now
 
+    # 1. WATCHDOG LADEN
+    w_res = watchdog.check_status()
+    w_devs = w_res.get("devices", {})
+
+    # BLE Daten laden
+    ble_list = []
+    if os.path.exists(RAW_FILE):
+        try:
+            with open(RAW_FILE, "r") as f: 
+                ble_list = json.load(f)
+        except: pass
+    
+    # 2. WEB DATEN LADEN (RAM + DISK BACKUP)
+    # Wir nehmen Daten aus dem RAM, aber falls leer, lesen wir die Datei
+    web_data = _LIVE_WEB_DATA.copy() 
+    if not web_data:
+        web_dump_path = os.path.join(DATA, "web_dump.json")
+        if os.path.exists(web_dump_path):
+            try:
+                with open(web_dump_path, "r") as f:
+                    web_data = json.load(f)
+            except: pass
+
+    by_mac = {e.get("address"): e for e in ble_list if isinstance(e, dict) and e.get("address")}
     timeout = float(config.get_stale_timeout())
-    by_mac = {e.get("address"): e for e in raw_list if isinstance(e, dict) and e.get("address")}
-
     frames = []
 
     for mac, dev_cfg in devs.items():
         entry = by_mac.get(mac)
-        
-        # 1. BLE Kanäle (ADV & GATT)
-        adv_dec = decode_channel(entry, "adv_raw", dev_cfg.get("adv_decoder", "unknown"), 
-                                 _LAST_ADV_RAW, _LAST_ADV_TS, timeout) if entry else offline_channel_frame()
-        
-        gatt_dec = decode_channel(entry, "gat_raw", dev_cfg.get("gatt_decoder", "unknown"), 
-                                  _LAST_GATT_RAW, _LAST_GATT_TS, timeout, is_gatt=True) if entry else offline_channel_frame()
+        w_status = w_devs.get(mac, {})
+        unit = f"°{config.get_temperature_unit().upper()}"
 
-        # 2. WEBSERVER KANAL (Vollständiges Merging & Aufbereitung)
+        # --- KANAL 1: ADV ---
+        adv_w = w_status.get("adv", {"alive": False})
+        adv_dec = offline_channel_frame(entry.get("adv_raw") if entry else None)
+        if adv_w["alive"]:
+            res = decode_channel(entry, "adv_raw", dev_cfg.get("adv_decoder"), _LAST_ADV_RAW, _LAST_ADV_TS, timeout) if entry else None
+            if res and res["alive"]:
+                adv_dec = res
+                _LAST_ADV_RAW[mac] = entry.get("adv_raw")
+            elif mac in _LAST_ADV_RAW:
+                adv_dec = decode_channel({"address": mac, "adv_raw": _LAST_ADV_RAW[mac]}, "adv_raw", dev_cfg.get("adv_decoder"), _LAST_ADV_RAW, _LAST_ADV_TS, timeout)
+
+        # --- KANAL 2: GATT ---
+        gatt_w = w_status.get("gat", {"alive": False})
+        gatt_dec = offline_channel_frame(entry.get("gat_raw") if entry else None)
+        if gatt_w["alive"]:
+            res = decode_channel(entry, "gat_raw", dev_cfg.get("gatt_decoder"), _LAST_GATT_RAW, _LAST_GATT_TS, timeout, is_gatt=True) if entry else None
+            if res and res["alive"]:
+                gatt_dec = res
+                _LAST_GATT_RAW[mac] = entry.get("gat_raw")
+            elif mac in _LAST_GATT_RAW:
+                gatt_dec = decode_channel({"address": mac, "gat_raw": _LAST_GATT_RAW[mac]}, "gat_raw", dev_cfg.get("gatt_decoder"), _LAST_GATT_RAW, _LAST_GATT_TS, timeout, is_gatt=True)
+
+ # --- KANAL 3: WEBSERVER (WATCHDOG-FREI & STABIL) ---
+        # Wir ignorieren web_w = w_status.get("web") komplett!
+        
         web_raw = web_data.get(mac)
-        
-        if web_raw:
-            _LAST_WEB[mac] = web_raw
-        else:
-            web_raw = _LAST_WEB.get(mac)
+        if web_raw: 
+            _LAST_WEB[mac] = web_raw # Sofort in den Langzeit-Cache
 
-        if not isinstance(web_raw, dict):
-            web_raw = None    
-        web_dec = offline_channel_frame()
+        # Wir holen uns den letzten Stand aus dem Cache
+        current_web = _LAST_WEB.get(mac)
+        # HIER: Wir holen den Wert direkt aus deiner Config
+        try:
+            conf_timeout = float(config.get_stale_timeout())
+        except:
+            conf_timeout = 60.0 # Notfall-Fallback falls Config-Read knallt
+        # Zeit-Check: Wie alt ist der letzte erfolgreiche Empfang wirklich?
+        # (Wir nutzen den Timestamp direkt aus dem Datenpaket)
+        web_ts = current_web.get("timestamp") if current_web else None
+        if web_ts is None:
+            web_alive = False
+            web_dec = offline_channel_frame()
+        else:
+            web_age = now - web_ts
+            web_alive = web_age < conf_timeout
+            web_age = now - web_ts
         
-        if web_raw:
-            web_dec["alive"] = True
+        # DEFINITION: Ein Web-Gerät ist nur offline, wenn 60 Sek. lang gar nichts kam
+        web_alive = (current_web is not None) and (web_age < conf_timeout)
+        web_dec = offline_channel_frame() 
+
+        if web_alive:
             web_dec["alive"] = True
             web_dec["status"] = "active"
-            unit = f"°{config.get_temperature_unit().upper()}"
 
-            # Rohwerte & Offsets
+            # Offsets und Berechnungen
             T_i, H_i, T_e, H_e = calculator.apply_offsets(
-                web_raw.get("temp_in"), web_raw.get("humid_in"),
-                web_raw.get("temp_ext"), web_raw.get("humid_ext")
+                current_web.get("temp_in"), current_web.get("humid_in"),
+                current_web.get("temp_ext"), current_web.get("humid_ext")
             )
-            T_l = web_raw.get("temp_leaf") or T_e
-
-            # Berechnungen
+            T_l = current_web.get("temp_leaf") or T_e
             xi, yi = calculator.vpd_coord_internal(T_i, H_i)
             xe, ye = calculator.vpd_coord_external(T_e, H_e)
             dpi = calculator.dew_point_internal(T_i, H_i)
@@ -602,17 +606,17 @@ def step_decode():
                 "coord": {"internal": {"x": xi, "y": yi}, "external": {"x": xe, "y": ye}},
                 "dew_point_internal": {"value": calculator.to_unit(dpi), "unit": unit},
                 "dew_point_external": {"value": calculator.to_unit(dpe), "unit": unit},
-                "circulation_fan": {"circulation_fan_rpm": web_raw.get("circulation_fan_rpm", 0), "unit": "RPM"},
-                "exhaust_fan": {"exhaust_fan_rpm": web_raw.get("exhaust_fan_rpm", 0), "unit": "RPM"},
-                "light_pct": web_raw.get("light_pct", 0),  # <--- HIER DAS LICHT REIN!
-                "light_mode": web_raw.get("light_mode", "off"), # Bonus: Modus (tim/man)
-                "battery_voltage": web_raw.get("vbat"),
-                "rev": web_raw.get("rev"),
-                "health": web_raw.get("health"),
-                "timestamp": web_raw.get("timestamp") 
+                "circulation_fan": {"circulation_fan_rpm": current_web.get("circulation_fan_rpm", 0), "unit": "RPM"},
+                "exhaust_fan": {"exhaust_fan_rpm": current_web.get("exhaust_fan_rpm", 0), "unit": "RPM"},
+                "light_pct": current_web.get("light_pct", 0),
+                "light_mode": current_web.get("light_mode", "off"),
+                "battery_voltage": current_web.get("vbat"),
+                "rev": current_web.get("rev"),
+                "health": current_web.get("health"),
+                "timestamp": web_ts
             })
-
-            # Blatt-VPD Speziallogik
+            
+            # VPD Leaf
             if T_l is not None and T_e is not None and H_e is not None:
                 svp_l = 0.61078 * (10**((7.5 * T_l) / (237.3 + T_l)))
                 svp_e = 0.61078 * (10**((7.5 * T_e) / (237.3 + T_e)))
@@ -622,22 +626,13 @@ def step_decode():
                     "leaf_temp": {"value": calculator.to_unit(T_l), "unit": unit},
                     "vpd_leaf": {"value": round(svp_l - avp_e, 3), "unit": "kPa"}
                 }
+        # --- FINAL MERGE ---
+        web_rssi = web_dec.get("health", {}).get("signal", {}).get("rssi") if isinstance(web_dec.get("health"), dict) else None
+        ble_rssi = entry.get("rssi") if (adv_w["alive"] or gatt_w["alive"]) and entry else None
+        final_rssi = web_rssi if web_rssi is not None else ble_rssi
 
-        # 3. FINALER MERGE (Header-Daten hochziehen)
-        alive = adv_dec["alive"] or gatt_dec["alive"] or web_dec["alive"]
-        
-        # Welcher Kanal liefert die Health-Daten für den Header?
-
-        alive = adv_dec.get("alive") or gatt_dec.get("alive") or web_dec.get("alive")
-
-# --- RSSI LOGIK FIX ---
-        # Wir versuchen erst den RSSI vom Webserver zu bekommen, 
-        # falls der nicht da ist, nehmen wir den BLE-RSSI (entry).
-        web_rssi = None
-        if web_dec.get("health"):
-            web_rssi = web_dec["health"].get("signal", {}).get("rssi")
-        
-        final_rssi = web_rssi if web_rssi is not None else (entry.get("rssi") if entry else None)
+        is_alive = any([adv_dec["alive"], gatt_dec["alive"], web_dec["alive"]])
+        if not is_alive: final_rssi = None
 
         frames.append({
             "timestamp": now,
@@ -646,23 +641,15 @@ def step_decode():
             "adv": adv_dec,
             "gatt": gatt_dec,
             "webserver": web_dec,
-            "alive": alive,
-            "status": "active" if alive else "offline",
+            "alive": is_alive,
+            "status": "active" if is_alive else "offline",
             "health": {
                 "uptime": {"value": now - UPTIME_START, "unit": "s"},
-                "battery": {
-                    "value": None, 
-                    "unit": "V", 
-                    "voltage": web_dec.get("battery_voltage") or adv_dec.get("battery_voltage")
-                },
-                "signal": {"rssi": final_rssi, "quality": None}, # <--- FIX ANGEWANDT
-                "status": web_dec.get("health") 
-            },
-            "rev": web_dec.get("rev") or adv_dec.get("rev")
+                "battery": {"value": None, "unit": "V", "voltage": web_dec.get("battery_voltage") or adv_dec.get("battery_voltage")},
+                "signal": {"rssi": final_rssi, "quality": None}
+            }
         })
-
     _write(frames)
-# ------------------------------------------------------------
 # ------------------------------------------------------------
 def _write(frames):
     """Haupt-Schreibfunktion für die fertigen Daten"""

@@ -628,7 +628,12 @@ class HeaderBar(BoxLayout):
         """Wird im Takt der DataFlowEngine gerufen. REIN LOKAL."""
         if not isinstance(frame, dict):
             return
-
+        # Sicherheitscheck: Wenn Frame leer oder kein Dict, alles auf "Offline/Kein Signal"
+        if not frame or not isinstance(frame, dict):
+            self.signal.set_rssi(None)
+            self.battery.set_voltage(None)
+            self.led.set_state(False, "offline")
+            return
         # 1. Daten-Quellen definieren (NUR aus dem Frame!)
         web_ch = frame.get("webserver", {})
         health = frame.get("health", {})

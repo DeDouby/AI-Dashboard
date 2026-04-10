@@ -9,12 +9,13 @@ RAW_PATH = os.path.join(DATA, "ble_dump.json")
 
 
 class DumpWatchdog:
-    CHANNELS = ["adv", "gat", "log"]
+    CHANNELS = ["adv", "gat", "log", "web"]  # Einheitliche Kanäle, auch wenn "web" eigentlich kein BLE-Kanal ist
 
     SIGNAL_FIELD = {
         "adv": "adv_raw",
         "gat": "packet_counter",
         "log": "log_raw",
+        "web": "rev",  # Die Revision vom ESP32 ist unser Herzschlag
     }
 
     def __init__(self, timeout, interval, callback):
@@ -26,7 +27,46 @@ class DumpWatchdog:
         self._last_ts = {}       # mac -> {channel: ts}
 
         self.running = False
-
+    
+    
+    def _load_web(self):
+        """Lädt die aktuellen Webserver-Daten"""
+        path = os.path.join(DATA, "web_dump.json")
+        if not os.path.exists(path): return {}
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except: return {}
+    
+    def check_status(self):
+        now = time.time()
+        devices = config.get_devices()
+        
+        ble_dump = self._load() or []
+        web_dump = self._load_web() # Dictionary {mac: {data}}
+    
+        per_dev = {}
+        any_ok = False
+    
+        for mac in devices:
+            ble_entry = self._find(ble_dump, mac)
+            web_entry = web_dump.get(mac)
+            
+            dev_result = {}
+            for channel in self.CHANNELS:
+                # WICHTIG: Hier wird die Quelle gewechselt!
+                entry = web_entry if channel == "web" else ble_entry
+                
+                # Nutzt deine bestehende _check_channel Logik (Movement-Check)
+                ch = self._check_channel(mac, channel, entry, now)
+                dev_result[channel] = ch
+    
+                if ch["status"] == "OK":
+                    any_ok = True
+    
+            per_dev[mac] = dev_result
+    
+        return {"alive": any_ok, "status": "OK" if any_ok else "OFFLINE", "devices": per_dev}
     def _load(self):
         if not os.path.exists(RAW_PATH):
             return None
@@ -61,7 +101,11 @@ class DumpWatchdog:
         last_signal = self._last_signal[mac].get(channel)
         last_ts = self._last_ts[mac].get(channel)
         moved = self._moved[mac].get(channel, False)
-        
+        # --- FIX FÜR WEB-KANAL ---
+        # Beim Webserver akzeptieren wir "Daten vorhanden" sofort als "OK"
+        if channel == "web":
+            self._last_ts[mac][channel] = now # Zeitstempel immer aktualisieren
+            return {"alive": True, "last_seen": 0.0, "status": "OK"}
         # Initial: merken, aber NICHT alive
         if last_signal is None:
             self._last_signal[mac][channel] = signal
@@ -88,49 +132,7 @@ class DumpWatchdog:
         return {"alive": False, "last_seen": delta, "status": "STALE"}
 
     # --------------------------------------------------------
-    def check_status(self):
-        now = time.time()
 
-        try:
-            devices = config.get_devices()
-        except AttributeError:
-            devices = []
-
-        if not devices:
-            return {"alive": False, "status": "OFFLINE", "devices": {}}
-
-        dump = self._load()
-        if not dump:
-            return {"alive": False, "status": "OFFLINE", "devices": {}}
-
-        per_dev = {}
-        any_ok = False
-        any_stale = False
-        max_delta = 0.0
-
-        for mac in devices:
-            entry = self._find(dump, mac)
-            dev_result = {}
-
-            for channel in self.CHANNELS:
-                ch = self._check_channel(mac, channel, entry, now)
-                dev_result[channel] = ch
-
-                if ch["status"] == "OK":
-                    any_ok = True
-                elif ch["status"] == "STALE":
-                    any_stale = True
-                    if ch["last_seen"] and ch["last_seen"] > max_delta:
-                        max_delta = ch["last_seen"]
-
-            per_dev[mac] = dev_result
-
-        if any_ok:
-            return {"alive": True, "status": "OK", "last_seen": 0.0, "devices": per_dev}
-        if any_stale:
-            return {"alive": False, "status": "STALE", "last_seen": max_delta, "devices": per_dev}
-
-        return {"alive": False, "status": "OFFLINE", "last_seen": None, "devices": per_dev}
     # --------------------------------------------------------
     def start(self):
         import threading
