@@ -6,7 +6,7 @@ import os
 import config
 
 class WebClientThread(threading.Thread):
-    def __init__(self, interval=1.3):
+    def __init__(self, interval=1.5):
         super().__init__(daemon=True)
         self.interval = interval
         self.running = True
@@ -83,7 +83,7 @@ class WebClientThread(threading.Thread):
             if not ip: continue
             user, pw = config.get_device_auth(mac)
             try:
-                r = requests.get(f"http://{ip}/data", timeout=1.2, auth=(user, pw) if user else None)
+                r = requests.get(f"http://{ip}/data", timeout=0.7, auth=(user, pw) if user else None)
                 if r.status_code == 200:
                     payload = r.json()
                     payload["timestamp"] = now 

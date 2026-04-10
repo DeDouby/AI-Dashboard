@@ -95,6 +95,10 @@ _LAST_ADV_TS = {}
 _LAST_GATT_RAW = {}
 _LAST_GATT_TS = {}
 _LAST_WEB = {}
+_LAST_WRITE_TS = 0
+_WRITE_INTERVAL = 1.0  # oder 0.5 testen
+_LAST_HASH = None
+
 # ------------------------------------------------------------
 # LOG-THROTTLE (HART AUF 60 SEKUNDEN)
 # ------------------------------------------------------------
@@ -576,18 +580,24 @@ def step_decode():
             conf_timeout = 60.0 # Notfall-Fallback falls Config-Read knallt
         # Zeit-Check: Wie alt ist der letzte erfolgreiche Empfang wirklich?
         # (Wir nutzen den Timestamp direkt aus dem Datenpaket)
-        web_ts = current_web.get("timestamp") if current_web else None
-        if web_ts is None:
-            web_alive = False
-            web_dec = offline_channel_frame()
-        else:
-            web_age = now - web_ts
-            web_alive = web_age < conf_timeout
-            web_age = now - web_ts
+        web_dec = offline_channel_frame()
         
-        # DEFINITION: Ein Web-Gerät ist nur offline, wenn 60 Sek. lang gar nichts kam
-        web_alive = (current_web is not None) and (web_age < conf_timeout)
-        web_dec = offline_channel_frame() 
+        current_web = _LAST_WEB.get(mac)
+        
+        if current_web:
+            web_ts = current_web.get("timestamp")
+        
+            if web_ts:
+                web_age = now - web_ts
+        
+                if web_age < conf_timeout:
+                    web_alive = True
+                else:
+                    web_alive = False
+            else:
+                web_alive = False
+        else:
+            web_alive = False
 
         if web_alive:
             web_dec["alive"] = True
@@ -659,17 +669,25 @@ def step_decode():
 # ------------------------------------------------------------
 
 def _write(frames):
-    """Haupt-Schreibfunktion für die fertigen Daten"""
-    global _LAST_LOG_TS
+    global _LAST_LOG_TS, _LAST_WRITE_TS, _LAST_HASH
 
     if not frames:
         return
 
-    # JSON IMMER schreiben (System-State)
-    _write_atomic(DEC_FILE, frames)
-
-    # CSV LOG NUR ALLE 60 SEKUNDEN
     now = time.time()
+
+    # 🔥 HASH bauen (um unnötige Writes zu verhindern)
+    current_hash = hash(str(frames))
+
+    # Nur schreiben wenn:
+    # 1. genug Zeit vergangen ist
+    # 2. sich Daten geändert haben
+    if (now - _LAST_WRITE_TS) >= _WRITE_INTERVAL or current_hash != _LAST_HASH:
+        _write_atomic(DEC_FILE, frames)
+        _LAST_WRITE_TS = now
+        _LAST_HASH = current_hash
+
+    # CSV bleibt wie gehabt
     if _dev_enabled() and (now - _LAST_LOG_TS) >= _LOG_INTERVAL:
         _write_csv(frames)
         _LAST_LOG_TS = now
@@ -680,7 +698,7 @@ def _write_atomic(filename, data):
     try:
         # Erst den JSON-String im Arbeitsspeicher (RAM) erstellen
         # Das dauert am längsten, blockiert aber die Datei noch nicht
-        json_string = json.dumps(data, indent=2)
+        json_string = json.dumps(data, separators=(",", ":"))
         
         with open(tmp, "w", encoding="utf-8") as f:
             f.write(json_string)
