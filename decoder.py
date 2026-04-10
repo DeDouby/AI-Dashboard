@@ -95,9 +95,15 @@ _LAST_ADV_TS = {}
 _LAST_GATT_RAW = {}
 _LAST_GATT_TS = {}
 _LAST_WEB = {}
-from watchdog_manager import DumpWatchdog
+# ------------------------------------------------------------
+# LOG-THROTTLE (HART AUF 60 SEKUNDEN)
+# ------------------------------------------------------------
+_LAST_LOG_TS = 0.0
+_LOG_INTERVAL = 60.0  # HARDCODED: 60 Sekunden
 
-watchdog = DumpWatchdog(
+from ble_watchdog_manager import BleDumpWatchdog
+
+watchdog = BleDumpWatchdog(
     timeout=config.get_stale_timeout(),
     interval=1.0,
     callback=lambda x: x
@@ -651,15 +657,22 @@ def step_decode():
         })
     _write(frames)
 # ------------------------------------------------------------
+
 def _write(frames):
     """Haupt-Schreibfunktion für die fertigen Daten"""
+    global _LAST_LOG_TS
+
     if not frames:
         return
+
+    # JSON IMMER schreiben (System-State)
     _write_atomic(DEC_FILE, frames)
-    
-    # Optional: CSV nur schreiben, wenn im Dev-Modus
-    if _dev_enabled():
+
+    # CSV LOG NUR ALLE 60 SEKUNDEN
+    now = time.time()
+    if _dev_enabled() and (now - _LAST_LOG_TS) >= _LOG_INTERVAL:
         _write_csv(frames)
+        _LAST_LOG_TS = now
 
 def _write_atomic(filename, data):
     """Garantiert, dass die UI niemals eine halbfertige Datei liest"""

@@ -71,9 +71,9 @@ class SettingsScreen(Screen):
         # ---------------------------------
         # Watchdog Live Update
         # ---------------------------------
-        from core import _watchdog
-        if _watchdog and hasattr(_watchdog, "set_timeout"):
-            _watchdog.set_timeout(cfg["stale_timeout"])
+        from core import _ble_watchdog
+        if _ble_watchdog and hasattr(_ble_watchdog, "set_timeout"):
+            _ble_watchdog.set_timeout(cfg["stale_timeout"])
             print(f"[SETTINGS] Watchdog stale_timeout → {cfg['stale_timeout']}")
     
         # ---------------------------------

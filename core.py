@@ -6,7 +6,7 @@ from kivy.utils import platform as kivy_platform
 
 import config
 from bridge_manager import get_bridge
-from watchdog_manager import DumpWatchdog
+from ble_watchdog_manager import BleDumpWatchdog
 from decoder import start_decoder_thread, update_bridge_state
 from web_client import WebClientThread
 # ------------------------------------------------------------
@@ -20,7 +20,7 @@ def is_android():
 
 # globale Instanzen
 _bridge = None
-_watchdog = None
+_ble_watchdog = None
 _web_client = None
 
 # ------------------------------------------------------------
@@ -101,7 +101,7 @@ def start():
     - Startet Decoder-Thread
     - Startet Watchdog
     """
-    global _bridge, _watchdog
+    global _bridge, _ble_watchdog
 
     print("[Core] Starte Core (Foreground Service Mode)…")
     print("[Core] is_android():", is_android())
@@ -170,12 +170,12 @@ def start():
     # Watchdog starten
     # -----------------------------------------------------
     try:
-        _watchdog = DumpWatchdog(
+        _ble_watchdog = BleDumpWatchdog(
             timeout=config.get_stale_timeout(),
             interval=config.get_refresh_interval(),
             callback=_wd_callback
         )
-        _watchdog.start()
+        _ble_watchdog.start()
         print("[Core] Watchdog gestartet")
     except Exception as e:
         print("[Core] Watchdog start failed:", e)
@@ -235,11 +235,7 @@ def _start_log_safe(dt):
         print("[Core] LOG start failed:", e)
 
 
-def stop_log_bridge():
-    from kivy.clock import Clock
-    if not is_android():
-        return
-    Clock.schedule_once(_stop_log_safe, 0)
+
 
 def _stop_log_safe(dt):
     global _bridge
@@ -434,13 +430,13 @@ def _restart_broadcast_safe(dt):
 # STOP
 # ------------------------------------------------------------
 def stop():
-    global _bridge, _watchdog
+    global _bridge, _ble_watchdog
 
     print("[Core] Stoppe System…")
 
     try:
-        if _watchdog:
-            _watchdog.stop()
+        if _ble_watchdog:
+            _ble_watchdog.stop()
             print("[Core] Watchdog gestoppt")
     except:
         pass
