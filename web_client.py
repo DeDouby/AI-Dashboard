@@ -16,7 +16,8 @@ class WebClientThread(threading.Thread):
         self.settings_path = os.path.join(config.DATA, "settings_sync.json")
         self.first_sync_done = False
         self.ready = False
-
+        self._last_disk_write = 0.0
+        self._disk_interval = 60.0  # 🔥 1 Minute
         # Beim Start: Bestehenden Dump laden (BLE-Like: Wir starten mit dem letzten bekannten Stand)
         if os.path.exists(self.path):
             try:
@@ -54,10 +55,16 @@ class WebClientThread(threading.Thread):
                 current_interval = config.get_refresh_interval()
                 
                 # Nur speichern, wenn sich wirklich was geändert hat (Empfang erfolgreich)
-                if self.fetch_all_web_data():
-                    if not self.first_sync_done:
-                        self._initial_import()
+                changed = self.fetch_all_web_data()
+                
+                if changed and not self.first_sync_done:
+                    self._initial_import()
+                
+                # 🔥 DISK THROTTLE
+                now = time.time()
+                if (now - self._last_disk_write) >= self._disk_interval:
                     self._save_to_disk()
+                    self._last_disk_write = now
                 
                 # BLE-Modus: Kein Cleanup mehr! Stale Daten bleiben einfach stehen.
                 

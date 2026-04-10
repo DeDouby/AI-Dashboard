@@ -98,7 +98,9 @@ _LAST_WEB = {}
 _LAST_WRITE_TS = 0
 _WRITE_INTERVAL = 1.0  # oder 0.5 testen
 _LAST_HASH = None
-
+# 🔥 NEU: Zentrale RAM-Quelle für ALLES
+_DECODED_RAM = []
+_DECODED_TS = 0
 # ------------------------------------------------------------
 # LOG-THROTTLE (HART AUF 60 SEKUNDEN)
 # ------------------------------------------------------------
@@ -670,24 +672,29 @@ def step_decode():
 
 def _write(frames):
     global _LAST_LOG_TS, _LAST_WRITE_TS, _LAST_HASH
+    global _DECODED_RAM, _DECODED_TS
 
     if not frames:
         return
 
     now = time.time()
 
-    # 🔥 HASH bauen (um unnötige Writes zu verhindern)
+    # 🔥 1. IMMER RAM UPDATEN (SOFORT)
+    _DECODED_RAM = frames
+    _DECODED_TS = now
+
+    # 🔥 HASH für Disk-Write
     current_hash = hash(str(frames))
 
-    # Nur schreiben wenn:
-    # 1. genug Zeit vergangen ist
-    # 2. sich Daten geändert haben
-    if (now - _LAST_WRITE_TS) >= _WRITE_INTERVAL or current_hash != _LAST_HASH:
+    # 🔥 2. DISK NUR SELTEN
+    DISK_INTERVAL = 60.0   # <<<< DAS IST DEIN NEUER MASTER
+
+    if (now - _LAST_WRITE_TS) >= DISK_INTERVAL:
         _write_atomic(DEC_FILE, frames)
         _LAST_WRITE_TS = now
         _LAST_HASH = current_hash
 
-    # CSV bleibt wie gehabt
+    # CSV bleibt
     if _dev_enabled() and (now - _LAST_LOG_TS) >= _LOG_INTERVAL:
         _write_csv(frames)
         _LAST_LOG_TS = now
@@ -698,8 +705,11 @@ def _write_atomic(filename, data):
     try:
         # Erst den JSON-String im Arbeitsspeicher (RAM) erstellen
         # Das dauert am längsten, blockiert aber die Datei noch nicht
-        json_string = json.dumps(data, separators=(",", ":"))
-        
+        json_string = json.dumps(
+            data,
+            indent=2,
+            ensure_ascii=False
+        )        
         with open(tmp, "w", encoding="utf-8") as f:
             f.write(json_string)
             f.flush()
@@ -709,6 +719,12 @@ def _write_atomic(filename, data):
         os.replace(tmp, filename)
     except Exception as e:
         print(f"[Decoder] Atomic Write Error: {e}")
+
+def get_decoded_ram():
+    return _DECODED_RAM
+
+def get_decoded_timestamp():
+    return _DECODED_TS
 
 def _write_csv(frames):
     file_exists = os.path.exists(CSV_FILE)

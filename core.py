@@ -162,6 +162,7 @@ def start():
     # -----------------------------------------------------
     try:
         start_decoder_thread(config.get_refresh_interval())
+        step_decode()  # 🔥 EINMAL SOFORT
         print("[Core] Decoder-Thread gestartet")
     except Exception as e:
         print("[Core] Decoder-Thread start failed:", e)
