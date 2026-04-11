@@ -302,7 +302,7 @@ public final class LogBridge {
             JSONObject o = new JSONObject();
             o.put("address", device.getAddress());
             o.put("name", device.getName());
-            o.put("gat_raw", toHex(v));
+            o.put("gatt_raw", toHex(v));
             o.put("ts", System.currentTimeMillis());
     
             // HIER DIE ERWEITERUNG:

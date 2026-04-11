@@ -68,7 +68,7 @@ def decode_entry(entry):
     Kein ADV/GATT, keine Flags.
     """
     decoded = dict(entry)
-    raw = entry.get("gat_raw")
+    raw = entry.get("gatt_raw")
     decoded["raw_len"] = len(raw) // 2 if raw else 0
 
     ts = entry.get("timestamp")
@@ -90,7 +90,7 @@ def decode_entry(entry):
 
 def decode_devices(grouped):
     """
-    Entfernt doppelte gat_raw Einträge pro Gerät, behält aber eins.
+    Entfernt doppelte gatt_raw Einträge pro Gerät, behält aber eins.
     """
     result = {}
 
@@ -98,7 +98,7 @@ def decode_devices(grouped):
         seen_raws = set()
         unique_entries = []
         for e in entries:
-            raw = e.get("gat_raw")
+            raw = e.get("gatt_raw")
             if raw not in seen_raws:
                 seen_raws.add(raw)
                 unique_entries.append(decode_entry(e))

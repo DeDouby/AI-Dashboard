@@ -438,7 +438,7 @@ public class GattBridge {
         }, 400);
     }
     // ---------------------------------------------------------------------
-    // CENTRAL VALUE HANDLER (write gat_raw + packet_counter)
+    // CENTRAL VALUE HANDLER (write gatt_raw + packet_counter)
     // ---------------------------------------------------------------------
     private static void handleGattValue(BluetoothGatt g, byte[] v) {
         if (v == null || v.length == 0) return;
@@ -479,7 +479,7 @@ public class GattBridge {
                     if (!obj.has("adv_raw")) obj.put("adv_raw", JSONObject.NULL);
                 }
 
-                obj.put("gat_raw", rawNative);
+                obj.put("gatt_raw", rawNative);
                 obj.put("packet_counter", gattCounter);
                 obj.put("timestamp", ts());
 

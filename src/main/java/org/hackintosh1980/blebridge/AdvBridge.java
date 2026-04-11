@@ -236,7 +236,7 @@ public class AdvBridge {
                                 if (obj == null) {
                                     obj = new JSONObject();
                                     obj.put("address", effectiveMac);
-                                    obj.put("gat_raw", JSONObject.NULL);
+                                    obj.put("gatt_raw", JSONObject.NULL);
                                 }
                                 obj.put("timestamp", ts());
                                 obj.put("name", "LGS_NODE_" + recvChannel);
@@ -255,7 +255,7 @@ public class AdvBridge {
                             if (obj == null) {
                                 obj = new JSONObject();
                                 obj.put("address", mac);
-                                obj.put("gat_raw", JSONObject.NULL);
+                                obj.put("gatt_raw", JSONObject.NULL);
                             }
                             obj.put("timestamp", ts());
                             obj.put("name", devName);

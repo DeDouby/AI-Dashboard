@@ -98,17 +98,16 @@ class MixedModeDataHandler:
 
         # Zusammenfügen mit Trenner (z.B. T: 24.50°C | H: 55.00% | ...)
         return " | ".join(parts)
-
+    
+    
     def _has_external(self, frame):
-        """Prüft, ob das Gerät Hardware für externe Sensoren besitzt."""
-        for ch in [frame.get("adv", {}), frame.get("gatt", {})]:
-            if ch.get("external", {}).get("present"):
+        """Prüft, ob das Gerät Hardware für externe Sensoren besitzt (jetzt inkl. Webserver)."""
+        if not frame: return False
+        # Wir loopen durch alle Kanäle
+        for ch_name in ("adv", "gatt", "webserver"):
+            ch = frame.get(ch_name, {})
+            if ch.get("external", {}).get("present"): 
                 return True
-        return False
-
-    def _has_external(self, frame):
-        for ch in [frame.get("adv", {}), frame.get("gatt", {})]:
-            if ch.get("external", {}).get("present"): return True
         return False
 
     def refresh(self):

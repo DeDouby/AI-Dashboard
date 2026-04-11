@@ -42,7 +42,7 @@ class Store:
                 "address": ident,
                 "rssi": rssi_val,
                 "adv_raw": None,
-                "gat_raw": None,
+                "gatt_raw": None,
                 "log_raw": None,
                 "note": "raw"
             })

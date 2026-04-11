@@ -55,7 +55,7 @@ class Store:
                 with self.lock:
                     if ident in self.last and ident != effective_ident:
                         del self.last[ident]
-                    dev = self.last.get(effective_ident, {"address": effective_ident, "gat_raw": None})
+                    dev = self.last.get(effective_ident, {"address": effective_ident, "gatt_raw": None})
                     dev.update({
                         "timestamp": ts_iso(), "name": effective_name, "rssi": int(rssi),
                         "adv_raw": adv_hex, "log_raw": adv_hex, "note": f"ch_{target_ch}_active"
@@ -69,7 +69,7 @@ class Store:
         else:
             # 2. Alle anderen Geräte -> Normal speichern
             with self.lock:
-                dev = self.last.get(ident, {"address": ident, "gat_raw": None})
+                dev = self.last.get(ident, {"address": ident, "gatt_raw": None})
                 dev.update({
                     "timestamp": ts_iso(), "name": name, "rssi": int(rssi),
                     "adv_raw": adv_hex, "log_raw": adv_hex, "note": "raw"

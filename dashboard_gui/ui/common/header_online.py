@@ -284,7 +284,7 @@ class LEDCircle(Widget):
         self.glow_color.a = 0.45
 
         self._pulse_event = Clock.schedule_once(
-            lambda *_: self._end(), 0.2
+            lambda *_: self._end(), 0.1
         )
 
     def _end(self, *_):

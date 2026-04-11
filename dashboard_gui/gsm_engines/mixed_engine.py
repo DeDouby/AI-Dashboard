@@ -4,37 +4,26 @@ import json
 from datetime import datetime
 from kivy.clock import Clock
 import config
+
 class MixedEngine:
 
     def __init__(self, gsm):
         self.gsm = gsm
         self._config_loaded = False
         self.load_from_config()
-    # ---------------------------------------------------------
-    # UPDATE
-    # ---------------------------------------------------------
+
     def update(self, all_data):
-        # -----------------------------------------------
-        # INITIALISIERUNGSFLAG: beim ersten Aufruf nichts löschen
-        # -----------------------------------------------
-        # 1. Sofort-Abbruch, wenn keine Geräte in der Config gewählt sind
         if not self.gsm.mixed_selected_buffers:
             return
         
         if not hasattr(self, "_initialized"):
             self._initialized = True
-            # Erstes Update beim Start -> Buffers werden noch nicht geleert
             if not all_data:
                 return
-    
 
         selected = self.gsm.mixed_selected_buffers
     
-        # -----------------------------------------------
-        # Keine Auswahl oder keine Daten
-        # -----------------------------------------------
         if not selected or not all_data:
-            # Mixed Graph Buffers reset (wie frischer Start)
             for key in ("temp", "hum", "vpd", "dew"):
                 gk = f"mixed_avg_{key}"
                 self.gsm.graph_engine.graph_buffers.pop(gk, None)
@@ -42,14 +31,10 @@ class MixedEngine:
                 self.gsm.graph_engine._last_smoothed_values.pop(gk, None)
                 self.gsm.graph_engine.global_trends.pop(gk, None)
     
-            # Nur löschen, wenn es nicht der erste Start war
             if hasattr(self, "_initialized") and self._initialized:
                 self.write_json([])
             return
     
-        # -----------------------------------------------
-        # Datenverarbeitung: Averaging Map vorbereiten
-        # -----------------------------------------------
         averaging_map = {"temp": [], "hum": [], "vpd": [], "dew": []}
         unit_map = {"temp": None, "hum": None, "vpd": None, "dew": None}
         active_device_ids = []
@@ -61,10 +46,12 @@ class MixedEngine:
     
             active_modes = self.gsm.mixed_device_modes.get(dev_id, {"internal"})
     
+            # Jetzt inklusive webserver für external Support
             for ch_name in ("adv", "gatt", "webserver"):
                 ch = frame.get(ch_name)
                 if not isinstance(ch, dict):
                     continue
+                
                 for mode in active_modes:
                     vals = ch.get(mode, {})
                     if not isinstance(vals, dict):
@@ -84,7 +71,7 @@ class MixedEngine:
                         if unit_map["hum"] is None:
                             unit_map["hum"] = vals.get("humidity", {}).get("unit")
             
-                    # VPD
+                    # VPD (wird meist pro Mode im Channel-Root berechnet)
                     v = ch.get(f"vpd_{mode}", {}).get("value")
                     if v is not None:
                         averaging_map["vpd"].append(float(v))
@@ -98,10 +85,9 @@ class MixedEngine:
                         if unit_map["dew"] is None:
                             unit_map["dew"] = ch.get(f"dew_point_{mode}", {}).get("unit")
         
-        active_device_ids.append(dev_id)
-        # -----------------------------------------------
-        # Ergebnisse berechnen
-        # -----------------------------------------------
+            if dev_id not in active_device_ids:
+                active_device_ids.append(dev_id)
+
         results = {}
         has_real_data = False
     
@@ -113,67 +99,24 @@ class MixedEngine:
             avg = sum(vals) / len(vals)
             graph_key = f"mixed_avg_{key}"
     
-            avg_value = avg
+            results[key] = avg
+            self.gsm.graph_engine.process_new_value(graph_key, avg)
+    
             unit = unit_map.get(key)
-    
-            results[key] = avg_value
-            self.gsm.graph_engine.process_new_value(graph_key, avg_value)
-    
             if unit:
                 self.gsm.set_unit(graph_key, unit)
     
             has_real_data = True
     
-        # -----------------------------------------------
-        # Wenn keine realen Werte -> Datei leeren
-        # -----------------------------------------------
         if not has_real_data:
             self.write_json([])
             return
     
-        # -----------------------------------------------
-        # JSON schreiben & Broadcast verfügbar machen
-        # -----------------------------------------------
         self.write_json(results, active_device_ids)
-
-    def init_file(self):
-    
-        path = os.path.join(config.DATA, "mixed.json")
-    
-        try:
-    
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump([], f)
-    
-            self.gsm.broadcast_data_available = False
-    
-            print(f"[MixedEngine] mixed.json initialisiert: {path}")
-    
-        except Exception as e:
-    
-            print(f"[MixedEngine] mixed.json init failed: {e}")
-
-    def check_file(self):
-    
-        path = os.path.join(config.DATA, "mixed.json")
-    
-        if not os.path.exists(path):
-            return False
-    
-        try:
-    
-            with open(path, "r") as f:
-                data = json.load(f)
-    
-            return bool(data)
-    
-        except:
-            return False
 
     def write_json(self, results, device_ids=None):
         path = os.path.join(config.DATA, "mixed.json")
 
-        # FALL 1: Keine Ergebnisse da -> Datei leeren
         if not results:
             try:
                 with open(path, "w") as f:
@@ -183,16 +126,13 @@ class MixedEngine:
                 print(f"[MixedEngine] Write empty failed: {e}")
             return
 
-        # FALL 2: Daten sind da -> Berechnen und Struktur aufbauen
         try:
             temp_avg = results.get("temp")
             
-            # -------------------------------------------------
-            # JSON NORMALISIERUNG (UI bleibt unangetastet)
-            # -------------------------------------------------
+            # Interner Standard ist Celsius für JSON/Broadcast
             if temp_avg is not None and config.get_temperature_unit() == "F":
                 temp_avg = (temp_avg - 32.0) * 5.0 / 9.0            
-            # WICHTIG: Die Struktur, die vorhin fehlte!
+
             json_data = [{
                 "timestamp": datetime.now().isoformat(),
                 "avg_temp": temp_avg,
@@ -202,14 +142,11 @@ class MixedEngine:
                 "devices": device_ids or []
             }]
 
-            # Jetzt schreiben
             with open(path, "w") as f:
                 json.dump(json_data, f, indent=2)
 
-            # Der BroadcastEngine melden, dass wir bereit sind
             self.gsm.broadcast_engine.set_available(True)
 
-            # Automatisch starten, wenn der User es nicht explizit verboten hat
             be = self.gsm.broadcast_engine
             if not be.active and not be.user_disabled:
                 be.set_active(True)
@@ -222,44 +159,46 @@ class MixedEngine:
         for dev in devices:
             if config.get_mixed_enabled(dev):
                 self.gsm.mixed_selected_buffers.add(dev)
+                # Setze Modus basierend auf Config (Internal/External)
                 if config.get_mixed_external(dev):
                     self.gsm.mixed_device_modes[dev] = {"external"}
                 else:
                     self.gsm.mixed_device_modes[dev] = {"internal"}
         
         self._config_loaded = True
-
-        # --- NEU: Der "idiotensichere" Start-Trigger ---
-        # Wir warten 1 Sekunde, damit das UI und die anderen Engines bereit sind
+        # "Idiotensicherer" Sync: UI & Realität vereinen
         Clock.schedule_once(self.init_broadcast_on_startup, 3.0)
 
     def init_broadcast_on_startup(self, dt):
-        """
-        Prüft beim App-Start, ob bereits eine valide mixed.json existiert
-        und startet ggf. sofort den Broadcast.
-        """
-        print("[MixedEngine] Startup-Check läuft...")
-        
-        # Falls wir schon Daten in der Datei haben, setzen wir den Status sofort
         if self.check_file():
-            print("[MixedEngine] Bestehende mixed.json gefunden, aktiviere Broadcast.")
             self.gsm.broadcast_engine.set_available(True)
-            
-            # Falls nicht manuell deaktiviert, direkt Feuer frei
             be = self.gsm.broadcast_engine
             if not be.active and not be.user_disabled:
                 be.set_active(True)
-        else:
-            print("[MixedEngine] Keine Start-Daten gefunden, warte auf erstes Update.")
 
-    def sync_config(self):
+    def check_file(self):
+        path = os.path.join(config.DATA, "mixed.json")
+        if not os.path.exists(path): return False
+        try:
+            with open(path, "r") as f:
+                return bool(json.load(f))
+        except: return False
+
+    def init_file(self):
+        """
+        Initialisiert die mixed.json Datei beim ersten Start der Engine.
+        Wird vom GlobalStateManager in __init__ aufgerufen.
+        """
+        path = os.path.join(config.DATA, "mixed.json")
+        try:
+            # Ordner erstellen, falls er nicht existiert
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump([], f)
     
-        devices = config.get_devices()
+            self.gsm.broadcast_data_available = False
+            print(f"[MixedEngine] mixed.json initialisiert: {path}")
     
-        for dev in devices:
-    
-            enabled = dev in self.gsm.mixed_selected_buffers
-            config.set_mixed_enabled(dev, enabled)
-    
-            modes = self.gsm.mixed_device_modes.get(dev, {"internal"})
-            config.set_mixed_external(dev, "external" in modes)
+        except Exception as e:
+            print(f"[MixedEngine] mixed.json init failed: {e}")

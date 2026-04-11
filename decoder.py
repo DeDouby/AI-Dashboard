@@ -86,8 +86,6 @@ BRIDGE_STATUS = "OK"
 BRIDGE_LAST_SEEN = None
 UPTIME_START = None
 
-_LAST_RAW = {}
-_LAST_TS = {}
 # Stale-Handling pro Kanal
 _LAST_ADV_RAW = {}
 _LAST_ADV_TS = {}
@@ -254,7 +252,7 @@ def decode_with_profile(raw_hex, prof):
         sH = float(prof.get("scale_humidity", 100.0))
         sB = float(prof.get("scale_battery", 100.0))
 
-# -256.0 Check (Berücksichtigt Skalierung vom ESP32)
+        # -256.0 Check (Berücksichtigt Skalierung vom ESP32)
         # Wenn der Rohwert -25600 ist (entspricht -256.0 nach Scale 100)
         MISSING_VAL = -256.0 * sT 
 
@@ -281,7 +279,6 @@ def decode_with_profile(raw_hex, prof):
 # -----------------------------------------------
 # MULTI-CHANNEL DECODER (ADV + GATT)
 # -----------------------------------------------
-_profile_cache = {}  # Cache für geladene Profile
 
 def decode_channel(entry, raw_key, profile_name,
                    last_signal_dict, last_ts_dict,
@@ -504,7 +501,7 @@ def inject_web_data(mac, payload):
     """Wird direkt vom WebClient aufgerufen - Umgeht das Dateisystem!"""
     global _LIVE_WEB_DATA
     _LIVE_WEB_DATA[mac] = payload
-_WEB_CACHE = {}
+
 def step_decode():
     global UPTIME_START, _LAST_ADV_RAW, _LAST_GATT_RAW, _LAST_WEB, _LIVE_WEB_DATA
     cfg = config._init()
@@ -555,94 +552,121 @@ def step_decode():
             elif mac in _LAST_ADV_RAW:
                 adv_dec = decode_channel({"address": mac, "adv_raw": _LAST_ADV_RAW[mac]}, "adv_raw", dev_cfg.get("adv_decoder"), _LAST_ADV_RAW, _LAST_ADV_TS, timeout)
 
-        # --- KANAL 2: GATT ---
-        gatt_w = w_status.get("gat", {"alive": False})
-        gatt_dec = offline_channel_frame(entry.get("gat_raw") if entry else None)
-        if gatt_w["alive"]:
-            res = decode_channel(entry, "gat_raw", dev_cfg.get("gatt_decoder"), _LAST_GATT_RAW, _LAST_GATT_TS, timeout, is_gatt=True) if entry else None
+# --- KANAL 2: GATT (REPARIERT & KUGELSICHER) ---
+        gatt_w = w_status.get("gatt", {"alive": False})
+        raw_from_entry = entry.get("gatt_raw") if entry else None
+        gatt_dec = offline_channel_frame(raw_from_entry)
+
+        if gatt_w["alive"] and entry:
+            res = decode_channel(entry, "gatt_raw", dev_cfg.get("gatt_decoder"), _LAST_GATT_RAW, _LAST_GATT_TS, timeout, is_gatt=True)
             if res and res["alive"]:
                 gatt_dec = res
-                _LAST_GATT_RAW[mac] = entry.get("gat_raw")
-            elif mac in _LAST_GATT_RAW:
-                gatt_dec = decode_channel({"address": mac, "gat_raw": _LAST_GATT_RAW[mac]}, "gat_raw", dev_cfg.get("gatt_decoder"), _LAST_GATT_RAW, _LAST_GATT_TS, timeout, is_gatt=True)
+                _LAST_GATT_RAW[mac] = raw_from_entry # Hier sicher TT
 
- # --- KANAL 3: WEBSERVER (WATCHDOG-FREI & STABIL) ---
+        # Wenn der Kanal gerade tot ist, zieh den JOKER aus dem RAM
+        if not gatt_dec["alive"] and mac in _LAST_GATT_RAW:
+            gold_data = _LAST_GATT_RAW[mac] # Hier sicher TT
+            res_cache = decode_channel({"address": mac, "gatt_raw": gold_data}, "gatt_raw", dev_cfg.get("gatt_decoder"), _LAST_GATT_RAW, _LAST_GATT_TS, timeout, is_gatt=True)
+            if res_cache and res_cache["alive"]:
+                gatt_dec = res_cache
+        # --- KANAL 3: WEBSERVER (WATCHDOG-FREI & STABIL) ---
         # Wir ignorieren web_w = w_status.get("web") komplett!
         
+        # --- KANAL 3: WEBSERVER (WATCHDOG-FREI & STABIL) ---
         web_raw = web_data.get(mac)
         if web_raw: 
-            _LAST_WEB[mac] = web_raw # Sofort in den Langzeit-Cache
+            _LAST_WEB[mac] = web_raw 
 
-        # Wir holen uns den letzten Stand aus dem Cache
-        current_web = _LAST_WEB.get(mac)
-        # HIER: Wir holen den Wert direkt aus deiner Config
-        try:
-            conf_timeout = float(config.get_stale_timeout())
-        except:
-            conf_timeout = 60.0 # Notfall-Fallback falls Config-Read knallt
-        # Zeit-Check: Wie alt ist der letzte erfolgreiche Empfang wirklich?
-        # (Wir nutzen den Timestamp direkt aus dem Datenpaket)
-        web_dec = offline_channel_frame()
-        
+        # 1. WICHTIG: IMMER sauberen Offline-Frame als Basis (leert alte Daten!)
+        web_dec = offline_channel_frame() 
         current_web = _LAST_WEB.get(mac)
         
+        web_alive = False
         if current_web:
             web_ts = current_web.get("timestamp")
-        
-            if web_ts:
-                web_age = now - web_ts
-        
-                if web_age < conf_timeout:
-                    web_alive = True
-                else:
-                    web_alive = False
-            else:
-                web_alive = False
-        else:
-            web_alive = False
+            # Zeit-Check gegen Config-Timeout
+            if web_ts and (now - web_ts) < float(config.get_stale_timeout()):
+                web_alive = True
 
         if web_alive:
-            web_dec["alive"] = True
-            web_dec["status"] = "active"
+            # --- SENSOR-STATUS CHECK (DIE RETTUNG) ---
+            ERR_VAL = -256.0
+            raw_t_e = current_web.get("temp_ext")
+            raw_h_e = current_web.get("humid_ext")
 
-            # Offsets und Berechnungen
+            # Erkennung ob Sensor physisch vorhanden (Größer als -256)
+            sensor_exists = (raw_t_e is not None and raw_t_e > ERR_VAL)
+            # Blatt-Sensor vorhanden? (Eigener Check!)
+            raw_t_l = current_web.get("leaf_temp")
+            leaf_exists = (raw_t_l is not None and raw_t_l > ERR_VAL)
+            
+            # Bereinigte Werte für den Calculator (None erzwingt "---" in der UI)
+            t_e_final = raw_t_e if sensor_exists else None
+            h_e_final = raw_h_e if sensor_exists else None
+
+            # JETZT die bereinigten Werte nutzen!
             T_i, H_i, T_e, H_e = calculator.apply_offsets(
                 current_web.get("temp_in"), current_web.get("humid_in"),
-                current_web.get("temp_ext"), current_web.get("humid_ext")
+                t_e_final, h_e_final
             )
-            T_l = current_web.get("temp_leaf") or T_e
-            xi, yi = calculator.vpd_coord_internal(T_i, H_i)
-            xe, ye = calculator.vpd_coord_external(T_e, H_e)
+            
+            # Hilfswerte für Berechnungen
+            vpdi = calculator.vpd_internal(T_i, H_i)
+            vpde = calculator.vpd_external(T_e, H_e)
             dpi = calculator.dew_point_internal(T_i, H_i)
             dpe = calculator.dew_point_external(T_e, H_e)
+            xi, yi = calculator.vpd_coord_internal(T_i, H_i)
+            xe, ye = calculator.vpd_coord_external(T_e, H_e)
 
             web_dec.update({
-                "internal": {"temperature": {"value": calculator.to_unit(T_i), "unit": unit}, "humidity": {"value": H_i, "unit": "%"}},
-                "external": {"present": T_e is not None, "temperature": {"value": calculator.to_unit(T_e), "unit": unit}, "humidity": {"value": H_e, "unit": "%"}},
-                "vpd_internal": {"value": calculator.vpd_internal(T_i, H_i), "unit": "kPa"},
-                "vpd_external": {"value": calculator.vpd_external(T_e, H_e), "unit": "kPa"},
-                "coord": {"internal": {"x": xi, "y": yi}, "external": {"x": xe, "y": ye}},
-                "dew_point_internal": {"value": calculator.to_unit(dpi), "unit": unit},
-                "dew_point_external": {"value": calculator.to_unit(dpe), "unit": unit},
+                "alive": True,
+                "status": "active",
+                "internal": {
+                    "temperature": {"value": calculator.to_unit(T_i), "unit": unit}, 
+                    "humidity": {"value": H_i, "unit": "%"},
+                    "vpd": {"value": vpdi, "unit": "kPa"},
+                    "dew_point": {"value": calculator.to_unit(dpi), "unit": unit}
+                },
+                "external": {
+                    "present": sensor_exists, # UI nutzt das zum Ausgrauen
+                    "temperature": {"value": calculator.to_unit(T_e), "unit": unit}, 
+                    "humidity": {"value": H_e, "unit": "%"},
+                    "vpd": {"value": vpde, "unit": "kPa"},
+                    "dew_point": {"value": calculator.to_unit(dpe), "unit": unit}
+                },
+                "vpd_internal": {"value": vpdi, "unit": "kPa"},
+                "vpd_external": {"value": vpde, "unit": "kPa"},
+                "coord": {
+                    "internal": {"x": xi, "y": yi}, 
+                    "external": {"x": xe if sensor_exists else None, "y": ye if sensor_exists else None}
+                },
+                "battery_voltage": current_web.get("vbat"),
+                "timestamp": web_ts,
                 "circulation_fan": {"circulation_fan_rpm": current_web.get("circulation_fan_rpm", 0), "unit": "RPM"},
                 "exhaust_fan": {"exhaust_fan_rpm": current_web.get("exhaust_fan_rpm", 0), "unit": "RPM"},
                 "light_pct": current_web.get("light_pct", 0),
                 "light_mode": current_web.get("light_mode", "off"),
-                "battery_voltage": current_web.get("vbat"),
                 "rev": current_web.get("rev"),
-                "health": current_web.get("health"),
-                "timestamp": web_ts
+                "health": current_web.get("health")
             })
             
-            # VPD Leaf
-            if T_l is not None and T_e is not None and H_e is not None:
-                svp_l = 0.61078 * (10**((7.5 * T_l) / (237.3 + T_l)))
-                svp_e = 0.61078 * (10**((7.5 * T_e) / (237.3 + T_e)))
-                avp_e = svp_e * (H_e / 100.0)
+# --- JETZT: UNABHÄNGIGE LEAF-LOGIK ---
+            if leaf_exists:
+                # Blatt-Temp ist da. VPD Leaf braucht aber T_e und H_e als Referenz!
+                # Wenn kein SHT31 da ist, nehmen wir Internal als Notbehelf für die Luftwerte
+                ref_t = T_e if sensor_exists else T_i
+                ref_h = H_e if sensor_exists else H_i
+                
+                # SVP Blatt
+                svp_l = 0.61078 * (10**((7.5 * raw_t_l) / (237.3 + raw_t_l)))
+                # AVP Luft (Referenz: External oder Internal)
+                svp_ref = 0.61078 * (10**((7.5 * ref_t) / (237.3 + ref_t)))
+                avp_ref = svp_ref * (ref_h / 100.0)
+                
                 web_dec["external2"] = {
                     "present": True,
-                    "leaf_temp": {"value": calculator.to_unit(T_l), "unit": unit},
-                    "vpd_leaf": {"value": round(svp_l - avp_e, 3), "unit": "kPa"}
+                    "leaf_temp": {"value": calculator.to_unit(raw_t_l), "unit": unit},
+                    "vpd_leaf": {"value": round(svp_l - avp_ref, 3), "unit": "kPa"}
                 }
         # --- FINAL MERGE ---
         web_rssi = web_dec.get("health", {}).get("signal", {}).get("rssi") if isinstance(web_dec.get("health"), dict) else None
@@ -753,7 +777,7 @@ def _write_csv(frames):
             ])
 
         for frame in frames:
-            for channel in ("adv", "gatt"):
+            for channel in ("adv", "gatt", "webserver"):
                 ch = frame.get(channel, {})
 
                 writer.writerow([

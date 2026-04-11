@@ -9,12 +9,11 @@ RAW_PATH = os.path.join(DATA, "ble_dump.json")
 
 
 class BleDumpWatchdog:
-    CHANNELS = ["adv", "gat", "log"]
+    CHANNELS = ["adv", "gatt"]
 
     SIGNAL_FIELD = {
         "adv": "adv_raw",
-        "gat": "packet_counter",
-        "log": "log_raw",
+        "gatt": "packet_counter",
     }
 
     def __init__(self, timeout, interval, callback):

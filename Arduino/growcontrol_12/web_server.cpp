@@ -69,6 +69,9 @@ void handleData() {
     obj["temp_ext"] = getTempExt();
     obj["humid_ext"] = getExternalHumidity();
     obj["humid_in"] = 40.0;
+        
+    obj["leaf_temp"] = 25.5;
+
     obj["vpd_ext"] = currentVPD;
     obj["vpd_in"] = currentVPDIn;
     obj["vpd_leaf"] = currentVPDLeaf;

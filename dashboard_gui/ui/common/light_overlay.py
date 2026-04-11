@@ -666,7 +666,7 @@ class LightOverlay(FloatLayout):
         self.slider.value = val
         self.slider_start.value = step
         self.slider_dur.value = dur_steps
-        
+        self._on_dur_change(self.slider_dur, dur_steps)
         # 2-Punkt Sunrise/Sunset Slider laden (in Minuten!)
         sr_min = arduino_data.get("l_sunrise", 60)  # Minuten
         ss_min = arduino_data.get("l_sunset", 60)   # Minuten

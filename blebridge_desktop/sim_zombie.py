@@ -7,7 +7,7 @@ RAW-MATRIX Simulator für Session 45+
 Erzeugt ble_dump.json mit 3 RAW-Strängen pro Gerät:
 
 - adv_raw   → simuliertes ADV (TB2-kompatibel)
-- gat_raw   → simuliertes GATT-Vendor-RAW (optional)
+- gatt_raw   → simuliertes GATT-Vendor-RAW (optional)
 - log_raw   → Logging-RAW (frei)
 """
 
@@ -169,7 +169,7 @@ while True:
         adv_raw = tb2_raw(t_i, h_i, t_e, h_e, pkt)
 
         # Vendor-GATT RAW (statisch/dummy → später kompatibel)
-        gat_raw = f"VENDOR{pkt:02X}{mac.replace(':','')}"
+        gatt_raw = f"VENDOR{pkt:02X}{mac.replace(':','')}"
 
         # log_raw → default identisch wie ADV
         log_raw = adv_raw
@@ -182,7 +182,7 @@ while True:
             "rssi": random.randint(-85, -40),
 
             "adv_raw": adv_raw,
-            "gat_raw": gat_raw,
+            "gatt_raw": gatt_raw,
             "log_raw": log_raw
         }
 

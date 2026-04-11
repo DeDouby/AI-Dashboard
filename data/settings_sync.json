@@ -1,1 +1,34 @@
-{"827482CC-A977-43D7-835E-8E8B6978E66A": {"fan_pct": 12, "fan_min": 0, "rev": 1775836512, "fan_mode": "man", "circulation_fan_pct": 43, "circulation_fan_min": 17, "circulation_fan_mode": "man", "exhaust_fan_fan_pct": 0, "exhaust_fan_fan_min": 0, "exhaust_fan_fan_mode": "chao", "exhaust_fan_pct": 98, "exhaust_fan_min": 0, "exhaust_fan_mode": "auto", "exhaust_fan_target": 43, "target_temp_min": 20, "target_temp_max": 25, "target_humidity_min": 35, "target_humidity_max": 65}, "FABCEA8B-7EC8-2594-4879-2B3B63989660": {"rev": 1775762190, "circulation_fan_pct": 11, "circulation_fan_min": 11, "exhaust_fan_min": 20, "exhaust_fan_pct": 47, "target_temp_min": 22, "target_temp_max": 26, "target_humidity_min": 40, "target_humidity_max": 70, "exhaust_fan_mode": "man"}}
+{
+  "827482CC-A977-43D7-835E-8E8B6978E66A": {
+    "fan_pct": 12,
+    "fan_min": 0,
+    "rev": 1775872510,
+    "fan_mode": "man",
+    "circulation_fan_pct": 43,
+    "circulation_fan_min": 17,
+    "circulation_fan_mode": "man",
+    "exhaust_fan_fan_pct": 0,
+    "exhaust_fan_fan_min": 0,
+    "exhaust_fan_fan_mode": "chao",
+    "exhaust_fan_pct": 0,
+    "exhaust_fan_min": 0,
+    "exhaust_fan_mode": "man",
+    "exhaust_fan_target": 43,
+    "target_temp_min": 15,
+    "target_temp_max": 20,
+    "target_humidity_min": 0,
+    "target_humidity_max": 57
+  },
+  "FABCEA8B-7EC8-2594-4879-2B3B63989660": {
+    "rev": 1775762190,
+    "circulation_fan_pct": 11,
+    "circulation_fan_min": 11,
+    "exhaust_fan_min": 20,
+    "exhaust_fan_pct": 47,
+    "target_temp_min": 22,
+    "target_temp_max": 26,
+    "target_humidity_min": 40,
+    "target_humidity_max": 70,
+    "exhaust_fan_mode": "man"
+  }
+}

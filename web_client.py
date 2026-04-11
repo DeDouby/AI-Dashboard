@@ -18,36 +18,8 @@ class WebClientThread(threading.Thread):
         self.ready = False
         self._last_disk_write = 0.0
         self._disk_interval = 60.0  # 🔥 1 Minute
-        # Beim Start: Bestehenden Dump laden (BLE-Like: Wir starten mit dem letzten bekannten Stand)
-        if os.path.exists(self.path):
-            try:
-                with open(self.path, "r") as f:
-                    self.current_data = json.load(f)
-            except:
-                self.current_data = {}
 
-    def _initial_import(self):
-        if self.first_sync_done or not self.current_data: return 
-        
-        if not os.path.exists(self.settings_path):
-            try:
-                start_settings = {}
-                for mac, data in self.current_data.items():
-                    start_settings[mac] = {
-                        "light_pct": data.get("light_target", 0),
-                        "light_mode": data.get("light_mode", "man"),
-                        "l_start_h": data.get("light_timer_start", 480) // 60,
-                        "l_start_m": data.get("light_timer_start_m", 0),
-                        "l_dur": data.get("light_timer_dur", 12),
-                        "l_sun": data.get("light_sunrise_min", 30),
-                        "rev": int(data.get("rev", 0)),
-                        "_last_change": 0
-                    }
-                with open(self.settings_path, "w") as f:
-                    json.dump(start_settings, f, indent=2)
-                self.first_sync_done = True
-            except Exception as e:
-                print(f"[WebClient] Import Error: {e}")
+
 
     def run(self):
         while self.running:
@@ -56,10 +28,7 @@ class WebClientThread(threading.Thread):
                 
                 # Nur speichern, wenn sich wirklich was geändert hat (Empfang erfolgreich)
                 changed = self.fetch_all_web_data()
-                
-                if changed and not self.first_sync_done:
-                    self._initial_import()
-                
+             
                 # 🔥 DISK THROTTLE
                 now = time.time()
                 if (now - self._last_disk_write) >= self._disk_interval:

@@ -10,7 +10,7 @@
 #
 # WICHTIG:
 #  - ble_dump.json bleibt bestehen
-#  - GATT-Bridge schreibt NUR "gat_raw" für das gewählte Device
+#  - GATT-Bridge schreibt NUR "gatt_raw" für das gewählte Device
 #  - adv_raw / log_raw / andere Devices bleiben unberührt
 
 import os
@@ -89,7 +89,7 @@ def _safe_load_dump():
                 "address": addr,
                 "rssi": entry.get("rssi", 0),
                 "adv_raw": entry.get("adv_raw", entry.get("raw", "")),
-                "gat_raw": None,
+                "gatt_raw": None,
                 "log_raw": entry.get("log_raw", entry.get("adv_raw", entry.get("raw", ""))),
             }
         return devices
@@ -115,7 +115,7 @@ class GattEngine:
       - lädt bridge_profile (UUIDs, Command)
       - scannt nach Geräten (Name-Match)
       - verbindet, hört Notify
-      - schreibt GATT-RAW in ble_dump.json[device]["gat_raw"]
+      - schreibt GATT-RAW in ble_dump.json[device]["gatt_raw"]
     """
 
     def __init__(self):
@@ -288,13 +288,13 @@ class GattEngine:
                         "address": addr_key,
                         "rssi": 0,
                         "adv_raw": "",
-                        "gat_raw": None,
+                        "gatt_raw": None,
                         "packet_counter": 0,
                         "log_raw": "",
                     })
         
                     dev_entry["timestamp"] = now_iso()
-                    dev_entry["gat_raw"] = raw
+                    dev_entry["gatt_raw"] = raw
                     dev_entry["packet_counter"] = cnt
         
                     devices[addr_key] = dev_entry

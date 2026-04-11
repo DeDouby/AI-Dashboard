@@ -126,7 +126,7 @@ class SetupScreen(Screen):
     
         for e in arr:
             mac = e.get("address")
-            raw = e.get("adv_raw") or e.get("gat_raw") or e.get("log_raw")
+            raw = e.get("adv_raw") or e.get("gatt_raw") or e.get("log_raw")
             name = e.get("name") or mac
     
             if not mac or not raw:

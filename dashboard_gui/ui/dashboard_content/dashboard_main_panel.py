@@ -34,8 +34,8 @@ class DashboardMainPanel(GridLayout):
         self.tile_vpd_leaf  = ChartTile("vpd_leaf", "VPD Leaf", "kPa", [0.6, 1, 0.2, 1], bg="tile_bg_vpd_out.png")
         
         # NEU: FAN RPM TILE
-        self.tile_circulation_fan_rpm   = ChartTile("circulation_fan_rpm", "Fan Speed", "RPM", [0.3, 1, 0.3, 1], bg="tile_bg_fan.png")
-        self.tile_exhaust_fan_rpm   = ChartTile("exhaust_fan_rpm", "Fan Speed", "RPM", [0.3, 1, 0.3, 1], bg="tile_bg_fan.png")
+        self.tile_circulation_fan_rpm   = ChartTile("circulation_fan_rpm", "Circulation Fan Speed", "RPM", [0.3, 1, 0.3, 1], bg="tile_bg_fan.png")
+        self.tile_exhaust_fan_rpm   = ChartTile("exhaust_fan_rpm", "Exhaust Fan Speed", "RPM", [0.3, 1, 0.3, 1], bg="tile_bg_fan.png")
         
         self.tile_v_bat     = ChartTile("v_bat", "Battery", "V", [1, 0.8, 0.2, 1], bg="tile_bg_batt.png")
 
