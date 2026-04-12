@@ -13,6 +13,7 @@
 // BLE & System
 BLEBridge bleBridge;
 uint32_t screen_timeout = 30000; 
+uint32_t device_confirmed_rev = 0;
 bool is_display_off = false;
 
 // WLAN Daten (Wichtig: bleiben hier, damit du sie schnell ändern kannst)

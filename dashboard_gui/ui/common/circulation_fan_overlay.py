@@ -31,7 +31,7 @@ import os
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.ui.common.unified_slider import UnifiedSlider
-
+from kivy.uix.widget import Widget
 # WICHTIG: Den globalen Client importieren
 from web_client import WEB_CLIENT 
 
@@ -49,50 +49,52 @@ class CirculationFanOverlay(FloatLayout):
         # Intervalle für UI-Refresh und Server-Abgleich
         self._update_event = Clock.schedule_interval(self.update_ui, 1.0)
         self._sync_event = Clock.schedule_interval(self._sync_to_client, 1.3)
-
+        self._locked = True          # ← NEU: Startet immer im gesperrten Zustand
+        self._lock_overlay = None
         # 1. Hintergrund-Abdunkelung
         bg = Button(background_color=(0, 0, 0, 0.25))
         bg.bind(on_release=lambda *_: self.close())
         self.add_widget(bg)
 
         # 2. Das Haupt-Panel
+# 2. Das Haupt-Panel
         self.panel = BoxLayout(
             orientation="vertical", 
-            spacing=dp_scaled(12),
+            spacing=dp_scaled(10), # Etwas weniger fixes Spacing, dafür Spacer nutzen
             size_hint=(None, None), 
-            size=(dp_scaled(420), dp_scaled(420)),
-            padding=[dp_scaled(30), 0, dp_scaled(30), 0], # LINKS und RECHTS Padding hinzufügen
-
+            size=(dp_scaled(420), dp_scaled(440)), # Höhe leicht erhöht für das Padding unten
+            # Padding: [Links, Oben, Rechts, Unten] -> Unten jetzt 25dp!
+            padding=[dp_scaled(25), dp_scaled(15), dp_scaled(25), dp_scaled(25)], 
             pos_hint={"right": 0.98, "top": 0.98}
         )
 
         with self.panel.canvas.before:
-            Color(0, 0, 0, 0.65)
+            Color(0, 0, 0, 0.75) # Etwas dunkler für besseren Kontrast
             self.bg_rect = RoundedRectangle(radius=[dp_scaled(20)])
-            Color(0, 1, 0, 0.4)
+            Color(0, 1, 0, 0.3)
             self.outline = Line(width=1.2)
 
         self.panel.bind(pos=self._u, size=self._u)
 
-        # --- TITEL-ZEILE MIT SYNC-BUTTON ---
-        title_row = BoxLayout(size_hint_y=None, height=dp_scaled(30), spacing=dp_scaled(5))
+        # --- TITEL-ZEILE ---
+        title_row = BoxLayout(size_hint_y=None, height=dp_scaled(40), spacing=dp_scaled(5))
         self.lbl_title = Label(
             text="CIRCULATION FAN CONTROL", 
             bold=True, color=(0, 1, 0, 1),
-            font_size=sp_scaled(16),
-            halign="left"
+            font_size=sp_scaled(15),
+            halign="left", valign="middle"
         )
+        self.lbl_title.bind(size=self.lbl_title.setter('text_size'))
         
         self.sync_icon = Button(
             text="[font=FA]\uf021[/font]",
             markup=True,
-            font_size=sp_scaled(26),
+            font_size=sp_scaled(30),
             size_hint=(None, None), 
             width=dp_scaled(45), height=dp_scaled(45),
-            background_normal="", 
-            background_down="", # Verhindert grauen Kasten beim Drücken
-            background_color=(0, 0, 0, 0), # Hintergrund komplett UNSICHTBAR
-            color=(1, 1, 1, 1) # Icon startet weiß
+            background_normal="", background_down="", 
+            background_color=(0, 0, 0, 0),
+            color=(1, 1, 1, 1)
         )
         self.sync_icon.bind(on_release=self._force_sync)
         
@@ -100,36 +102,45 @@ class CirculationFanOverlay(FloatLayout):
         title_row.add_widget(self.sync_icon)
         self.panel.add_widget(title_row)
 
-        # --- WERTE-ANZEIGE ---
-        self.lbl_val = Label(text="0% - 0%", font_size=sp_scaled(38), bold=True)
+        # --- SPACER 1 ---
+        self.panel.add_widget(Widget(size_hint_y=None, height=dp_scaled(5)))
+
+        # --- WERTE-ANZEIGE (Zentrum) ---
+        self.lbl_val = Label(text="0% - 0%", font_size=sp_scaled(36), bold=True, size_hint_y=None, height=dp_scaled(50))
         self.panel.add_widget(self.lbl_val)
         
-        self.lbl_rpm = Label(text="RPM: 0", font_size=sp_scaled(18), color=(0.7, 0.7, 1, 1))
-        self.panel.add_widget(self.lbl_rpm)
+        # RPM & LIVE SPEED in eine kompakte Zeile
+        info_row = BoxLayout(size_hint_y=None, height=dp_scaled(25))
+        self.lbl_rpm = Label(text="RPM: 0", font_size=sp_scaled(15), color=(0.7, 0.7, 1, 0.8))
+        self.lbl_live_speed = Label(text="LIVE: 0%", font_size=sp_scaled(15), bold=True, color=(0, 1, 1, 0.8))
+        info_row.add_widget(self.lbl_rpm)
+        info_row.add_widget(self.lbl_live_speed)
+        self.panel.add_widget(info_row)
 
-        # --- NEUER RANGE SLIDER ---
-        self.panel.add_widget(Label(text="SPEED RANGE (MIN - MAX)", font_size=sp_scaled(11), color=(0,1,0,0.5), size_hint_y=None, height=dp_scaled(15)))
+        # --- SPACER 2 ---
+        self.panel.add_widget(Widget(size_hint_y=None, height=dp_scaled(15)))
+
+        # --- SLIDER BEREICH ---
+        self.panel.add_widget(Label(
+            text="SPEED RANGE (MIN - MAX)", 
+            font_size=sp_scaled(15), 
+            color=(0,1,0,0.5), 
+            size_hint_y=None, height=dp_scaled(15)
+        ))
         
-        # NEU: Das Live-Output Label
-        self.lbl_live_speed = Label(
-            text="LIVE OUTPUT: 0%", 
-            font_size=sp_scaled(22), 
-            bold=True, 
-            color=(0, 1, 1, 1) # Ein schickes Cyan/Blau für den Ist-Wert
+        self.range_slider = UnifiedSlider(
+            min=0, max=100, range_min=0, range_max=100, 
+            mode='range', size_hint_y=None, height=dp_scaled(50)
         )
-        self.panel.add_widget(self.lbl_live_speed)
-
-
-        self.range_slider = UnifiedSlider(min=0, max=100, range_min=0, range_max=100, mode='range', size_hint_y=None, height=dp_scaled(45))
-        # Wir binden die Werte-Änderung an deine bestehende Logik
         self.range_slider.bind(min_value=self._on_slider_change, max_value=self._on_slider_change)
-        # Für das User-Active-Flag nutzen wir touch events
         self.range_slider.bind(on_touch_down=self._touch_down, on_touch_up=self._touch_up)
-        
         self.panel.add_widget(self.range_slider)
 
-        # Modi-Buttons
-        btn_row = BoxLayout(size_hint_y=None, height=dp_scaled(45), spacing=dp_scaled(10))
+        # --- SPACER 3 (Drückt die Buttons nach unten) ---
+        self.panel.add_widget(Widget()) 
+
+        # --- MODI-BUTTONS ---
+        btn_row = BoxLayout(size_hint_y=None, height=dp_scaled(40), spacing=dp_scaled(10))
         self.btn_man = self._create_styled_btn("MANUAL")
         self.btn_nat = self._create_styled_btn("NATURAL")
         self.btn_chao = self._create_styled_btn("CHAOTIC")
@@ -138,17 +149,18 @@ class CirculationFanOverlay(FloatLayout):
         self.btn_nat.bind(on_release=lambda *_: self._set_mode("nat"))
         self.btn_chao.bind(on_release=lambda *_: self._set_mode("chao"))
         
-        btn_row.add_widget(self.btn_man); btn_row.add_widget(self.btn_nat); btn_row.add_widget(self.btn_chao)
+        btn_row.add_widget(self.btn_man)
+        btn_row.add_widget(self.btn_nat)
+        btn_row.add_widget(self.btn_chao)
         self.panel.add_widget(btn_row)
 
- 
-        
         Clock.schedule_once(self._init_values, 0)
+        Clock.schedule_once(lambda dt: self._create_lock_overlay(), 0.4)
         self.add_widget(self.panel)
 
     def _create_styled_btn(self, text):
         return Button(text=text, background_normal="", background_color=(0.2, 0.2, 0.2, 1), 
-                      bold=True, font_size=sp_scaled(10))
+                      bold=True, font_size=sp_scaled(15))
 
     def _on_slider_change(self, instance, value):
         if not self._init_done: return
@@ -191,47 +203,51 @@ class CirculationFanOverlay(FloatLayout):
         self.sync_icon.color = (1, 0.5, 0, 1) # Orange: "Ich sende gerade das Gesetz"
 # --- ZUSÄTZLICHE OPTIMIERUNG DER UPDATE-LOGIK ---
     def update_ui(self, *_):
-        if not getattr(WEB_CLIENT, "ready", False) or not self._init_done: 
+        """Verbesserte Update-Logik"""
+        if not getattr(WEB_CLIENT, "ready", False) or not self._init_done:
             return
         
         mac = GLOBAL_STATE.get_active_device_id()
         server_data = WEB_CLIENT.current_data.get(mac)
-        if not server_data: return
+        if not server_data:
+            return
 
-        # --- DAS TARGET-REVISION-GESETZ ---
         server_rev = int(server_data.get('rev', 0))
-        srv_live = server_data.get('circulation_fan_speed_now', 0)
-
         last_sent = getattr(self, '_last_sent_rev', 0)
-        is_synced = (server_rev >= last_sent) and not self._user_active and (time.time() - self._last_user_action > 2.0)
+        
+        time_since_action = time.time() - self._last_user_action
+        is_synced = (server_rev >= last_sent) and not self._user_active and (time_since_action > 1.8)
 
-        # Echtzeit-Werte (RPM) immer zeigen
+        # Live-Werte immer aktualisieren
+        srv_live = server_data.get('circulation_fan_speed_now', 0)
         srv_rpm = server_data.get('circulation_fan_rpm', 0)
+        
         self.lbl_rpm.text = f"RPM: {int(srv_rpm)}"
-        self.lbl_live_speed.text = f"LIVE OUTPUT: {int(srv_live)}%"
+        self.lbl_live_speed.text = f"LIVE: {int(srv_live)}%"
 
         if not is_synced:
-            self.sync_icon.text = "[font=FA]\uf021[/font]" # Syncing Icon
-            self.sync_icon.color = (1, 0.5, 0, 1)          # Orange
-            return # SLIDER NICHT RÜHREN!
+            self.sync_icon.text = "[font=FA]\uf021[/font]"
+            self.sync_icon.color = (1, 0.5, 0, 1)
+            return
 
-        # --- SYNC OK: Hardware hat Target bestätigt ---
-        self.sync_icon.text = "[font=FA]\uf058[/font]" # Check-Icon
-        self.sync_icon.color = (0, 1, 0, 1)           # GRÜN
+        # === SYNCED ===
+        self.sync_icon.text = "[font=FA]\uf058[/font]"
+        self.sync_icon.color = (0, 1, 0, 1)
 
-        srv_min = server_data.get('circulation_fan_min', 0)
-        srv_max = server_data.get('circulation_fan_pct', 0)
-        srv_mode = server_data.get('circulation_fan_mode', 'man')
+        srv_min = int(server_data.get('circulation_fan_min', 20))
+        srv_max = int(server_data.get('circulation_fan_pct', 65))
+        srv_mode = server_data.get('circulation_fan_mode', 'nat')
 
-        self.lbl_val.text = f"{int(srv_min)}% - {int(srv_max)}%"
-        
-        # Slider nachziehen
+        # Slider nur nachziehen wenn nötig (vermeidet Flackern)
         if abs(self.range_slider.min_value - srv_min) > 0.5:
             self.range_slider.min_value = srv_min
         if abs(self.range_slider.max_value - srv_max) > 0.5:
             self.range_slider.max_value = srv_max
+
+        self.lbl_val.text = f"{srv_min}% - {srv_max}%"
         
         self._apply_button_styles(srv_mode)
+
     def _create_styled_btn(self, text):
         """ Erzeugt den Dark-Dashboard Look """
         return Button(
@@ -241,28 +257,23 @@ class CirculationFanOverlay(FloatLayout):
             background_color=(0.15, 0.15, 0.15, 1),
             color=(0.5, 0.5, 0.5, 1),
             bold=False,
-            font_size=sp_scaled(11),
+            font_size=sp_scaled(15),
             background_down=""
         )
     
     
     def _apply_button_styles(self, mode):
-        """ 
-        Setzt Farben NUR basierend auf der vom ESP bestätigten Wahrheit.
-        """
-        c_man = (0, 1, 0, 0.7)    # Neon-Grün
-        c_nat = (0, 0.6, 1, 0.7)  # Elektro-Blau
-        c_chao = (1, 0.5, 0, 0.7) # Chaotic-Orange
+        """Einheitliche und saubere Button-Farben"""
         c_bg = (0.15, 0.15, 0.15, 1)
-
-        self.btn_man.background_color = c_man if mode == "man" else c_bg
-        self.btn_man.color = (1, 1, 1, 1) if mode == "man" else (0.5, 0.5, 0.5, 1)
-
-        self.btn_nat.background_color = c_nat if mode == "nat" else c_bg
-        self.btn_nat.color = (1, 1, 1, 1) if mode == "nat" else (0.5, 0.5, 0.5, 1)
-
-        self.btn_chao.background_color = c_chao if mode == "chao" else c_bg
-        self.btn_chao.color = (1, 1, 1, 1) if mode == "chao" else (0.5, 0.5, 0.5, 1)
+        
+        self.btn_man.background_color = (0, 1, 0, 0.8) if mode == "man" else c_bg
+        self.btn_nat.background_color = (0, 0.6, 1, 0.8) if mode == "nat" else c_bg
+        self.btn_chao.background_color = (1, 0.5, 0, 0.8) if mode == "chao" else c_bg
+        
+        self.btn_man.color = (1, 1, 1, 1) if mode == "man" else (0.6, 0.6, 0.6, 1)
+        self.btn_nat.color = (1, 1, 1, 1) if mode == "nat" else (0.6, 0.6, 0.6, 1)
+        self.btn_chao.color = (1, 1, 1, 1) if mode == "chao" else (0.6, 0.6, 0.6, 1)
+    
     def _send_current_range_to_server(self):
         mac = GLOBAL_STATE.get_active_device_id()
         if not mac: return
@@ -298,6 +309,8 @@ class CirculationFanOverlay(FloatLayout):
         except: pass
 
     def _set_mode(self, mode):      
+        if self._locked:
+            return
         """ Setzt Modus-Target und erhöht Revision """
         mac = GLOBAL_STATE.get_active_device_id()
         if not mac: return
@@ -318,17 +331,18 @@ class CirculationFanOverlay(FloatLayout):
         }
         WEB_CLIENT.send_control(mac, payload)
     def _touch_down(self, instance, touch):
+        if self._locked:
+            return False  # Ignoriere alle Touches wenn gesperrt
         if instance.collide_point(*touch.pos):
             self._user_active = True
-            # Optional: Timer stoppen, damit nichts flackert
-            return False # Kivy-Standard: Event weiterreichen
+            return False
 
     def _touch_up(self, instance, touch):
+        if self._locked:
+            return False
         if self._user_active:
             self._user_active = False
             self._last_user_action = time.time()
-            
-            # WICHTIG: Erst jetzt schicken wir den endgültigen Wert an den Server!
             self._send_current_range_to_server()
             return False
     def _u(self, *_):
@@ -343,32 +357,92 @@ class CirculationFanOverlay(FloatLayout):
         GLOBAL_STATE.ui_handler.active_circulation_fan_overlay = None
 
     def _init_values(self, *_):
+        """Saubere Initialisierung wie beim LightOverlay"""
         mac = GLOBAL_STATE.get_active_device_id()
-        if not mac: return
-    
-        # 1. Wir holen uns den AKTUELLEN Stand vom WEB_CLIENT Speicher (nicht nur File)
-        server_data = WEB_CLIENT.current_data.get(mac, {})
+        if not mac:
+            Clock.schedule_once(self._init_values, 0.5)
+            return
         
-        # Wenn der Server Daten hat, nehmen wir die als Basis für unsere UI
-        if server_data:
-            saved_min = server_data.get("circulation_fan_min", 20)
-            saved_max = server_data.get("circulation_fan_pct", 60)
-            saved_mode = server_data.get("circulation_fan_mode", "nat")
-        else:
-            # Nur wenn gar nichts da ist, aus Datei oder Default
-            saved_min = 20
-            saved_max = 60
-            saved_mode = "nat"
-    
-        self.range_slider.min_value = saved_min
+        arduino_data = WEB_CLIENT.current_data.get(mac, {})
+        
+        # Wenn noch keine Daten da sind → kurz warten und retry
+        if not arduino_data:
+            Clock.schedule_once(self._init_values, 0.4)
+            return
+        
+        # === Werte aus Server laden ===
+        saved_min = int(arduino_data.get("circulation_fan_min", 20))
+        saved_max = int(arduino_data.get("circulation_fan_pct", 65))
+        saved_mode = arduino_data.get("circulation_fan_mode", "nat")
+        
+        # Slider setzen
+        self.range_slider.min_value = max(0, min(saved_min, saved_max - 1))
         self.range_slider.max_value = saved_max
-        self._set_mode_ui_only(saved_mode) # Neue Hilfsfunktion für Farben
-    
+        
+        # Labels sofort aktualisieren
+        self.lbl_val.text = f"{saved_min}% - {saved_max}%"
+        
+        # Modus setzen (nur optisch)
+        self._apply_button_styles(saved_mode)
+        
+        # Status Icons + Flags
         self._init_done = True
-        # Der erste Sync erfolgt jetzt erst, wenn der User wirklich was drückt 
-        # ODER wenn update_ui das erste Mal die Revisionen glattzieht.
+        self._last_sent_rev = int(arduino_data.get('rev', 0))
+        self._last_user_action = 0
+        
+        print(f"[Circulation] Init erfolgreich: {saved_min}-{saved_max}% | Mode: {saved_mode}")
 
-    def _set_mode_ui_only(self, mode):
-        self.btn_man.background_color = (0, 1, 0, 0.6) if mode == "man" else (0.2, 0.2, 0.2, 1)
-        self.btn_nat.background_color = (0, 0.7, 1, 0.6) if mode == "nat" else (0.2, 0.2, 0.2, 1)
-        self.btn_chao.background_color = (1, 0.2, 0.2, 0.6) if mode == "chao" else (0.2, 0.2, 0.2, 1)
+    def _create_lock_overlay(self):
+        """Lock-Maske nur über dem Panel, Hintergrund bleibt klickbar"""
+        if self._lock_overlay:
+            return
+        
+        # Maske nur über dem Panel (nicht über dem ganzen FloatLayout)
+        self._lock_overlay = Button(
+            background_color=(0, 0, 0, 0.09),
+            size=self.panel.size,
+            pos=self.panel.pos,
+            size_hint=(None, None)
+        )
+        
+        # Unlock Button unten links
+        unlock_btn = Button(
+            text="UNLOCK TO EDIT",
+            size_hint=(None, None),
+            size=(dp_scaled(200), dp_scaled(50)),
+            pos_hint={'x': 0.04, 'y': 0.04},
+            background_color=(0.05, 0.55, 0.95, 0.95),
+            color=(1, 1, 1, 1),
+            bold=True,
+            font_size=sp_scaled(15.5)
+        )
+        unlock_btn.bind(on_release=self._unlock)
+        
+        self._lock_overlay.add_widget(unlock_btn)
+        
+        # Wichtig: Maske an das Panel binden, damit sie mitbewegt wird
+        self.panel.bind(pos=self._update_lock_pos, size=self._update_lock_pos)
+        self.add_widget(self._lock_overlay)
+
+    def _unlock(self, *_):
+        """Wird beim Drücken des Unlock-Buttons aufgerufen"""
+        if self._lock_overlay:
+            self.remove_widget(self._lock_overlay)
+            self._lock_overlay = None
+        
+        self._locked = False
+        self.sync_icon.color = (0, 1, 0, 1)  # Grün = Edit-Modus aktiv
+        
+        print("[Circulation] Edit-Modus aktiviert")
+
+    def _lock(self):
+        """Manuell wieder sperren (optional später für Auto-Lock)"""
+        if not self._locked:
+            self._locked = True
+            self._create_lock_overlay()
+
+    def _update_lock_pos(self, *_):
+        """Aktualisiert die Position der Lock-Maske wenn sich das Panel bewegt"""
+        if self._lock_overlay:
+            self._lock_overlay.pos = self.panel.pos
+            self._lock_overlay.size = self.panel.size

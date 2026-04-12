@@ -374,26 +374,6 @@ class VPDScatterScreen(Screen):
             "[color=#AAAAAA][i]Leaf Offset:[/i][/color] "
             f"[color=#FFFFFF]{fmt(offset, '°C')}[/color]"
         )    # ============================================================
-    # DEVICE SWIPE (HORIZONTAL)
-    # ============================================================
-# In VPDScatterScreen Klasse
-
-    def on_touch_down(self, touch):
-        if self.collide_point(*touch.pos):
-            if hasattr(self.gsm, "ggm"):
-                self.gsm.ggm.handle_touch("vpd_scatter", "down", touch)
-        return super().on_touch_down(touch)
-
-    def on_touch_move(self, touch):
-        if hasattr(self.gsm, "ggm"):
-            self.gsm.ggm.handle_touch("vpd_scatter", "move", touch)
-        return super().on_touch_move(touch)
-
-    def on_touch_up(self, touch):
-        if hasattr(self.gsm, "ggm"):
-            self.gsm.ggm.handle_touch("vpd_scatter", "up", touch)
-        return super().on_touch_up(touch)
-
 
     # -------------------------------------------------
     # RESET

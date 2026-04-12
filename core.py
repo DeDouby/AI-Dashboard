@@ -7,7 +7,7 @@ from kivy.utils import platform as kivy_platform
 import config
 from bridge_manager import get_bridge
 from ble_watchdog_manager import BleDumpWatchdog
-from decoder import start_decoder_thread, update_bridge_state
+from decoder import start_decoder_thread, update_bridge_state, step_decode
 from web_client import WebClientThread
 # ------------------------------------------------------------
 # 🔥 100 % zuverlässige Android-Erkennung

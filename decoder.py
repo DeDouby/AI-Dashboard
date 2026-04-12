@@ -621,36 +621,42 @@ def step_decode():
             web_dec.update({
                 "alive": True,
                 "status": "active",
+            
                 "internal": {
                     "temperature": {"value": calculator.to_unit(T_i), "unit": unit}, 
                     "humidity": {"value": H_i, "unit": "%"},
-                    "vpd": {"value": vpdi, "unit": "kPa"},
-                    "dew_point": {"value": calculator.to_unit(dpi), "unit": unit}
                 },
+            
                 "external": {
-                    "present": sensor_exists, # UI nutzt das zum Ausgrauen
+                    "present": sensor_exists,
                     "temperature": {"value": calculator.to_unit(T_e), "unit": unit}, 
                     "humidity": {"value": H_e, "unit": "%"},
-                    "vpd": {"value": vpde, "unit": "kPa"},
-                    "dew_point": {"value": calculator.to_unit(dpe), "unit": unit}
                 },
+            
+                # 🔥 IDENTISCH ZU ADV/GATT (TOP LEVEL!)
                 "vpd_internal": {"value": vpdi, "unit": "kPa"},
                 "vpd_external": {"value": vpde, "unit": "kPa"},
+            
+                "dew_point_internal": {"value": calculator.to_unit(dpi), "unit": unit},
+                "dew_point_external": {"value": calculator.to_unit(dpe), "unit": unit},
+            
                 "coord": {
                     "internal": {"x": xi, "y": yi}, 
                     "external": {"x": xe if sensor_exists else None, "y": ye if sensor_exists else None}
                 },
+            
                 "battery_voltage": current_web.get("vbat"),
                 "timestamp": web_ts,
+            
                 "circulation_fan": {"circulation_fan_rpm": current_web.get("circulation_fan_rpm", 0), "unit": "RPM"},
                 "exhaust_fan": {"exhaust_fan_rpm": current_web.get("exhaust_fan_rpm", 0), "unit": "RPM"},
+            
                 "light_pct": current_web.get("light_pct", 0),
                 "light_mode": current_web.get("light_mode", "off"),
                 "rev": current_web.get("rev"),
                 "health": current_web.get("health")
             })
-            
-# --- JETZT: UNABHÄNGIGE LEAF-LOGIK ---
+            # --- JETZT: UNABHÄNGIGE LEAF-LOGIK ---
             if leaf_exists:
                 # Blatt-Temp ist da. VPD Leaf braucht aber T_e und H_e als Referenz!
                 # Wenn kein SHT31 da ist, nehmen wir Internal als Notbehelf für die Luftwerte

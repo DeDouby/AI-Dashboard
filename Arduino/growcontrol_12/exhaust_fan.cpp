@@ -193,6 +193,7 @@ void exhaust_fan_update() {
 void exhaust_fan_process_json(JsonObject doc) {
     bool changed = false;
 
+    // 1. FAN SPEED & MODE
     if (doc.containsKey("exhaust_fan_pct")) {
         exhaust_fan_pct = constrain((int)doc["exhaust_fan_pct"], 0, 100);
         changed = true;
@@ -203,20 +204,59 @@ void exhaust_fan_process_json(JsonObject doc) {
     }
     if (doc.containsKey("exhaust_fan_mode")) {
         String m = doc["exhaust_fan_mode"];
-        if (m == "auto") current_exhaust_fan_mode = exhaust_fan_MODE_AUTOMATIC;
-        else if (m == "chao") current_exhaust_fan_mode = exhaust_fan_MODE_CHAOTIC;
-        else current_exhaust_fan_mode = exhaust_fan_MODE_MANUAL;
+        if (m == "auto") {
+            current_exhaust_fan_mode = exhaust_fan_MODE_AUTOMATIC;
+        } else if (m == "chao") {
+            current_exhaust_fan_mode = exhaust_fan_MODE_CHAOTIC;
+        } else {
+            current_exhaust_fan_mode = exhaust_fan_MODE_MANUAL;
+        }
         changed = true;
     }
 
-    // Range-Werte
-    if (doc.containsKey("target_temp_min")) { target_temp_min = doc["target_temp_min"]; changed = true; }
-    if (doc.containsKey("target_temp_max")) { target_temp_max = doc["target_temp_max"]; changed = true; }
-    if (doc.containsKey("target_humidity_min")) { target_humidity_min = doc["target_humidity_min"]; changed = true; }
-    if (doc.containsKey("target_humidity_max")) { target_humidity_max = doc["target_humidity_max"]; changed = true; }
+    // 2. TEMPERATURE TARGETS (HARD LIMIT 15 - 35)
+    if (doc.containsKey("target_temp_min")) { 
+        int val = doc["target_temp_min"];
+        target_temp_min = constrain(val, 15, 35); 
+        changed = true; 
+    }
+    if (doc.containsKey("target_temp_max")) { 
+        int val = doc["target_temp_max"];
+        target_temp_max = constrain(val, 15, 35); 
+        changed = true; 
+    }
 
+    // 3. HUMIDITY TARGETS (STANDARD 0 - 100)
+    if (doc.containsKey("target_humidity_min")) { 
+        int val = doc["target_humidity_min"];
+        target_humidity_min = constrain(val, 0, 100); 
+        changed = true; 
+    }
+    if (doc.containsKey("target_humidity_max")) { 
+        int val = doc["target_humidity_max"];
+        target_humidity_max = constrain(val, 0, 100); 
+        changed = true; 
+    }
+
+    // 4. REVISION HANDLING (Das Herzstück des Syncs)
+    // Wir speichern die empfangene Rev, um sie im Status-Paket zurückzusenden
+    if (doc.containsKey("rev")) {
+        // Angenommen, du hast eine globale Variable 'current_device_rev'
+        // oder speicherst sie in den Preferences
+        uint32_t incoming_rev = doc["rev"];
+        exhaust_fanPrefs.putUInt("last_rev", incoming_rev);
+        // Hinweis: Die globale Variable für den Status-Report muss hier aktualisiert werden
+        extern uint32_t device_confirmed_rev; 
+        device_confirmed_rev = incoming_rev;
+    }
+
+    // 5. FINALIZE
     if (changed) {
         exhaust_fan_save_state();
+        // Falls im Manual Mode, sofort Duty Cycle anpassen (optional, je nach update() Aufruf)
+        if (current_exhaust_fan_mode == exhaust_fan_MODE_MANUAL) {
+            exhaust_fan_update(); 
+        }
     }
 }
 void exhaust_fan_get_status(JsonObject doc) {

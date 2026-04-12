@@ -1,16 +1,146 @@
 [
   {
-    "timestamp": 1775874222.015305,
+    "timestamp": 1775953853.921355,
     "device_id": "827482CC-A977-43D7-835E-8E8B6978E66A",
     "name": "LGS_Sensor",
     "adv": {
+      "alive": false,
+      "status": "offline",
+      "packet_counter": null,
+      "raw": null,
+      "internal": {
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external": {
+        "present": false,
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external2": {
+        "present": false,
+        "leaf_temp": {
+          "value": null,
+          "unit": "°C"
+        },
+        "vpd_leaf": {
+          "value": null,
+          "unit": "kPa"
+        }
+      },
+      "vpd_internal": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "vpd_external": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "battery_voltage": null,
+      "dew_point_internal": {
+        "value": null,
+        "unit": "°C"
+      },
+      "dew_point_external": {
+        "value": null,
+        "unit": "°C"
+      },
+      "coord": {
+        "internal": {
+          "x": null,
+          "y": null
+        },
+        "external": {
+          "x": null,
+          "y": null
+        }
+      }
+    },
+    "gatt": {
+      "alive": false,
+      "status": "offline",
+      "packet_counter": null,
+      "raw": null,
+      "internal": {
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external": {
+        "present": false,
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external2": {
+        "present": false,
+        "leaf_temp": {
+          "value": null,
+          "unit": "°C"
+        },
+        "vpd_leaf": {
+          "value": null,
+          "unit": "kPa"
+        }
+      },
+      "vpd_internal": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "vpd_external": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "battery_voltage": null,
+      "dew_point_internal": {
+        "value": null,
+        "unit": "°C"
+      },
+      "dew_point_external": {
+        "value": null,
+        "unit": "°C"
+      },
+      "coord": {
+        "internal": {
+          "x": null,
+          "y": null
+        },
+        "external": {
+          "x": null,
+          "y": null
+        }
+      }
+    },
+    "webserver": {
       "alive": true,
       "status": "active",
       "packet_counter": null,
-      "raw": "D302A211076314C807350FA009F601A30000EA",
+      "raw": null,
       "internal": {
         "temperature": {
-          "value": 18.45,
+          "value": 18.45535,
           "unit": "°C"
         },
         "humidity": {
@@ -21,11 +151,11 @@
       "external": {
         "present": true,
         "temperature": {
-          "value": 18.91,
+          "value": 18.86,
           "unit": "°C"
         },
         "humidity": {
-          "value": 53.2,
+          "value": 62.35,
           "unit": "%"
         }
       },
@@ -36,7 +166,7 @@
           "unit": "°C"
         },
         "vpd_leaf": {
-          "value": 2.101,
+          "value": 1.905,
           "unit": "kPa"
         }
       },
@@ -45,175 +175,29 @@
         "unit": "kPa"
       },
       "vpd_external": {
-        "value": 1.023,
+        "value": 0.82,
         "unit": "kPa"
       },
-      "battery_voltage": 4.19,
+      "battery_voltage": 4.2,
       "dew_point_internal": {
-        "value": 4.59,
+        "value": 4.6,
         "unit": "°C"
       },
       "dew_point_external": {
-        "value": 9.17,
+        "value": 11.5,
         "unit": "°C"
       },
       "coord": {
         "internal": {
           "x": 40.0,
-          "y": 18.45
+          "y": 18.45535
         },
         "external": {
-          "x": 53.2,
-          "y": 18.91
-        }
-      }
-    },
-    "gatt": {
-      "alive": false,
-      "status": "offline",
-      "packet_counter": null,
-      "raw": null,
-      "internal": {
-        "temperature": {
-          "value": null,
-          "unit": "°C"
-        },
-        "humidity": {
-          "value": null,
-          "unit": "%"
+          "x": 62.35,
+          "y": 18.86
         }
       },
-      "external": {
-        "present": false,
-        "temperature": {
-          "value": null,
-          "unit": "°C"
-        },
-        "humidity": {
-          "value": null,
-          "unit": "%"
-        }
-      },
-      "external2": {
-        "present": false,
-        "leaf_temp": {
-          "value": null,
-          "unit": "°C"
-        },
-        "vpd_leaf": {
-          "value": null,
-          "unit": "kPa"
-        }
-      },
-      "vpd_internal": {
-        "value": null,
-        "unit": "kPa"
-      },
-      "vpd_external": {
-        "value": null,
-        "unit": "kPa"
-      },
-      "battery_voltage": null,
-      "dew_point_internal": {
-        "value": null,
-        "unit": "°C"
-      },
-      "dew_point_external": {
-        "value": null,
-        "unit": "°C"
-      },
-      "coord": {
-        "internal": {
-          "x": null,
-          "y": null
-        },
-        "external": {
-          "x": null,
-          "y": null
-        }
-      }
-    },
-    "webserver": {
-      "alive": true,
-      "status": "active",
-      "packet_counter": null,
-      "raw": null,
-      "internal": {
-        "temperature": {
-          "value": 18.50695,
-          "unit": "°C"
-        },
-        "humidity": {
-          "value": 40.0,
-          "unit": "%"
-        },
-        "vpd": {
-          "value": 1.278,
-          "unit": "kPa"
-        },
-        "dew_point": {
-          "value": 4.64,
-          "unit": "°C"
-        }
-      },
-      "external": {
-        "present": true,
-        "temperature": {
-          "value": 18.93,
-          "unit": "°C"
-        },
-        "humidity": {
-          "value": 53.19,
-          "unit": "%"
-        },
-        "vpd": {
-          "value": 1.024,
-          "unit": "kPa"
-        },
-        "dew_point": {
-          "value": 9.19,
-          "unit": "°C"
-        }
-      },
-      "external2": {
-        "present": true,
-        "leaf_temp": {
-          "value": 25.5,
-          "unit": "°C"
-        },
-        "vpd_leaf": {
-          "value": 2.099,
-          "unit": "kPa"
-        }
-      },
-      "vpd_internal": {
-        "value": 1.278,
-        "unit": "kPa"
-      },
-      "vpd_external": {
-        "value": 1.024,
-        "unit": "kPa"
-      },
-      "battery_voltage": 4.191,
-      "dew_point_internal": {
-        "value": null,
-        "unit": "°C"
-      },
-      "dew_point_external": {
-        "value": null,
-        "unit": "°C"
-      },
-      "coord": {
-        "internal": {
-          "x": 40.0,
-          "y": 18.50695
-        },
-        "external": {
-          "x": 53.19,
-          "y": 18.93
-        }
-      },
-      "timestamp": 1775874221.708807,
+      "timestamp": 1775953853.605075,
       "circulation_fan": {
         "circulation_fan_rpm": 0,
         "unit": "RPM"
@@ -222,12 +206,12 @@
         "exhaust_fan_rpm": 0,
         "unit": "RPM"
       },
-      "light_pct": 0,
+      "light_pct": 62,
       "light_mode": "tim",
-      "rev": 1775872510,
+      "rev": 1775953834,
       "health": {
         "signal": {
-          "rssi": -66
+          "rssi": -75
         }
       }
     },
@@ -235,36 +219,36 @@
     "status": "active",
     "health": {
       "uptime": {
-        "value": 180.13919711112976,
+        "value": 240.1720530986786,
         "unit": "s"
       },
       "battery": {
         "value": null,
         "unit": "V",
-        "voltage": 4.191
+        "voltage": 4.2
       },
       "signal": {
-        "rssi": -66,
+        "rssi": -75,
         "quality": null
       }
     }
   },
   {
-    "timestamp": 1775874222.015305,
+    "timestamp": 1775953853.921355,
     "device_id": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
     "name": "ThermoBeacon2",
     "adv": {
-      "alive": true,
-      "status": "active",
+      "alive": false,
+      "status": "offline",
       "packet_counter": null,
-      "raw": "190019060000F1F01D1030016F03FFFFFFFF3C132D00",
+      "raw": null,
       "internal": {
         "temperature": {
-          "value": 19.0,
+          "value": null,
           "unit": "°C"
         },
         "humidity": {
-          "value": 54.9375,
+          "value": null,
           "unit": "%"
         }
       },
@@ -291,7 +275,7 @@
         }
       },
       "vpd_internal": {
-        "value": 0.99,
+        "value": null,
         "unit": "kPa"
       },
       "vpd_external": {
@@ -300,7 +284,7 @@
       },
       "battery_voltage": null,
       "dew_point_internal": {
-        "value": 9.73,
+        "value": null,
         "unit": "°C"
       },
       "dew_point_external": {
@@ -309,8 +293,8 @@
       },
       "coord": {
         "internal": {
-          "x": 54.9375,
-          "y": 19.0
+          "x": null,
+          "y": null
         },
         "external": {
           "x": null,
@@ -448,11 +432,11 @@
         }
       }
     },
-    "alive": true,
-    "status": "active",
+    "alive": false,
+    "status": "offline",
     "health": {
       "uptime": {
-        "value": 180.13919711112976,
+        "value": 240.1720530986786,
         "unit": "s"
       },
       "battery": {
@@ -461,27 +445,27 @@
         "voltage": null
       },
       "signal": {
-        "rssi": -65,
+        "rssi": null,
         "quality": null
       }
     }
   },
   {
-    "timestamp": 1775874222.015305,
+    "timestamp": 1775953853.921355,
     "device_id": "C898B4F2-B452-7502-1A67-0536E77D49EA",
     "name": "sps",
     "adv": {
-      "alive": true,
-      "status": "active",
+      "alive": false,
+      "status": "offline",
       "packet_counter": null,
-      "raw": "8107531700E68B1D08",
+      "raw": null,
       "internal": {
         "temperature": {
-          "value": 19.21,
+          "value": null,
           "unit": "°C"
         },
         "humidity": {
-          "value": 59.71,
+          "value": null,
           "unit": "%"
         }
       },
@@ -508,7 +492,7 @@
         }
       },
       "vpd_internal": {
-        "value": 0.897,
+        "value": null,
         "unit": "kPa"
       },
       "vpd_external": {
@@ -517,7 +501,7 @@
       },
       "battery_voltage": null,
       "dew_point_internal": {
-        "value": 11.18,
+        "value": null,
         "unit": "°C"
       },
       "dew_point_external": {
@@ -526,8 +510,8 @@
       },
       "coord": {
         "internal": {
-          "x": 59.71,
-          "y": 19.21
+          "x": null,
+          "y": null
         },
         "external": {
           "x": null,
@@ -665,11 +649,11 @@
         }
       }
     },
-    "alive": true,
-    "status": "active",
+    "alive": false,
+    "status": "offline",
     "health": {
       "uptime": {
-        "value": 180.13919711112976,
+        "value": 240.1720530986786,
         "unit": "s"
       },
       "battery": {
@@ -678,27 +662,27 @@
         "voltage": null
       },
       "signal": {
-        "rssi": -52,
+        "rssi": null,
         "quality": null
       }
     }
   },
   {
-    "timestamp": 1775874222.015305,
+    "timestamp": 1775953853.921355,
     "device_id": "FF-FF-A1-00-00-01",
     "name": "LGS_NODE_17",
     "adv": {
-      "alive": true,
-      "status": "active",
+      "alive": false,
+      "status": "offline",
       "packet_counter": null,
-      "raw": "7445A111073D0FA0D9",
+      "raw": null,
       "internal": {
         "temperature": {
-          "value": 18.53,
+          "value": null,
           "unit": "°C"
         },
         "humidity": {
-          "value": 40.0,
+          "value": null,
           "unit": "%"
         }
       },
@@ -725,7 +709,7 @@
         }
       },
       "vpd_internal": {
-        "value": 1.28,
+        "value": null,
         "unit": "kPa"
       },
       "vpd_external": {
@@ -734,7 +718,7 @@
       },
       "battery_voltage": null,
       "dew_point_internal": {
-        "value": 4.66,
+        "value": null,
         "unit": "°C"
       },
       "dew_point_external": {
@@ -743,8 +727,8 @@
       },
       "coord": {
         "internal": {
-          "x": 40.0,
-          "y": 18.53
+          "x": null,
+          "y": null
         },
         "external": {
           "x": null,
@@ -882,11 +866,11 @@
         }
       }
     },
-    "alive": true,
-    "status": "active",
+    "alive": false,
+    "status": "offline",
     "health": {
       "uptime": {
-        "value": 180.13919711112976,
+        "value": 240.1720530986786,
         "unit": "s"
       },
       "battery": {
@@ -895,7 +879,7 @@
         "voltage": null
       },
       "signal": {
-        "rssi": -78,
+        "rssi": null,
         "quality": null
       }
     }

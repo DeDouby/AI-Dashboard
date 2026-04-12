@@ -190,28 +190,3 @@ class DashboardMainPanel(GridLayout):
                 self.add_widget(t)
 
 
-    # GESTURE DELEGATION
-    def on_touch_down(self, touch):
-        if self.collide_point(*touch.pos):
-            self._gesture_mode = None
-            self._start_x = touch.x
-            self._start_y = touch.y
-    
-            if hasattr(GLOBAL_STATE, "ggm"):
-                GLOBAL_STATE.ggm.handle_touch("dashboard", "down", touch)
-    
-        return super().on_touch_down(touch)
-
-    def on_touch_move(self, touch):
-        if hasattr(GLOBAL_STATE, "ggm"):
-            handled = GLOBAL_STATE.ggm.handle_touch("dashboard", "move", touch)
-            if handled:
-                return True
-        return super().on_touch_move(touch)
-
-    def on_touch_up(self, touch):
-        if hasattr(GLOBAL_STATE, "ggm"):
-            handled = GLOBAL_STATE.ggm.handle_touch("dashboard", "up", touch)
-            if handled:
-                return True
-        return super().on_touch_up(touch)

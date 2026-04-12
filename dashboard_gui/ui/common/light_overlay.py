@@ -32,6 +32,7 @@ import os
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.ui.common.unified_slider import UnifiedSlider
+from kivy.uix.widget import Widget
 
 # WICHTIG: Den globalen Client importieren
 from web_client import WEB_CLIENT 
@@ -44,210 +45,188 @@ class LightOverlay(FloatLayout):
         self._user_active = False 
         self._last_user_action = 0 
         self._init_done = False
-        # Intervalle für UI-Refresh und Server-Abgleich
+        
         self._update_event = Clock.schedule_interval(self.update_ui, 1.0)
         self._sync_event = Clock.schedule_interval(self._sync_to_client, 1.3)
         self._intended_mode = "man"
+        self._locked = True          # Startet immer im gesperrten Modus
+        self._lock_overlay = None
         # 1. Hintergrund-Abdunkelung
         bg = Button(background_color=(0, 0, 0, 0.25))
         bg.bind(on_release=lambda *_: self.close())
         self.add_widget(bg)
 
-        # 2. Das Haupt-Panel
+        # 2. Das Haupt-Panel (FESTE HÖHE)
         self.panel = BoxLayout(
             orientation="vertical", 
-            padding=dp_scaled(20), 
-            spacing=dp_scaled(15),
+            spacing=dp_scaled(7), # Engeres Spacing für mehr Content
             size_hint=(None, None), 
-            size=(dp_scaled(420), dp_scaled(500)),  # etwas höher für mobile
+            size=(dp_scaled(440), dp_scaled(460)), 
+            padding=[dp_scaled(25), dp_scaled(15), dp_scaled(25), dp_scaled(25)],
             pos_hint={"right": 0.98, "top": 0.98}
         )
 
         with self.panel.canvas.before:
-            Color(0, 0, 0, 0.65)
+            Color(0, 0, 0, 0.75)
             self.bg_rect = RoundedRectangle(radius=[dp_scaled(20)])
-            Color(0, 1, 0, 0.4)
+            Color(0, 1, 0, 0.3)
             self.outline = Line(width=1.2)
 
         self.panel.bind(pos=self._u, size=self._u)
 
-
-
-        # --- TITEL-ZEILE MIT SYNC-HAKEN ---
-        title_row = BoxLayout(size_hint_y=None, height=dp_scaled(30), spacing=dp_scaled(5))
-        
+        # --- TITEL-ZEILE ---
+        title_row = BoxLayout(size_hint_y=None, height=dp_scaled(40), spacing=dp_scaled(5))
         self.lbl_title = Label(
             text="LIGHT CONTROL PRO", 
             bold=True, color=(0, 1, 0, 1),
-            font_size=sp_scaled(16),
+            font_size=sp_scaled(15), halign="left", valign="middle"
+        )
+        self.lbl_title.bind(size=self.lbl_title.setter('text_size'))
+        
+        self.sync_icon = Button(
+            text="[font=FA]\uf021[/font]", markup=True,
+            font_size=sp_scaled(30),
+            size_hint=(None, None), width=dp_scaled(45), height=dp_scaled(45),
+            background_normal="", background_down="", 
+            background_color=(0, 0, 0, 0), color=(1, 1, 1, 1)
+        )
+        self.sync_icon.bind(on_release=self._force_sync)
+        title_row.add_widget(self.lbl_title)
+        title_row.add_widget(self.sync_icon)
+        self.panel.add_widget(title_row)
+
+        # --- HELLIGKEIT FOKUS ---
+        # Wert und Status-Text in eine Box um Platz zu sparen
+        val_box = BoxLayout(size_hint_y=None, height=dp_scaled(55), spacing=dp_scaled(15))
+        
+        self.lbl_val = Label(
+            text="100%", 
+            font_size=sp_scaled(42), 
+            bold=True,
+            size_hint_x=None, 
+            width=dp_scaled(140),      # Feste Breite für die große Zahl
             halign="left"
         )
         
-        # DAS ICON (Nutzt Font Awesome)
-        # DAS ICON (Initialzustand)
-        self.sync_icon = Button(
-            text="[font=FA]\uf021[/font]",
-            markup=True,
-        
-            font_size=sp_scaled(26),
-        
-            size_hint_x=None,
-            width=dp_scaled(40),
-            size_hint_y=None,
-            height=dp_scaled(40),
-        
-            background_normal="",
-            background_color=(0, 0, 0, 0)
-        )
-        
-        self.sync_icon.bind(on_release=self._force_sync)
-        
-        title_row.add_widget(self.lbl_title)
-        title_row.add_widget(self.sync_icon)
-        self.scroll = ScrollView(
-            size_hint=(1, 1),
-            do_scroll_x=False,
-            do_scroll_y=True
-        )
-        
-        self.content = BoxLayout(
-            orientation="vertical",
-            spacing=dp_scaled(15),
-            padding=[dp_scaled(0), 0, dp_scaled(0), 0], # LINKS und RECHTS Padding hinzufügen
-            size_hint_y=None
-        )
-        
-        self.content.bind(minimum_height=self.content.setter('height'))
-        
-        self.scroll.add_widget(self.content)
-        self.content.add_widget(title_row)
-        self.panel.add_widget(self.scroll)
-        
-        
-        # --- WERTE-ANZEIGE ---
-        self.lbl_val = Label(text="SYNC...", font_size=sp_scaled(45), bold=True, color=(1, 0.5, 0, 1))
-        self.content.add_widget(self.lbl_val)
-        # In der __init__ nach self.lbl_val hinzufügen:
         self.lbl_status_text = Label(
-            text="TIMER: SCHLÄFT", 
-            font_size=sp_scaled(14), 
-            bold=True,
-            color=(0.5, 0.5, 0.5, 1) # Grau wenn aus
+            text="TIMER: AKTIV", 
+            font_size=sp_scaled(15.5), 
+            bold=True, 
+            color=(0, 1, 0, 0.75),
+            halign="right",
+            valign="middle"
         )
-        self.content.add_widget(self.lbl_status_text)
-        # Main brightness slider - now UnifiedSlider in single-mode
-        # Functionally identical to Slider but supports future 2-point expansion
-        self.slider = UnifiedSlider(
-            min=0, max=100, range_min=0, range_max=100, 
-            mode='single',
-            size_hint_y=None, height=dp_scaled(45)
-        )
-        self.slider.bind(value=self._on_slider_change, on_touch_down=self._touch_down, on_touch_up=self._touch_up)
-        self.content.add_widget(self.slider)
+        
+        val_box.add_widget(self.lbl_val)
+        val_box.add_widget(self.lbl_status_text)
+        self.panel.add_widget(val_box)
 
- 
-        
-        
-        # Restzeit Anzeige
-        self.lbl_remaining = Label(
-            text="", 
-            font_size=sp_scaled(14), 
-            color=(1, 0.8, 0, 1), # Goldgelb wie im Browser
-            size_hint_y=None, 
-            height=dp_scaled(20)
+        # Main Brightness Slider
+        # Main Brightness Slider
+        self.slider = UnifiedSlider(
+            min=0, max=100, mode='single',
+            size_hint=(None, None), 
+            size=(dp_scaled(380), dp_scaled(38))   # <-- Feste Breite
         )
-        self.content.add_widget(self.lbl_remaining)
+        self.slider.bind(value=self._on_slider_change, 
+                         on_touch_down=self._touch_down, 
+                         on_touch_up=self._touch_up)
+        self.panel.add_widget(self.slider)
+
+        # --- SUNRISE / SUNSET RAMPEN ---
+        ramp_head = BoxLayout(size_hint_y=None, height=dp_scaled(15))
         
-        # --- MODI-BUTTONS (Erweitert um TIMER) ---
-        btn_row = BoxLayout(size_hint_y=None, height=dp_scaled(45), spacing=dp_scaled(8))
+
+        
+        self.lbl_sunrise_sunset = Label(
+            text="1h ↑ / 1h ↓", 
+                
+            markup=True,   # 🔥 MUSS REIN
+
+            font_size=sp_scaled(15), 
+            color=(1, 0.8, 0.2, 0.8), 
+            halign="right"
+        )
+        ramp_head.add_widget(self.lbl_sunrise_sunset)
+        self.panel.add_widget(ramp_head)
+
+        # Sunrise/Sunset Range Slider
+        self.slider_sunrise_sunset = UnifiedSlider(
+            min=1, max=96, mode='range', fill_entire_track=True,
+            size_hint=(None, None), 
+            size=(dp_scaled(380), dp_scaled(38))
+        )
+        self.slider_sunrise_sunset.bind(min_value=self._on_sunrise_sunset_change, max_value=self._on_sunrise_sunset_change, on_touch_down=self._touch_down, on_touch_up=self._touch_up)
+        self.panel.add_widget(self.slider_sunrise_sunset)
+
+        # --- TIMER SETTINGS (START & DAUER) ---
+        # Startzeit
+        start_head = BoxLayout(size_hint_y=None, height=dp_scaled(15))
+        start_head.add_widget(Label(text="TIMER START", font_size=sp_scaled(15), color=(0, 1, 0, 0.5), halign="left"))
+        self.lbl_start = Label(text="08:00", font_size=sp_scaled(15), halign="right")
+        start_head.add_widget(self.lbl_start)
+        self.panel.add_widget(start_head)
+
+        # Start Slider
+        self.slider_start = UnifiedSlider(
+            min=0, max=95, mode='single',
+            size_hint=(None, None), 
+            size=(dp_scaled(380), dp_scaled(38))
+        )
+        self.slider_start.bind(value=self._on_start_change, on_touch_down=self._touch_down, on_touch_up=self._touch_up)
+        self.panel.add_widget(self.slider_start)
+
+        # Dauer
+        dur_head = BoxLayout(size_hint_y=None, height=dp_scaled(15))
+        dur_head.add_widget(Label(text="DURATION", font_size=sp_scaled(15), color=(0, 1, 0, 0.5), halign="left"))
+        self.lbl_dur = Label(text="12h 00m", font_size=sp_scaled(15), halign="right")
+        dur_head.add_widget(self.lbl_dur)
+        self.panel.add_widget(dur_head)
+
+        # Duration Slider
+        self.slider_dur = UnifiedSlider(
+            min=1, max=96, mode='single',
+            size_hint=(None, None), 
+            size=(dp_scaled(380), dp_scaled(38))
+        )
+        self.slider_dur.bind(value=self._on_dur_change, on_touch_down=self._touch_down, on_touch_up=self._touch_up)
+        self.panel.add_widget(self.slider_dur)
+
+        # --- SPACER & BOTTOM ---
+        self.panel.add_widget(Widget()) # Schiebt alles nach oben
+
+        # Restzeit Anzeige (über den Buttons)
+        self.lbl_remaining = Label(
+            text="REMAINING: 05:22:10", font_size=sp_scaled(15), 
+            color=(1, 0.8, 0, 1), size_hint_y=None, height=dp_scaled(20)
+        )
+        self.panel.add_widget(self.lbl_remaining)
+
+        # Modi-Buttons
+        btn_row = BoxLayout(size_hint_y=None, height=dp_scaled(40), spacing=dp_scaled(8))
         self.btn_man = self._create_styled_btn("MANUELL")
         self.btn_tim = self._create_styled_btn("TIMER")
-        # BREATH IST RAUS -> Wir könnten hier einen "OFF" oder "SYNC" Button lassen
         self.btn_off = self._create_styled_btn("AUS") 
         
         self.btn_man.bind(on_release=lambda *_: self._set_mode("man"))
         self.btn_tim.bind(on_release=lambda *_: self._set_mode("tim"))
-        self.btn_off.bind(on_release=lambda *_: self._set_mode("off")) # Schaltet Licht auf 0% & Manuell
+        self.btn_off.bind(on_release=lambda *_: self._set_mode("off"))
         
         btn_row.add_widget(self.btn_man)
         btn_row.add_widget(self.btn_tim)
         btn_row.add_widget(self.btn_off)
-        self.content.add_widget(btn_row)
+        self.panel.add_widget(btn_row)
 
-        # --- SUNRISE/SUNSET RAMPEN (2-Punkt Slider) ---
-        self.sunrise_sunset_box = BoxLayout(orientation="vertical", size_hint_y=None, height=dp_scaled(90), spacing=dp_scaled(5))
-        
-        self.lbl_sunrise_sunset = Label(
-            text="[font=FA]\uf185[/font] SUNRISE: 1h ↑ / [font=FA]\uf186[/font] SUNSET: 1h ↓", 
-            font_size=sp_scaled(14),
-            color=(1, 0.8, 0.2, 1),
-            markup=True
-        )
-        
-        # 2-Punkt Slider: min=Sunrise-Minuten im Timer, max=Sunset-Minuten im Timer
-        self.slider_sunrise_sunset = UnifiedSlider(
-            min=1, max=96, range_min=1, range_max=96,  # Steps (1 Step = 15min)
-            mode='range',
-            fill_entire_track=True,  # Exklusiv für diesen Slider: voller Track grün
-            size_hint_y=None, height=dp_scaled(45)
-        )
-        self.slider_sunrise_sunset.bind(
-            min_value=self._on_sunrise_sunset_change,
-            max_value=self._on_sunrise_sunset_change,
-            on_touch_down=self._touch_down,
-            on_touch_up=self._touch_up
-        )
-        
-        self.sunrise_sunset_box.add_widget(self.lbl_sunrise_sunset)
-        self.sunrise_sunset_box.add_widget(self.slider_sunrise_sunset)
-        self.content.add_widget(self.sunrise_sunset_box)
-
-        # --- TIMER-EINSTELLUNG (NEU: Wie im Browser) ---
-        # --- TIMER-EINSTELLUNG (FLEXIBEL) ---
-        self.timer_box = BoxLayout(orientation="vertical", size_hint_y=None, height=dp_scaled(120), spacing=dp_scaled(5))
-        
-        # STARTZEIT (15 MIN RASTER)
-        self.lbl_start = Label(text="START: 08:00", font_size=sp_scaled(14))
-        
-        self.slider_start = UnifiedSlider(
-            min=0, max=95, range_min=0, range_max=95,
-            mode='single',
-            size_hint_y=None, height=dp_scaled(45)
-        )
-        self.slider_start.value = 32
-        self.slider_start.bind(
-            value=self._on_start_change,
-            on_touch_down=self._touch_down,
-            on_touch_up=self._touch_up
-        )        
-        # DAUER (15-min Raster: 15min bis 24h = 15 bis 1440 Minuten)
-        self.lbl_dur = Label(text="DAUER: 720 min", font_size=sp_scaled(14))
-        
-        self.slider_dur = UnifiedSlider(
-            min=1, max=96, range_min=1, range_max=96,  # 1 = 15min, 96 = 24h
-            mode='single',
-            size_hint_y=None, height=dp_scaled(45)
-        )
-        self.slider_dur.value = 48  # 48 * 15min = 720min = 12h
-        self.slider_dur.bind(
-            value=self._on_dur_change,
-            on_touch_down=self._touch_down,
-            on_touch_up=self._touch_up
-        )        
-        self.timer_box.add_widget(self.lbl_start)
-        self.timer_box.add_widget(self.slider_start)
-        self.timer_box.add_widget(self.lbl_dur)
-        self.timer_box.add_widget(self.slider_dur)
-        
-        self.content.add_widget(self.timer_box)
-
-        
         Clock.schedule_once(self._init_values, 0)
+        
+        # Lock-Maske aktivieren
+        Clock.schedule_once(lambda dt: self._create_lock_overlay(), 0.4)
+        
         self.add_widget(self.panel)
 
     def _create_styled_btn(self, text):
         return Button(text=text, background_normal="", background_color=(0.2, 0.2, 0.2, 1), 
-                      bold=True, font_size=sp_scaled(10))
+                      bold=True, font_size=sp_scaled(15))
 
 
 
@@ -306,6 +285,8 @@ class LightOverlay(FloatLayout):
         Die UI-Farbe ändert sich erst in update_ui(), wenn der ESP32 
         die Revision bestätigt hat.
         """
+        if self._locked:
+            return
         # Lokale Revision erhöhen
         new_rev = int(time.time())
         self._last_sent_rev = new_rev
@@ -321,7 +302,6 @@ class LightOverlay(FloatLayout):
         # Aber wir setzen NICHT die finale 'Active'-Farbe.
 
     def update_ui(self, *_):
-        # 1. Grundlegende Sicherheits-Checks
         if not self._init_done or not getattr(WEB_CLIENT, "ready", False):
             return
         
@@ -330,45 +310,38 @@ class LightOverlay(FloatLayout):
         if not server_data: 
             return
     
-        # --- 2. DAS TARGET-REVISION-GESETZ ---
         server_rev = int(server_data.get('rev', 0))
         last_sent = getattr(self, '_last_sent_rev', 0)
-        
-        # Zeit-Faktor: Wie lange ist die letzte Interaktion her?
         time_since_action = time.time() - self._last_user_action
         
-        # SYNC-BEDINGUNG: Wir sind nur synchron, wenn der Server unsere Rev bestätigt hat
-        # UND der User nicht gerade aktiv am Slider schiebt.
+        # SYNC-CHECK
         is_synced = (server_rev >= last_sent) and not self._user_active and (time_since_action > 2.0)
 
-        # IST-WERTE (Diese zeigen wir IMMER an, egal ob Sync oder nicht)
+        # IST-WERTE & RAMPEN-FEEDBACK (GOLD-LOGIK)
         arduino_effective = server_data.get('light_pct', 0)
+        arduino_target = server_data.get('light_target', 0)
         self.lbl_val.text = f"{int(arduino_effective)}%"
+        
+        # Zahl wird Gold, wenn die Hardware gerade dimmt
+        self.lbl_val.color = (1, 0.8, 0, 1) if abs(arduino_effective - arduino_target) > 0.5 else (1, 1, 1, 1)
 
         if not is_synced:
-            # STATUS: ORANGE (Warten auf Hardware-Bestätigung)
-            self.sync_icon.text = "[font=FA]\uf021[/font]" # Spin/Sync Icon
-            self.sync_icon.color = (1, 0.5, 0, 1)          # Orange
-            
-            # BLOCKADE: Wir springen hier raus. Die Slider bleiben auf der 
-            # Position, die der User gewählt hat, bis der ESP32 "OK" sagt.
+            self.sync_icon.text = "[font=FA]\uf021[/font]"
+            self.sync_icon.color = (1, 0.5, 0, 1)
             return 
     
-        # --- 3. SYNC OK: Hardware hat Target bestätigt ---
-        self.sync_icon.text = "[font=FA]\uf058[/font]" # Check-Circle
-        self.sync_icon.color = (0, 1, 0, 1)             # Grün
+        # SYNC OK
+        self.sync_icon.text = "[font=FA]\uf058[/font]"
+        self.sync_icon.color = (0, 1, 0, 1)
     
-        # Werte vom Server extrahieren (Das sind jetzt die validierten Targets)
-        arduino_target = server_data.get('light_target', 0)
         arduino_mode = server_data.get('light_mode', 'man')
-        
         srv_h = server_data.get('l_start_h', 8)
         srv_m = server_data.get('l_start_m', 0)
-        srv_dur = server_data.get('l_dur', 720)  # MINUTEN
-        srv_sunrise = server_data.get('l_sunrise', 60)  # MINUTEN
-        srv_sunset = server_data.get('l_sunset', 60)    # MINUTEN
+        srv_dur = server_data.get('l_dur', 720)
+        srv_sunrise = server_data.get('l_sunrise', 60)
+        srv_sunset = server_data.get('l_sunset', 60)
     
-        # --- 4. SLIDER SYNCHRONISATION ---
+        # SLIDER SYNCHRONISATION
         if abs(self.slider.value - arduino_target) > 0.5:
             self.slider.value = arduino_target
     
@@ -376,53 +349,41 @@ class LightOverlay(FloatLayout):
         if abs(self.slider_start.value - target_step) >= 1:
             self.slider_start.value = target_step
     
-        # FIX: Sunrise/Sunset Mapping korrekt (REIHENFOLGE KRITISCH!)
-        # 1. ERST die Dauer setzen, damit range_max aktuell ist
         srv_dur_steps = srv_dur // 15
         if abs(self.slider_dur.value - srv_dur_steps) >= 1:
             self.slider_dur.value = srv_dur_steps
-            # WICHTIG: Range_max sofort nachziehen
             self.slider_sunrise_sunset.range_max = srv_dur_steps
         
-        # 2. Sunrise (linker Punkt)
         sr_steps = srv_sunrise // 15
         if abs(self.slider_sunrise_sunset.min_value - sr_steps) >= 1:
             self.slider_sunrise_sunset.min_value = sr_steps
         
-        # 3. Sunset (rechter Punkt)
         ss_steps = srv_sunset // 15
-        # Der Zielwert für den Slider-Handle ist: Aktuelle Range - Sunset-Abstand
         ss_max_val = self.slider_sunrise_sunset.range_max - ss_steps
         if abs(self.slider_sunrise_sunset.max_value - ss_max_val) >= 1:
             self.slider_sunrise_sunset.max_value = ss_max_val
     
-        # --- 5. MODUS & BUTTON STYLES ---
-        # Die Buttons leuchten erst hier final im korrekten Modus auf
         self._apply_button_styles(arduino_mode)
         
-        # --- 6. STATUS TEXTE & SMART-INFOS ---
+        # STATUS & RESTZEIT
         remaining = server_data.get('light_remaining', -1)
         
         if arduino_mode == "tim":
-            # Unterscheidung: Ist die Lampe laut Timer gerade an oder aus?
             is_active = arduino_effective > 0
-            status_str = "AKTIV" if is_active else "SCHLÄFT"
+            status_str = "RAMPE" if abs(arduino_effective - arduino_target) > 0.5 else ("AKTIV" if is_active else "SCHLÄFT")
             self.lbl_status_text.text = f"TIMER: {status_str} (Ziel: {int(arduino_target)}%)"
             self.lbl_status_text.color = (0, 1, 0, 1) if is_active else (0.3, 0.6, 1, 1)
             
             if remaining >= 0:
                 h_rem = remaining // 60
                 m_rem = remaining % 60
-                time_str = f"{h_rem}h {m_rem}m" if h_rem > 0 else f"{m_rem} min"
-                self.lbl_remaining.text = f"Nächster Schaltpunkt in: {time_str}"
+                self.lbl_remaining.text = f"NEXT SWITCH IN: {h_rem}h {m_rem:02d}m"
             else:
-                self.lbl_remaining.text = ""
+                self.lbl_remaining.text = "WAITING FOR SCHEDULE..."
         else:
             self.lbl_status_text.text = "MODUS: MANUELL"
             self.lbl_status_text.color = (1, 1, 1, 0.6)
             self.lbl_remaining.text = "Timer deaktiviert"
-
-
     
     def _apply_button_styles(self, mode):
         """
@@ -478,7 +439,7 @@ class LightOverlay(FloatLayout):
             background_color=(0.15, 0.15, 0.15, 1),
             color=(0.5, 0.5, 0.5, 1),
             bold=False,
-            font_size=sp_scaled(12),
+            font_size=sp_scaled(15),
             background_down="", # Verhindert das hässliche Grau beim Klicken
         )
     def _sync_to_client(self, dt):
@@ -523,59 +484,9 @@ class LightOverlay(FloatLayout):
         self.sync_icon.text = "[font=FA]\uf021[/font]"
         self.sync_icon.color = (1, 0.5, 0, 1)
 
-    def _touch_up(self, slider, touch):
-        if slider.collide_point(*touch.pos) or self._user_active:
-            self._user_active = False
-            self._last_user_action = time.time()
-            self._intended_mode = "man"
-            new_rev = int(time.time())
-            self._last_sent_rev = new_rev
-    
-            mac = GLOBAL_STATE.get_active_device_id()
-            if not mac:
-                return False
-    
-            # 🔥 IMMER KOMPLETTE TIMER STATE BILDEN
-            start_step = int(self.slider_start.value)
-            total_min = start_step * 15
-    
-            h = total_min // 60
-            m = total_min % 60
-            
-            # MODE BESTIMMEN
-            current_mode = "man"
-            if self.btn_tim.background_color[1] > 0.5:
-                current_mode = "tim"
-            
-            # Sunrise/Sunset in Minuten aus 2-Punkt Slider (15er-Raster)
-            sr_steps = int(self.slider_sunrise_sunset.min_value)
-            ss_steps = int(self.slider_sunrise_sunset.range_max - self.slider_sunrise_sunset.max_value)
-            sr_min = sr_steps * 15
-            ss_min = ss_steps * 15
-            
-            # Dauer in Minuten
-            dur_steps = int(self.slider_dur.value)
-            dur_min = dur_steps * 15
-            
-            payload = {
-                "light_pct": int(self.slider.value),
 
-                "l_start_h": h,
-                "l_start_m": m,
-                "l_dur": dur_min,      # MINUTEN
-                "l_sunrise": sr_min,   # MINUTEN
-                "l_sunset": ss_min,    # MINUTEN
-
-                "light_mode": current_mode,
-
-                "rev": new_rev
-            }
-            WEB_CLIENT.send_control(mac, payload)
-    
-            return False
-    
     def _on_sunrise_sunset_change(self, instance, value):
-        """Callback für 2-Punkt Sunrise/Sunset Slider (in Minuten, 15er-Raster)"""
+        """Callback für 2-Punkt Sunrise/Sunset Slider"""
         sr_steps = int(self.slider_sunrise_sunset.min_value)
         ss_steps = int(self.slider_sunrise_sunset.range_max - self.slider_sunrise_sunset.max_value)
         sr_min = sr_steps * 15
@@ -586,8 +497,14 @@ class LightOverlay(FloatLayout):
         ss_h = ss_min // 60
         ss_m = ss_min % 60
         
-        self.lbl_sunrise_sunset.text = f"[font=FA]\uf185[/font] SUNRISE: {sr_h}h {sr_m:02d}m ↑ / [font=FA]\uf186[/font] SUNSET: {ss_h}h {ss_m:02d}m ↓"
-        
+        # Saubere Version mit explizitem Font-Name und sicheren Icons
+        self.lbl_sunrise_sunset.text = (
+            "[font=FA]\uf185[/font] "          # Sun
+            f"SUNRISE: {sr_h}h {sr_m:02d}m ↑ / "
+            "[font=FA]\uf186[/font] "          # Moon
+            f"SUNSET: {ss_h}h {ss_m:02d}m ↓"
+        )
+
         self.sync_icon.text = "[font=FA]\uf021[/font]"
         self.sync_icon.color = (1, 0.5, 0, 1)
     
@@ -625,8 +542,55 @@ class LightOverlay(FloatLayout):
         self.slider_sunrise_sunset.max_value = max(0, new_max_val)
 
     def _touch_down(self, slider, touch):
-        if slider.collide_point(*touch.pos): self._user_active = True
+        if self._locked:
+            return False
+        if slider.collide_point(*touch.pos):
+            self._user_active = True
 
+    def _touch_up(self, slider, touch):
+        if self._locked:
+            return False
+        if slider.collide_point(*touch.pos) or self._user_active:
+            self._user_active = False
+            self._last_user_action = time.time()
+            self._intended_mode = "man"
+            new_rev = int(time.time())
+            self._last_sent_rev = new_rev
+    
+            mac = GLOBAL_STATE.get_active_device_id()
+            if not mac:
+                return False
+    
+            # ... Rest deines bestehenden Codes bleibt gleich ...
+            start_step = int(self.slider_start.value)
+            total_min = start_step * 15
+            h = total_min // 60
+            m = total_min % 60
+            
+            current_mode = "man"
+            if self.btn_tim.background_color[1] > 0.5:
+                current_mode = "tim"
+            
+            sr_steps = int(self.slider_sunrise_sunset.min_value)
+            ss_steps = int(self.slider_sunrise_sunset.range_max - self.slider_sunrise_sunset.max_value)
+            sr_min = sr_steps * 15
+            ss_min = ss_steps * 15
+            
+            dur_steps = int(self.slider_dur.value)
+            dur_min = dur_steps * 15
+            
+            payload = {
+                "light_pct": int(self.slider.value),
+                "l_start_h": h,
+                "l_start_m": m,
+                "l_dur": dur_min,
+                "l_sunrise": sr_min,
+                "l_sunset": ss_min,
+                "light_mode": current_mode,
+                "rev": new_rev
+            }
+            WEB_CLIENT.send_control(mac, payload)
+            return False
 
     def _u(self, *_):
         self.bg_rect.pos = self.panel.pos
@@ -682,8 +646,12 @@ class LightOverlay(FloatLayout):
         sr_m = sr_min % 60
         ss_h = ss_min // 60
         ss_m = ss_min % 60
-        self.lbl_sunrise_sunset.text = f"[font=FA]\uf185[/font] SUNRISE: {sr_h}h {sr_m:02d}m ↑ / [font=FA]\uf186[/font] SUNSET: {ss_h}h {ss_m:02d}m ↓"
-    
+        self.lbl_sunrise_sunset.text = (
+            "[font=FA]\uf185[/font] SUNRISE: "
+            f"{sr_h}h {sr_m:02d}m | "
+            "[font=FA]\uf186[/font] SUNSET: "
+            f"{ss_h}h {ss_m:02d}m"
+        )
         self._apply_button_styles(mode)
     
         self.lbl_val.text = f"{int(val)}%"
@@ -696,3 +664,50 @@ class LightOverlay(FloatLayout):
         # Blau für Timer (wie im Browser), Grün für Manuell
         self.btn_man.background_color = (0, 1, 0, 0.6) if mode == "man" else (0.2, 0.2, 0.2, 1)
         self.btn_tim.background_color = (0, 0.5, 1, 0.8) if mode == "tim" else (0.2, 0.2, 0.2, 1)
+    
+    def _create_lock_overlay(self):
+        """Dezente Sperr-Maske nur über dem Panel"""
+        if self._lock_overlay:
+            return
+        
+        self._lock_overlay = Button(
+            background_color=(0, 0, 0, 0.09),
+            size=self.panel.size,
+            pos=self.panel.pos,
+            size_hint=(None, None)
+        )
+        
+        # Unlock Button unten links
+        unlock_btn = Button(
+            text="UNLOCK TO EDIT",
+            size_hint=(None, None),
+            size=(dp_scaled(200), dp_scaled(50)),
+            pos_hint={'x': 0.04, 'y': 0.04},        # Unten links
+            background_color=(0.05, 0.55, 0.95, 0.95),
+            color=(1, 1, 1, 1),
+            bold=True,
+            font_size=sp_scaled(15.5)
+        )
+        unlock_btn.bind(on_release=self._unlock)
+        
+        self._lock_overlay.add_widget(unlock_btn)
+        
+        # Panel-Bewegung mitverfolgen
+        self.panel.bind(pos=self._update_lock_pos, size=self._update_lock_pos)
+        self.add_widget(self._lock_overlay)
+
+    def _update_lock_pos(self, *_):
+        """Aktualisiert Position der Lock-Maske"""
+        if self._lock_overlay:
+            self._lock_overlay.pos = self.panel.pos
+            self._lock_overlay.size = self.panel.size
+
+    def _unlock(self, *_):
+        """Entsperrt das Light Overlay"""
+        if self._lock_overlay:
+            self.remove_widget(self._lock_overlay)
+            self._lock_overlay = None
+        
+        self._locked = False
+        self.sync_icon.color = (0, 1, 0, 1)   # Grün = Edit-Modus aktiv
+        print("[Light] Edit-Modus aktiviert")
