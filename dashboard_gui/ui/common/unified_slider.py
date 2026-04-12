@@ -143,16 +143,17 @@ class UnifiedSlider(Widget):
 
 
     def on_touch_down(self, touch):
+        if self.disabled: # <-- ABSOLUT KRITISCH
+            return False 
         if self.collide_point(*touch.pos):
             self._handle_touch(touch)
             return True
-
     def on_touch_move(self, touch):
+        if self.disabled: # <-- ABSOLUT KRITISCH
+            return False
         if self.collide_point(*touch.pos):
             self._handle_touch(touch)
             return True
-
-# ... (dein restlicher Code oben bleibt gleich)
 
     def _handle_touch(self, touch):
         """Handle touch events for both single and range modes"""

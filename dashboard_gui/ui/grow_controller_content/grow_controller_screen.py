@@ -1,8 +1,8 @@
-import os
-import json
-import config
-import core
+###############################################################################
+# GROW CONTROLLER - Zentrale Systemeinstellungen
+###############################################################################
 
+import os
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.button import Button
@@ -10,175 +10,159 @@ from kivy.uix.screenmanager import Screen
 from kivy.uix.scrollview import ScrollView
 from kivy.uix.spinner import Spinner
 from kivy.graphics import Rectangle, Color
-from kivy.utils import platform
+from kivy.clock import Clock
 from kivy.metrics import dp
+from kivy.uix.widget import Widget
 
 from dashboard_gui.ui.common.header_online import HeaderBar
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
+from dashboard_gui.global_state_manager import GLOBAL_STATE
 
 ASSET_ROOT = os.path.join("dashboard_gui", "assets")
 
-def list_bridge_profiles():
-    base = os.path.abspath(os.path.join("data", "bridge_profiles"))
-    profiles = ["---"]
-    if os.path.exists(base):
-        profiles += sorted(f[:-5] for f in os.listdir(base) if f.endswith(".json"))
-    return profiles
 
-class Growcontrollercreen(Screen):
+class GrowControllerScreen(Screen):
     name = "grow_controller"
 
-    def __init__(self, **kw):
-        super().__init__(**kw)
-        self.device_widgets = {}  # mac -> spinner
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         
-        # GSM Registrierung
-        from dashboard_gui.global_state_manager import GLOBAL_STATE
         GLOBAL_STATE.ui_handler.attach_screen("grow_controller", self)
+
         self.root = BoxLayout(orientation="vertical")
-        
+
+        # Hintergrund
+        with self.root.canvas.before:
+            Color(0.05, 0.05, 0.07, 1)
+            self.bg_rect = Rectangle(pos=self.pos, size=self.size)
+        self.bind(pos=self._update_bg, size=self._update_bg)
         # Hintergrund
         with self.root.canvas.before:
             Color(1, 1, 1, 1)
             self.bg_rect = Rectangle(
-                source=os.path.join(ASSET_ROOT, "background_grow_room.png"),
+                source=os.path.join(ASSET_ROOT, "background_grow_controller.png"),
                 pos=self.pos, size=self.size
             )
         self.bind(pos=self._update_bg, size=self._update_bg)
-
         # Header
         self.header = HeaderBar()
-
-        self.header.lbl_title.text = "Grow Controller"
+        self.header.lbl_title.text = "GROW CONTROLLER"
         self.header.update_back_button("grow_controller")
         self.root.add_widget(self.header)
 
-        # Scroll Body
+        # Scrollable Body
         self.scroll = ScrollView(do_scroll_x=False)
         self.body = BoxLayout(
             orientation="vertical",
             size_hint_y=None,
             padding=dp_scaled(20),
-            spacing=dp_scaled(14)
+            spacing=dp_scaled(16)
         )
-        self.body.bind(minimum_height=self.body.setter("height"))
+        self.body.bind(minimum_height=self.body.setter('height'))
         self.scroll.add_widget(self.body)
         self.root.add_widget(self.scroll)
-        
+
         self.add_widget(self.root)
+
+        Clock.schedule_once(self.build_ui, 0.2)
 
     def _update_bg(self, *args):
         self.bg_rect.pos = self.pos
         self.bg_rect.size = self.size
 
-    def on_pre_enter(self, *_):
-        """Wird aufgerufen, wenn man den Screen betritt - genau wie im SetupScreen"""
-        self.refresh_after_config()
-
-    def refresh_after_config(self):
-        """Baut die Liste der Geräte jedes Mal neu auf"""
+    def build_ui(self, *_):
         self.body.clear_widgets()
-        self.device_widgets.clear()
 
-        # Info Label
+        # ==================== SYSTEM INFO ====================
+        self.body.add_widget(self._create_section_title("SYSTEM INFORMATION"))
+
+        self.body.add_widget(self._create_info_row("ESP Firmware", "v2.4.1-beta"))
+        self.body.add_widget(self._create_info_row("Uptime", "14d 7h 23m"))
+        self.body.add_widget(self._create_info_row("WiFi Signal", "-68 dBm (sehr gut)"))
+        self.body.add_widget(self._create_info_row("IP-Adresse", "192.168.2.39"))
+        self.body.add_widget(self._create_info_row("MAC", "A4:CF:12:78:9A:BC"))
+
+        # ==================== TIME & SYNC ====================
+        self.body.add_widget(self._create_section_title("TIME & SYNCHRONISATION"))
+
+        self.body.add_widget(self._create_info_row("Aktuelle ESP Zeit", "12.04.2026  03:14"))
+        self.body.add_widget(self._create_button_row("Uhrzeit mit Handy abgleichen", self.sync_time))
+
+        # ==================== NETWORK & GATEWAY ====================
+        self.body.add_widget(self._create_section_title("NETWORK & GATEWAY"))
+
+        self.body.add_widget(self._create_info_row("Gateway / MQTT Broker", "192.168.2.10:1883"))
+        self.body.add_widget(self._create_button_row("Gateway neu verbinden", self.reconnect_gateway))
+
+        # ==================== SENSORS & DEVICES ====================
+        self.body.add_widget(self._create_section_title("SENSORS & DEVICES"))
+
+        self.body.add_widget(self._create_button_row("Verfügbare Sensoren verwalten", self.manage_sensors))
+        self.body.add_widget(self._create_button_row("BLE Geräte verwalten", self.manage_ble))
+
+        # ==================== ADVANCED ====================
+        self.body.add_widget(self._create_section_title("ADVANCED SETTINGS"))
+
+        self.body.add_widget(self._create_button_row("Log Level ändern", self.change_log_level))
+        self.body.add_widget(self._create_button_row("Factory Reset (ESP)", self.factory_reset))
+        self.body.add_widget(self._create_button_row("Firmware Update", self.firmware_update))
+
+        # Spacer
+        self.body.add_widget(Widget(size_hint_y=None, height=dp_scaled(30)))
+
+    def _create_section_title(self, text):
         lbl = Label(
-            text="Profile zuweisen & config.json + log_config.json schreiben",
-            font_size=sp_scaled(18),
+            text=text,
+            font_size=sp_scaled(17),
+            bold=True,
+            color=(0, 1, 0, 0.9),
+            size_hint_y=None,
+            height=dp_scaled(38),
+            halign="left"
+        )
+        lbl.bind(size=lambda *x: setattr(lbl, 'text_size', (lbl.width, None)))
+        return lbl
+
+    def _create_info_row(self, label, value):
+        row = BoxLayout(size_hint_y=None, height=dp_scaled(42), spacing=dp_scaled(10))
+        row.add_widget(Label(text=label, halign="left", size_hint_x=0.55, color=(0.85, 0.85, 0.85, 1)))
+        row.add_widget(Label(text=value, halign="right", size_hint_x=0.45, color=(1, 1, 1, 0.85)))
+        return row
+
+    def _create_button_row(self, text, callback):
+        btn = Button(
+            text=text,
+            size_hint_y=None,
+            height=dp_scaled(52),
+            background_color=(0.15, 0.15, 0.18, 1),
             color=(1, 1, 1, 1),
-            size_hint_y=None, height=dp_scaled(40)
+            font_size=sp_scaled(15.5),
+            bold=False
         )
-        self.body.add_widget(lbl)
+        btn.bind(on_release=callback)
+        return btn
 
-        # Config frisch laden
-        cfg = config._init()
-        devices = cfg.get("devices", {})
-        profiles = list_bridge_profiles()
+    # ==================== Button Actions (Dummy) ====================
+    def sync_time(self, *_):
+        print("[GrowController] → Zeit mit Handy synchronisiert")
 
-        # Liste der Geräte aufbauen
-        for mac, dev in devices.items():
-            name = dev.get("name", mac)
-            current_profile = dev.get("bridge_profile", "---")
+    def reconnect_gateway(self, *_):
+        print("[GrowController] → Gateway neu verbunden")
 
-            row = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp_scaled(50), spacing=dp_scaled(10))
-            row.add_widget(Label(text=f"{name}\n{mac}", size_hint_x=0.6))
+    def manage_sensors(self, *_):
+        print("[GrowController] → Sensor Management geöffnet")
 
-            spinner = Spinner(text=current_profile if current_profile else "---", values=profiles, size_hint_x=0.4)
-            row.add_widget(spinner)
-            
-            self.body.add_widget(row)
-            self.device_widgets[mac] = spinner
+    def manage_ble(self, *_):
+        print("[GrowController] → BLE Device Manager geöffnet")
 
-        # Buttons
-        btn_save = Button(
-            text="SPEICHERN & RELOAD",
-            size_hint_y=None,
-            height=dp_scaled(56),
-            background_color=(0.2, 0.6, 0.2, 1)
-        )
-        btn_save.bind(on_release=self.save_all)
-        self.body.add_widget(btn_save)
-        
-        btn_restart = Button(
-            text="LogBridge RESTART",
-            size_hint_y=None,
-            height=dp_scaled(56),
-            background_color=(0.25, 0.25, 0.25, 1)
-        )
-        btn_restart.bind(on_release=self.on_logbridge_restart)
-        self.body.add_widget(btn_restart)
-        
-        btn_stop = Button(
-            text="LogBridge STOP",
-            size_hint_y=None,
-            height=dp_scaled(56),
-            background_color=(0.6, 0.2, 0.2, 1)
-        )
-        btn_stop.bind(on_release=self.on_logbridge_stop)
-        self.body.add_widget(btn_stop)
+    def change_log_level(self, *_):
+        print("[GrowController] → Log Level geändert")
 
-    def save_all(self, *_):
-        """Speichert in config.json UND log_config.json und macht reload()"""
-        # 1. Haupt-Config laden & updaten
-        cfg = config._init()
-        log_cfg_devices = {}
+    def factory_reset(self, *_):
+        print("[GrowController] → Factory Reset angefordert")
 
-        for mac, spinner in self.device_widgets.items():
-            val = spinner.text if spinner.text != "---" else ""
-            if mac in cfg["devices"]:
-                cfg["devices"][mac]["bridge_profile"] = val
-            
-            # Für die log_config.json sammeln
-            if val:
-                log_cfg_devices[mac] = {"bridge_profile": val}
+    def firmware_update(self, *_):
+        print("[GrowController] → Firmware Update gestartet")
 
-        # 2. config.json speichern & hart reloaden (wie im Setup)
-        config.save(cfg)
-        config.reload()
-
-        # 3. log_config.json schreiben
-        log_path = os.path.join("data", "log_config.json")
-        os.makedirs(os.path.dirname(log_path), exist_ok=True)
-        with open(log_path, "w", encoding="utf-8") as f:
-            json.dump({"devices": log_cfg_devices}, f, indent=2)
-
-        print("[GrowController] Alles gespeichert und reloaded.")
-        
-        # UI zur Sicherheit nochmal kurz refreshen
-        self.refresh_after_config()
-
-    def on_logbridge_restart(self, *_):
-        try:
-            core.restart_log_bridge()
-            print("[GrowController] LogBridge restarted")
-        except Exception as e:
-            print("[GrowController] LogBridge RESTART FEHLER:", e)
-
-    def on_logbridge_stop(self, *_):
-        try:
-            core.stop_log_bridge()
-            print("[GrowController] LogBridge stopped")
-        except Exception as e:
-            print("[GrowController] LogBridge STOP FEHLER:", e)
-
-    def update_from_global(self, d):
-        self.header.update_from_global(d)
+    def update_from_global(self, data):
+        self.header.update_from_global(data)

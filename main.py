@@ -25,7 +25,7 @@ from dashboard_gui.ui.cam_viewer_content.cam_viewer_screen import CamViewerScree
 from dashboard_gui.ui.about_content.about_screen import AboutScreen
 from dashboard_gui.ui.vpd_scatter_screen_content.vpd_scatter_screen import VPDScatterScreen
 from dashboard_gui.ui.sensor_mixed_mode_content.sensor_mixed_mode_screen import SensorMixedModeScreen
-from dashboard_gui.ui.grow_controller_content.grow_controller_screen import Growcontrollercreen
+from dashboard_gui.ui.grow_controller_content.grow_controller_screen import GrowControllerScreen
 from dashboard_gui.ui.i18n import I18N
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 
@@ -81,7 +81,7 @@ class DashboardApp(App):
         sm.add_widget(AboutScreen(name="about"))
         sm.add_widget(VPDScatterScreen(name="vpd_scatter"))
         sm.add_widget(SensorMixedModeScreen(name="sensor_mixed_mode"))
-        sm.add_widget(Growcontrollercreen(name="grow_controller"))
+        sm.add_widget(GrowControllerScreen(name="grow_controller"))
         
         GLOBAL_STATE.bind_screen_manager(sm)
         

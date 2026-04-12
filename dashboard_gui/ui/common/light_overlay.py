@@ -32,6 +32,7 @@ import os
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.ui.common.unified_slider import UnifiedSlider
+from dashboard_gui.ui.common.lock_overlay import LockOverlay
 from kivy.uix.widget import Widget
 
 # WICHTIG: Den globalen Client importieren
@@ -48,9 +49,9 @@ class LightOverlay(FloatLayout):
         
         self._update_event = Clock.schedule_interval(self.update_ui, 1.0)
         self._sync_event = Clock.schedule_interval(self._sync_to_client, 1.3)
-        self._intended_mode = "man"
-        self._locked = True          # Startet immer im gesperrten Modus
-        self._lock_overlay = None
+        self._locked = True
+        self._target_mode = "tim"  # Target-State: Default "manual"
+        self._last_sent_rev = 0
         # 1. Hintergrund-Abdunkelung
         bg = Button(background_color=(0, 0, 0, 0.25))
         bg.bind(on_release=lambda *_: self.close())
@@ -219,8 +220,13 @@ class LightOverlay(FloatLayout):
 
         Clock.schedule_once(self._init_values, 0)
         
-        # Lock-Maske aktivieren
-        Clock.schedule_once(lambda dt: self._create_lock_overlay(), 0.4)
+        # Lock-Overlay initialisieren
+        self.lock_overlay = LockOverlay(
+            parent=self,
+            panel=self.panel,
+            unlock_callback=self._on_unlock
+        )
+        Clock.schedule_once(lambda dt: self.lock_overlay.create(), 0.4)
         
         self.add_widget(self.panel)
 
@@ -232,9 +238,8 @@ class LightOverlay(FloatLayout):
 
     def _force_sync(self, *_):
         """
-        GEWALT-MODUS: Erhebt den aktuellen UI-Zustand zum Gesetz.
-        Erhöht die Revision massiv, damit der ESP32 alle internen 
-        Zustände mit den UI-Werten überschreibt.
+        ERZWINGT den UI-Zustand auf der Hardware.
+        Sendet den aktuellen Target-State.
         """
         mac = GLOBAL_STATE.get_active_device_id()
         if not mac: return
@@ -242,14 +247,12 @@ class LightOverlay(FloatLayout):
         # Wir erzeugen eine neue Zeitstempel-Revision
         new_rev = int(time.time())
         self._last_sent_rev = new_rev
-        self._last_user_action = time.time() # Sperrt UI-Overwrite für 2 Sek
+        self._last_user_action = time.time()
 
-        # Wir lesen die WÜNSCHE der UI aus (Targets)
+        # ✅ TARGET-REVISION: Verwende gespeicherten _target_mode, NICHT Button-Farben
         try:
             start_step = int(self.slider_start.value)
             h, m = (start_step * 15) // 60, (start_step * 15) % 60
-            
-            current_intended_mode = "tim" if self.btn_tim.background_color[1] > 0.5 else "man"
             
             # Dauer in Minuten
             dur_steps = int(self.slider_dur.value)
@@ -263,7 +266,7 @@ class LightOverlay(FloatLayout):
 
             payload = {
                 "light_pct": int(self.slider.value),
-                "light_mode": current_intended_mode,
+                "light_mode": self._target_mode,
                 "l_start_h": h,
                 "l_start_m": m,
                 "l_dur": dur_min,
@@ -281,25 +284,30 @@ class LightOverlay(FloatLayout):
 
     def _set_mode(self, mode):
         """
-        Ändert nur den WUNSCH-Modus.
-        Die UI-Farbe ändert sich erst in update_ui(), wenn der ESP32 
-        die Revision bestätigt hat.
+        ✅ TARGET-REVISION: Ändert nur den Target-Modus.
+        Die UI-Farbe wird erst durch update_ui() aktualisiert,
+        wenn der ESP32 die Revision bestätigt hat.
         """
         if self._locked:
             return
+        
+        # Aktualisiere den Target-State
+        self._target_mode = mode
+        
         # Lokale Revision erhöhen
         new_rev = int(time.time())
         self._last_sent_rev = new_rev
         self._last_user_action = time.time()
-        self._intended_mode = "man"
+        
         # Wir senden den Modus-Wunsch sofort ab
         mac = GLOBAL_STATE.get_active_device_id()
         if mac:
             payload = {"light_mode": mode, "rev": new_rev}
             WEB_CLIENT.send_control(mac, payload)
             
-        # UI-Feedback: Wir "erwarten" den Modus (optional: leichtes Dimmen der Buttons)
-        # Aber wir setzen NICHT die finale 'Active'-Farbe.
+        # Visuelles Feedback: Icon wird orange während Sync
+        self.sync_icon.text = "[font=FA]\uf021[/font]"
+        self.sync_icon.color = (1, 0.5, 0, 1)
 
     def update_ui(self, *_):
         if not self._init_done or not getattr(WEB_CLIENT, "ready", False):
@@ -553,7 +561,6 @@ class LightOverlay(FloatLayout):
         if slider.collide_point(*touch.pos) or self._user_active:
             self._user_active = False
             self._last_user_action = time.time()
-            self._intended_mode = "man"
             new_rev = int(time.time())
             self._last_sent_rev = new_rev
     
@@ -561,15 +568,11 @@ class LightOverlay(FloatLayout):
             if not mac:
                 return False
     
-            # ... Rest deines bestehenden Codes bleibt gleich ...
+            # Sammle alle Slider-Werte
             start_step = int(self.slider_start.value)
             total_min = start_step * 15
             h = total_min // 60
             m = total_min % 60
-            
-            current_mode = "man"
-            if self.btn_tim.background_color[1] > 0.5:
-                current_mode = "tim"
             
             sr_steps = int(self.slider_sunrise_sunset.min_value)
             ss_steps = int(self.slider_sunrise_sunset.range_max - self.slider_sunrise_sunset.max_value)
@@ -579,6 +582,7 @@ class LightOverlay(FloatLayout):
             dur_steps = int(self.slider_dur.value)
             dur_min = dur_steps * 15
             
+            # ✅ TARGET-REVISION: Verwende _target_mode statt UI-State
             payload = {
                 "light_pct": int(self.slider.value),
                 "l_start_h": h,
@@ -586,7 +590,7 @@ class LightOverlay(FloatLayout):
                 "l_dur": dur_min,
                 "l_sunrise": sr_min,
                 "l_sunset": ss_min,
-                "light_mode": current_mode,
+                "light_mode": self._target_mode,
                 "rev": new_rev
             }
             WEB_CLIENT.send_control(mac, payload)
@@ -660,54 +664,15 @@ class LightOverlay(FloatLayout):
     
         self._pending_updates.clear()
         self._init_done = True
-    def _update_button_colors(self, mode):
-        # Blau für Timer (wie im Browser), Grün für Manuell
-        self.btn_man.background_color = (0, 1, 0, 0.6) if mode == "man" else (0.2, 0.2, 0.2, 1)
-        self.btn_tim.background_color = (0, 0.5, 1, 0.8) if mode == "tim" else (0.2, 0.2, 0.2, 1)
     
-    def _create_lock_overlay(self):
-        """Dezente Sperr-Maske nur über dem Panel"""
-        if self._lock_overlay:
-            return
-        
-        self._lock_overlay = Button(
-            background_color=(0, 0, 0, 0.09),
-            size=self.panel.size,
-            pos=self.panel.pos,
-            size_hint=(None, None)
-        )
-        
-        # Unlock Button unten links
-        unlock_btn = Button(
-            text="UNLOCK TO EDIT",
-            size_hint=(None, None),
-            size=(dp_scaled(200), dp_scaled(50)),
-            pos_hint={'x': 0.04, 'y': 0.04},        # Unten links
-            background_color=(0.05, 0.55, 0.95, 0.95),
-            color=(1, 1, 1, 1),
-            bold=True,
-            font_size=sp_scaled(15.5)
-        )
-        unlock_btn.bind(on_release=self._unlock)
-        
-        self._lock_overlay.add_widget(unlock_btn)
-        
-        # Panel-Bewegung mitverfolgen
-        self.panel.bind(pos=self._update_lock_pos, size=self._update_lock_pos)
-        self.add_widget(self._lock_overlay)
-
-    def _update_lock_pos(self, *_):
-        """Aktualisiert Position der Lock-Maske"""
-        if self._lock_overlay:
-            self._lock_overlay.pos = self.panel.pos
-            self._lock_overlay.size = self.panel.size
-
-    def _unlock(self, *_):
-        """Entsperrt das Light Overlay"""
-        if self._lock_overlay:
-            self.remove_widget(self._lock_overlay)
-            self._lock_overlay = None
-        
+    def _on_unlock(self):
+        """Callback wenn Lock aufgegeben wird."""
         self._locked = False
-        self.sync_icon.color = (0, 1, 0, 1)   # Grün = Edit-Modus aktiv
-        print("[Light] Edit-Modus aktiviert")
+        self._set_sliders_disabled(False)
+
+    def _set_sliders_disabled(self, state):
+        """Hilfsfunktion um alle Slider im Panel ein/auszuschalten"""
+        self.slider.disabled = state
+        self.slider_sunrise_sunset.disabled = state
+        self.slider_start.disabled = state
+        self.slider_dur.disabled = state

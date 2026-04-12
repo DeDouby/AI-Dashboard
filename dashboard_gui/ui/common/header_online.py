@@ -459,9 +459,10 @@ class HeaderBar(BoxLayout):
 
         # Right edge icon chain: status, less-important actions, menu anchor
         self.add_widget(self.signal)
+        self.add_widget(self.light)
+        
         self.add_widget(self.circulation_fan)
         self.add_widget(self.exhaust_fan)
-        self.add_widget(self.light)
         self.add_widget(self.btn_broadcast)
         self.add_widget(self.led)
         self.add_widget(self.external)

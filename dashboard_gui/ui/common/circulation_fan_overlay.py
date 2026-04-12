@@ -31,6 +31,7 @@ import os
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.ui.common.unified_slider import UnifiedSlider
+from dashboard_gui.ui.common.lock_overlay import LockOverlay
 from kivy.uix.widget import Widget
 # WICHTIG: Den globalen Client importieren
 from web_client import WEB_CLIENT 
@@ -49,8 +50,8 @@ class CirculationFanOverlay(FloatLayout):
         # Intervalle für UI-Refresh und Server-Abgleich
         self._update_event = Clock.schedule_interval(self.update_ui, 1.0)
         self._sync_event = Clock.schedule_interval(self._sync_to_client, 1.3)
-        self._locked = True          # ← NEU: Startet immer im gesperrten Zustand
-        self._lock_overlay = None
+        self._locked = True
+        self._target_mode = "nat"  # Target-State: Standard "natural"
         # 1. Hintergrund-Abdunkelung
         bg = Button(background_color=(0, 0, 0, 0.25))
         bg.bind(on_release=lambda *_: self.close())
@@ -155,7 +156,15 @@ class CirculationFanOverlay(FloatLayout):
         self.panel.add_widget(btn_row)
 
         Clock.schedule_once(self._init_values, 0)
-        Clock.schedule_once(lambda dt: self._create_lock_overlay(), 0.4)
+        
+        # Lock-Overlay initialisieren
+        self.lock_overlay = LockOverlay(
+            parent=self,
+            panel=self.panel,
+            unlock_callback=self._on_unlock
+        )
+        Clock.schedule_once(lambda dt: self.lock_overlay.create(), 0.4)
+        
         self.add_widget(self.panel)
 
     def _create_styled_btn(self, text):
@@ -176,7 +185,8 @@ class CirculationFanOverlay(FloatLayout):
     
     def _force_sync(self, *_):
         """ 
-        ERZWIINGT den UI-Zustand auf der Hardware.
+        ERZWINGERT den UI-Zustand auf der Hardware.
+        Sendet den aktuellen Target-State.
         """
         mac = GLOBAL_STATE.get_active_device_id()
         if not mac: return
@@ -185,22 +195,17 @@ class CirculationFanOverlay(FloatLayout):
         self._last_sent_rev = new_rev
         self._last_user_action = time.time()
 
-        # Wir bestimmen den Modus basierend auf der aktuellen Button-Farbe (unser Target)
-        current_target_mode = "man"
-        if self.btn_nat.background_color[1] > 0.5 and self.btn_nat.background_color[0] == 0: 
-            current_target_mode = "nat"
-        elif self.btn_chao.background_color[0] > 0.5: 
-            current_target_mode = "chao"
-
+        # ✅ TARGET-REVISION: Wir verwenden NICHT die Button-Farben als Logikquelle
+        # sondern den gespeicherten _target_mode
         payload = {
             "circulation_fan_min": int(self.range_slider.min_value),
             "circulation_fan_pct": int(self.range_slider.max_value),
-            "circulation_fan_mode": current_target_mode,
+            "circulation_fan_mode": self._target_mode,
             "rev": new_rev
         }
         
         WEB_CLIENT.send_control(mac, payload)
-        self.sync_icon.color = (1, 0.5, 0, 1) # Orange: "Ich sende gerade das Gesetz"
+        self.sync_icon.color = (1, 0.5, 0, 1) # Orange: "Ich sende gerade"
 # --- ZUSÄTZLICHE OPTIMIERUNG DER UPDATE-LOGIK ---
     def update_ui(self, *_):
         """Verbesserte Update-Logik"""
@@ -308,19 +313,23 @@ class CirculationFanOverlay(FloatLayout):
             self._pending_updates.clear()
         except: pass
 
+
     def _set_mode(self, mode):      
         if self._locked:
             return
-        """ Setzt Modus-Target und erhöht Revision """
+        
+        # ✅ TARGET-REVISION: Nur den Target-State ändern
+        self._target_mode = mode
+        
         mac = GLOBAL_STATE.get_active_device_id()
         if not mac: return
         
         new_rev = int(time.time())
         self._last_sent_rev = new_rev 
-        self._last_user_action = time.time()  
+        self._last_user_action = time.time()
 
-        # Optisches Feedback (Wir zeigen dem User seinen Klick, aber Sync-Icon wird orange)
-        self._apply_button_styles(mode)
+        # Visuelles Feedback: Orange während Sync
+        self.sync_icon.text = "[font=FA]\uf021[/font]"
         self.sync_icon.color = (1, 0.5, 0, 1)
 
         payload = {
@@ -330,6 +339,7 @@ class CirculationFanOverlay(FloatLayout):
             "rev": new_rev
         }
         WEB_CLIENT.send_control(mac, payload)
+
     def _touch_down(self, instance, touch):
         if self._locked:
             return False  # Ignoriere alle Touches wenn gesperrt
@@ -392,57 +402,13 @@ class CirculationFanOverlay(FloatLayout):
         
         print(f"[Circulation] Init erfolgreich: {saved_min}-{saved_max}% | Mode: {saved_mode}")
 
-    def _create_lock_overlay(self):
-        """Lock-Maske nur über dem Panel, Hintergrund bleibt klickbar"""
-        if self._lock_overlay:
-            return
-        
-        # Maske nur über dem Panel (nicht über dem ganzen FloatLayout)
-        self._lock_overlay = Button(
-            background_color=(0, 0, 0, 0.09),
-            size=self.panel.size,
-            pos=self.panel.pos,
-            size_hint=(None, None)
-        )
-        
-        # Unlock Button unten links
-        unlock_btn = Button(
-            text="UNLOCK TO EDIT",
-            size_hint=(None, None),
-            size=(dp_scaled(200), dp_scaled(50)),
-            pos_hint={'x': 0.04, 'y': 0.04},
-            background_color=(0.05, 0.55, 0.95, 0.95),
-            color=(1, 1, 1, 1),
-            bold=True,
-            font_size=sp_scaled(15.5)
-        )
-        unlock_btn.bind(on_release=self._unlock)
-        
-        self._lock_overlay.add_widget(unlock_btn)
-        
-        # Wichtig: Maske an das Panel binden, damit sie mitbewegt wird
-        self.panel.bind(pos=self._update_lock_pos, size=self._update_lock_pos)
-        self.add_widget(self._lock_overlay)
-
-    def _unlock(self, *_):
-        """Wird beim Drücken des Unlock-Buttons aufgerufen"""
-        if self._lock_overlay:
-            self.remove_widget(self._lock_overlay)
-            self._lock_overlay = None
-        
+    def _on_unlock(self):
+        """Callback wenn Lock aufgegeben wird."""
         self._locked = False
-        self.sync_icon.color = (0, 1, 0, 1)  # Grün = Edit-Modus aktiv
-        
-        print("[Circulation] Edit-Modus aktiviert")
+        self._set_sliders_disabled(False)
 
-    def _lock(self):
-        """Manuell wieder sperren (optional später für Auto-Lock)"""
-        if not self._locked:
-            self._locked = True
-            self._create_lock_overlay()
+    def _set_sliders_disabled(self, state):
+        """Schaltet den Slider ein/aus."""
+        if hasattr(self, 'range_slider'):
+            self.range_slider.disabled = state
 
-    def _update_lock_pos(self, *_):
-        """Aktualisiert die Position der Lock-Maske wenn sich das Panel bewegt"""
-        if self._lock_overlay:
-            self._lock_overlay.pos = self.panel.pos
-            self._lock_overlay.size = self.panel.size

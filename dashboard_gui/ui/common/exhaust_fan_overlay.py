@@ -32,6 +32,7 @@ import os
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.ui.common.unified_slider import UnifiedSlider
+from dashboard_gui.ui.common.lock_overlay import LockOverlay
 from kivy.uix.widget import Widget
 
 # WICHTIG: Den globalen Client importieren
@@ -50,9 +51,11 @@ class ExhaustFanOverlay(FloatLayout):
 
         self._update_event = Clock.schedule_interval(self.update_ui, 1.0)
         self._sync_event = Clock.schedule_interval(self._sync_to_client, 1.3)
-# === NEU: Lock System ===
+        # === NEU: Lock System ===
         self._locked = True
-        self._lock_overlay = None
+        self._target_mode = "auto"  # Target-State: Default "automatic"
+        self._last_sent_rev = 0
+        
         # Hintergrund + Panel (Layout bleibt gleich)
         bg = Button(background_color=(0, 0, 0, 0.25))
         bg.bind(on_release=lambda *_: self.close())
@@ -161,8 +164,13 @@ class ExhaustFanOverlay(FloatLayout):
 
         Clock.schedule_once(self._init_values, 0.1)
         
-        # Lock-Maske aktivieren
-        Clock.schedule_once(lambda dt: self._create_lock_overlay(), 0.4)
+        # Lock-Overlay initialisieren
+        self.lock_overlay = LockOverlay(
+            parent=self,
+            panel=self.panel,
+            unlock_callback=self._on_unlock
+        )
+        Clock.schedule_once(lambda dt: self.lock_overlay.create(), 0.4)
         
         self.add_widget(self.panel)
 
@@ -175,29 +183,7 @@ class ExhaustFanOverlay(FloatLayout):
         )
 
 
-    def _on_env_slider_change(self, *_):
-        if not self._init_done: return
-    
-        t_min, t_max = int(self.temp_slider.min_value), int(self.temp_slider.max_value)
-        h_min, h_max = int(self.hum_slider.min_value), int(self.hum_slider.max_value)
-    
-        self.lbl_temp.text = f"Temp: {t_min}° - {t_max}°"
-        self.lbl_hum.text = f"Hum: {h_min}% - {h_max}%"
-    
-        # Sync Icon Orange signalisiert: UI ist weiter als Hardware
-        self.sync_icon.text = "[font=FA]\uf021[/font]"
-        self.sync_icon.color = (1, 0.5, 0, 1)
-    def _on_slider_change(self, instance, value):
-        if not self._init_done: return
-        
-        # Nur die lokale Anzeige updaten (kein Netzwerk-Traffic!)
-        min_v = int(self.range_slider.min_value)
-        max_v = int(self.range_slider.max_value)
-        self.lbl_val.text = f"{min_v}% - {max_v}%"
-        
-        # Icon auf Orange setzen (Benutzer ändert gerade etwas)
-        self.sync_icon.text = "[font=FA]\uf021[/font]"
-        self.sync_icon.color = (1, 0.5, 0, 1)
+
     
     def _force_sync(self, *_):
         mac = GLOBAL_STATE.get_active_device_id()
@@ -209,25 +195,15 @@ class ExhaustFanOverlay(FloatLayout):
         min_v = int(self.range_slider.min_value)
         max_v = int(self.range_slider.max_value)
         
-        # Modus bestimmen (wir schauen, welcher Button gerade aktiv/grün leuchtet)
-# 1. Modus anhand der Button-Farben bestimmen
-        current_mode = "man" # Default, falls nichts passt
-        
-        # Wir prüfen, welcher Button gerade die "aktive" Farbe hat
-        if self.btn_auto.background_color[1] > 0.5: 
-            current_mode = "auto"
-        elif self.btn_chao.background_color[0] > 0.5: # Chaotic ist oft Orange/Rot-lastig
-            current_mode = "chao"
-        elif self.btn_man.background_color[1] > 0.5:
-            current_mode = "man"
-
+        # ✅ TARGET-REVISION: Wir verwenden NICHT die Button-Farben als Logikquelle
+        # sondern den gespeicherten _target_mode
         new_rev = int(time.time())
         self._last_sent_rev = new_rev
 
         payload = {
             "exhaust_fan_min": min_v,
-            "exhaust_fan_pct": max_v, # Dein Max-Wert
-            "exhaust_fan_mode": current_mode,
+            "exhaust_fan_pct": max_v,
+            "exhaust_fan_mode": self._target_mode,
             "exhaust_fan_target": max_v,
             "rev": new_rev
         }
@@ -235,9 +211,9 @@ class ExhaustFanOverlay(FloatLayout):
         # Direkt an den Web-Client senden
         WEB_CLIENT.send_control(mac, payload)
         
-        # Optisches Feedback: Icon wird gelb/orange bis der Server mit der neuen Rev antwortet
+        # Optisches Feedback: Icon wird orange bis der Server mit der neuen Rev antwortet
         self.sync_icon.text = "[font=FA]\uf021[/font]"
-        self.sync_icon.color = (1, 1, 0, 1)
+        self.sync_icon.color = (1, 0.5, 0, 1)
         
         # Zusätzlich das lokale File-Backup triggern
         self._pending_updates.update(payload)
@@ -359,6 +335,9 @@ class ExhaustFanOverlay(FloatLayout):
     def _set_mode(self, mode):      
         if self._locked:
             return
+        
+        # ✅ TARGET-REVISION: Nur den Target-State ändern
+        self._target_mode = mode
             
         """Setzt den Modus und sendet sofort an den Server"""
         mac = GLOBAL_STATE.get_active_device_id()
@@ -368,9 +347,8 @@ class ExhaustFanOverlay(FloatLayout):
         now = time.time()
         new_rev = int(now)
         self._last_sent_rev = new_rev 
-        self._last_user_action = now  
+        self._last_user_action = now
 
-        self._apply_button_styles(mode)
         self.sync_icon.text = "[font=FA]\uf021[/font]"
         self.sync_icon.color = (1, 0.5, 0, 1)
 
@@ -460,48 +438,36 @@ class ExhaustFanOverlay(FloatLayout):
         self._last_sent_rev = int(server_data.get('rev', 0))
         print(f"[Exhaust] Init erfolgreich: {saved_min}-{saved_max}% | Temp {t_min}-{t_max} | Hum {h_min}-{h_max} | Mode: {saved_mode}")
 
-    def _create_lock_overlay(self):
-        """Dezente Sperr-Maske nur über dem Panel - Exhaust Version"""
-        if self._lock_overlay:
-            return
-        
-        self._lock_overlay = Button(
-            background_color=(0, 0, 0, 0.09),
-            size=self.panel.size,
-            pos=self.panel.pos,
-            size_hint=(None, None)
-        )
-        
-        # Unlock Button unten links
-        unlock_btn = Button(
-            text="UNLOCK TO EDIT",
-            size_hint=(None, None),
-            size=(dp_scaled(200), dp_scaled(50)),
-            pos_hint={'x': 0.04, 'y': 0.04},
-            background_color=(0.05, 0.55, 0.95, 0.95),
-            color=(1, 1, 1, 1),
-            bold=True,
-            font_size=sp_scaled(15.5)
-        )
-        unlock_btn.bind(on_release=self._unlock)
-        
-        self._lock_overlay.add_widget(unlock_btn)
-        
-        self.panel.bind(pos=self._update_lock_pos, size=self._update_lock_pos)
-        self.add_widget(self._lock_overlay)
-
-    def _update_lock_pos(self, *_):
-        """Position der Lock-Maske mit dem Panel synchron halten"""
-        if self._lock_overlay:
-            self._lock_overlay.pos = self.panel.pos
-            self._lock_overlay.size = self.panel.size
-
-    def _unlock(self, *_):
-        """Entsperrt das Exhaust Overlay"""
-        if self._lock_overlay:
-            self.remove_widget(self._lock_overlay)
-            self._lock_overlay = None
-        
+    def _on_unlock(self):
+        """Callback wenn Lock aufgegeben wird."""
         self._locked = False
-        self.sync_icon.color = (0, 1, 0, 1)
-        print("[Exhaust] Edit-Modus aktiviert")        
+        self._set_sliders_disabled(False)
+
+    def _set_sliders_disabled(self, state):
+        """Hilfsfunktion: Schaltet ALLE Slider im Exhaust-Modul konsistent aus."""
+        if hasattr(self, 'range_slider'):
+            self.range_slider.disabled = state
+        if hasattr(self, 'temp_slider'):
+            self.temp_slider.disabled = state
+        if hasattr(self, 'hum_slider'):
+            self.hum_slider.disabled = state
+
+    # --- ZUSÄTZLICHER SCHUTZ FÜR DIE CALLBACKS ---
+    def _on_slider_change(self, instance, value):
+        if not self._init_done or self._locked: # BLOCKIERT BEI LOCK
+            return
+        min_v = int(self.range_slider.min_value)
+        max_v = int(self.range_slider.max_value)
+        self.lbl_val.text = f"{min_v}% - {max_v}%"
+        self.sync_icon.text = "[font=FA]\uf021[/font]"
+        self.sync_icon.color = (1, 0.5, 0, 1)
+
+    def _on_env_slider_change(self, *_):
+        if not self._init_done or self._locked: # BLOCKIERT BEI LOCK
+            return
+        t_min, t_max = int(self.temp_slider.min_value), int(self.temp_slider.max_value)
+        h_min, h_max = int(self.hum_slider.min_value), int(self.hum_slider.max_value)
+        self.lbl_temp.text = f"Temp: {t_min}° - {t_max}°"
+        self.lbl_hum.text = f"Hum: {h_min}% - {h_max}%"
+        self.sync_icon.text = "[font=FA]\uf021[/font]"
+        self.sync_icon.color = (1, 0.5, 0, 1)

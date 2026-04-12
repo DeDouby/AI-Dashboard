@@ -1,6 +1,6 @@
 [
   {
-    "timestamp": 1775953853.921355,
+    "timestamp": 1775971374.865162,
     "device_id": "827482CC-A977-43D7-835E-8E8B6978E66A",
     "name": "LGS_Sensor",
     "adv": {
@@ -140,7 +140,7 @@
       "raw": null,
       "internal": {
         "temperature": {
-          "value": 18.45535,
+          "value": 18.50768,
           "unit": "°C"
         },
         "humidity": {
@@ -151,11 +151,11 @@
       "external": {
         "present": true,
         "temperature": {
-          "value": 18.86,
+          "value": 18.9,
           "unit": "°C"
         },
         "humidity": {
-          "value": 62.35,
+          "value": 62.06,
           "unit": "%"
         }
       },
@@ -166,38 +166,38 @@
           "unit": "°C"
         },
         "vpd_leaf": {
-          "value": 1.905,
+          "value": 1.908,
           "unit": "kPa"
         }
       },
       "vpd_internal": {
-        "value": 1.274,
+        "value": 1.278,
         "unit": "kPa"
       },
       "vpd_external": {
-        "value": 0.82,
+        "value": 0.828,
         "unit": "kPa"
       },
-      "battery_voltage": 4.2,
+      "battery_voltage": 4.017,
       "dew_point_internal": {
-        "value": 4.6,
+        "value": 4.64,
         "unit": "°C"
       },
       "dew_point_external": {
-        "value": 11.5,
+        "value": 11.47,
         "unit": "°C"
       },
       "coord": {
         "internal": {
           "x": 40.0,
-          "y": 18.45535
+          "y": 18.50768
         },
         "external": {
-          "x": 62.35,
-          "y": 18.86
+          "x": 62.06,
+          "y": 18.9
         }
       },
-      "timestamp": 1775953853.605075,
+      "timestamp": 1775971374.372067,
       "circulation_fan": {
         "circulation_fan_rpm": 0,
         "unit": "RPM"
@@ -206,12 +206,12 @@
         "exhaust_fan_rpm": 0,
         "unit": "RPM"
       },
-      "light_pct": 62,
-      "light_mode": "tim",
-      "rev": 1775953834,
+      "light_pct": 85,
+      "light_mode": "man",
+      "rev": 1775971371,
       "health": {
         "signal": {
-          "rssi": -75
+          "rssi": -78
         }
       }
     },
@@ -219,22 +219,22 @@
     "status": "active",
     "health": {
       "uptime": {
-        "value": 240.1720530986786,
+        "value": 60.10149097442627,
         "unit": "s"
       },
       "battery": {
         "value": null,
         "unit": "V",
-        "voltage": 4.2
+        "voltage": 4.017
       },
       "signal": {
-        "rssi": -75,
+        "rssi": -78,
         "quality": null
       }
     }
   },
   {
-    "timestamp": 1775953853.921355,
+    "timestamp": 1775971374.865162,
     "device_id": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
     "name": "ThermoBeacon2",
     "adv": {
@@ -436,7 +436,7 @@
     "status": "offline",
     "health": {
       "uptime": {
-        "value": 240.1720530986786,
+        "value": 60.10149097442627,
         "unit": "s"
       },
       "battery": {
@@ -451,7 +451,7 @@
     }
   },
   {
-    "timestamp": 1775953853.921355,
+    "timestamp": 1775971374.865162,
     "device_id": "C898B4F2-B452-7502-1A67-0536E77D49EA",
     "name": "sps",
     "adv": {
@@ -653,7 +653,7 @@
     "status": "offline",
     "health": {
       "uptime": {
-        "value": 240.1720530986786,
+        "value": 60.10149097442627,
         "unit": "s"
       },
       "battery": {
@@ -668,7 +668,7 @@
     }
   },
   {
-    "timestamp": 1775953853.921355,
+    "timestamp": 1775971374.865162,
     "device_id": "FF-FF-A1-00-00-01",
     "name": "LGS_NODE_17",
     "adv": {
@@ -870,7 +870,7 @@
     "status": "offline",
     "health": {
       "uptime": {
-        "value": 240.1720530986786,
+        "value": 60.10149097442627,
         "unit": "s"
       },
       "battery": {
