@@ -30,11 +30,10 @@ import json
 import os
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
-from dashboard_gui.ui.common.unified_slider import UnifiedSlider
-from dashboard_gui.ui.common.lock_overlay import LockOverlay
+from dashboard_gui.overlays.unified_slider import UnifiedSlider
+from dashboard_gui.overlays.lock_overlay import LockOverlay
 from kivy.uix.widget import Widget
 # WICHTIG: Den globalen Client importieren
-from web_client import WEB_CLIENT 
 
 class CirculationFanOverlay(FloatLayout):
     def __init__(self, parent_header, **kwargs):
@@ -46,17 +45,22 @@ class CirculationFanOverlay(FloatLayout):
         self._init_done = False
         self.sync_path = os.path.join(config.DATA, "settings_sync.json")
         self._last_sent_rev = 0
-
         # Intervalle für UI-Refresh und Server-Abgleich
         self._update_event = Clock.schedule_interval(self.update_ui, 1.0)
         self._sync_event = Clock.schedule_interval(self._sync_to_client, 1.3)
         self._locked = True
         self._target_mode = "nat"  # Target-State: Standard "natural"
+        self._last_user_action = time.time()  # Startwert
         # 1. Hintergrund-Abdunkelung
         bg = Button(background_color=(0, 0, 0, 0.25))
         bg.bind(on_release=lambda *_: self.close())
         self.add_widget(bg)
-
+        self._ui_lock = False
+        self._target_state = {
+            "min": 20,
+            "max": 65,
+            "mode": "nat"
+        }
         # 2. Das Haupt-Panel
 # 2. Das Haupt-Panel
         self.panel = BoxLayout(
@@ -130,9 +134,15 @@ class CirculationFanOverlay(FloatLayout):
         ))
         
         self.range_slider = UnifiedSlider(
-            min=0, max=100, range_min=0, range_max=100, 
-            mode='range', size_hint_y=None, height=dp_scaled(50)
+            min=0, 
+            max=100, 
+            mode='range', 
+            # range_min und range_max WEG LASSEN!
+            # fill_entire_track=True kannst du bei Bedarf hinzufügen, falls es optisch passt
+            size_hint_y=None, 
+            height=dp_scaled(50)
         )
+
         self.range_slider.bind(min_value=self._on_slider_change, max_value=self._on_slider_change)
         self.range_slider.bind(on_touch_down=self._touch_down, on_touch_up=self._touch_up)
         self.panel.add_widget(self.range_slider)
@@ -167,75 +177,85 @@ class CirculationFanOverlay(FloatLayout):
         
         self.add_widget(self.panel)
 
-    def _create_styled_btn(self, text):
-        return Button(text=text, background_normal="", background_color=(0.2, 0.2, 0.2, 1), 
-                      bold=True, font_size=sp_scaled(15))
+
 
     def _on_slider_change(self, instance, value):
+        if not self._init_done or self._ui_lock: 
+            return
         if not self._init_done: return
-        
+        if getattr(self, "_ui_lock", False):
+            return
         # Nur die lokale Anzeige updaten (kein Netzwerk-Traffic!)
         min_v = int(self.range_slider.min_value)
         max_v = int(self.range_slider.max_value)
         self.lbl_val.text = f"{min_v}% - {max_v}%"
-        
+        self._target_state["min"] = int(self.range_slider.min_value)
+        self._target_state["max"] = int(self.range_slider.max_value)
         # Icon auf Orange setzen (Benutzer ändert gerade etwas)
+        self._set_orange()
+    
+    # In deinem Overlay
+    def _force_sync(self, *_):
+        new_rev = GLOBAL_STATE.send_overlay_command(
+            "circulation_fan",
+            min=int(self.range_slider.min_value),
+            max=int(self.range_slider.max_value),
+            mode=self._target_state["mode"]
+        )
+    
+        if new_rev:
+            self._last_sent_rev = new_rev
+            self._last_user_action = time.time()
+            self.sync_icon.color = (1, 0.5, 0, 1)
+    
+    def _set_orange(self):
+        """Orange Sync-Status (Änderung läuft / nicht bestätigt)"""
         self.sync_icon.text = "[font=FA]\uf021[/font]"
         self.sync_icon.color = (1, 0.5, 0, 1)
+
+    def _set_green(self):
+        """Grüner Sync-Status (alles bestätigt)"""
+        self.sync_icon.text = "[font=FA]\uf058[/font]"
+        self.sync_icon.color = (0, 1, 0, 1)    
     
-    def _force_sync(self, *_):
-        """ 
-        ERZWINGERT den UI-Zustand auf der Hardware.
-        Sendet den aktuellen Target-State.
-        """
-        mac = GLOBAL_STATE.get_active_device_id()
-        if not mac: return
-        
-        new_rev = int(time.time())
-        self._last_sent_rev = new_rev
-        self._last_user_action = time.time()
-
-        # ✅ TARGET-REVISION: Wir verwenden NICHT die Button-Farben als Logikquelle
-        # sondern den gespeicherten _target_mode
-        payload = {
-            "circulation_fan_min": int(self.range_slider.min_value),
-            "circulation_fan_pct": int(self.range_slider.max_value),
-            "circulation_fan_mode": self._target_mode,
-            "rev": new_rev
-        }
-        
-        WEB_CLIENT.send_control(mac, payload)
-        self.sync_icon.color = (1, 0.5, 0, 1) # Orange: "Ich sende gerade"
-# --- ZUSÄTZLICHE OPTIMIERUNG DER UPDATE-LOGIK ---
     def update_ui(self, *_):
-        """Verbesserte Update-Logik"""
-        if not getattr(WEB_CLIENT, "ready", False) or not self._init_done:
-            return
-        
         mac = GLOBAL_STATE.get_active_device_id()
-        server_data = WEB_CLIENT.current_data.get(mac)
-        if not server_data:
+        server_data = GLOBAL_STATE.overlay_engine.get_buffer_data(mac)
+        if not server_data: return
+
+        # SESSION-CHECK
+        current_init_rev = server_data.get('rev_init_circfan', 0)
+        if not hasattr(self, "_last_adopted_init") or self._last_adopted_init != current_init_rev:
+            self._last_adopted_init = current_init_rev
             return
 
-        server_rev = int(server_data.get('rev', 0))
+        server_rev = int(server_data.get('rev_circfan', 0))
         last_sent = getattr(self, '_last_sent_rev', 0)
         
+        # LOGIK: Wir ignorieren Server-Werte für die Slider-Position, 
+        # solange unsere lokale Revision (last_sent) höher ist als das, 
+        # was der ESP32 bisher bestätigt hat (server_rev).
         time_since_action = time.time() - self._last_user_action
-        is_synced = (server_rev >= last_sent) and not self._user_active and (time_since_action > 1.8)
+        
+        # Ein Sync ist NUR erfolgt, wenn der Server unsere Rev bestätigt hat 
+        # UND der User nicht gerade schiebt UND die Beruhigungszeit um ist.
+        is_synced = (server_rev >= last_sent) and not self._user_active and (time_since_action > 1.5)
 
-        # Live-Werte immer aktualisieren
+        # Live-Werte (immer anzeigen, da Hardware-Feedback)
         srv_live = server_data.get('circulation_fan_speed_now', 0)
         srv_rpm = server_data.get('circulation_fan_rpm', 0)
-        
         self.lbl_rpm.text = f"RPM: {int(srv_rpm)}"
         self.lbl_live_speed.text = f"LIVE: {int(srv_live)}%"
 
         if not is_synced:
+            # STATUS ORANGE: Wir zeigen unsere LOKALEN Target-Werte. 
+            # Der Slider bleibt, wo der User ihn hingeschoben hat.
             self.sync_icon.text = "[font=FA]\uf021[/font]"
             self.sync_icon.color = (1, 0.5, 0, 1)
+            # WICHTIG: Kein Setzen von self.range_slider hier!
             return
 
-        # === SYNCED ===
+        # === STATUS GRÜN (SYNCED) ===
         self.sync_icon.text = "[font=FA]\uf058[/font]"
         self.sync_icon.color = (0, 1, 0, 1)
 
@@ -243,14 +263,18 @@ class CirculationFanOverlay(FloatLayout):
         srv_max = int(server_data.get('circulation_fan_pct', 65))
         srv_mode = server_data.get('circulation_fan_mode', 'nat')
 
-        # Slider nur nachziehen wenn nötig (vermeidet Flackern)
-        if abs(self.range_slider.min_value - srv_min) > 0.5:
-            self.range_slider.min_value = srv_min
-        if abs(self.range_slider.max_value - srv_max) > 0.5:
-            self.range_slider.max_value = srv_max
+        # Nur im Synced-Zustand gleichen wir die Slider-Hardware-Positionen an,
+        # falls sie (z.B. durch andere Clients) abweichen.
+        if not self._user_active:
+            # Wir nutzen _ui_lock, damit das Setzen der Werte keinen neuen Command auslöst!
+            self._ui_lock = True 
+            if abs(self.range_slider.max_value - srv_max) > 0.5:
+                self.range_slider.max_value = srv_max
+            if abs(self.range_slider.min_value - srv_min) > 0.5:
+                self.range_slider.min_value = srv_min
+            self._ui_lock = False
 
         self.lbl_val.text = f"{srv_min}% - {srv_max}%"
-        
         self._apply_button_styles(srv_mode)
 
     def _create_styled_btn(self, text):
@@ -280,21 +304,13 @@ class CirculationFanOverlay(FloatLayout):
         self.btn_chao.color = (1, 1, 1, 1) if mode == "chao" else (0.6, 0.6, 0.6, 1)
     
     def _send_current_range_to_server(self):
-        mac = GLOBAL_STATE.get_active_device_id()
-        if not mac: return
+        self._last_sent_rev = GLOBAL_STATE.send_overlay_command(
+            "circulation_fan_range",
+            min=int(self.range_slider.min_value),
+            max=int(self.range_slider.max_value),
+            mode=self._target_state["mode"]
         
-        min_v = int(self.range_slider.min_value)
-        max_v = int(self.range_slider.max_value)
-        
-        new_rev = int(time.time())
-        self._last_sent_rev = new_rev
-        
-        print(f"[UI] Sende finalen Range-Wert: {min_v}-{max_v}%")
-        WEB_CLIENT.send_control(mac, {
-            "circulation_fan_pct": max_v,
-            "circulation_fan_min": min_v,
-            "rev": new_rev
-        })
+        )
     def _sync_to_client(self, dt):
         if not self._pending_updates: return
         mac = GLOBAL_STATE.get_active_device_id()
@@ -318,27 +334,23 @@ class CirculationFanOverlay(FloatLayout):
         if self._locked:
             return
         
-        # ✅ TARGET-REVISION: Nur den Target-State ändern
-        self._target_mode = mode
+        # 1. Ziel-Modus lokal im Overlay merken
+        self._target_state["mode"] = mode
         
-        mac = GLOBAL_STATE.get_active_device_id()
-        if not mac: return
-        
-        new_rev = int(time.time())
-        self._last_sent_rev = new_rev 
-        self._last_user_action = time.time()
+        # 2. Befehl über den GSM abfeuern
+        # Wir nutzen dein 'send_overlay_command' Schema
+        new_rev = GLOBAL_STATE.send_overlay_command(
+            "circulation_fan",
+            min=self.range_slider.min_value,
+            max=self.range_slider.max_value,
+            mode=mode
+        )
 
-        # Visuelles Feedback: Orange während Sync
-        self.sync_icon.text = "[font=FA]\uf021[/font]"
-        self.sync_icon.color = (1, 0.5, 0, 1)
-
-        payload = {
-            "circulation_fan_pct": int(self.range_slider.max_value),
-            "circulation_fan_min": int(self.range_slider.min_value),
-            "circulation_fan_mode": mode,
-            "rev": new_rev
-        }
-        WEB_CLIENT.send_control(mac, payload)
+        # 3. Visuelles Feedback (Orange) und Zeitstempel für Sync-Logik
+        if new_rev:
+            self._last_sent_rev = new_rev 
+            self._last_user_action = time.time()
+            self._set_orange()
 
     def _touch_down(self, instance, touch):
         if self._locked:
@@ -367,41 +379,40 @@ class CirculationFanOverlay(FloatLayout):
         GLOBAL_STATE.ui_handler.active_circulation_fan_overlay = None
 
     def _init_values(self, *_):
-        """Saubere Initialisierung wie beim LightOverlay"""
+        widget = self.parent_header
+        # Wir holen uns die Daten direkt über den neuen sauberen Weg
         mac = GLOBAL_STATE.get_active_device_id()
-        if not mac:
-            Clock.schedule_once(self._init_values, 0.5)
-            return
-        
-        arduino_data = WEB_CLIENT.current_data.get(mac, {})
-        
-        # Wenn noch keine Daten da sind → kurz warten und retry
-        if not arduino_data:
-            Clock.schedule_once(self._init_values, 0.4)
-            return
-        
-        # === Werte aus Server laden ===
-        saved_min = int(arduino_data.get("circulation_fan_min", 20))
-        saved_max = int(arduino_data.get("circulation_fan_pct", 65))
-        saved_mode = arduino_data.get("circulation_fan_mode", "nat")
-        
-        # Slider setzen
-        self.range_slider.min_value = max(0, min(saved_min, saved_max - 1))
-        self.range_slider.max_value = saved_max
-        
-        # Labels sofort aktualisieren
-        self.lbl_val.text = f"{saved_min}% - {saved_max}%"
-        
-        # Modus setzen (nur optisch)
-        self._apply_button_styles(saved_mode)
-        
-        # Status Icons + Flags
-        self._init_done = True
-        self._last_sent_rev = int(arduino_data.get('rev', 0))
-        self._last_user_action = 0
-        
-        print(f"[Circulation] Init erfolgreich: {saved_min}-{saved_max}% | Mode: {saved_mode}")
+        data = GLOBAL_STATE.overlay_engine.get_buffer_data(mac)
 
+        if not data:
+            Clock.schedule_once(self._init_values, 0.3)
+            return
+
+        # 1. Werte extrahieren
+        srv_min = data.get("circulation_fan_min", 20)
+        srv_max = data.get("circulation_fan_pct", 65)
+        srv_mode = data.get("circulation_fan_mode", "nat")
+
+        # 2. SLIDER SETZEN (Wichtig: Erst Werte, dann Init-Flag)
+        self._ui_lock = True
+
+        self.range_slider.max_value = srv_max
+        self.range_slider.min_value = srv_min
+
+        self._ui_lock = False
+        self._target_mode = srv_mode
+        
+        # 3. FIX: Label explizit updaten (Das hat gefehlt!)
+        self.lbl_val.text = f"{int(srv_min)}% - {int(srv_max)}%"
+        
+        # 4. Button-Styles anwenden (Wie im Light-Modul)
+        self._apply_button_styles(srv_mode)
+
+        # 5. Abschluss
+        self._pending_updates.clear()
+        self._init_done = True  # Jetzt erst darf der Slider-Bind Traffic machen
+        self.range_slider.disabled = False
+    
     def _on_unlock(self):
         """Callback wenn Lock aufgegeben wird."""
         self._locked = False

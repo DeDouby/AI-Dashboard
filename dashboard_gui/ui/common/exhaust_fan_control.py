@@ -20,12 +20,20 @@ class ExhaustFanControl(BoxLayout):
         self.orientation = "horizontal"
         self.size_hint = (None, 1)
         self.width = dp_scaled(45)
-
+        self.latest_data = {}
+# NEU: Zugriff auf den GSM sicherstellen
+        # Entweder vom parent_header übernehmen oder direkt vom GLOBAL_STATE
+        if parent_header and hasattr(parent_header, 'gsm'):
+            self.gsm = parent_header.gsm
+        else:
+            self.gsm = GLOBAL_STATE.gsm
         # \uf103 ist ein Pfeil nach unten (Abluft-Symbolik)
         self.icon = IconLabel(text="\uf863", font_size=sp_scaled(24))
         self.add_widget(self.icon)
 
-    def set_rpm(self, rpm):
+    def set_rpm(self, rpm, data=None):
+        if isinstance(data, dict):
+            self.latest_data = data
         try:
             if rpm is None or rpm < 0: # Berücksichtigung deiner Pseudo-Werte
                 self.icon.color = (0.4, 0.4, 0.4, 1)
@@ -41,7 +49,7 @@ class ExhaustFanControl(BoxLayout):
         
         # Hier importieren wir nun das spezifische Exhaust-Overlay
         # Pfad ggf. anpassen, falls die Datei anders heißt
-        from dashboard_gui.ui.common.exhaust_fan_overlay import ExhaustFanOverlay
+        from dashboard_gui.overlays.exhaust_fan_overlay import ExhaustFanOverlay
         
         if getattr(ui, "active_exhaust_fan_overlay", None):
             ui.active_exhaust_fan_overlay.close()

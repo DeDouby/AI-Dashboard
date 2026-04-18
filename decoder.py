@@ -569,8 +569,7 @@ def step_decode():
             res_cache = decode_channel({"address": mac, "gatt_raw": gold_data}, "gatt_raw", dev_cfg.get("gatt_decoder"), _LAST_GATT_RAW, _LAST_GATT_TS, timeout, is_gatt=True)
             if res_cache and res_cache["alive"]:
                 gatt_dec = res_cache
-        # --- KANAL 3: WEBSERVER (WATCHDOG-FREI & STABIL) ---
-        # Wir ignorieren web_w = w_status.get("web") komplett!
+
         
         # --- KANAL 3: WEBSERVER (WATCHDOG-FREI & STABIL) ---
         web_raw = web_data.get(mac)
@@ -664,16 +663,38 @@ def step_decode():
                 ref_h = H_e if sensor_exists else H_i
                 
                 # SVP Blatt
-                svp_l = 0.61078 * (10**((7.5 * raw_t_l) / (237.3 + raw_t_l)))
-                # AVP Luft (Referenz: External oder Internal)
-                svp_ref = 0.61078 * (10**((7.5 * ref_t) / (237.3 + ref_t)))
-                avp_ref = svp_ref * (ref_h / 100.0)
+                vpd_l = calculator.vpd_leaf(raw_t_l, ref_t, ref_h)
                 
                 web_dec["external2"] = {
                     "present": True,
                     "leaf_temp": {"value": calculator.to_unit(raw_t_l), "unit": unit},
-                    "vpd_leaf": {"value": round(svp_l - avp_ref, 3), "unit": "kPa"}
+                    "vpd_leaf": {"value": vpd_l, "unit": "kPa"}
                 }
+
+                # ================================================
+            # ALLE FELDER AUS WEB-DUMP FLACH HINZUFÜGEN
+            # (Firmware, Targets, Fan-Settings, Timings, etc.)
+            # ================================================
+            for key, value in current_web.items():
+                if key not in web_dec:           # keine Überschreibung der strukturierten Felder
+                    web_dec[key] = value
+
+            # Explizit gewünschte Felder sicherstellen (falls sie durch obige Logik doch mal fehlen)
+            extra_important = [
+                "fw_ver", "dev_name", "log_level", "timestamp",
+                "target_temp_min", "target_temp_max",
+                "target_humidity_min", "target_humidity_max",
+                "target_vpd_min", "target_vpd_max",
+                "exhaust_fan_pct", "exhaust_fan_min", "exhaust_fan_mode",
+                "circulation_fan_pct", "circulation_fan_min", "circulation_fan_mode",
+                "l_start_h", "l_start_m", "l_dur", "l_sunrise", "l_sunset", "light_target", "light_remaining", "rev_exhaust", "rev_circulation",
+                 "rev_init_circfan"
+            ]
+            for key in extra_important:
+                if key in current_web and key not in web_dec:
+                    web_dec[key] = current_web[key]
+
+            # Falls du später noch mehr Felder garantiert haben willst, einfach in die Liste oben packen.
         # --- FINAL MERGE ---
         web_rssi = web_dec.get("health", {}).get("signal", {}).get("rssi") if isinstance(web_dec.get("health"), dict) else None
         ble_rssi = entry.get("rssi") if (adv_w["alive"] or gatt_w["alive"]) and entry else None

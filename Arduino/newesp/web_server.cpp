@@ -29,9 +29,12 @@
 #include "esp_wifi.h"
 #include <ArduinoJson.h>
 #include "web_server_browser.h"
+#include "esp_watch.h"
+extern ESPWatch watch; // Greift auf die Instanz in der Hauptdatei zu
 
+#include "grow_controller.h" // <--- DAS HIER AUCH
 extern WebServer server;
-
+extern String get_current_time_str();
 // --- DIESE VARIABLEN BRAUCHEN WIR FÜR DIE SENSOREN ---
 extern int current_rev;
 extern float currentVPD;      
@@ -53,41 +56,50 @@ void handleData() {
     StaticJsonDocument<1024> doc;
     JsonObject obj = doc.to<JsonObject>();
     
-    // --- NEU: Health & Signal Status ---
-    // Wir erstellen ein verschachteltes Objekt für die System-Gesundheit
+    // --- DEINE STRUKTUR (RSSI BLEIBT) ---
     JsonObject health = obj.createNestedObject("health");
     JsonObject signal = health.createNestedObject("signal");
     
-    // WiFi.RSSI() liefert den Wert in dBm (z.B. -65)
     if (WiFi.status() == WL_CONNECTED) {
         signal["rssi"] = WiFi.RSSI();
     } else {
-        signal["rssi"] = -256; // Unser besprochener Pseudo-Wert für "Offline"
+        signal["rssi"] = -256; 
     }
-    // Sensoren (Direkt aus sensor.h / globals)
+
+    // --- RTC STATUS & ZEIT (FLACH) ---
+    bool isRtcOk = watch.isRTCHealthy();
+    obj["rtc_found"] = isRtcOk;
+
+    if (isRtcOk) {
+        time_t now;
+        struct tm timeinfo;
+        time(&now);
+        localtime_r(&now, &timeinfo);
+        char timeBuf[10];
+        sprintf(timeBuf, "%02d:%02d", timeinfo.tm_hour, timeinfo.tm_min);
+        obj["rtc_time"] = String(timeBuf);
+    } else {
+        obj["rtc_time"] = "offline";
+    }
+
+    // --- SENSOREN (FLACH) ---
     obj["temp_in"] = getTempIn();
     obj["temp_ext"] = getTempExt();
     obj["humid_ext"] = getExternalHumidity();
     obj["humid_in"] = 40.0;
-        
     obj["leaf_temp"] = 25.5;
-
-    obj["vpd_ext"] = currentVPD;
-    obj["vpd_in"] = currentVPDIn;
-    obj["vpd_leaf"] = currentVPDLeaf;
     obj["vbat"] = get_battery_voltage_now();
     obj["rev"] = current_rev;
     
-    // Module befüllen den Rest
     exhaust_fan_get_status(obj);
     circulation_fan_get_status(obj);
     light_control_get_status(obj);
+    grow_controller_get_status(obj); 
 
     String response;
     serializeJson(doc, response);
     server.send(200, "application/json", response);
 }
-
 // 2. CONTROL ENDPUNKT
 void handleControlJSON() {
     if (!server.authenticate(www_username, www_password)) return server.requestAuthentication();
@@ -109,8 +121,7 @@ void handleControlJSON() {
         exhaust_fan_process_json(obj); 
         circulation_fan_process_json(obj);
         light_control_process_json(obj);            
-
-        // Antwort direkt mit der NEUEN Revision
+        grow_controller_process_json(obj); // Verarbeitet System-Settings       
         StaticJsonDocument<128> res;
         res["status"] = "ok";
         res["rev"] = current_rev; 
@@ -127,10 +138,22 @@ namespace WebModule {
         WiFi.mode(WIFI_STA);
         WiFi.begin(ssid, password);
         esp_wifi_set_ps(WIFI_PS_NONE);
-        configTzTime("CET-1CEST,M3.5.0,M10.5.0", "pool.ntp.org", "time.google.com");
-        
+
+        Serial.println("WLAN verbunden → Warte auf NTP...");
+
+        // === RICHTIGE REIHENFOLGE + KORREKTER TZ-STRING ===
+        configTzTime("CET-1CEST,M3.5.0/2,M10.5.0/3", 
+                     "de.pool.ntp.org", 
+                     "pool.ntp.org", 
+                     "time.nist.gov");
+
+        // Alternativ (manchmal stabiler):
+        // setenv("TZ", "CET-1CEST,M3.5.0/2,M10.5.0/3", 1);
+        // tzset();
+        // configTime(0, 0, "de.pool.ntp.org", "pool.ntp.org");
+
         server.on("/data", handleData);
-        server.on("/control", HTTP_POST, handleControlJSON); // JETZT FEHLERFREI
+        server.on("/control", HTTP_POST, handleControlJSON);
         WebServerBrowser::registerRoutes(server);
         server.begin();
     }

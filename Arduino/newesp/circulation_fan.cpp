@@ -35,8 +35,8 @@ static uint32_t last_circulation_fan_rpm_check = 0;
 static int current_circulation_fan_rpm = 0;
 // Zeitstempel für Entprellung
 static uint32_t last_circulation_fan_pulse_time = 0;
-
-
+static uint32_t circulation_fan_rev = 0;     // ← NEU: Eigenes Revision für dieses Modul
+static uint32_t circulation_fan_init_rev = 0;
 
 // Hilfsfunktion: Speichern
 void circulation_fan_save_state() {
@@ -77,8 +77,10 @@ void circulation_fan_init(uint8_t pin, uint8_t tacho_pin) {
 
     // INITIALER SETTER FIX:
     // Wir rufen circulation_fan_set_mode auf, damit die Logik sofort greift
+    circulation_fan_init_rev = millis() + 1;
     circulation_fan_set_mode(current_circulation_fan_mode);
     circulation_fan_set_speed(current_circulation_fan_speed);
+
 }
 
 void circulation_fan_set_speed(int percent) {
@@ -162,43 +164,55 @@ void circulation_fan_update() {
 
 void circulation_fan_process_json(JsonObject doc) {
     bool changed = false;
+    uint32_t received_rev = 0;
 
-    // 1. Geschwindigkeit (Max)
-    if (doc.containsKey("circulation_fan_pct")) {
-        current_circulation_fan_speed = constrain((int)doc["circulation_fan_pct"], 0, 100);
-        changed = true;
+    if (doc.containsKey("rev_circfan")) {
+        received_rev = doc["rev_circfan"];
     }
 
-    // 2. Minimum Geschwindigkeit (Boden)
-    if (doc.containsKey("circulation_fan_min")) {
-        current_circulation_fan_min_speed = constrain((int)doc["circulation_fan_min"], 0, 100);
-        changed = true;
+    // Nur verarbeiten wenn die Revision neu ist
+    if (received_rev > circulation_fan_rev) {
+        circulation_fan_rev = received_rev;
+
+        // 1. Geschwindigkeit (Max)
+        if (doc.containsKey("circulation_fan_pct")) {
+            current_circulation_fan_speed = constrain((int)doc["circulation_fan_pct"], 0, 100);
+            changed = true;
+        }
+
+        // 2. Minimum Geschwindigkeit
+        if (doc.containsKey("circulation_fan_min")) {
+            current_circulation_fan_min_speed = constrain((int)doc["circulation_fan_min"], 0, 100);
+            changed = true;
+        }
+
+        // 3. Modus
+        if (doc.containsKey("circulation_fan_mode")) {
+            String m = doc["circulation_fan_mode"];
+            if (m == "nat") current_circulation_fan_mode = circulation_fan_MODE_NATURAL;
+            else if (m == "chao") current_circulation_fan_mode = circulation_fan_MODE_CHAOTIC;
+            else current_circulation_fan_mode = circulation_fan_MODE_MANUAL;
+            changed = true;
+        }
     }
 
-    // 3. Modus (man, nat, chao)
-    if (doc.containsKey("circulation_fan_mode")) {
-        String m = doc["circulation_fan_mode"];
-        if (m == "nat") current_circulation_fan_mode = circulation_fan_MODE_NATURAL;
-        else if (m == "chao") current_circulation_fan_mode = circulation_fan_MODE_CHAOTIC;
-        else current_circulation_fan_mode = circulation_fan_MODE_MANUAL;
-        changed = true;
-    }
-
-    // Wenn sich was geändert hat: Sofort Update und Speichern
     if (changed) {
-        // Falls Manuell: Speed sofort anwenden
         if (current_circulation_fan_mode == circulation_fan_MODE_MANUAL) {
             circulation_fan_set_speed(current_circulation_fan_speed);
         }
         circulation_fan_save_state();
-        Serial.println("Circulation Fan Settings updated.");
+        Serial.printf("Circulation Fan updated | Rev: %u\n", circulation_fan_rev);
     }
 }
+
 void circulation_fan_get_status(JsonObject doc) {
     doc["circulation_fan_rpm"] = circulation_fan_get_rpm();
     doc["circulation_fan_pct"] = current_circulation_fan_speed;
-    doc["circulation_fan_speed_now"] = effective_circulation_fan_speed; // Realer Speed (Anzeige)
+    doc["circulation_fan_speed_now"] = effective_circulation_fan_speed;
     doc["circulation_fan_min"] = current_circulation_fan_min_speed;
     doc["circulation_fan_mode"] = (current_circulation_fan_mode == circulation_fan_MODE_NATURAL) ? "nat" : 
                                  (current_circulation_fan_mode == circulation_fan_MODE_CHAOTIC) ? "chao" : "man";
+    
+    doc["rev_circfan"] = circulation_fan_rev;        // ← WICHTIG: Eigenes Rev zurücksenden
+    doc["rev_init_circfan"] = circulation_fan_init_rev;
 }

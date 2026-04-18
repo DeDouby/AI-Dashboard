@@ -98,6 +98,25 @@ def vpd_coord_external(T_e, H_e):
     return H_e, T_e + leaf_off
 
 # ------------------------------------------------------------
+# VPD LEAF (kPa)
+# Blatt gegen Luft (External bevorzugt, sonst Internal)
+# ------------------------------------------------------------
+def vpd_leaf(T_leaf, T_air, H_air):
+    if T_leaf is None or T_air is None or H_air is None:
+        return None
+
+    try:
+        # SVP Blatt
+        svp_leaf = 610.78 * math.exp((17.269 * T_leaf) / (T_leaf + 237.3))
+        
+        # SVP Luft
+        svp_air = 610.78 * math.exp((17.269 * T_air) / (T_air + 237.3))
+        avp_air = svp_air * (H_air / 100.0)
+
+        return round((svp_leaf - avp_air) / 1000.0, 3)
+    except:
+        return None
+# ------------------------------------------------------------
 # Dew Point / Taupunkt (°C)
 # ------------------------------------------------------------
 def _dew_point(temp_c, rh):

@@ -33,5 +33,6 @@ extern int current_exhaust_fan_min_speed;
 extern float target_temp;
 extern float target_humidity;
 extern int target_exhaust_fan_pct;
-
+extern float target_vpd_min;
+extern float target_vpd_max;
 #endif

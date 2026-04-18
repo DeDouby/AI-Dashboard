@@ -143,8 +143,8 @@ class SignalInspector(FloatLayout):
         health = frame.get("health", {})
 
         # RSSI & Graph
-        rssi = health.get("signal", {}).get("rssi") or ch_data.get("rssi", "--")
-        if rssi != "--":
+        rssi = health.get("signal", {}).get("rssi")
+        if rssi is not None and rssi != "--":
             self.graph.add_value(rssi)
             rssi_color = "00FF00" if float(rssi) > -65 else ("FFCC00" if float(rssi) > -85 else "FF4444")
         else:

@@ -3,9 +3,7 @@
 
 #include <Arduino.h>
 
-extern uint32_t screen_timeout;
-extern bool is_display_off;
-extern int global_brightness_percent;
+
 float get_battery_voltage_now();
 void power_manager_init();
 void power_manager_update();

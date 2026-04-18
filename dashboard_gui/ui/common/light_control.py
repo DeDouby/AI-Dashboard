@@ -18,6 +18,7 @@ class LightControl(BoxLayout):
         self.orientation = "horizontal"
         self.size_hint = (None, 1)
         self.width = dp_scaled(45)
+        self.latest_data = {}
 
         # Icons (FontAwesome Hex-Codes):
         # \uf0eb -> bulb (solid/filled)
@@ -28,7 +29,9 @@ class LightControl(BoxLayout):
         self.icon = IconLabel(text=self.icon_on, font_size=sp_scaled(24))
         self.add_widget(self.icon)
 
-    def set_status(self, brightness):
+    def set_brightness(self, brightness, data=None):
+        if isinstance(data, dict):
+            self.latest_data = data
         # 1. NICHT VORHANDEN / OFFLINE
         if brightness is None:
             self.icon.text = "\uf0eb"
@@ -56,7 +59,7 @@ class LightControl(BoxLayout):
     def on_touch_down(self, touch):
         if not self.collide_point(*touch.pos): return False
         
-        from dashboard_gui.ui.common.light_overlay import LightOverlay
+        from dashboard_gui.overlays.light_overlay import LightOverlay
         ui = GLOBAL_STATE.ui_handler
         
         # Sicherstellen, dass wir nicht beide Overlays gleichzeitig offen haben

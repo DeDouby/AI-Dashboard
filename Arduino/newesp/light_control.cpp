@@ -91,6 +91,10 @@ int l_target_sunset = 60;   // MINUTEN (15er-Raster)
 LightMode current_light_mode = LIGHT_MODE_MANUAL;
 // ... deine anderen Variablen ...
 extern uint32_t current_rev;
+static uint32_t light_rev = 0;              // ← NEU: Eigenes Revision für das Licht-Modul
+static uint32_t light_init_rev = 0;
+void light_reconstruct_after_boot();
+
 void light_save_state() {
     lightPrefs.putInt("l_h", l_target_h);
     lightPrefs.putInt("l_m", l_target_m);
@@ -101,122 +105,106 @@ void light_save_state() {
     lightPrefs.putInt("target", target_brightness);
 }
 
+// === REBOOT RECONSTRUCT ===
+void light_reconstruct_after_boot() {
+    if (current_light_mode == LIGHT_MODE_TIMER) {
+        // rebuild start time deterministically
+        struct tm ti;
+        time_t now = time(nullptr);
+
+        if (now > 946684800) {
+            localtime_r(&now, &ti);
+            ti.tm_hour = l_target_h;
+            ti.tm_min = l_target_m;
+            ti.tm_sec = 0;
+            light_start_unix = mktime(&ti);
+        }
+    }
+}
+
 void light_init() {
     ledcAttach(PIN_LIGHT, 5000, 8);
     lightPrefs.begin("light", false);
 
-    // 1. Targets laden (Soll-Zustand aus dem Flash)
+    // Targets laden
     l_target_h = lightPrefs.getInt("l_h", 8);
-    l_target_m = lightPrefs.getInt("l_m", 0);  // Immer 15er-Raster
-    l_target_dur = lightPrefs.getInt("l_dur", 720);      // Minuten (Default 12h)
-    l_target_sunrise = lightPrefs.getInt("l_sunrise", 60);  // Minuten (Default 1h)
-    l_target_sunset = lightPrefs.getInt("l_sunset", 60);    // Minuten (Default 1h)
-    current_light_mode = (LightMode)lightPrefs.getInt("mode", 1);
+    l_target_m = lightPrefs.getInt("l_m", 0);
+    l_target_dur = lightPrefs.getInt("l_dur", 720);
+    l_target_sunrise = lightPrefs.getInt("l_sunrise", 60);
+    l_target_sunset = lightPrefs.getInt("l_sunset", 60);
+    current_light_mode = (LightMode)lightPrefs.getInt("mode", (int)LIGHT_MODE_MANUAL);
     target_brightness = lightPrefs.getInt("target", 50);
-    
-    // Konvertierung zu Sekunden (intern)
+
     light_duration_sec = (uint32_t)l_target_dur * 60;
-
-    // 2. DER ARCHITEKTEN-FIX:
-    // Wir nehmen die aktuelle Systemzeit (nach Boot meist 01.01.1970 00:00:00).
-    // Wir setzen light_start_unix auf GENAU DIESEN Zeitpunkt.
+    light_reconstruct_after_boot();
+    // === NEU: Kein Boot-Reset mehr! ===
+    // Wenn wir schon eine gültige Zeit haben → light_start_unix korrekt setzen
     time_t now = time(nullptr);
-    light_start_unix = now; 
-
-    Serial.println("Light Module: Boot-Reset akzeptiert. Programm startet ab Sekunde 0.");
-}
-
-void light_update() {
-    time_t now = time(nullptr);
-
-    // REVISION-PROTECTION: 
-    // Falls die Uhrzeit von 1970 (Boot) auf 2026 (Sync) springt, 
-    // müssen wir light_start_unix "mitschleifen", damit das Fenster stabil bleibt.
-    static time_t last_sync_check = 0;
-    if (last_sync_check < 946684800 && now > 946684800) {
-        // Die Zeit ist gerade von 'unbekannt' auf 'real' gesprungen!
-        // Wir setzen den Startpunkt auf die korrekte reale Uhrzeit (l_target_h/m).
+    if (now > 946684800) { // > Jahr 2000
         struct tm ti;
         localtime_r(&now, &ti);
         ti.tm_hour = l_target_h;
         ti.tm_min = l_target_m;
         ti.tm_sec = 0;
         light_start_unix = mktime(&ti);
-        Serial.println("Clock Sync erkannt: Timer auf Echtzeit synchronisiert.");
+        Serial.println("Light: Startzeit aus aktueller Uhrzeit berechnet");
+    } else {
+        light_start_unix = 0; // noch keine gültige Zeit
     }
-    last_sync_check = now;
+    light_update();
+    Serial.println("Light Module initialisiert (stabiler Modus)");
+}
+
+void light_update() {
+    time_t now = time(nullptr);
+    if (now < 1000000) return; // Ohne Zeit kein Licht-Timer
 
     struct tm ti_now;
     localtime_r(&now, &ti_now);
-
-    // ... AB HIER DEINE OR
     int now_sec = ti_now.tm_hour * 3600 + ti_now.tm_min * 60 + ti_now.tm_sec;
+    
     bool timer_should_be_on = false;
-    uint32_t elapsed_in_window = 0; 
-    uint32_t remaining_in_window = 0; // Das hier brauchen wir für den Spiegel
+    uint32_t elapsed = 0; 
+    uint32_t remaining = 0;
 
     if (current_light_mode == LIGHT_MODE_TIMER) {
-        struct tm ti_start;
-        localtime_r(&light_start_unix, &ti_start);
-        
-        int start_sec = ti_start.tm_hour * 3600 + ti_start.tm_min * 60;
-        int dur = light_duration_sec;
-        int end_sec = (start_sec + dur); 
+        int start_sec = l_target_h * 3600 + l_target_m * 60;
+        int dur_sec = l_target_dur * 60;
+        int end_sec = start_sec + dur_sec;
 
-        if (start_sec + dur <= 86400) {
+        // Logik für Tag & Nachtübersprung
+        if (end_sec <= 86400) {
             if (now_sec >= start_sec && now_sec < end_sec) {
                 timer_should_be_on = true;
-                elapsed_in_window = now_sec - start_sec;
-                remaining_in_window = end_sec - now_sec; // Zeit bis AUS
+                elapsed = now_sec - start_sec;
+                remaining = end_sec - now_sec;
             }
         } else {
-            int midnight_end = end_sec % 86400;
-            if (now_sec >= start_sec) {
+            int overflow = end_sec - 86400;
+            if (now_sec >= start_sec || now_sec < overflow) {
                 timer_should_be_on = true;
-                elapsed_in_window = now_sec - start_sec;
-                remaining_in_window = (86400 - now_sec) + midnight_end;
-            } else if (now_sec < midnight_end) {
-                timer_should_be_on = true;
-                elapsed_in_window = (86400 - start_sec) + now_sec;
-                remaining_in_window = midnight_end - now_sec;
+                elapsed = (now_sec >= start_sec) ? (now_sec - start_sec) : (86400 - start_sec + now_sec);
+                remaining = (now_sec >= start_sec) ? (86400 - now_sec + overflow) : (overflow - now_sec);
             }
         }
-    }
 
-    if (current_light_mode == LIGHT_MODE_TIMER) {
         if (timer_should_be_on) {
-            // Sunrise/Sunset in Sekunden konvertieren (15-min Raster)
-            uint32_t sunrise_sec = (uint32_t)l_target_sunrise * 60;  // Minuten --> Sekunden
-            uint32_t sunset_sec = (uint32_t)l_target_sunset * 60;    // Minuten --> Sekunden
+            uint32_t sunrise_sec = l_target_sunrise * 60;
+            uint32_t sunset_sec = l_target_sunset * 60;
             
-            // SICHERHEIT: Sunrise + Sunset darf Gesamtdauer nicht überschreiten
-            if (sunrise_sec + sunset_sec > light_duration_sec) {
-                sunrise_sec = light_duration_sec / 2;
-                sunset_sec = light_duration_sec / 2;
-            }
-            
-            // SUNRISE: Rampe am Anfang
-            if (sunrise_sec > 0 && elapsed_in_window < sunrise_sec) {
-                float p = (float)elapsed_in_window / (float)sunrise_sec;
-                p = constrain(p, 0.0f, 1.0f);
-                effective_brightness = 25 + (target_brightness - 25) * p;
-            }
-            // SUNSET: Rampe am Ende
-            else if (sunset_sec > 0 && remaining_in_window < sunset_sec) {
-                float p = (float)remaining_in_window / (float)sunset_sec;
-                p = constrain(p, 0.0f, 1.0f);
-                effective_brightness = 25 + (target_brightness - 25) * p;
-            }
-            // MITTENDRIN: Volle Helligkeit
-            else {
+            // Rampen-Berechnung
+            if (elapsed < sunrise_sec) {
+                effective_brightness = (target_brightness * elapsed) / sunrise_sec;
+            } else if (remaining < sunset_sec) {
+                effective_brightness = (target_brightness * remaining) / sunset_sec;
+            } else {
                 effective_brightness = target_brightness;
             }
         } else {
             effective_brightness = 0;
         }
-    } 
-    else {
-        effective_brightness = target_brightness;
+    } else {
+        effective_brightness = target_brightness; // Manueller Modus
     }
 
     ledcWrite(PIN_LIGHT, map(effective_brightness, 0, 100, 0, 255));
@@ -228,28 +216,49 @@ int light_get_effective_brightness() {
 }
 
 int light_get_minutes_to_next_change() {
-    if (current_light_mode != LIGHT_MODE_TIMER || light_start_unix <= 0) {
-        return -1;
-    }
     time_t now = time(nullptr);
-    struct tm ti_now, ti_start;
+    if (now < 946684800) return -1; // Noch kein gültiger Zeit-Sync
+
+    struct tm ti_now;
     localtime_r(&now, &ti_now);
-    localtime_r(&light_start_unix, &ti_start);
-
+    
+    // Aktuelle Sekunden seit Mitternacht
     int now_sec = ti_now.tm_hour * 3600 + ti_now.tm_min * 60 + ti_now.tm_sec;
-    int start_sec = ti_start.tm_hour * 3600 + ti_start.tm_min * 60;
-    int dur = light_duration_sec;
-    int end_sec = start_sec + dur;
+    
+    // Timer-Daten
+    int start_sec = l_target_h * 3600 + l_target_m * 60;
+    int dur_sec = l_target_dur * 60;
+    int end_sec = start_sec + dur_sec;
 
-    if (dur <= 86400 && start_sec + dur <= 86400) {
-        if (now_sec < start_sec) return (start_sec - now_sec) / 60;
-        else if (now_sec < end_sec) return (end_sec - now_sec) / 60;
-        else return ((86400 - now_sec) + start_sec) / 60;
-    } else {
-        int midnight_end = end_sec % 86400;
-        if (now_sec >= start_sec) return (end_sec - now_sec) / 60;
-        else if (now_sec < midnight_end) return (midnight_end - now_sec) / 60;
-        else return (start_sec - now_sec) / 60;
+    // Modus Check
+    if (current_light_mode != LIGHT_MODE_TIMER) return -1;
+
+    // Fall A: Timer läuft innerhalb eines Tages (z.B. 08:00 - 20:00)
+    if (end_sec <= 86400) {
+        if (now_sec < start_sec) {
+            // Licht noch aus -> Zeit bis AN
+            return (start_sec - now_sec) / 60;
+        } else if (now_sec < end_sec) {
+            // Licht an -> Zeit bis AUS
+            return (end_sec - now_sec) / 60;
+        } else {
+            // Licht bereits aus für heute -> Zeit bis morgen Start
+            return (86400 - now_sec + start_sec) / 60;
+        }
+    } 
+    // Fall B: Timer geht über Mitternacht (z.B. 20:00 - 04:00)
+    else {
+        int overflow_end_sec = end_sec - 86400;
+        if (now_sec >= start_sec) {
+            // Wir sind im ersten Teil der Nacht (vor Mitternacht) -> Zeit bis AUS
+            return (end_sec - now_sec) / 60;
+        } else if (now_sec < overflow_end_sec) {
+            // Wir sind im zweiten Teil der Nacht (nach Mitternacht) -> Zeit bis AUS
+            return (overflow_end_sec - now_sec) / 60;
+        } else {
+            // Wir sind im "Tag-Loch" (Licht aus) -> Zeit bis Start am Abend
+            return (start_sec - now_sec) / 60;
+        }
     }
 }
 
@@ -287,25 +296,48 @@ int _round_to_15min(int minutes) {
 
 // light_set_timer() - d = Minuten (nicht Stunden!)
 void light_set_timer(int h, int m, int d) {
-    // Eingaben validieren und auf 15-min Raster runden
     l_target_h = constrain(h, 0, 23);
-    l_target_m = _round_to_15min(m) % 60;  // 0, 15, 30, 45
-    l_target_dur = _round_to_15min(d);     // d ist MINUTEN
-    l_target_dur = constrain(l_target_dur, 15, 1440);  // Min 15 min, Max 24h
+    l_target_m = _round_to_15min(m) % 60;
+    l_target_dur = constrain(_round_to_15min(d), 15, 1440);
+    light_duration_sec = (uint32_t)l_target_dur * 60;
 
+    // Widget-Rettung: Wir bauen einen validen Timestamp für HEUTE
+    time_t now = time(nullptr);
     struct tm ti;
-    if (getLocalTime(&ti)) {
-        ti.tm_hour = l_target_h;
-        ti.tm_min = l_target_m;
-        ti.tm_sec = 0;
-        light_start_unix = mktime(&ti);
+    if (now > 1000000) {
+        localtime_r(&now, &ti);
+    } else {
+        // Fallback falls Zeit noch auf 1970 steht
+        ti.tm_year = 126; // 2026
+        ti.tm_mon = 3;
+        ti.tm_mday = 17;
     }
+    ti.tm_hour = l_target_h;
+    ti.tm_min = l_target_m;
+    ti.tm_sec = 0;
     
-    light_duration_sec = (uint32_t)l_target_dur * 60;  // Minuten --> Sekunden
+    light_start_unix = mktime(&ti); 
+    
     light_save_state();
+    Serial.printf("RECOVERY: Timer auf %02d:%02d gesetzt.\n", l_target_h, l_target_m);
 }
+
 void light_control_process_json(JsonObject doc) {
     bool changed = false;
+    uint32_t received_rev = 0;
+    if (doc.containsKey("rev_light")) {
+        received_rev = doc["rev_light"];
+    }
+
+    // Nur verarbeiten wenn die Revision neu ist
+    if (received_rev > light_rev) {
+
+        light_rev = received_rev;
+    } else {
+        // Revision ist alt oder gleich, also ignorieren
+        Serial.printf("Light Control: Ignoring old revision %u (current: %u)\n", received_rev, light_rev);
+        return;
+    }
 
     // 1. Not-Aus / Stop
     if (doc.containsKey("light_stop") && (int)doc["light_stop"] == 1) {
@@ -369,5 +401,6 @@ void light_control_get_status(JsonObject doc) {
     
     doc["light_mode"] = (current_light_mode == LIGHT_MODE_TIMER) ? "tim" : "man";
     doc["light_remaining"] = light_get_minutes_to_next_change();
-    doc["rev"] = current_rev; 
+    doc["rev_light"] = light_rev;
+    doc["rev_init_light"] = light_init_rev;
 }

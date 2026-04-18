@@ -313,7 +313,7 @@ class HeaderBar(BoxLayout):
             Color(0.1, 0.1, 0.15, 0.65)
             self.bg = Rectangle(pos=self.pos, size=self.size)
         self.bind(pos=self._u_bg, size=self._u_bg)
-
+        self._last_frame = {}
         # BACK BUTTON (stabil, bleibt rechts)
         self.btn_back = Button(
             text="\uf060",
@@ -626,61 +626,69 @@ class HeaderBar(BoxLayout):
     # ONE ENTRY-POINT FOR ALL SCREENS
     # ---------------------------------------------------
     def update_from_global(self, frame):
-        """Wird im Takt der DataFlowEngine gerufen. REIN LOKAL."""
-        if not isinstance(frame, dict):
+        """Wird im Takt der DataFlowEngine gerufen."""
+        self._last_frame = frame   # <<< DAS FEHLT BEI DIR
+
+        if not isinstance(frame, dict) or not frame:
+            self._set_all_offline()
             return
-        # Sicherheitscheck: Wenn Frame leer oder kein Dict, alles auf "Offline/Kein Signal"
-        if not frame or not isinstance(frame, dict):
-            self.signal.set_rssi(None)
-            self.battery.set_voltage(None)
-            self.led.set_state(False, "offline")
-            return
-        # 1. Daten-Quellen definieren (NUR aus dem Frame!)
+
+        # Daten-Quellen
         web_ch = frame.get("webserver", {})
         health = frame.get("health", {})
         
         # --- DEVICE LABEL ---
-        self._last_frame = frame
         mac = frame.get("device_id")
         label = GLOBAL_STATE.get_device_label(mac) if mac else "---"
-        
-        # Welcher Kanal ist gerade aktiv? (Wichtig für das Icon)
         ch_name = frame.get("channel", "adv")
         tag = "WEB" if ch_name == "webserver" else ch_name.upper()
-        
-        # icon_temp = "\uf2c7" # Thermometer
         self.lbl_dev.text = f"[font=FA]\uf2c7[/font]  {label} [color=777777]· {tag}[/color]"
 
-        # --- BATTERIE (Kein Web-Zugriff, nur Frame-Daten) ---
-        # Prio 1: Health-Block (global), Prio 2: Webserver-Kanal-Snapshot
+        # --- FANS / LIGHT (Der Skandal-Fix) ---
+        # Wir prüfen, ob der Key im web_ch existiert. 
+        # Wenn der Key fehlt (Sensor nicht verbaut), übergeben wir None.
+
+        # Licht
+        if "light_pct" in web_ch:
+            self.light.set_brightness(web_ch["light_pct"], web_ch)
+        else:
+            self.light.set_brightness(None) # -> Führt zum Ausgrauen
+
+        # Exhaust Fan
+        if "exhaust_fan" in web_ch:
+            ex_data = web_ch["exhaust_fan"]
+            rpm_ex = ex_data.get("exhaust_fan_rpm", 0)
+            self.exhaust_fan.set_rpm(rpm_ex, ex_data)
+        else:
+            self.exhaust_fan.set_rpm(None) # -> Führt zum Ausgrauen
+
+        # Circulation Fan
+        if "circulation_fan" in web_ch:
+            circ_data = web_ch["circulation_fan"]
+            rpm_circ = circ_data.get("circulation_fan_rpm", 0)
+            self.circulation_fan.set_rpm(rpm_circ, circ_data)
+        else:
+            self.circulation_fan.set_rpm(None) # -> Führt zum Ausgrauen
+
+        # --- RESTLICHE STATUS WERTE ---
         v_bat = health.get("battery", {}).get("voltage") or web_ch.get("battery_voltage")
         self.battery.set_voltage(v_bat)
 
-        # --- SIGNAL (RSSI) ---
-        # Wir nehmen den RSSI-Wert, den der Decoder bereits in den Health-Block gemappt hat
         rssi = health.get("signal", {}).get("rssi")
         self.signal.set_rssi(rssi)
 
-        # --- FANS / RPM (Aus dem Webserver-Snapshot im Frame) ---
-        # Hier greifen wir NICHT auf den Webclient zu, sondern auf das, was der Decoder
-        # aus dem web_dump.json in den Frame geschrieben hat.
-        rpm_ex = web_ch.get("exhaust_fan", {}).get("exhaust_fan_rpm")
-        self.exhaust_fan.set_rpm(rpm_ex)
-        
-        rpm_circ = web_ch.get("circulation_fan", {}).get("circulation_fan_rpm")
-        self.circulation_fan.set_rpm(rpm_circ)
-
-        # --- LICHT ---
-        light_val = web_ch.get("light_pct")
-        self.light.set_status(light_val)
-
-        # --- STATUS LED ---
-        # Nutzt den vom Decoder berechneten Status
         self.set_led(frame)
         self.set_external_from_frame(frame)
         self._update_clock()
-   
-   
+
+    def _set_all_offline(self):
+        """Hilfsmethode für harten Datenverlust"""
+        self.signal.set_rssi(None)
+        self.battery.set_voltage(None)
+        self.light.set_brightness(None)
+        self.exhaust_fan.set_rpm(None)
+        self.circulation_fan.set_rpm(None)
+        self.led.set_state(False, "offline")
     def set_rssi_from_frame(self, frame):
         # 1. 'health' Dictionary holen (Default leeres Dict)
         health = frame.get("health", {})

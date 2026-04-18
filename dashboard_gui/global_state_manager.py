@@ -20,7 +20,7 @@ from dashboard_gui.gsm_engines.tile_engine import TileEngine
 from dashboard_gui.global_gesture_manager import GlobalGestureManager
 from dashboard_gui.gsm_engines.data_flow_engine import DataFlowEngine
 from dashboard_gui.gsm_engines.broadcast_engine import BroadcastEngine
-
+from dashboard_gui.gsm_engines.overlay_command_engine import OverlayCommandEngine
 from dashboard_gui.gsm_engines.graph_control_engine import GraphControlEngine# Initialisieren
 def _extract_mac(dev):
     """Normiert device_id auf reine MAC."""
@@ -54,7 +54,8 @@ class GlobalStateManager:
         self.fan_rpm = 0
         self.fan_pct = 0
         self.active_mode = "man"
-        
+
+
         ######REFACTORING!!!!! ENGINES
         self.graph_engine = GraphEngine(self)
         self.ui_handler = UIManager(self)
@@ -71,6 +72,7 @@ class GlobalStateManager:
         self.broadcast_engine = BroadcastEngine(self)
         self.data_flow = DataFlowEngine(self)
         self.graph_control = GraphControlEngine(self)
+        self.overlay_engine = OverlayCommandEngine(self) # <--- Hier wird sie erst erschaffen!
         from dashboard_gui.gsm_engines.active_channel_engine import init_active_channel_engine
         
         # 2. ERSCHAFFE die Engine und binde sie an self (WICHTIG!)
@@ -170,6 +172,15 @@ class GlobalStateManager:
         # Delegiert an den UI-Manager
         self.ui_handler.refresh_broadcast_buttons()
 
+    # In dashboard_gui/global_state_manager.py
+    def send_overlay_command(self, cmd_type, **kwargs):
+        """Der GSM routet nur noch – keine Logik mehr hier drin!"""
+        mac = self.get_active_device_id()
+        if not mac: 
+            return None
+        
+        # Der GSM sagt nur: "OCE, kümmere dich drum!"
+        return self.overlay_engine.process_command(mac, cmd_type, **kwargs)
     # ---------------------------------------------------------
     # TILE ENGINE – Delegation
     # ---------------------------------------------------------
