@@ -670,8 +670,79 @@ def step_decode():
                     "leaf_temp": {"value": calculator.to_unit(raw_t_l), "unit": unit},
                     "vpd_leaf": {"value": vpd_l, "unit": "kPa"}
                 }
-
-                # ================================================
+             # ---------------------------------------------------
+            # BLE SENSOREN (KOMPLETT: TEMP + HUM + VPD + COORD)
+            # ---------------------------------------------------
+            ble_block = current_web.get("ble_sensors", {})
+            ble_out = {}
+            
+            # --- SPS ---
+            sps = ble_block.get("sps", {})
+            if sps.get("online"):
+                t = sps.get("ble_temp_sps")
+                h = sps.get("ble_humid_sps")
+            
+                T_ble, H_ble, _, _ = calculator.apply_offsets(t, h, None, None)
+            
+                vpd_ble = calculator._vpd(T_ble, H_ble)
+                x_ble, y_ble = calculator.vpd_coord_internal(T_ble, H_ble)
+            
+                ble_out["sps"] = {
+                    "online": True,
+                    "temperature": {
+                        "value": calculator.to_unit(T_ble),
+                        "unit": unit
+                    },
+                    "humidity": {
+                        "value": H_ble,
+                        "unit": "%"
+                    },
+                    "vpd": {
+                        "value": vpd_ble,
+                        "unit": "kPa"
+                    },
+                    "coord": {
+                        "x": x_ble,
+                        "y": y_ble
+                    }
+                }
+            
+            # --- TB2 ---
+            tb2 = ble_block.get("tb2", {})
+            if tb2.get("online"):
+                t = tb2.get("ble_temp_tb2")
+                h = tb2.get("ble_humid_tb2")
+            
+                T_ble, H_ble, _, _ = calculator.apply_offsets(t, h, None, None)
+            
+                vpd_ble = calculator._vpd(T_ble, H_ble)
+                x_ble, y_ble = calculator.vpd_coord_internal(T_ble, H_ble)
+            
+                ble_out["tb2"] = {
+                    "online": True,
+                    "temperature": {
+                        "value": calculator.to_unit(T_ble),
+                        "unit": unit
+                    },
+                    "humidity": {
+                        "value": H_ble,
+                        "unit": "%"
+                    },
+                    "vpd": {
+                        "value": vpd_ble,
+                        "unit": "kPa"
+                    },
+                    "coord": {
+                        "x": x_ble,
+                        "y": y_ble
+                    }
+                }
+            
+            if ble_out:
+                web_dec["ble_sensors"] = ble_out
+            
+            
+            # ================================================
             # ALLE FELDER AUS WEB-DUMP FLACH HINZUFÜGEN
             # (Firmware, Targets, Fan-Settings, Timings, etc.)
             # ================================================
@@ -701,7 +772,12 @@ def step_decode():
         final_rssi = web_rssi if web_rssi is not None else ble_rssi
 
         is_alive = any([adv_dec["alive"], gatt_dec["alive"], web_dec["alive"]])
-        if not is_alive: final_rssi = None
+        if not is_alive: 
+            final_rssi = None
+
+        # === NEU: Overlay-Sync + Offline-Schutz ===
+        web_alive = web_dec.get("alive", False)
+        current_web_safe = current_web if web_alive else {}
 
         frames.append({
             "timestamp": now,
@@ -716,7 +792,18 @@ def step_decode():
                 "uptime": {"value": now - UPTIME_START, "unit": "s"},
                 "battery": {"value": None, "unit": "V", "voltage": web_dec.get("battery_voltage") or adv_dec.get("battery_voltage")},
                 "signal": {"rssi": final_rssi, "quality": None}
-            }
+            },
+
+            # === Overlay-Sicherheitsfelder ===
+            "device_online": is_alive and web_alive,
+            "web_alive": web_alive,
+
+            "rev_light":       current_web_safe.get("rev_light", -1) if web_alive else -1,
+            "rev_exhaust":     current_web_safe.get("rev_exhaust", -1) if web_alive else -1,
+            "rev_circfan":     current_web_safe.get("rev_circulation", -1) if web_alive else -1,
+            "rev_init_light":  current_web_safe.get("rev_init_light", -1) if web_alive else -1,
+            "rev_init_exhaust":current_web_safe.get("rev_init_exhaust", -1) if web_alive else -1,
+            "rev_init_circfan":current_web_safe.get("rev_init_circfan", -1) if web_alive else -1,
         })
     _write(frames)
 # ------------------------------------------------------------

@@ -1,7 +1,6 @@
 import time
 from dashboard_gui.data_buffer import BUFFER
 from datetime import datetime
-
 class DataFlowEngine:
     def __init__(self, gsm):
         self.gsm = gsm
@@ -9,7 +8,7 @@ class DataFlowEngine:
         self._last_frame_time = time.time()
         self.current_latency = 0
         self.last_seen_timestamps = {}
-        
+        self.active_channel = self.gsm.active_channel_engine
         # Für LED/Flow Logik
         self._last_counter = None
         self._last_raw = None
@@ -48,9 +47,8 @@ class DataFlowEngine:
             self.gsm.mixed_engine.update(data)
 
         # --- PHASE 2: UI FOKUS (Aktives Gerät) ---
-        from dashboard_gui.gsm_engines.active_channel_engine import ACTIVE_CHANNEL
-        ch_name = ACTIVE_CHANNEL.get_active_channel()
-        active_idx = ACTIVE_CHANNEL.get_active_index()
+        ch_name = self.gsm.get_active_channel()   # nicht ACTIVE_CHANNEL!
+        active_idx = self.gsm.active_channel_engine.get_active_index()
 
         idx = min(active_idx, len(data)-1)
         d = data[idx] # Das ist der fertige Frame vom Decoder

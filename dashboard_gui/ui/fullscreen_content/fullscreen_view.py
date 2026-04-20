@@ -131,19 +131,37 @@ class FullScreenView(Screen):
         
         # Deine alten Definitionen
         config_map = {
+            # --- INTERNAL ---
             "temp_in": {"color": [1, 0.2, 0.2, 1], "bg": "tile_bg_temp_in.png"},
             "hum_in":  {"color": [0.2, 0.6, 1, 1], "bg": "tile_bg_hum_in.png"},
             "vpd_in":  {"color": [1, 0.8, 0.2, 1], "bg": "tile_bg_vpd_in.png"},
+
+            # --- EXTERNAL 1 ---
             "temp_ex": {"color": [1, 0.4, 0.4, 1], "bg": "tile_bg_temp_out.png"},
             "hum_ex":  {"color": [0.3, 1, 1, 1],   "bg": "tile_bg_hum_out.png"},
             "vpd_ex":  {"color": [0.3, 1, 0.3, 1], "bg": "tile_bg_vpd_out.png"},
-            # ✅ NEU HINZUFÜGEN:
+
+            # --- EXTERNAL 2 (LEAF) ---
             "leaf_temp": {"color": [0.2, 0.8, 0.2, 1], "bg": "tile_bg_temp_out.png"},
             "vpd_leaf":  {"color": [0.6, 1, 0.2, 1],   "bg": "tile_bg_vpd_out.png"},
-            "v_bat":     {"color": [1, 0.8, 0.2, 1],   "bg": "tile_bg_batt.png"},
-            "circulation_fan_rpm":   {"color": [0.3, 1, 0.3, 1],   "bg": "tile_bg_fan.png"},
-            "exhaust_fan_rpm":   {"color": [0.3, 1, 0.3, 1],   "bg": "tile_bg_fan.png"},
-       
+
+            # --- BLE SPS ---
+            "ble_temp_sps": {"color": [1, 0.2, 0.5, 1], "bg": "tile_bg_temp_in.png"},
+            "ble_hum_sps":  {"color": [0.2, 0.8, 1, 1], "bg": "tile_bg_hum_in.png"},
+            "ble_vpd_sps":  {"color": [0.6, 0.4, 1, 1], "bg": "tile_bg_vpd_in.png"},
+
+            # --- BLE TB2 ---
+            "ble_temp_tb2": {"color": [1, 0.5, 0.2, 1], "bg": "tile_bg_temp_in.png"},
+            "ble_hum_tb2":  {"color": [0.5, 0.8, 1, 1], "bg": "tile_bg_hum_in.png"},
+            "ble_vpd_tb2":  {"color": [0.4, 0.6, 1, 1], "bg": "tile_bg_vpd_out.png"},
+
+            # --- MISC (BATT / FANS) ---
+            "v_bat":               {"color": [1, 0.8, 0.2, 1], "bg": "tile_bg_batt.png"},
+            "circulation_fan_rpm": {"color": [0.3, 1, 0.3, 1], "bg": "tile_bg_fan.png"},
+            "exhaust_fan_rpm":     {"color": [0.3, 1, 0.3, 1], "bg": "tile_bg_fan.png"},
+        
+
+
         }
         
         

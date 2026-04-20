@@ -124,7 +124,9 @@ class ActiveChannelEngine:
         d = cfg.get("devices", {}).get(device_id, {})
         return d.get("name", device_id)
 
-
+    # KEINE global ACTIVE_CHANNEL mehr exportieren!
+    def get_active_channel_engine():
+        return ACTIVE_CHANNEL  # nur intern
 # Singleton
 ACTIVE_CHANNEL = None
 

@@ -22,6 +22,7 @@ from dashboard_gui.gsm_engines.data_flow_engine import DataFlowEngine
 from dashboard_gui.gsm_engines.broadcast_engine import BroadcastEngine
 from dashboard_gui.gsm_engines.overlay_command_engine import OverlayCommandEngine
 from dashboard_gui.gsm_engines.graph_control_engine import GraphControlEngine# Initialisieren
+from dashboard_gui.gsm_engines.active_channel_engine import ACTIVE_CHANNEL
 def _extract_mac(dev):
     """Normiert device_id auf reine MAC."""
     if isinstance(dev, dict):
@@ -54,9 +55,7 @@ class GlobalStateManager:
         self.fan_rpm = 0
         self.fan_pct = 0
         self.active_mode = "man"
-
-
-        ######REFACTORING!!!!! ENGINES
+        ###### REFACTORING!!!!! ENGINES
         self.graph_engine = GraphEngine(self)
         self.ui_handler = UIManager(self)
         self.engine = ConfigEngine(self)
@@ -70,19 +69,22 @@ class GlobalStateManager:
         self.tile_engine = TileEngine(self)
         self.ggm = GlobalGestureManager(self)
         self.broadcast_engine = BroadcastEngine(self)
-        self.data_flow = DataFlowEngine(self)
         self.graph_control = GraphControlEngine(self)
-        self.overlay_engine = OverlayCommandEngine(self) # <--- Hier wird sie erst erschaffen!
+        self.overlay_engine = OverlayCommandEngine(self)
+        
         from dashboard_gui.gsm_engines.active_channel_engine import init_active_channel_engine
         
-        # 2. ERSCHAFFE die Engine und binde sie an self (WICHTIG!)
+        # ✅ ZUERST erstellen
         self.active_channel_engine = init_active_channel_engine(self.gatt_engine)
         
-        # 3. Jetzt, wo sie existiert, kannst du sie der globalen Variable zuweisen
         global ACTIVE_CHANNEL_ENGINE
         ACTIVE_CHANNEL_ENGINE = self.active_channel_engine
+        
+        # ✅ ERST DANACH DataFlow!
+        self.data_flow = DataFlowEngine(self)
+        
         ##################################
-#########REFACTOR
+        ######### REFACTOR
     def sync_ui_buttons(self):
         """Triggert den Sync-Vorgang im UI Manager an."""
         self.ui_handler._refresh_all_buttons()
@@ -116,15 +118,13 @@ class GlobalStateManager:
             print(f"[GSM] Error getting active device IP: {e}")
             return None
          
+    # In global_state_manager.py
     def get_active_channel(self):
-        # Wir delegieren die Anfrage an die tatsächliche Engine
-        from dashboard_gui.gsm_engines.active_channel_engine import ACTIVE_CHANNEL
-        return ACTIVE_CHANNEL.get_active_channel()
-
+        return self.active_channel_engine.get_active_channel()
+    
     def set_active_channel(self, channel):
         self.active_channel_engine.set_active_channel(channel)
-        # Kleiner Trick: Wir triggern hier direkt den Flow, dann muss das Menü es nicht tun!
-        self.data_flow.process_cycle()
+        self.data_flow.process_cycle()  # gut so
 
     def get_active_index(self):
         return ACTIVE_CHANNEL_ENGINE.get_active_index()

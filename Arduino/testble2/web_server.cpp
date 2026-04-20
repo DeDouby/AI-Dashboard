@@ -30,6 +30,7 @@
 #include <ArduinoJson.h>
 #include "web_server_browser.h"
 #include "esp_watch.h"
+#include "ble_scanner.h"
 extern ESPWatch watch; // Greift auf die Instanz in der Hauptdatei zu
 
 #include "grow_controller.h" // <--- DAS HIER AUCH
@@ -95,7 +96,8 @@ void handleData() {
     circulation_fan_get_status(obj);
     light_control_get_status(obj);
     grow_controller_get_status(obj); 
-
+    BLEScanner::get_status(obj);
+    
     String response;
     serializeJson(doc, response);
     server.send(200, "application/json", response);

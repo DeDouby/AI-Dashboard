@@ -22,9 +22,13 @@ class ChartTile(ButtonBehavior, BoxLayout):
         self.tile_id = tile_id
         self.title = title
         self.unit = unit
+        self._last_val = None
+        self._last_avg = None
+        self._last_min = None
+        self._last_max = None
         self.color = color_rgba
         self.window = config.get_tile_graph_window()
-
+        self._frame_skip = 0
         # -------------------------------------------------
         # 1. HINTERGRUND
         # -------------------------------------------------
@@ -69,7 +73,7 @@ class ChartTile(ButtonBehavior, BoxLayout):
         
         self.plot = LinePlot(color=self.color, line_width=dp_scaled(2.2))
         self.plot_glow = LinePlot(color=[*self.color[:3], 0.15], line_width=dp_scaled(4))
-        self.graph.add_plot(self.plot_glow)
+        ## self.graph.add_plot(self.plot_glow) # Glow-Effekt (optional, kann die Performance beeinträchtigen)
         self.graph.add_plot(self.plot)
         self.graph_container.add_widget(self.graph)
 
@@ -124,32 +128,34 @@ class ChartTile(ButtonBehavior, BoxLayout):
         if value is not None:
             GLOBAL_STATE.graph_engine.process_new_value(buf_key, value)
     
-        if render:
-            history = GLOBAL_STATE.get_graph_data(buf_key)
-            unit = GLOBAL_STATE.get_unit(buf_key)
-            
-            if not history:
-                self.lbl_main_info.text = f"[color=#666666]{self.title}: --[/color]"
-                self._render_empty_graph() 
-                return
-
-            trend_icon = GLOBAL_STATE.get_trend_icon(buf_key)
-            last_val = history[-1]
-            
-            # HIER NUTZEN WIR DEN FORMATTER FÜRS DASHBOARD
-            # Wir machen es hier etwas kompakter als im Mixed-Mode
+        if not render:
+            return
+    
+        history = GLOBAL_STATE.get_graph_data(buf_key)
+        unit = GLOBAL_STATE.get_unit(buf_key)
+    
+        if not history:
+            self.lbl_main_info.text = f"[color=#666666]{self.title}: --[/color]"
+            self._render_empty_graph()
+            return
+    
+        last_val = history[-1]
+        trend_icon = GLOBAL_STATE.get_trend_icon(buf_key)
+    
+        if last_val != self._last_val:
             self.lbl_main_info.text = UIFormatter.format_sensor_label(
                 name=self.title,
                 value=last_val,
                 unit=unit,
                 trend=trend_icon,
-                sz_val=28,    # Wert im Tile etwas kleiner als im Mixed-Mode
-                sz_name=14,   # Titel dezent
+                sz_val=28,
+                sz_name=14,
                 sz_trend=20,
                 sz_unit=14
             )
-            
-            self._render_buffer(history, unit, buf_key)
+            self._last_val = last_val
+    
+        self._render_buffer(history, unit, buf_key)
     # -------------------------------------------------
     # RENDER EMPTY – Alles auf Null/Striche setzen
     # -------------------------------------------------

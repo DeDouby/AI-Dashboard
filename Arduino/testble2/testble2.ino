@@ -11,6 +11,7 @@
 #include "grow_controller.h" // <--- DAS HIER AUCH
 #include "esp_watch.h"
 #include "esp_sntp.h"
+#include "ble_scanner.h"
 // BLE & System
 ESPWatch watch;
 BLEBridge bleBridge;
@@ -44,7 +45,7 @@ String get_current_time_str() {
 void setup() {
     setCpuFrequencyMhz(240);
     Serial.begin(115200);
-
+    BLEDevice::init("LGS_Grow_Master");
     init_hardware();
 
     // === RTC START ===
@@ -72,7 +73,7 @@ void setup() {
     power_manager_init();
     circulation_fan_init(PIN_CIRC_FAN, PIN_CIRC_TACHO);
     exhaust_fan_init(PIN_EXH_FAN, PIN_EXH_TACHO);
-
+    BLEScanner::init();   // 2. Einmalig initialisieren
     light_init();
     grow_controller_init();
 
@@ -90,7 +91,7 @@ void loop() {
     exhaust_fan_update(); 
     light_update();
     power_manager_update();
-
+    BLEScanner::update(); // 3. Den Scanner am Leben erhalten
     // ==================== ZEIT-MANAGEMENT ====================
     static uint32_t last_time_check = 0;
     static bool initial_sync_done = false;
@@ -130,9 +131,12 @@ void loop() {
         }
     }
     // BLE Broadcast (alle 5 Sek)
-    static uint32_t last_ble_update = 0;
-    if (millis() - last_ble_update > 5000) {
-        last_ble_update = millis();
+    // Im loop() Bereich für BLE Broadcast
+    static uint32_t last_ble_broadcast = 0;
+    if (millis() - last_ble_broadcast > 5000) {
+        last_ble_broadcast = millis();
+        
+        // Nur kurz broadcasten, damit wir den Rest der Zeit für WiFi & Scan frei haben
         bleBridge.updateBroadcast(
             getTempExt(), getExternalHumidity(), getTempIn(),
             40.0, 25.5f, get_battery_voltage_now(),

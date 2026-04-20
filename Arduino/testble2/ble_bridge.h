@@ -18,7 +18,6 @@ private:
 
 public:
     void begin() {
-        BLEDevice::init(BRIDGE_NAME);
         
         // Maximale Sendeleistung einstellen (+9dBm für S3)
         esp_ble_tx_power_set(ESP_BLE_PWR_TYPE_DEFAULT, ESP_PWR_LVL_P9);

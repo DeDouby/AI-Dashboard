@@ -197,18 +197,24 @@ class VPDScatterScreen(Screen):
         self.graph.bind(size=self._sync_graph, pos=self._sync_graph)
         self.content.bind(size=self._sync_graph, pos=self._sync_graph)
 
-        # -------------------------------------------------
-        # SCATTER POINTS (CANVAS – DAS IST DER KEY)
+        # SCATTER POINTS (CANVAS)
         # -------------------------------------------------
         with self.graph.canvas.after:
-            # INTERN
-            Color(1.0, 0.85, 0.2, 0.85)  # IN
-            self.p_in = Ellipse(size=(36, 36), pos=(-1000, -1000))
+            # INTERN (Gelb)
+            Color(1.0, 0.85, 0.2, 0.85)
+            self.p_in = Ellipse(size=(30, 30), pos=(-1000, -1000))
 
-            # EXTERN
-            Color(0.3, 1.0, 0.3, 0.85)  # EX
-            self.p_ex = Ellipse(size=(36, 36), pos=(-1000, -1000))
+            # EXTERN (Grün)
+            Color(0.3, 1.0, 0.3, 0.85)
+            self.p_ex = Ellipse(size=(30, 30), pos=(-1000, -1000))
 
+            # --- NEU: BLE SPS (Pink/Magenta) ---
+            Color(1.0, 0.2, 0.6, 0.85)
+            self.p_sps = Ellipse(size=(30, 30), pos=(-1000, -1000))
+
+            # --- NEU: BLE TB2 (Cyan/Hellblau) ---
+            Color(0.2, 0.8, 1.0, 0.85)
+            self.p_tb2 = Ellipse(size=(30, 30), pos=(-1000, -1000))
         # -------------------------------------------------
         # CONTROL BUTTONS
         # -------------------------------------------------
@@ -259,15 +265,13 @@ class VPDScatterScreen(Screen):
         self.bg_rect.texture = CoreImage(path).texture
         self._active_bg = key
 
-
-    # -------------------------------------------------
-    # DATA LOAD (IDENTISCH ZU FULLSCREEN)
+# -------------------------------------------------
+    # DATA LOAD
     # -------------------------------------------------
     def _load_points(self):
         idx = self.gsm.get_active_index()
         dev_list = self.gsm.get_device_list()
-    
-        if not dev_list or idx >= len(dev_list):
+        if not dev_list or idx >= len(dev_list): 
             return
     
         dev_id = dev_list[idx]
@@ -276,40 +280,42 @@ class VPDScatterScreen(Screen):
     
         def get_last(metric):
             buf = self.gsm.get_graph_data(f"{prefix}_{metric}")
-            return float(buf[-1]) if buf else None
+            return float(buf[-1]) if buf and buf[-1] is not None else None
     
-        # 1. Koordinaten für die Punkte auf dem Canvas
-        x_in, y_in = get_last("vpd_x_in"), get_last("vpd_y_in")
-        x_ex, y_ex = get_last("vpd_x_ex"), get_last("vpd_y_ex")
-    
-        # 2. Werte für die Detail-Box (Rechts)
-        v_in, h_in, t_in = get_last("vpd_in"), get_last("hum_in"), get_last("temp_in")
-        v_ex, h_ex, t_ex = get_last("vpd_ex"), get_last("hum_ex"), get_last("temp_ex")
-    
-        # --- DER UNIT-FIX ---
-        # Wir holen die Einheiten direkt über die Keys aus dem GSM
-        self._unit_t = self.gsm.get_unit(f"{prefix}_temp_in")
-        self._unit_h = self.gsm.get_unit(f"{prefix}_hum_in")
-        self._unit_v = " kPa" # VPD ist bei uns fix kPa, oder auch via GSM: self.gsm.get_unit(f"{prefix}_vpd_in")
-    
-        # 3. Daten für die Render-Funktion zwischenspeichern
-        self._box = {
-            "in": {"t": t_in, "h": h_in, "vpd": v_in},
-            "ex": {"t": t_ex, "h": h_ex, "vpd": v_ex},
+        # 1. Koordinaten für die Canvas-Punkte (X=Hum, Y=Temp)
+        coords = {
+            "in":  (get_last("vpd_x_in"),  get_last("vpd_y_in")),
+            "ex":  (get_last("vpd_x_ex"),  get_last("vpd_y_ex")),
+            "sps": (get_last("vpd_x_sps"), get_last("vpd_y_sps")),
+            "tb2": (get_last("vpd_x_tb2"), get_last("vpd_y_tb2"))
         }
     
-        # 4. Punkte auf dem Hintergrund-Bild platzieren
-        if x_in is not None and y_in is not None:
-            self._place_point(self.p_in, y_in, x_in)
-        else:
-            self.p_in.pos = (-1000, -1000)
+        # 2. Werte für die Info-Box (VPD, Temp, Hum)
+        self._box = {
+            "in":  {"t": get_last("temp_in"),  "h": get_last("hum_in"),  "vpd": get_last("vpd_in")},
+            "ex":  {"t": get_last("temp_ex"),  "h": get_last("hum_ex"),  "vpd": get_last("vpd_ex")},
+            "sps": {"t": get_last("ble_temp_sps"), "h": get_last("ble_hum_sps"), "vpd": get_last("ble_vpd_sps")},
+            "tb2": {"t": get_last("ble_temp_tb2"), "h": get_last("ble_hum_tb2"), "vpd": get_last("ble_vpd_tb2")}
+        }
     
-        if x_ex is not None and y_ex is not None:
-            self._place_point(self.p_ex, y_ex, x_ex)
-        else:
-            self.p_ex.pos = (-1000, -1000)
+        # 3. Punkte auf dem Canvas platzieren
+        mapping = {
+            "in": self.p_in, 
+            "ex": self.p_ex, 
+            "sps": self.p_sps, 
+            "tb2": self.p_tb2
+        }
+
+        for key, ellipse in mapping.items():
+            hx, ty = coords[key]
+            if hx is not None and ty is not None:
+                self._place_point(ellipse, ty, hx)
+            else:
+                # Punkt weit weg schieben, wenn keine Daten da sind
+                ellipse.pos = (-1000, -1000)
     
-        self._update_value_box()     
+        # 4. Jetzt erst die Box rendern (jetzt sind alle Keys drin!)
+        self._update_value_box()
     # -------------------------------------------------
     def _place_point(self, ellipse, temp, hum):
         gx, gy = self.graph.pos
@@ -343,36 +349,20 @@ class VPDScatterScreen(Screen):
         pass
     def _update_value_box(self):
         def fmt(v, unit=""):
-            if v is None: return "--"
-            # Schöne Formatierung: Leerzeichen nur wenn nötig
-            return f"{v:.2f} {unit}".strip()
-    
-        # 1. Einheiten vom GSM (UnitEngine) beziehen
-        ut = getattr(self, "_unit_t", "°C")
-        uh = getattr(self, "_unit_h", "%")
-        uv = "kPa" # VPD Standard
+            return f"{v:.2f} {unit}".strip() if v is not None else "--"
     
         b = getattr(self, "_box", None)
         if not b: return
     
-        # 2. Leaf Offset aus der Config (Fix auf Celsius)
-        import config
-        offset = config.get_leaf_offset()
-
-        # 3. Markup-Text zusammenbauen (Farben passend zu den Ellipsen)
+        # Farben definieren (passend zum Canvas)
         self.value_label.text = (
-            "[font=FA][color=#FFD933]\uf111[/color][/font] [b]INTERNAL[/b]\n"
-            f"  T: {fmt(b['in']['t'], ut)}  "
-            f"H: {fmt(b['in']['h'], uh)}\n"
-            f"  VPD: [b]{fmt(b['in']['vpd'], uv)}[/b]\n\n"
-        
-            "[font=FA][color=#4DFF4D]\uf111[/color][/font] [b]EXTERNAL[/b]\n"
-            f"  T: {fmt(b['ex']['t'], ut)}  "
-            f"H: {fmt(b['ex']['h'], uh)}\n"
-            f"  VPD: [b]{fmt(b['ex']['vpd'], uv)}[/b]\n\n"
-        
-            "[color=#AAAAAA][i]Leaf Offset:[/i][/color] "
-            f"[color=#FFFFFF]{fmt(offset, '°C')}[/color]"
+            "[color=#FFD933]●[/color] [b]INTERNAL[/b]: " + fmt(b['in']['vpd'], "kPa") + "\n"
+            "[color=#4DFF4D]●[/color] [b]EXTERNAL[/b]: " + fmt(b['ex']['vpd'], "kPa") + "\n"
+            "[color=#FF3399]●[/color] [b]SPS BLE[/b]:  " + fmt(b['sps']['vpd'], "kPa") + "\n"
+            "[color=#33CCFF]●[/color] [b]TB2 BLE[/b]:  " + fmt(b['tb2']['vpd'], "kPa") + "\n\n"
+            
+            f"[size=16sp][color=#AAAAAA]SPS:[/color] {fmt(b['sps']['t'], '°C')} / {fmt(b['sps']['h'], '%')}\n"
+            f"[color=#AAAAAA]TB2:[/color] {fmt(b['tb2']['t'], '°C')} / {fmt(b['tb2']['h'], '%')}[/size]"
         )    # ============================================================
 
     # -------------------------------------------------

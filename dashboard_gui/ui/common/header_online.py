@@ -314,6 +314,18 @@ class HeaderBar(BoxLayout):
             self.bg = Rectangle(pos=self.pos, size=self.size)
         self.bind(pos=self._u_bg, size=self._u_bg)
         self._last_frame = {}
+        ########### STATE DICT FÜR ALLE WICHTIGEN DATEN, DIE DER HEADER DARSTELLT ALLES Hier REIN, keine Eigenwege
+        self._state = {
+            "rssi": None,
+            "battery": None,
+            "light": None,
+            "external": False,
+            "led_alive": False,
+            "led_status": "offline",
+            "circulation_fan_rpm": None,
+            "exhaust_fan_rpm": None,
+        }        
+        
         # BACK BUTTON (stabil, bleibt rechts)
         self.btn_back = Button(
             text="\uf060",
@@ -499,7 +511,20 @@ class HeaderBar(BoxLayout):
 
 
 
-
+    def _apply_state(self):
+        s = self._state
+    
+        self.signal.set_rssi(s["rssi"])
+        self.battery.set_voltage(s["battery"])
+        self.light.set_brightness(s["light"])
+    
+        self.external.set_external(s["external"])
+        self.led.set_state(s["led_alive"], s["led_status"])
+            # 🔥 FANS FIX
+        self.circulation_fan.set_rpm(s["circulation_fan_rpm"])
+        self.exhaust_fan.set_rpm(s["exhaust_fan_rpm"])
+    
+    
     # ---------------------------------------------------
     # Back Button Control
     # ---------------------------------------------------
@@ -626,89 +651,61 @@ class HeaderBar(BoxLayout):
     # ONE ENTRY-POINT FOR ALL SCREENS
     # ---------------------------------------------------
     def update_from_global(self, frame):
-        """Wird im Takt der DataFlowEngine gerufen."""
-        self._last_frame = frame   # <<< DAS FEHLT BEI DIR
-
+    
         if not isinstance(frame, dict) or not frame:
-            self._set_all_offline()
             return
-
-        # Daten-Quellen
+    
         web_ch = frame.get("webserver", {})
-        health = frame.get("health", {})
         
-        # --- DEVICE LABEL ---
+        
+        circ_data = web_ch.get("circulation_fan", {})
+        exh_data = web_ch.get("exhaust_fan", {})
+
+        self._state["circulation_fan_rpm"] = circ_data.get("circulation_fan_rpm")
+        self._state["exhaust_fan_rpm"] = exh_data.get("exhaust_fan_rpm")
+
+        
+        health = frame.get("health", {})
+    
+        # DEVICE LABEL bleibt wie es ist
         mac = frame.get("device_id")
         label = GLOBAL_STATE.get_device_label(mac) if mac else "---"
         ch_name = frame.get("channel", "adv")
         tag = "WEB" if ch_name == "webserver" else ch_name.upper()
         self.lbl_dev.text = f"[font=FA]\uf2c7[/font]  {label} [color=777777]· {tag}[/color]"
-
-        # --- FANS / LIGHT (Der Skandal-Fix) ---
-        # Wir prüfen, ob der Key im web_ch existiert. 
-        # Wenn der Key fehlt (Sensor nicht verbaut), übergeben wir None.
-
-        # Licht
-        if "light_pct" in web_ch:
-            self.light.set_brightness(web_ch["light_pct"], web_ch)
-        else:
-            self.light.set_brightness(None) # -> Führt zum Ausgrauen
-
-        # Exhaust Fan
-        if "exhaust_fan" in web_ch:
-            ex_data = web_ch["exhaust_fan"]
-            rpm_ex = ex_data.get("exhaust_fan_rpm", 0)
-            self.exhaust_fan.set_rpm(rpm_ex, ex_data)
-        else:
-            self.exhaust_fan.set_rpm(None) # -> Führt zum Ausgrauen
-
-        # Circulation Fan
-        if "circulation_fan" in web_ch:
-            circ_data = web_ch["circulation_fan"]
-            rpm_circ = circ_data.get("circulation_fan_rpm", 0)
-            self.circulation_fan.set_rpm(rpm_circ, circ_data)
-        else:
-            self.circulation_fan.set_rpm(None) # -> Führt zum Ausgrauen
-
-        # --- RESTLICHE STATUS WERTE ---
-        v_bat = health.get("battery", {}).get("voltage") or web_ch.get("battery_voltage")
-        self.battery.set_voltage(v_bat)
-
-        rssi = health.get("signal", {}).get("rssi")
-        self.signal.set_rssi(rssi)
-
-        self.set_led(frame)
-        self.set_external_from_frame(frame)
+    
+        # ----------------------------
+        # STATE ONLY (KEIN UI LOGIK MEHR)
+        # ----------------------------
+        self._state["rssi"] = health.get("signal", {}).get("rssi")
+    
+        self._state["battery"] = (
+            health.get("battery", {}).get("voltage")
+            or web_ch.get("battery_voltage")
+        )
+    
+        self._state["light"] = web_ch.get("light_pct")
+    
+        self._state["external"] = bool(
+            health.get("external", {}).get("present")
+            or web_ch.get("external", {}).get("present", False)
+        )
+    
+        self._state["led_alive"] = frame.get("alive", False)
+        self._state["led_status"] = frame.get("status", "offline")
+    
+        # EIN EINZIGER APPLY
+        self._apply_state()
+        self._last_frame = frame.copy()          # <--- WICHTIG
+    # === Channel korrekt setzen ===
+        active_channel = GLOBAL_STATE.get_active_channel() or "webserver"  # Default sinnvoll
+        frame_with_channel = self._last_frame.copy()
+        frame_with_channel["channel"] = active_channel
+        self._last_frame = frame_with_channel
         self._update_clock()
 
-    def _set_all_offline(self):
-        """Hilfsmethode für harten Datenverlust"""
-        self.signal.set_rssi(None)
-        self.battery.set_voltage(None)
-        self.light.set_brightness(None)
-        self.exhaust_fan.set_rpm(None)
-        self.circulation_fan.set_rpm(None)
-        self.led.set_state(False, "offline")
-    def set_rssi_from_frame(self, frame):
-        # 1. 'health' Dictionary holen (Default leeres Dict)
-        health = frame.get("health", {})
-        
-        # 2. 'signal' Dictionary aus 'health' holen
-        signal = health.get("signal", {})
-        
-        # 3. Den eigentlichen 'rssi' Wert extrahieren
-        rssi = signal.get("rssi")
-    
-        # --- DEBUG PRINT (Optional, nimm es raus wenn es nervt) ---
-        # print(f"[DEBUG] RSSI Empfangen: {rssi}")
-    
-        # 4. Den Wert an das UI-Widget weitergeben
-        if rssi is not None:
-            # Hier landet jetzt dein -65 aus dem Dump
-            self.signal.set_rssi(rssi)
-        else:
-            # Falls gar nichts da ist (z.B. Sensorfehler)
-            self.signal.set_rssi(None)
+
+
     # ---------------------------------------------------
     # Helpers
     # ---------------------------------------------------
@@ -741,30 +738,3 @@ class HeaderBar(BoxLayout):
     def set_clock(self, hhmmss):
         self.lbl_clock.text = hhmmss
 
-
-    def set_external_from_frame(self, frame):
-            """
-            Entscheidet kanal-sicher, ob ein EXTERNAL-Sensor vorhanden ist.
-            Unterstützt Multi-Channel (adv/gatt).
-            """
-            if not frame:
-                self.set_external(False)
-                return
-    
-            present = False
-    
-            # 1) HEALTH → höchste Priorität, wenn es existiert
-            try:
-                present = bool(frame["health"]["external"]["present"])
-            except:
-                pass
-    
-            # 2) Falls nicht im Health → aktiver Kanal
-            if not present:
-                from dashboard_gui.global_state_manager import GLOBAL_STATE
-                ch = frame.get("channel", "adv")  # Standard auf "adv"
-                dec = frame.get(ch, {})
-                present = bool(dec.get("external", {}).get("present", False))
-    
-            # 3) In UI anwenden
-            self.set_external(present)
