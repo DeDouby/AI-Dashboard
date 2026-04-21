@@ -19,8 +19,36 @@ class OverlayCommandEngine:
             return self.send_exhaust_range(mac, **kwargs)
         elif cmd_type == "light":
             return self.send_light_command(mac, **kwargs)
+         # ====================== GROW CONTROLLER COMMANDS ======================
+        elif cmd_type == "grow_controller":
+            return self.send_grow_controller_command(mac, **kwargs)
+    
         return None
 
+    def send_grow_controller_command(self, mac, **kwargs):
+        current = self.get_latest_device_data(mac)
+        last_rev = int(current.get("rev_grow", 0))
+        new_rev = last_rev + 1
+    
+        command = kwargs.get("command")
+        wifi_mode = kwargs.get("wifi_mode")   # 🔥 NEU
+    
+        payload = {
+            "rev_grow": new_rev,
+        }
+    
+        if command:
+            payload["command"] = command
+    
+        # 🔥 WIFI MODE MITGEBEN
+        if wifi_mode is not None:
+            payload["wifi_mode"] = int(wifi_mode)
+    
+        WEB_CLIENT.send_control(mac, payload)
+        
+        print(f"[OverlayCommandEngine] GrowController payload sent | {payload}")
+        return new_rev
+    
     def send_fan_command(self, mac, **kwargs):
         last = self.get_latest_device_data(mac).get("rev_circfan", 0)
         new_rev = last + 1
@@ -44,25 +72,27 @@ class OverlayCommandEngine:
         }
         WEB_CLIENT.send_control(mac, payload)
         return new_rev
+    
     def send_exhaust_command(self, mac, **kwargs):
-        """Sendet komplettes Set inkl. Modus-Wechsel"""
-        last = self.get_latest_device_data(mac).get("rev_exhaust", 0)
-        new_rev = last + 1
+        current = self.get_latest_device_data(mac)
+        new_rev = int(current.get("rev_exhaust", 0)) + 1
+        
+        # Wir nutzen kwargs.get mit Fallbacks, um Teil-Updates (Ranges) 
+        # und Voll-Updates (Mode-Wechsel) in einer Logik zu vereinen
         payload = {
-            "exhaust_fan_min": int(kwargs.get("min", 20)),
-            "exhaust_fan_pct": int(kwargs.get("max", 65)),
-            "exhaust_fan_mode": kwargs.get("mode", "auto"),
-            "target_temp_min": int(kwargs.get("t_min", 22)),
-            "target_temp_max": int(kwargs.get("t_max", 28)),
-            "target_humidity_min": int(kwargs.get("h_min", 40)),
-            "target_humidity_max": int(kwargs.get("h_max", 70)),
-            "target_vpd_min": float(kwargs.get("vpd_min", 0.8)),
-            "target_vpd_max": float(kwargs.get("vpd_max", 1.5)),
+            "exhaust_fan_min": int(kwargs.get("min")),
+            "exhaust_fan_pct": int(kwargs.get("max")),
+            "exhaust_fan_mode": kwargs.get("mode"), # Vom UI geliefert!
+            "target_temp_min": int(kwargs.get("t_min")),
+            "target_temp_max": int(kwargs.get("t_max")),
+            "target_humidity_min": int(kwargs.get("h_min")),
+            "target_humidity_max": int(kwargs.get("h_max")),
+            "target_vpd_min": float(kwargs.get("vpd_min")),
+            "target_vpd_max": float(kwargs.get("vpd_max")),
             "rev_exhaust": new_rev
         }
         WEB_CLIENT.send_control(mac, payload)
         return new_rev
-
     def send_exhaust_range(self, mac, **kwargs):
         """Update nur für Slider-Änderungen (behält aktuellen Modus)"""
         last = self.get_latest_device_data(mac).get("rev_exhaust", 0)

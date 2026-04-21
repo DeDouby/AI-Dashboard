@@ -11,7 +11,6 @@
 #include "grow_controller.h" // <--- DAS HIER AUCH
 #include "esp_watch.h"
 #include "esp_sntp.h"
-#include "ble_scanner.h"
 // BLE & System
 ESPWatch watch;
 BLEBridge bleBridge;
@@ -45,7 +44,7 @@ String get_current_time_str() {
 void setup() {
     setCpuFrequencyMhz(240);
     Serial.begin(115200);
-    BLEDevice::init("LGS_Grow_Master");
+
     init_hardware();
 
     // === RTC START ===
@@ -55,44 +54,32 @@ void setup() {
         rtc_ok = true;
     }
 
-    // === GROW CONTROLLER INIT ===
-    // Wichtig: Erst init, damit die Prefs intern geladen werden!
-    grow_controller_init(); 
+    // === WLAN + WEB ===
+    WebModule::init(my_ssid, my_password);
 
+    // === NUR EINMAL ZEIT-SYSTEM ===
+    configTzTime("CET-1CEST,M3.5.0/2,M10.5.0/3",
+                 "pool.ntp.org",
+                 "time.nist.gov");
 
-
-    // === SOFORT HARDCODE AUF AP-MODUS (Stellschraube) ===
-    Serial.println("!!! HARDCODE: WiFi Mode auf 0 (AP) erzwungen !!!");
-    
-    WiFi.disconnect(true);
-    WiFi.mode(WIFI_OFF);
-    delay(400);
-
-    // <--- HIER DIREKT AUF 0 ZWINGEN ---ACCESSPOINT MODE FÜR EINFACHE ERSTVERBINDUNG
-    // 0 Hotspot 1 Router!
-    int wifi_mode = 1;        // ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
-
-    if (wifi_mode == 0) {
-        Serial.println("=== AP MODUS ERZWUNGEN ===");
-        WebModule::init_ap(_device_name.c_str());
-    } else {
-        Serial.println("=== STA Modus (Router) ===");
-        WebModule::init(my_ssid, my_password);
+    // optional: RTC nur als FALLBACK (KEIN syncFromRTC hier!)
+    if (!rtc_ok) {
+        Serial.println("Keine RTC -> nur NTP aktiv");
     }
 
-
-    // === RESTLICHES SYSTEM ===
-    configTzTime("CET-1CEST,M3.5.0/2,M10.5.0/3", "pool.ntp.org", "time.nist.gov");
     externalSensorFound = initExternalSensor();
+
     power_manager_init();
     circulation_fan_init(PIN_CIRC_FAN, PIN_CIRC_TACHO);
     exhaust_fan_init(PIN_EXH_FAN, PIN_EXH_TACHO);
-    BLEScanner::init();   
+
     light_init();
+    grow_controller_init();
+
     bleBridge.begin();
 
     Serial.println("System bereit.");
-
+    Serial.println("Warte auf NTP Sync...");
 }
 // ---------- LOOP ----------
 // ---------- LOOP ----------
@@ -103,7 +90,7 @@ void loop() {
     exhaust_fan_update(); 
     light_update();
     power_manager_update();
-    BLEScanner::update(); // 3. Den Scanner am Leben erhalten
+
     // ==================== ZEIT-MANAGEMENT ====================
     static uint32_t last_time_check = 0;
     static bool initial_sync_done = false;
@@ -133,16 +120,8 @@ void loop() {
             watch.syncFromRTC();
         }
     }
-    
-    // Statt direkt pBLEScan->stop() zu benutzen:
-    static uint32_t lastBLErestart = 0;
-    
-    if (millis() - lastBLErestart > 2*3600*1000UL) {   // alle 2 Stunden
-        lastBLErestart = millis();
-        BLEScanner::restart();        // ← So geht's sauber
-    }
-    
     static bool light_boot_synced = false;
+    
     if (!light_boot_synced) {
         if (time(nullptr) > 946684800) {
             light_update();   // FORCE derived state build
@@ -151,12 +130,9 @@ void loop() {
         }
     }
     // BLE Broadcast (alle 5 Sek)
-    // Im loop() Bereich für BLE Broadcast
-    static uint32_t last_ble_broadcast = 0;
-    if (millis() - last_ble_broadcast > 5000) {
-        last_ble_broadcast = millis();
-        
-        // Nur kurz broadcasten, damit wir den Rest der Zeit für WiFi & Scan frei haben
+    static uint32_t last_ble_update = 0;
+    if (millis() - last_ble_update > 5000) {
+        last_ble_update = millis();
         bleBridge.updateBroadcast(
             getTempExt(), getExternalHumidity(), getTempIn(),
             40.0, 25.5f, get_battery_voltage_now(),

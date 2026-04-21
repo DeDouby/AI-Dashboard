@@ -30,7 +30,6 @@
 #include <ArduinoJson.h>
 #include "web_server_browser.h"
 #include "esp_watch.h"
-#include "ble_scanner.h"
 extern ESPWatch watch; // Greift auf die Instanz in der Hauptdatei zu
 
 #include "grow_controller.h" // <--- DAS HIER AUCH
@@ -96,8 +95,7 @@ void handleData() {
     circulation_fan_get_status(obj);
     light_control_get_status(obj);
     grow_controller_get_status(obj); 
-    BLEScanner::get_status(obj);
-    
+
     String response;
     serializeJson(doc, response);
     server.send(200, "application/json", response);
@@ -136,47 +134,31 @@ void handleControlJSON() {
 
 // 3. INIT (Muss ganz unten stehen, damit es handleData und handleControlJSON kennt!)
 namespace WebModule {
-    // Diese interne Hilfsfunktion startet den Server-Kram, der in BEIDEN Modi gleich ist
-    void _startServerCommon() {
-        server.on("/data", handleData);
-        server.on("/control", HTTP_POST, handleControlJSON);
-        WebServerBrowser::registerRoutes(server);
-        server.begin();
-        Serial.println("Webserver gestartet.");
-    }
-
-    // MODUS 1: ROUTER (STA) - Dein originaler Code
     void init(const char* ssid, const char* password) {
         WiFi.mode(WIFI_STA);
         WiFi.begin(ssid, password);
         esp_wifi_set_ps(WIFI_PS_NONE);
 
-        Serial.println("WLAN Station Mode -> Warte auf Verbindung & NTP...");
+        Serial.println("WLAN verbunden → Warte auf NTP...");
 
+        // === RICHTIGE REIHENFOLGE + KORREKTER TZ-STRING ===
         configTzTime("CET-1CEST,M3.5.0/2,M10.5.0/3", 
                      "de.pool.ntp.org", 
                      "pool.ntp.org", 
                      "time.nist.gov");
 
-        _startServerCommon();
-    }
+        // Alternativ (manchmal stabiler):
+        // setenv("TZ", "CET-1CEST,M3.5.0/2,M10.5.0/3", 1);
+        // tzset();
+        // configTime(0, 0, "de.pool.ntp.org", "pool.ntp.org");
 
-    // MODUS 0: HOTSPOT (AP) - Neu für den Direkt-Modus
-    void init_ap(const char* ap_name) {
-        WiFi.mode(WIFI_AP);
-        WiFi.softAP(ap_name, ""); // Offenes WLAN
-        esp_wifi_set_ps(WIFI_PS_NONE);
-
-        Serial.printf("Hotspot aktiv: %s | IP: 192.168.4.1\n", ap_name);
-
-        // Im AP-Modus kein NTP möglich (kein Internet), daher überspringen wir das hier
-        _startServerCommon();
+        server.on("/data", handleData);
+        server.on("/control", HTTP_POST, handleControlJSON);
+        WebServerBrowser::registerRoutes(server);
+        server.begin();
     }
 
     void update() {
-        // DER FIX: Der Server muss laufen, wenn wir am Router sind ODER selbst der Hotspot sind
-        if (WiFi.status() == WL_CONNECTED || (WiFi.getMode() & WIFI_AP)) {
-            server.handleClient();
-        }
+        if (WiFi.status() == WL_CONNECTED) server.handleClient();
     }
 }

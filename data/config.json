@@ -23,7 +23,7 @@
         "user": "admin",
         "pass": "1234"
       },
-      "mixed_enabled": false,
+      "mixed_enabled": true,
       "mixed_external": false
     },
     "FABCEA8B-7EC8-2594-4879-2B3B63989660": {
@@ -53,7 +53,7 @@
   "refresh_interval": 0.1,
   "stale_timeout": 15.0,
   "ui_refresh_interval": 1.0,
-  "tile_graph_window": 2620,
+  "tile_graph_window": 1200,
   "temperature_unit": "C",
   "temperature_offset": 0.0,
   "humidity_offset": 0.0,

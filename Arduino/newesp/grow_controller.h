@@ -3,16 +3,9 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
-#include <Preferences.h>
 
-// ANKÜNDIGUNG: Diese Variablen sind für ALLE Dateien sichtbar
-extern Preferences growPrefs;
-extern String _device_name;
-
-// Funktionen
 void grow_controller_init();
 void grow_controller_process_json(JsonObject doc);
 void grow_controller_get_status(JsonObject doc);
-int grow_controller_get_wifi_mode();
 
 #endif

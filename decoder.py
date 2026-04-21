@@ -758,7 +758,7 @@ def step_decode():
                 "target_vpd_min", "target_vpd_max",
                 "exhaust_fan_pct", "exhaust_fan_min", "exhaust_fan_mode",
                 "circulation_fan_pct", "circulation_fan_min", "circulation_fan_mode",
-                "l_start_h", "l_start_m", "l_dur", "l_sunrise", "l_sunset", "light_target", "light_remaining", "rev_exhaust", "rev_circulation",
+                "l_start_h", "l_start_m", "l_dur", "l_sunrise", "l_sunset", "light_target", "light_remaining", "rev_exhaust", "rev_init_exhaust", "rev_circulation",
                  "rev_init_circfan"
             ]
             for key in extra_important:
@@ -798,12 +798,7 @@ def step_decode():
             "device_online": is_alive and web_alive,
             "web_alive": web_alive,
 
-            "rev_light":       current_web_safe.get("rev_light", -1) if web_alive else -1,
-            "rev_exhaust":     current_web_safe.get("rev_exhaust", -1) if web_alive else -1,
-            "rev_circfan":     current_web_safe.get("rev_circulation", -1) if web_alive else -1,
-            "rev_init_light":  current_web_safe.get("rev_init_light", -1) if web_alive else -1,
-            "rev_init_exhaust":current_web_safe.get("rev_init_exhaust", -1) if web_alive else -1,
-            "rev_init_circfan":current_web_safe.get("rev_init_circfan", -1) if web_alive else -1,
+
         })
     _write(frames)
 # ------------------------------------------------------------
