@@ -3,9 +3,11 @@
 #include <rom/rtc.h>
 
 // 1. GLOBALE DEFINITION (Ohne static!)
+extern int current_rev;
 Preferences growPrefs;
 String _device_name = "GrowBox-Alpha";
-
+String _wifi_ssid = "";
+String _wifi_password = "";
 // 2. MODUL-INTERNE VARIABLEN
 // Diese werden NICHT im Header mit extern geführt, daher dürfen sie static bleiben
 static int _log_level = 2;
@@ -16,100 +18,88 @@ static uint32_t grow_controller_init_rev = 0;
 
 
 void grow_controller_init() {
-    growPrefs.begin("grow_ctrl", false);
-    _log_level = growPrefs.getInt("log_level", 2);
-    _device_name = growPrefs.getString("dev_name", "GrowBox-Alpha");
-    _wifi_mode = growPrefs.getInt("wifi_mode", 1); 
-    
-    grow_controller_init_rev = millis() + 1;
-    grow_controller_rev = grow_controller_init_rev;
+    growPrefs.begin("grow", false);
+    _wifi_ssid = growPrefs.getString("ssid", ""); // Default leer
+    _wifi_password = growPrefs.getString("password", "");
+    _device_name = growPrefs.getString("dev_name", "LGS_Grow_Master");
+    current_rev = growPrefs.getInt("rev", 0);
 }
 
 void grow_controller_save_state() {
     growPrefs.putInt("log_level", _log_level);
     growPrefs.putString("dev_name", _device_name);
     growPrefs.putInt("wifi_mode", _wifi_mode); // Modus sichern
+    growPrefs.putString("wifi_ssid", _wifi_ssid);
+    growPrefs.putString("wifi_pass", _wifi_password);
 }
 
 void grow_controller_process_json(JsonObject doc) {
-    bool changed = false;
-    uint32_t received_rev = 0;
+    bool needs_reboot = false;
 
-    // === REVISION CHECK ===
-    if (doc.containsKey("rev_grow")) {           // <--- WICHTIG: rev_grow
-        received_rev = doc["rev_grow"];
-    }
-    // In grow_controller_process_json() den Befehl zum Umschalten einbauen:
-
-    // Nur verarbeiten wenn die Revision neu ist
-    if (received_rev > grow_controller_rev) {
-        grow_controller_rev = received_rev;
-
-        
-        // 🔥 WIFI MODE HIER REIN!
-        if (doc.containsKey("wifi_mode")) {
-            int new_mode = doc["wifi_mode"];
-            if (new_mode != _wifi_mode && (new_mode == 0 || new_mode == 1)) {
-                _wifi_mode = new_mode;
-                grow_controller_save_state();
-                
-                Serial.printf("[GrowController] WiFi Mode auf %d geändert → Reboot!\n", new_mode);
-                Serial.flush();           // <--- WICHTIG
-                delay(800);               // Etwas länger für Flash
-                ESP.restart();
-            }
-        }   
-        // 1. System Settings
-        if (doc.containsKey("dev_name")) {
-            _device_name = doc["dev_name"].as<String>();
-            changed = true;
-        }
-
-        if (doc.containsKey("log_level")) {
-            _log_level = constrain((int)doc["log_level"], 0, 3);
-            changed = true;
-        }
-
-        // === COMMANDS ===
-        if (doc.containsKey("command")) {
-            String cmd = doc["command"].as<String>();
-
-            if (cmd == "soft_reset") {
-                Serial.println("[GrowController] Soft Reset commanded");
-                delay(100);
-                ESP.restart();
-            }
-            else if (cmd == "factory_reset") {
-                Serial.println("[GrowController] FACTORY RESET commanded!");
-                growPrefs.clear();
-                delay(500);
-                ESP.restart();
-            }
-            else if (cmd == "sync_time") {
-                Serial.println("[GrowController] Sync Time requested");
-                // Hier später RTC Sync einbauen
-            }
-            else if (cmd == "test" || cmd == "noop" || cmd == "ping") {   // <--- NEU
-                Serial.printf("[GrowController] Test command received - Rev accepted: %u\n", received_rev);
-                changed = true;        // damit unten gespeichert wird (optional)
-            }
-            else if (cmd == "reboot") {
-                Serial.println("[GrowController] Reboot commanded");
-                delay(100);
-                ESP.restart();
-            }
-        }
-    }
-
-    // Auch bei purem Test-Command die Rev als bestätigt markieren
+    
+    // ================= COMMAND HANDLING =================
     if (doc.containsKey("command")) {
         String cmd = doc["command"].as<String>();
-        if (cmd == "test" || cmd == "noop" || cmd == "ping") {
-            if (changed) grow_controller_save_state();
-            Serial.printf("[GrowController] Rev updated via test command → %u\n", grow_controller_rev);
+    
+        Serial.print("Command erhalten: ");
+        Serial.println(cmd);
+    
+        if (cmd == "soft_reset") {
+            Serial.println("Soft Reset...");
+            delay(500);
+            ESP.restart();
         }
+    
+        else if (cmd == "factory_reset") {
+            Serial.println("Factory Reset...");
+            growPrefs.clear();   // 🔥 ALLES LÖSCHEN
+            delay(500);
+            ESP.restart();
+        }
+    
+        else if (cmd == "sync_time") {
+            Serial.println("Sync Time Trigger");
+            // 👉 hier ggf. NTP oder RTC sync triggern
+        }
+    
+        else if (cmd == "test") {
+            Serial.println("Test Command OK");
+        }
+    }    
+    // Falls neue WiFi Daten kommen
+    if (doc.containsKey("wifi_ssid")) {
+        String new_ssid = doc["wifi_ssid"].as<String>();
+        growPrefs.putString("ssid", new_ssid);
+        _wifi_ssid = new_ssid;
+        needs_reboot = true; 
+    }
+
+    if (doc.containsKey("wifi_pw")) {
+        String new_pw = doc["wifi_pw"].as<String>();
+        growPrefs.putString("password", new_pw);
+        _wifi_password = new_pw;
+        needs_reboot = true;
+    }
+
+    if (doc.containsKey("wifi_mode")) {
+        int mode = doc["wifi_mode"];
+        growPrefs.putInt("wifi_mode", mode);
+        _wifi_mode = mode;   // 🔥 FEHLT BEI DIR
+        needs_reboot = true;
+    }
+
+    // Nach dem Speichern der Revision (Gesetz Punkt 4)
+    if (doc.containsKey("rev_grow")) {
+        grow_controller_rev = doc["rev_grow"];
+    }
+    if (needs_reboot) {
+        Serial.println("WiFi Config erhalten. Neustart in 2 Sekunden...");
+        delay(2000);
+        ESP.restart();
     }
 }
+
+
 
 void grow_controller_get_status(JsonObject doc) {
     // System Infos
@@ -151,10 +141,7 @@ void grow_controller_get_status(JsonObject doc) {
 
 
 }
-
 int grow_controller_get_wifi_mode() {
-    growPrefs.begin("grow_ctrl", true);
-    int mode = growPrefs.getInt("wifi_mode", 1); 
-    growPrefs.end();
-    return mode;
+    // Standardmäßig 0 (AP), wenn nichts gespeichert ist
+    return growPrefs.getInt("wifi_mode", 0); 
 }

@@ -17,7 +17,6 @@ from dashboard_gui.setup_screen import SetupScreen
 from dashboard_gui.ui.debug_content.debug_screen import DebugScreen
 from dashboard_gui.data_buffer import BUFFER
 from dashboard_gui.ui.fullscreen_content.fullscreen_view import FullScreenView
-from dashboard_gui.ui.scaling_utils import UI_SCALE
 from dashboard_gui.ui.device_picker_content.device_picker import DevicePickerScreen
 from dashboard_gui.ui.csv_viewer_content.csv_viewer_screen import CSVViewerScreen
 from dashboard_gui.settings_screen import SettingsScreen

@@ -17,9 +17,7 @@ ESPWatch watch;
 BLEBridge bleBridge;
 uint32_t device_confirmed_rev = 0;
 
-// WLAN Daten (Wichtig: bleiben hier, damit du sie schnell ändern kannst)
-const char* my_ssid = "Cudy-Indoor"; 
-const char* my_password = "Hackintosh!";
+
 
 // DIE EINZIGE DEFINITION DES SERVERS
 WebServer server(80); 
@@ -43,56 +41,46 @@ String get_current_time_str() {
     return String(timeStr);
 }
 void setup() {
+    // 1. System-Basis
     setCpuFrequencyMhz(240);
     Serial.begin(115200);
-    BLEDevice::init("LGS_Grow_Master");
     init_hardware();
 
-    // === RTC START ===
-    bool rtc_ok = false;
+    // 2. ABSOLUTE PRIORITÄT: HARDWARE INIT
+    // Zuerst die Preferences laden, damit wir wissen, wie hell das Licht sein soll
+    grow_controller_init(); 
+    
+    // JETZT SOFORT das Licht und die Lüfter anwerfen (VOR dem WLAN!)
+
+    
+    Serial.println(">>> Hardware läuft (Pflanzen versorgt) <<<");
+
+    // 3. INFRASTRUKTUR
+    BLEDevice::init("LGS_Grow_Master");
     if (watch.begin(I2C_RTC)) {
         Serial.println("RTC gefunden");
-        rtc_ok = true;
     }
 
-    // === GROW CONTROLLER INIT ===
-    // Wichtig: Erst init, damit die Prefs intern geladen werden!
-    grow_controller_init(); 
-
-
-
-    // === SOFORT HARDCODE AUF AP-MODUS (Stellschraube) ===
-    Serial.println("!!! HARDCODE: WiFi Mode auf 0 (AP) erzwungen !!!");
-    
-    WiFi.disconnect(true);
-    WiFi.mode(WIFI_OFF);
-    delay(400);
-
-    // <--- HIER DIREKT AUF 0 ZWINGEN ---ACCESSPOINT MODE FÜR EINFACHE ERSTVERBINDUNG
-    // 0 Hotspot 1 Router!
-    int wifi_mode = 1;        // ←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←←
-
-    if (wifi_mode == 0) {
-        Serial.println("=== AP MODUS ERZWUNGEN ===");
+    // 4. NETZWERK (Darf jetzt so lange blockieren wie es will)
+    int wifi_mode = grow_controller_get_wifi_mode();
+    if (wifi_mode == 0 || _wifi_ssid == "" || _wifi_ssid == "NULL") {
+        Serial.println(">>> AP-MODUS <<<");
         WebModule::init_ap(_device_name.c_str());
     } else {
-        Serial.println("=== STA Modus (Router) ===");
-        WebModule::init(my_ssid, my_password);
+        Serial.printf(">>> Verbinde: %s <<<\n", _wifi_ssid.c_str());
+        WebModule::init(_wifi_ssid.c_str(), _wifi_password.c_str());
     }
 
-
-    // === RESTLICHES SYSTEM ===
+    // 5. BACKGROUND SERVICES
     configTzTime("CET-1CEST,M3.5.0/2,M10.5.0/3", "pool.ntp.org", "time.nist.gov");
-    externalSensorFound = initExternalSensor();
-    power_manager_init();
-    circulation_fan_init(PIN_CIRC_FAN, PIN_CIRC_TACHO);
-    exhaust_fan_init(PIN_EXH_FAN, PIN_EXH_TACHO);
-    BLEScanner::init();   
     light_init();
+    circulation_fan_init(PIN_CIRC_FAN, PIN_CIRC_TACHO);
+    exhaust_fan_init(PIN_EXH_FAN, PIN_EXH_TACHO);externalSensorFound = initExternalSensor();
+    power_manager_init();
+    BLEScanner::init();   
     bleBridge.begin();
 
-    Serial.println("System bereit.");
-
+    Serial.println("System vollständig bereit.");
 }
 // ---------- LOOP ----------
 // ---------- LOOP ----------

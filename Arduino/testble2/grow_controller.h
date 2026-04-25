@@ -8,7 +8,11 @@
 // ANKÜNDIGUNG: Diese Variablen sind für ALLE Dateien sichtbar
 extern Preferences growPrefs;
 extern String _device_name;
+#pragma once
+#include <Arduino.h>
 
+extern String _wifi_ssid;
+extern String _wifi_password;
 // Funktionen
 void grow_controller_init();
 void grow_controller_process_json(JsonObject doc);

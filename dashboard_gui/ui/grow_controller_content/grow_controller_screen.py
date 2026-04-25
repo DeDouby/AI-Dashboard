@@ -14,6 +14,9 @@ from dashboard_gui.ui.common.header_online import HeaderBar
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 import time
+from kivy.uix.textinput import TextInput
+from kivy.uix.textinput import TextInput
+
 ASSET_ROOT = os.path.join("dashboard_gui", "assets")
 
 
@@ -164,7 +167,8 @@ class GrowControllerScreen(Screen):
         buttons = [
             ("[font=FA]\uf021[/font]\nSOFT RESET", self.soft_reset),
             ("[font=FA]\uf017[/font]\nSYNC CLOCK", self.sync_time),
-            ("[font=FA]\uf019[/font]\nOTA UPDATE", self.firmware_update),
+            ("[font=FA]\uf1eb[/font]\nSET WIFI", self.open_wifi_settings), # 🔥 DER NEUE BUTTON
+            #("[font=FA]\uf019[/font]\nOTA UPDATE", self.firmware_update),
             ("[font=FA]\uf0c8[/font]\nTEST REV", self.test_rev),
                 # 🔥 NEU:
             ("AP MODE", self.set_ap_mode),
@@ -196,24 +200,85 @@ class GrowControllerScreen(Screen):
         # Da self.root ein vertikales BoxLayout ist, landet er unter dem ScrollView
         self.root.add_widget(self.footer_layout)
     # ====================== COMMAND SENDEN (wie im Circulation Fan) ======================
-    def _send_command(self, command: str, is_retry=False):
+
+# Innerhalb der GrowControllerScreen Klasse:
+# ====================== HELPER: SEND COMMAND ======================
+    def _send_command(self, command_name):
+        """
+        Interne Hilfsfunktion, um Standard-Commands (Reset, Sync, etc.)
+        an die Engine zu schicken und die Revision zu verwalten.
+        """
         mac = GLOBAL_STATE.get_active_device_id()
         if not mac:
-            print("[GrowController] Kein aktives Device!")
+            print("[GrowController] Fehler: Keine MAC-Adresse gefunden!")
             return
 
+        # Wir nutzen die Engine, die automatisch rev_grow hochzählt
         new_rev = GLOBAL_STATE.send_overlay_command(
-            "grow_controller", 
-            command=command          # <-- wird jetzt richtig weitergeleitet
+            "grow_controller",
+            command=command_name
         )
 
         if new_rev:
             self._last_sent_rev = new_rev
             self._last_send_time = time.time()
             self._retry_count = 0
-            print(f"[GrowController] Command '{command}' gesendet (rev={new_rev})")
-        else:
-            print(f"[GrowController] Fehler beim Senden von '{command}'")
+            print(f"[GrowController] Command '{command_name}' gesendet. Neue Ziel-Rev: {new_rev}")
+    def open_wifi_settings(self, *_):
+        content = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(10))
+        
+        content.add_widget(Label(text="WLAN KONFIGURATION", bold=True, size_hint_y=None, height=dp(30)))
+
+        # SSID Input - 'placeholder' wurde durch 'hint_text' ersetzt
+        self.ssid_input = TextInput(
+            text=self.labels["ssid"].text if self.labels["ssid"].text != "---" else "",
+            hint_text="SSID (Netzwerk Name)", 
+            multiline=False, 
+            size_hint_y=None, 
+            height=dp(45),
+            background_color=(0.15, 0.15, 0.15, 1), 
+            foreground_color=(1, 1, 1, 1)
+        )
+        
+        # Passwort Input - 'placeholder' wurde durch 'hint_text' ersetzt
+        self.pw_input = TextInput(
+            hint_text="Passwort eingeben", 
+            password=True, 
+            multiline=False, 
+            size_hint_y=None, 
+            height=dp(45),
+            background_color=(0.15, 0.15, 0.15, 1), 
+            foreground_color=(1, 1, 1, 1)
+        )
+        
+        content.add_widget(Label(text="Netzwerk Name (SSID):", halign="left", size_hint_y=None, height=dp(20)))
+        content.add_widget(self.ssid_input)
+        content.add_widget(Label(text="Passwort:", halign="left", size_hint_y=None, height=dp(20)))
+        content.add_widget(self.pw_input)
+        
+        btn_box = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10), padding=[0, dp(10), 0, 0])
+        save_btn = GlassButton(text="DATEN SENDEN & REBOOT", color=(0.2, 1, 0.4, 1))
+        save_btn.bind(on_release=lambda x: self._apply_wifi_settings(popup))
+        
+        btn_box.add_widget(save_btn)
+        content.add_widget(btn_box)
+        
+        popup = Popup(title="WiFi Setup", content=content, size_hint=(0.8, 0.5))
+        popup.open()
+
+    def _apply_wifi_settings(self, popup):
+        # Sende Befehl über die Engine
+        new_rev = GLOBAL_STATE.send_overlay_command(
+            "grow_controller",
+            wifi_ssid=self.ssid_input.text,
+            wifi_pw=self.pw_input.text,
+            wifi_mode=1 # Schaltet in den Router-Modus (STA)
+        )
+        
+        if new_rev:
+            self._last_sent_rev = new_rev
+            self._last_send_time = time.time()
+            popup.dismiss()
 
     # ====================== BUTTONS ======================
     def test_rev(self, *_):

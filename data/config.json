@@ -51,7 +51,7 @@
   },
   "bridge_profiles": {},
   "refresh_interval": 0.1,
-  "stale_timeout": 15.0,
+  "stale_timeout": 5.0,
   "ui_refresh_interval": 1.0,
   "tile_graph_window": 1200,
   "temperature_unit": "C",

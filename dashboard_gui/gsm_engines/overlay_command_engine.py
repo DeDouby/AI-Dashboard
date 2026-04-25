@@ -24,41 +24,33 @@ class OverlayCommandEngine:
             return self.send_grow_controller_command(mac, **kwargs)
     
         return None
-
     def send_grow_controller_command(self, mac, **kwargs):
+        # 1. Aktuellen Status aus dem Buffer holen
         current = self.get_latest_device_data(mac)
+        
+        # 2. Die rev_grow ist unser "Gesetz"-Anker
         last_rev = int(current.get("rev_grow", 0))
         new_rev = last_rev + 1
     
-        command = kwargs.get("command")
-        wifi_mode = kwargs.get("wifi_mode")   # 🔥 NEU
-    
+        # 3. Das Payload-Paket schnüren (Target-Prinzip)
         payload = {
-            "rev_grow": new_rev,
+            "rev_grow": new_rev  # Das Ziel-Revision
         }
     
-        if command:
-            payload["command"] = command
+        # WiFi Daten / Mode / Commands mappen
+        if "wifi_ssid" in kwargs:
+            payload["wifi_ssid"] = kwargs["wifi_ssid"]
+        if "wifi_pw" in kwargs:
+            payload["wifi_pw"] = kwargs["wifi_pw"]
+        if "wifi_mode" in kwargs:
+            payload["wifi_mode"] = int(kwargs["wifi_mode"])
+        if "command" in kwargs:
+            payload["command"] = kwargs["command"]
     
-        # 🔥 WIFI MODE MITGEBEN
-        if wifi_mode is not None:
-            payload["wifi_mode"] = int(wifi_mode)
-    
+        # 4. Abfahrt an den WEB_CLIENT
         WEB_CLIENT.send_control(mac, payload)
         
-        print(f"[OverlayCommandEngine] GrowController payload sent | {payload}")
-        return new_rev
-    
-    def send_fan_command(self, mac, **kwargs):
-        last = self.get_latest_device_data(mac).get("rev_circfan", 0)
-        new_rev = last + 1
-        payload = {
-            "circulation_fan_min": int(kwargs.get("min", 20)),
-            "circulation_fan_pct": int(kwargs.get("max", 65)),
-            "circulation_fan_mode": kwargs.get("mode", "nat"),
-            "rev_circfan": new_rev
-        }
-        WEB_CLIENT.send_control(mac, payload)
+        print(f"[GrowController] TARGET-REV GESETZT: {new_rev} | Payload: {payload}")
         return new_rev
     def send_fan_range(self, mac, **kwargs):
         current = self.get_latest_device_data(mac)
@@ -73,6 +65,29 @@ class OverlayCommandEngine:
         WEB_CLIENT.send_control(mac, payload)
         return new_rev
     
+    def send_fan_command(self, mac, **kwargs):
+        # 1. Hol den aktuellen Stand aus dem Buffer
+        current = self.get_latest_device_data(mac)
+        
+        # 2. Revision hochzählen (Das "Gesetz"-Prinzip)
+        last = int(current.get("rev_circfan", 0))
+        new_rev = last + 1
+        
+        # 3. Payload bauen
+        # WICHTIG: Wir nehmen die Werte aus den kwargs (vom UI), 
+        # damit wir nicht alte Werte aus dem Buffer überschreiben.
+        payload = {
+            "circulation_fan_min": int(kwargs.get("min", 20)),
+            "circulation_fan_pct": int(kwargs.get("max", 65)),
+            "circulation_fan_mode": kwargs.get("mode", "nat"),
+            "rev_circfan": new_rev
+        }
+        
+        # 4. Abfahrt
+        WEB_CLIENT.send_control(mac, payload)
+        print(f"[CircFan] SEND -> Rev: {new_rev} | Mode: {payload['circulation_fan_mode']}")
+        
+        return new_rev 
     def send_exhaust_command(self, mac, **kwargs):
         current = self.get_latest_device_data(mac)
         new_rev = int(current.get("rev_exhaust", 0)) + 1

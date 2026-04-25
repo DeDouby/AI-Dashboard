@@ -54,7 +54,7 @@ void handleData() {
     if (!server.authenticate(www_username, www_password)) return server.requestAuthentication();
     sendStandardHeaders();
 
-    StaticJsonDocument<1024> doc;
+    StaticJsonDocument<4096> doc;
     JsonObject obj = doc.to<JsonObject>();
     
     // --- DEINE STRUKTUR (RSSI BLEIBT) ---
