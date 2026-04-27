@@ -321,71 +321,70 @@ void light_set_timer(int h, int m, int d) {
     light_save_state();
     Serial.printf("RECOVERY: Timer auf %02d:%02d gesetzt.\n", l_target_h, l_target_m);
 }
-
 void light_control_process_json(JsonObject doc) {
-    bool changed = false;
-    uint32_t received_rev = 0;
+    bool flash_changed = false;
+
+    // 1. HANDSHAKE (RAM ONLY)
+    // Spiegelung der Session-ID ohne Speichervorgang
+    if (doc.containsKey("rev_init_light")) {
+        light_init_rev = doc["rev_init_light"];
+    }
+
+    // 2. REVISIONS-CHECK
     if (doc.containsKey("rev_light")) {
-        received_rev = doc["rev_light"];
-    }
+        uint32_t received_rev = doc["rev_light"];
 
-    // Nur verarbeiten wenn die Revision neu ist
-    if (received_rev > light_rev) {
+        if (received_rev > light_rev) {
+            light_rev = received_rev;
 
-        light_rev = received_rev;
-    } else {
-        // Revision ist alt oder gleich, also ignorieren
-        Serial.printf("Light Control: Ignoring old revision %u (current: %u)\n", received_rev, light_rev);
-        return;
-    }
+            // A: Not-Aus / Stop
+            if (doc.containsKey("light_stop") && (int)doc["light_stop"] == 1) {
+                light_set_mode(LIGHT_MODE_MANUAL);
+                light_set_brightness(0);
+                flash_changed = true;
+            }
 
-    // 1. Not-Aus / Stop
-    if (doc.containsKey("light_stop") && (int)doc["light_stop"] == 1) {
-        light_set_mode(LIGHT_MODE_MANUAL);
-        light_set_brightness(0);
-        return; // Sofort raus hier
-    }
+            // B: Timer-Einstellungen
+            if (doc.containsKey("l_start_h") || doc.containsKey("l_dur") || doc.containsKey("l_sunrise") || doc.containsKey("l_sunset")) {
+                int h = doc.containsKey("l_start_h") ? (int)doc["l_start_h"] : l_target_h;
+                int m = doc.containsKey("l_start_m") ? (int)doc["l_start_m"] : l_target_m;
+                int d = doc.containsKey("l_dur") ? (int)doc["l_dur"] : l_target_dur;
+                
+                if (doc.containsKey("l_sunrise")) {
+                    l_target_sunrise = _round_to_15min((int)doc["l_sunrise"]);
+                }
+                if (doc.containsKey("l_sunset")) {
+                    l_target_sunset = _round_to_15min((int)doc["l_sunset"]);
+                }
+                light_set_timer(h, m, d);
+                flash_changed = true;
+            }
 
-    // 2. Timer-Einstellungen (Startzeit, Dauer, Sunrise/Sunset Rampen)
-    if (doc.containsKey("l_start_h") || doc.containsKey("l_dur") || doc.containsKey("l_sunrise") || doc.containsKey("l_sunset")) {
-    
-        int h = doc.containsKey("l_start_h") ? (int)doc["l_start_h"] : l_target_h;
-        int m = doc.containsKey("l_start_m") ? (int)doc["l_start_m"] : l_target_m;
-        int d = doc.containsKey("l_dur") ? (int)doc["l_dur"] : l_target_dur;  // d = Minuten
-        
-        // Sunrise/Sunset Rampen (in Minuten, 15er-Raster)
-        if (doc.containsKey("l_sunrise")) {
-            l_target_sunrise = _round_to_15min((int)doc["l_sunrise"]);
-            l_target_sunrise = constrain(l_target_sunrise, 0, d);
+            // C: Helligkeit
+            if (doc.containsKey("light_pct")) {
+                light_set_brightness((int)doc["light_pct"]);
+                flash_changed = true;
+            }
+
+            // D: Modus-Wechsel
+            if (doc.containsKey("light_mode")) {
+                String lm = doc["light_mode"];
+                if (lm == "tim") light_set_mode(LIGHT_MODE_TIMER);
+                else if (lm == "man") light_set_mode(LIGHT_MODE_MANUAL);
+                else if (lm == "brth") light_set_mode(LIGHT_MODE_BREATH);
+                else if (lm == "flicker") light_set_mode(LIGHT_MODE_FLICKER);
+                flash_changed = true;
+            }
+        } else {
+            // Alte Revision -> Ignorieren (Verhindert Echo-Effekte)
+            return;
         }
-        if (doc.containsKey("l_sunset")) {
-            l_target_sunset = _round_to_15min((int)doc["l_sunset"]);
-            l_target_sunset = constrain(l_target_sunset, 0, d);
-        }
-    
-        light_set_timer(h, m, d);
-        changed = true;
     }
 
-    // 3. Helligkeit (Slider)
-    if (doc.containsKey("light_pct")) {
-        light_set_brightness((int)doc["light_pct"]);
-        changed = true;
-    }
-
-    // 4. Modus-Wechsel
-    if (doc.containsKey("light_mode")) {
-        String lm = doc["light_mode"];
-        if (lm == "tim") light_set_mode(LIGHT_MODE_TIMER);
-        else if (lm == "man") light_set_mode(LIGHT_MODE_MANUAL);
-        else if (lm == "brth") light_set_mode(LIGHT_MODE_BREATH);
-        else if (lm == "flicker") light_set_mode(LIGHT_MODE_FLICKER);
-        changed = true;
-    }
-
-    if (changed) {
+    // 3. PERSISTIERUNG
+    if (flash_changed) {
         light_save_state();
-        Serial.println("Light Settings updated via JSON.");
+        Serial.printf("Light Control Flash Update | Rev: %u\n", light_rev);
     }
 }
 void light_control_get_status(JsonObject doc) {

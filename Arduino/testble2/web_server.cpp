@@ -87,7 +87,7 @@ void handleData() {
     obj["temp_in"] = getTempIn();
     obj["temp_ext"] = getTempExt();
     obj["humid_ext"] = getExternalHumidity();
-    obj["humid_in"] = 40.0;
+    obj["humid_in"] = getInternalHumidity();
     obj["leaf_temp"] = 25.5;
     obj["vbat"] = get_battery_voltage_now();
     obj["rev"] = current_rev;

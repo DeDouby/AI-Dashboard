@@ -24,8 +24,12 @@ WebServer server(80);
 // Hardware & Sensoren (MÜSSEN hier bleiben für die anderen .cpp Dateien!)
 TwoWire I2C_Sensor = TwoWire(0); // Bus 0 für Sensoren            
 TwoWire I2C_RTC    = TwoWire(1); // Bus 1 für RTC (Eigener Bus!)
-Adafruit_SHT31 sht31 = Adafruit_SHT31(&I2C_Sensor); 
-bool externalSensorFound = false;
+
+extern Adafruit_SHT31 sht31_ext;
+extern Adafruit_SHT31 sht31_int;
+
+extern bool externalSensorFound;
+extern bool internalSensorFound;
 int current_rev = 0; // Die aktuelle Revisionsnummer auf dem Gerät
 
 
@@ -75,7 +79,15 @@ void setup() {
     configTzTime("CET-1CEST,M3.5.0/2,M10.5.0/3", "pool.ntp.org", "time.nist.gov");
     light_init();
     circulation_fan_init(PIN_CIRC_FAN, PIN_CIRC_TACHO);
-    exhaust_fan_init(PIN_EXH_FAN, PIN_EXH_TACHO);externalSensorFound = initExternalSensor();
+    exhaust_fan_init(PIN_EXH_FAN, PIN_EXH_TACHO);
+    externalSensorFound = sht31_ext.begin(0x44);
+    internalSensorFound = sht31_int.begin(0x44);
+    
+    if (externalSensorFound) Serial.println("EXT SHT31 OK (Bus0)");
+        else Serial.println("EXT SHT31 FEHLT");
+    
+    if (internalSensorFound) Serial.println("INT SHT31 OK (Bus1)");
+        else Serial.println("INT SHT31 FEHLT");
     power_manager_init();
     BLEScanner::init();   
     bleBridge.begin();

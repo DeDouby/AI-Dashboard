@@ -1,22 +1,24 @@
-///////////////////////////////////////////////////////////////////////////////
-// !!! ABSOLUTES GESETZ: DAS TARGET-REVISION-PRINZIP (C++ / ESP32) !!!
+// !!! ABSOLUTES GESETZ: DAS TARGET-REVISION-PRINZIP (v2.0) !!!
 // -------------------------------------------------------------------------
-// 1. HARDWARE FOLGT TARGET: Die Loop darf NIEMALS direkt auf UI-Inputs reagieren.
-//    Sie vergleicht permanent: 'target_val' vs 'effective_val'.
+// 1. HARDWARE FOLGT TARGET: Loop reagiert nur auf target_val vs effective_val.
+//    Direktes Pin-Schreiben durch UI-Input ist streng verboten!
 //
-// 2. REVISION-CONFIRMATION: Der ESP32 bestätigt eine Änderung NUR, indem er 
-//    die empfangene 'rev' (Revision) im Status-Paket unverändert zurücksendet.
+// 2. HANDSHAKE (rev_init): Beim Öffnen des Overlays wird eine rev_init gesendet.
+//    Der ESP spiegelt diese NUR im RAM. Dies erzwingt ein Status-Update und
+//    bestätigt die Verbindung ("Alive-Check"), OHNE den Flash zu belasten.
 //
-// 3. KEINE LÜGEN: Der Status 'Synced' (Grün in der App) darf NUR dann entstehen,
-//    wenn 'esp32_rev' == 'ui_target_rev'.
+// 3. REVISION-CONFIRMATION (rev): Der ESP bestätigt ECHTE Änderungen (Werte),
+//    indem er die rev spiegelt. Erst dann wird der Flash-Speicher (Save) aktiv.
 //
-// 4. ATOMARE UPDATES: Bei Empfang eines neuen Targets wird die 'rev' sofort 
-//    gespeichert, aber der 'effective_val' zieht (ggf. über Rampen) stur nach.
+// 4. KEINE LÜGEN: Das UI zeigt "Synced" (Grün) NUR, wenn:
+//    (ui_init == esp_init) UND (ui_rev == esp_rev).
 //
-// JEDE KI-ÄNDERUNG MUSS DIESE ASYNCHRONE LOGIK WAHREN. DIREKTES ÜBERSCHREIBEN
-// VON PINS OHNE TARGET-ABGLEICH IST EIN SYSTEMFEHLER!
+// 5. ATOMARE UPDATES: Neue Revisionen werden sofort übernommen, die Hardware
+//    (effective_val) zieht asynchron (ggf. über Rampen) nach.
+//
+// JEDE KI-ÄNDERUNG MUSS DIESE TRENNUNG VON RAM-PING (INIT) UND FLASH-DATA (REV)
+// WAHREN. WERTE OHNE REVISIONS-SPIEGELUNG SIND REINE LÜGEN!
 ///////////////////////////////////////////////////////////////////////////////
-
 
 #include "circulation_fan.h"
 #include <Preferences.h> // NEU: Für persistente Speicherung
@@ -163,45 +165,44 @@ void circulation_fan_update() {
 }
 
 void circulation_fan_process_json(JsonObject doc) {
-    bool changed = false;
-    uint32_t received_rev = 0;
+    bool flash_changed = false;
 
+    // 1. Handshake (RAM only)
+    if (doc.containsKey("rev_init_circfan")) {
+        circulation_fan_init_rev = doc["rev_init_circfan"];
+        // Kein flash_changed!
+    }
+
+    // 2. Daten-Revision (Flash relevant)
     if (doc.containsKey("rev_circfan")) {
-        received_rev = doc["rev_circfan"];
-    }
+        uint32_t received_rev = doc["rev_circfan"];
+        if (received_rev > circulation_fan_rev) {
+            circulation_fan_rev = received_rev;
 
-    // Nur verarbeiten wenn die Revision neu ist
-    if (received_rev > circulation_fan_rev) {
-        circulation_fan_rev = received_rev;
-
-        // 1. Geschwindigkeit (Max)
-        if (doc.containsKey("circulation_fan_pct")) {
-            current_circulation_fan_speed = constrain((int)doc["circulation_fan_pct"], 0, 100);
-            changed = true;
-        }
-
-        // 2. Minimum Geschwindigkeit
-        if (doc.containsKey("circulation_fan_min")) {
-            current_circulation_fan_min_speed = constrain((int)doc["circulation_fan_min"], 0, 100);
-            changed = true;
-        }
-
-        // 3. Modus
-        if (doc.containsKey("circulation_fan_mode")) {
-            String m = doc["circulation_fan_mode"];
-            if (m == "nat") current_circulation_fan_mode = circulation_fan_MODE_NATURAL;
-            else if (m == "chao") current_circulation_fan_mode = circulation_fan_MODE_CHAOTIC;
-            else current_circulation_fan_mode = circulation_fan_MODE_MANUAL;
-            changed = true;
+            if (doc.containsKey("circulation_fan_pct")) {
+                current_circulation_fan_speed = constrain((int)doc["circulation_fan_pct"], 0, 100);
+                flash_changed = true;
+            }
+            if (doc.containsKey("circulation_fan_min")) {
+                current_circulation_fan_min_speed = constrain((int)doc["circulation_fan_min"], 0, 100);
+                flash_changed = true;
+            }
+            if (doc.containsKey("circulation_fan_mode")) {
+                String m = doc["circulation_fan_mode"];
+                if (m == "nat") current_circulation_fan_mode = circulation_fan_MODE_NATURAL;
+                else if (m == "chao") current_circulation_fan_mode = circulation_fan_MODE_CHAOTIC;
+                else current_circulation_fan_mode = circulation_fan_MODE_MANUAL;
+                flash_changed = true;
+            }
         }
     }
 
-    if (changed) {
+    if (flash_changed) {
+        // Logik anwenden & persistieren
         if (current_circulation_fan_mode == circulation_fan_MODE_MANUAL) {
             circulation_fan_set_speed(current_circulation_fan_speed);
         }
         circulation_fan_save_state();
-        Serial.printf("Circulation Fan updated | Rev: %u\n", circulation_fan_rev);
     }
 }
 

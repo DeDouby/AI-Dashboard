@@ -588,88 +588,84 @@ def step_decode():
                 web_alive = True
 
         if web_alive:
-            # --- SENSOR-STATUS CHECK (DIE RETTUNG) ---
-            ERR_VAL = -256.0
-            raw_t_e = current_web.get("temp_ext")
-            raw_h_e = current_web.get("humid_ext")
+            # 1. INITIALISIERUNG & CHECK
+            ERR_VAL = -250.0
+            raw_t_in = current_web.get("temp_in")
+            raw_h_in = current_web.get("humid_in")
+            raw_t_e  = current_web.get("temp_ext")
+            raw_h_e  = current_web.get("humid_ext")
+            raw_t_l  = current_web.get("leaf_temp")
 
-            # Erkennung ob Sensor physisch vorhanden (Größer als -256)
-            sensor_exists = (raw_t_e is not None and raw_t_e > ERR_VAL)
-            # Blatt-Sensor vorhanden? (Eigener Check!)
-            raw_t_l = current_web.get("leaf_temp")
-            leaf_exists = (raw_t_l is not None and raw_t_l > ERR_VAL)
-            
-            # Bereinigte Werte für den Calculator (None erzwingt "---" in der UI)
+            internal_exists = (raw_t_in is not None and raw_t_in > ERR_VAL)
+            sensor_exists   = (raw_t_e is not None and raw_t_e > ERR_VAL)
+            leaf_exists     = (raw_t_l is not None and raw_t_l > ERR_VAL)
+
+            t_i_final = raw_t_in if internal_exists else None
+            h_i_final = raw_h_in if internal_exists else None
             t_e_final = raw_t_e if sensor_exists else None
             h_e_final = raw_h_e if sensor_exists else None
 
-            # JETZT die bereinigten Werte nutzen!
+            # 2. CALCULATOR
             T_i, H_i, T_e, H_e = calculator.apply_offsets(
-                current_web.get("temp_in"), current_web.get("humid_in"),
-                t_e_final, h_e_final
+                t_i_final, h_i_final, t_e_final, h_e_final
             )
             
-            # Hilfswerte für Berechnungen
             vpdi = calculator.vpd_internal(T_i, H_i)
             vpde = calculator.vpd_external(T_e, H_e)
-            dpi = calculator.dew_point_internal(T_i, H_i)
-            dpe = calculator.dew_point_external(T_e, H_e)
+            dpi  = calculator.dew_point_internal(T_i, H_i)
+            dpe  = calculator.dew_point_external(T_e, H_e)
             xi, yi = calculator.vpd_coord_internal(T_i, H_i)
             xe, ye = calculator.vpd_coord_external(T_e, H_e)
 
+            # 3. BASIS-DATEN SCHREIBEN
             web_dec.update({
                 "alive": True,
                 "status": "active",
-            
                 "internal": {
                     "temperature": {"value": calculator.to_unit(T_i), "unit": unit}, 
                     "humidity": {"value": H_i, "unit": "%"},
                 },
-            
                 "external": {
                     "present": sensor_exists,
                     "temperature": {"value": calculator.to_unit(T_e), "unit": unit}, 
                     "humidity": {"value": H_e, "unit": "%"},
                 },
-            
-                # 🔥 IDENTISCH ZU ADV/GATT (TOP LEVEL!)
                 "vpd_internal": {"value": vpdi, "unit": "kPa"},
                 "vpd_external": {"value": vpde, "unit": "kPa"},
-            
                 "dew_point_internal": {"value": calculator.to_unit(dpi), "unit": unit},
                 "dew_point_external": {"value": calculator.to_unit(dpe), "unit": unit},
-            
                 "coord": {
                     "internal": {"x": xi, "y": yi}, 
                     "external": {"x": xe if sensor_exists else None, "y": ye if sensor_exists else None}
                 },
-            
                 "battery_voltage": current_web.get("vbat"),
                 "timestamp": web_ts,
-            
+                
+                # --- HIER SIND DEINE LÜFTER & LICHT WERTE WIEDER ---
                 "circulation_fan": {"circulation_fan_rpm": current_web.get("circulation_fan_rpm", 0), "unit": "RPM"},
                 "exhaust_fan": {"exhaust_fan_rpm": current_web.get("exhaust_fan_rpm", 0), "unit": "RPM"},
-            
                 "light_pct": current_web.get("light_pct", 0),
-                "light_mode": current_web.get("light_mode", "off"),
-                "rev": current_web.get("rev"),
-                "health": current_web.get("health")
+                "light_mode": current_web.get("light_mode", "off")
             })
-            # --- JETZT: UNABHÄNGIGE LEAF-LOGIK ---
+
+            # 4. BLATT-LOGIK (Nur wenn Sensor da)
             if leaf_exists:
-                # Blatt-Temp ist da. VPD Leaf braucht aber T_e und H_e als Referenz!
-                # Wenn kein SHT31 da ist, nehmen wir Internal als Notbehelf für die Luftwerte
                 ref_t = T_e if sensor_exists else T_i
                 ref_h = H_e if sensor_exists else H_i
-                
-                # SVP Blatt
                 vpd_l = calculator.vpd_leaf(raw_t_l, ref_t, ref_h)
-                
                 web_dec["external2"] = {
                     "present": True,
                     "leaf_temp": {"value": calculator.to_unit(raw_t_l), "unit": unit},
                     "vpd_leaf": {"value": vpd_l, "unit": "kPa"}
                 }
+
+            # 5. ALLE WEITEREN FIRMWARE-FELDER (Targets, Fan-Modes, Revs, etc.)
+            # Das stellt sicher, dass alles andere aus current_web flach übernommen wird
+            for key, value in current_web.items():
+                if key not in web_dec:
+                    web_dec[key] = value
+            
+            # ... (Rest der BLE-Sensor Schleife bleibt gleich)
              # ---------------------------------------------------
             # BLE SENSOREN (KOMPLETT: TEMP + HUM + VPD + COORD)
             # ---------------------------------------------------

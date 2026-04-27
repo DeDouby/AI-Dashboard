@@ -5,14 +5,27 @@
 #include <Wire.h>
 #include <Adafruit_SHT31.h>
 
-
-
+// I2C Busse
 extern TwoWire I2C_Sensor;
-extern Adafruit_SHT31 sht31;
+extern TwoWire I2C_RTC;
+
+// SHT31 Instanzen
+extern Adafruit_SHT31 sht31_ext;   // Bus 0 (extern)
+extern Adafruit_SHT31 sht31_int;   // Bus 1 (intern)
+
+// Status
 extern bool externalSensorFound;
-float getTempIn();
+extern bool internalSensorFound;
+
+// INIT
 bool initExternalSensor();
+bool initInternalSensor();
+
+// READ
 float getTempExt();
 float getExternalHumidity();
+
+float getTempIn();
+float getInternalHumidity();
 
 #endif

@@ -168,64 +168,67 @@ class CirculationFanOverlay(FloatLayout):
         if not server_data: 
             return
 
-        # SESSION CHECK
-        current_init_rev = server_data.get('rev_init_circfan', 0)
-        if not hasattr(self, "_last_adopted_init") or self._last_adopted_init != current_init_rev:
-            self._last_adopted_init = current_init_rev
-            return
-
+        # === 1. HANDSHAKE & SESSION CHECK ===
+        server_init = server_data.get('rev_init_circfan', 0)
         server_rev = int(server_data.get('rev_circfan', 0))
+        
+        # Das ist das Herzstück: Hat der ESP meinen Ping gespiegelt?
+        is_alive = (server_init == self._my_handshake_id)
+        
+        # Falls der ESP neu gestartet ist (neue Session-ID vom ESP):
+        if not hasattr(self, "_last_adopted_init") or self._last_adopted_init != server_init:
+            self._last_adopted_init = server_init
+            # Wenn der ESP rebootet, müssen wir unsere Revs angleichen
+            if not is_alive: 
+                self._last_sent_rev = server_rev
+            return 
+
+        # === 2. STATUS ANALYSE ===
         last_sent = getattr(self, '_last_sent_rev', 0)
         time_since_action = time.time() - self._last_user_action
 
+        # Revisionen abgleichen
         pending = last_sent > server_rev
-        is_synced = (not pending) and not self._user_active and (time_since_action > 1.5)
+        
+        # Nur Grün wenn: Handshake OK + Keine Rev ausstehend + User fertig + Zeit rum
+        is_synced = is_alive and (not pending) and not self._user_active and (time_since_action > 1.5)
 
-        # === AUTO RETRY LOGIK ===
+        # === 3. AUTO RETRY LOGIK ===
         if pending and (time.time() - self._last_send_time > 3.0):
             if self._retry_count < self._max_retries:
                 self._retry_count += 1
-                print(f"[CircFan] NETWORK TIMEOUT → Resend Rev {last_sent} (Retry {self._retry_count}/{self._max_retries})")
                 self._send_current_state(is_retry=True)
                 return
-            else:
-                print(f"[CircFan] MAX RETRIES ({self._max_retries}) reached for Rev {last_sent}")
 
-        # Live Werte immer aktualisieren
-        srv_live = server_data.get('circulation_fan_speed_now', 0)
-        srv_rpm = server_data.get('circulation_fan_rpm', 0)
-        self.lbl_rpm.text = f"RPM: {int(srv_rpm)}"
-        self.lbl_live_speed.text = f"LIVE: {int(srv_live)}%"
+        # Live-Werte immer anzeigen
+        self.lbl_rpm.text = f"RPM: {int(server_data.get('circulation_fan_rpm', 0))}"
+        self.lbl_live_speed.text = f"LIVE: {int(server_data.get('circulation_fan_speed_now', 0))}%"
 
-        # Status Icon
+# === 4. ICON LOGIK (Der ehrliche Status) ===
         if not is_synced:
+            # Wenn nicht alive (Handshake fehlt) ODER pending (Befehl unterwegs) -> Orange
+            self.sync_icon.text = "[font=FA]\uf021[/font]" 
+            self.sync_icon.color = (1, 0.5, 0, 1)
+            
+            # Spezialfall: Timeout nach Max Retries -> Rot
             if pending and self._retry_count >= self._max_retries:
-                self.sync_icon.text = "[font=FA]\uf071[/font]"   # Warning
+                self.sync_icon.text = "[font=FA]\uf071[/font]"
                 self.sync_icon.color = (1, 0.3, 0, 1)
-            else:
-                self.sync_icon.text = "[font=FA]\uf021[/font]"
-                self.sync_icon.color = (1, 0.5, 0, 1)
             return
 
-        # === SYNCED ===
+        # === ALLES OK (Grüner Haken) ===
         self._retry_count = 0
         self.sync_icon.text = "[font=FA]\uf058[/font]"
         self.sync_icon.color = (0, 1, 0, 1)
 
+        # UI-Werte vom ESP übernehmen (nur wenn User gerade nicht schiebt)
         if not self._user_active:
-            srv_min = int(server_data.get('circulation_fan_min', 20))
-            srv_max = int(server_data.get('circulation_fan_pct', 65))
-            srv_mode = server_data.get('circulation_fan_mode', 'nat')
-
             self._ui_lock = True
-            if abs(self.range_slider.min_value - srv_min) > 0.5:
-                self.range_slider.min_value = srv_min
-            if abs(self.range_slider.max_value - srv_max) > 0.5:
-                self.range_slider.max_value = srv_max
+            self.range_slider.min_value = int(server_data.get('circulation_fan_min', 20))
+            self.range_slider.max_value = int(server_data.get('circulation_fan_pct', 65))
             self._ui_lock = False
-
-            self.lbl_val.text = f"{srv_min}% - {srv_max}%"
-            self._apply_button_styles(srv_mode)
+            self.lbl_val.text = f"{int(self.range_slider.min_value)}% - {int(self.range_slider.max_value)}%"
+            self._apply_button_styles(server_data.get('circulation_fan_mode', 'nat'))
 
     def _on_slider_change(self, instance, value):
         if not self._init_done or self._ui_lock: 
@@ -259,7 +262,18 @@ class CirculationFanOverlay(FloatLayout):
             return False
 
     def _force_sync(self, *_):
-        self._send_current_state()              # Manuelle Force-Sync
+        mac = GLOBAL_STATE.get_active_device_id()
+        if not mac:
+            return
+    
+        # 1. NEUE SESSION ID
+        self._my_handshake_id = int(time.time())
+    
+        # 2. HANDSHAKE SENDEN (RAM ONLY)
+        GLOBAL_STATE.overlay_engine.send_fan_handshake(mac, self._my_handshake_id)
+    
+        # 3. OPTIONAL: State direkt pushen
+        self._send_current_state()
 
     def _set_orange(self):
         self.sync_icon.text = "[font=FA]\uf021[/font]"
@@ -308,10 +322,17 @@ class CirculationFanOverlay(FloatLayout):
             Clock.schedule_once(self._init_values, 0.3)
             return
 
+        # 1. ZUERST die ID erstellen (Wichtig: Vor dem Senden!)
+        self._my_handshake_id = int(time.time())
+        
+        # 2. DANACH die ID an die Engine übergeben
+        GLOBAL_STATE.overlay_engine.send_fan_handshake(mac, self._my_handshake_id)
+        
+        # --- Rest der Initialisierung ---
         srv_min = data.get("circulation_fan_min", 20)
         srv_max = data.get("circulation_fan_pct", 65)
         srv_mode = data.get("circulation_fan_mode", "nat")
-
+        
         self._ui_lock = True
         self.range_slider.min_value = srv_min
         self.range_slider.max_value = srv_max

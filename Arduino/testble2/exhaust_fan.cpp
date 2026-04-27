@@ -74,7 +74,7 @@ void exhaust_fan_save_state() {
 void exhaust_fan_init(uint8_t pin, uint8_t tacho_pin) {
     _exhaust_fan_pin = pin;
     _tacho_pin = tacho_pin;
-    ledcAttach(_exhaust_fan_pin, 25000, 8); 
+    ledcAttach(_exhaust_fan_pin, 5000, 8);
     
     exhaust_fanPrefs.begin("exhaust_fan", false);
     exhaust_fan_min = exhaust_fanPrefs.getInt("min_p", 20);
@@ -129,14 +129,7 @@ void exhaust_fan_update() {
 
         current_exhaust_fan_speed = exhaust_fan_pct;   // ✅ zuerst setzen
 
-        uint32_t duty;
-        if (current_exhaust_fan_speed <= 0) {
-            duty = 0;
-        } else {
-            duty = map(current_exhaust_fan_speed, 1, 100, 0, 255);
-        }
-
-        ledcWrite(_exhaust_fan_pin, duty);
+        ledcWrite(_exhaust_fan_pin, map(current_exhaust_fan_speed, 0, 100, 0, 255));
         return;
     }
 
@@ -185,88 +178,92 @@ void exhaust_fan_update() {
 
         current_exhaust_fan_speed = computed;
 
-        uint32_t duty;
-        if (current_exhaust_fan_speed <= 0) {
-            duty = 0;
-        } else {
-            duty = map(current_exhaust_fan_speed, 1, 100, 0, 255);
-        }
-
-        ledcWrite(_exhaust_fan_pin, duty);
+        ledcWrite(_exhaust_fan_pin, map(current_exhaust_fan_speed, 0, 100, 0, 255));
 
         last_wind_change = millis();
     }
 
 }
-
-// Füge dies am Ende deiner exhaust_fan.cpp hinzu
 void exhaust_fan_process_json(JsonObject doc) {
-    bool changed = false;
-    uint32_t received_rev = 0;
+    bool flash_changed = false;
 
-    if (doc.containsKey("rev_exhaust")) {        // ← NEU: eigener Key
-        received_rev = doc["rev_exhaust"];
+    // 1. HANDSHAKE (RAM ONLY)
+    // Das Gesetz: rev_init wird nur gespiegelt, triggert KEIN Speichern.
+    if (doc.containsKey("rev_init_exhaust")) {
+        exhaust_fan_init_rev = doc["rev_init_exhaust"];
     }
 
-    // Nur verarbeiten, wenn die Revision wirklich neu ist
-    if (received_rev > exhaust_fan_rev) {
+    // 2. DATEN-REVISION (FLASH RELEVANT)
+    // Nur wenn rev_exhaust vorhanden ist, prüfen wir auf Änderungen.
+    if (doc.containsKey("rev_exhaust")) {
+        uint32_t received_rev = doc["rev_exhaust"];
 
-        exhaust_fan_rev = received_rev;
+        if (received_rev > exhaust_fan_rev) {
+            exhaust_fan_rev = received_rev;
 
-        // 1. Fan Speed & Min
-        if (doc.containsKey("exhaust_fan_pct")) {
-            exhaust_fan_pct = constrain((int)doc["exhaust_fan_pct"], 0, 100);
-            changed = true;
-        }
-        if (doc.containsKey("exhaust_fan_min")) {
-            exhaust_fan_min = constrain((int)doc["exhaust_fan_min"], 0, 100);
-            changed = true;
-        }
+            // --- FAN SPEED & MIN ---
+            if (doc.containsKey("exhaust_fan_pct")) {
+                exhaust_fan_pct = constrain((int)doc["exhaust_fan_pct"], 0, 100);
+                flash_changed = true;
+            }
+            if (doc.containsKey("exhaust_fan_min")) {
+                exhaust_fan_min = constrain((int)doc["exhaust_fan_min"], 0, 100);
+                flash_changed = true;
+            }
 
-        // 2. Mode
-        if (doc.containsKey("exhaust_fan_mode")) {
-            String m = doc["exhaust_fan_mode"];
-            if (m == "auto") current_exhaust_fan_mode = exhaust_fan_MODE_AUTOMATIC;
-            else if (m == "chao") current_exhaust_fan_mode = exhaust_fan_MODE_CHAOTIC;
-            else current_exhaust_fan_mode = exhaust_fan_MODE_MANUAL;
-            changed = true;
-        }
+            // --- MODUS ---
+            if (doc.containsKey("exhaust_fan_mode")) {
+                String m = doc["exhaust_fan_mode"];
+                if (m == "auto") current_exhaust_fan_mode = exhaust_fan_MODE_AUTOMATIC;
+                else if (m == "chao") current_exhaust_fan_mode = exhaust_fan_MODE_CHAOTIC;
+                else current_exhaust_fan_mode = exhaust_fan_MODE_MANUAL;
+                flash_changed = true;
+            }
 
-        // 3. Targets (Temp, Humidity, VPD)
-        if (doc.containsKey("target_temp_min")) {
-            target_temp_min = constrain((int)doc["target_temp_min"], 15, 35);
-            changed = true;
-        }
-        if (doc.containsKey("target_temp_max")) {
-            target_temp_max = constrain((int)doc["target_temp_max"], 15, 35);
-            changed = true;
-        }
-        if (doc.containsKey("target_humidity_min")) {
-            target_humidity_min = constrain((int)doc["target_humidity_min"], 0, 100);
-            changed = true;
-        }
-        if (doc.containsKey("target_humidity_max")) {
-            target_humidity_max = constrain((int)doc["target_humidity_max"], 0, 100);
-            changed = true;
-        }
-        if (doc.containsKey("target_vpd_min")) {
-            target_vpd_min = constrain((float)doc["target_vpd_min"], 0.0f, 3.0f);
-            changed = true;
-        }
-        if (doc.containsKey("target_vpd_max")) {
-            target_vpd_max = constrain((float)doc["target_vpd_max"], 0.0f, 3.0f);
-            changed = true;
+            // --- TARGETS (TEMP) ---
+            if (doc.containsKey("target_temp_min")) {
+                target_temp_min = constrain((int)doc["target_temp_min"], 15, 35);
+                flash_changed = true;
+            }
+            if (doc.containsKey("target_temp_max")) {
+                target_temp_max = constrain((int)doc["target_temp_max"], 15, 35);
+                flash_changed = true;
+            }
+
+            // --- TARGETS (HUMIDITY) ---
+            if (doc.containsKey("target_humidity_min")) {
+                target_humidity_min = constrain((int)doc["target_humidity_min"], 0, 100);
+                flash_changed = true;
+            }
+            if (doc.containsKey("target_humidity_max")) {
+                target_humidity_max = constrain((int)doc["target_humidity_max"], 0, 100);
+                flash_changed = true;
+            }
+
+            // --- TARGETS (VPD) ---
+            if (doc.containsKey("target_vpd_min")) {
+                target_vpd_min = constrain((float)doc["target_vpd_min"], 0.0f, 3.0f);
+                flash_changed = true;
+            }
+            if (doc.containsKey("target_vpd_max")) {
+                target_vpd_max = constrain((float)doc["target_vpd_max"], 0.0f, 3.0f);
+                flash_changed = true;
+            }
         }
     }
 
-    if (changed) {
+    // 3. FINALE AUSFÜHRUNG & PERSISTIERUNG
+    // Nur wenn flash_changed true ist, wird der Flash belastet.
+    if (flash_changed) {
         exhaust_fan_save_state();
+        // Im manuellen Modus sofort die Hardware anpassen
         if (current_exhaust_fan_mode == exhaust_fan_MODE_MANUAL) {
-            exhaust_fan_update();
+            exhaust_fan_update(); 
         }
-        Serial.printf("Exhaust Fan updated | Rev: %u\n", exhaust_fan_rev);
+        Serial.printf("Exhaust Fan Flash Update | Rev: %u\n", exhaust_fan_rev);
     }
-}
+}   
+
 void exhaust_fan_get_status(JsonObject doc) {
     doc["exhaust_fan_rpm"] = exhaust_fan_get_rpm();
     doc["exhaust_fan_pct"] = exhaust_fan_pct;

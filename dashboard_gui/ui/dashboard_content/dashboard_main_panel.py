@@ -210,9 +210,10 @@ class DashboardMainPanel(GridLayout):
         order = [
             "temp_in", "hum_in", "vpd_in",
             "temp_ex", "hum_ex", "vpd_ex",
-            "leaf_temp", "vpd_leaf",
             "ble_temp_sps", "ble_hum_sps", "ble_vpd_sps",
             "ble_temp_tb2", "ble_hum_tb2", "ble_vpd_tb2",
+            "leaf_temp", "vpd_leaf",
+
             "circulation_fan_rpm", "exhaust_fan_rpm", "v_bat"
         ]
     
