@@ -94,7 +94,7 @@ class VPDScatterScreen(Screen):
                 text=txt,
                 size_hint=(None, None),
                 size=(dp_scaled(90), dp_scaled(32)),
-                font_size=sp_scaled(14),
+                font_size=sp_scaled(16),
                 # background_normal leer lassen, damit unsere background_color wirkt
                 background_normal='',
                 # Standardzustand: 0.45 Alpha

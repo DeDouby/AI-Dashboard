@@ -63,7 +63,7 @@ class FullScreenView(Screen):
         )
         self.labels_list = []
         for _ in range(5):
-            lbl = Label(text="", font_size=sp_scaled(11), color=(1,1,1,0.5))
+            lbl = Label(text="", font_size=sp_scaled(16), color=(1,1,1,0.5))
             self.labels_list.append(lbl)
             self.x_axis_labels.add_widget(lbl)
         self.layout.add_widget(self.x_axis_labels)

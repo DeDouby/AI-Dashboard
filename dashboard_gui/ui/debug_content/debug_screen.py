@@ -91,7 +91,7 @@ class DebugScreen(Screen):
             text=label,
             background_normal="",
             background_color=(*base_color[:3], 0.6),
-            font_size=sp_scaled(15),
+            font_size=sp_scaled(18),
             size_hint_y=None,
             height=dp_scaled(50),
         )

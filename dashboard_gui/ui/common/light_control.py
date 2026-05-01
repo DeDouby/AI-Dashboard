@@ -50,7 +50,7 @@ class LightControl(BoxLayout):
         if val > 0:
             # AN
             self.icon.text = "\uf0eb"
-            self.icon.color = (0.2, 1, 0.2, 1)   # Grün
+            self.icon.color = (1, 1, 0, 1)   # Grün
         else:
             # AUS (explizit!)
             self.icon.text = "\uf0eb"

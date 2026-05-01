@@ -1,6 +1,6 @@
 [app]
-title = ForeGroundtest
-package.name = foregroundtest
+title = ESPGrowcontroller
+package.name = espgrowcontroller
 package.domain = org.hackintosh1980
 #####undbedingt ble service.py abndern bei namensnderung!und ja keine binde und unterstriche verwenden!
 

@@ -867,44 +867,60 @@ def _write_csv(frames):
                 "timestamp",
                 "device_id",
                 "name",
-                "channel",
-                "alive",
-                "status",
-                "packet_counter",
-                "raw",
+            
                 "T_i",
                 "H_i",
                 "T_e",
                 "H_e",
-                "vpd_i",
-                "vpd_e",
-                "rssi"
+            
+                # 🔥 BLE
+                "ble_sps_T",
+                "ble_sps_H",
+                "ble_tb2_T",
+                "ble_tb2_H",
+            
+                # 🔥 ACTUATORS
+                "light",
+                "exhaust",
+                "circulation",
             ])
 
         for frame in frames:
             for channel in ("adv", "gatt", "webserver"):
-                ch = frame.get(channel, {})
+                if channel != "webserver":
+                    continue
 
+                web = frame.get("webserver", {})
+                ble = web.get("ble_sensors", {})
+                
+                sps = ble.get("sps", {})
+                tb2 = ble.get("tb2", {})
+                
                 writer.writerow([
                     frame.get("timestamp"),
                     frame.get("device_id"),
                     frame.get("name"),
-                    channel,
-                    ch.get("alive"),
-                    ch.get("status"),
-                    ch.get("packet_counter"),
-                    ch.get("raw"),
-
-                    ch.get("internal", {}).get("temperature", {}).get("value"),
-                    ch.get("internal", {}).get("humidity", {}).get("value"),
-
-                    ch.get("external", {}).get("temperature", {}).get("value"),
-                    ch.get("external", {}).get("humidity", {}).get("value"),
-
-                    ch.get("vpd_internal", {}).get("value"),
-                    ch.get("vpd_external", {}).get("value"),
-
-                    frame.get("health", {}).get("signal", {}).get("rssi")
+                
+                    # INTERNAL
+                    web.get("internal", {}).get("temperature", {}).get("value"),
+                    web.get("internal", {}).get("humidity", {}).get("value"),
+                
+                    # EXTERNAL
+                    web.get("external", {}).get("temperature", {}).get("value"),
+                    web.get("external", {}).get("humidity", {}).get("value"),
+                
+                    # 🔥 BLE SPS
+                    sps.get("temperature", {}).get("value"),
+                    sps.get("humidity", {}).get("value"),
+                
+                    # 🔥 BLE TB2
+                    tb2.get("temperature", {}).get("value"),
+                    tb2.get("humidity", {}).get("value"),
+                
+                    # ACTUATORS (ECHT)
+                    web.get("light_pct"),
+                    web.get("exhaust_fan_speed_now"),
+                    web.get("circulation_fan_speed_now"),
                 ])
 
 class DecoderThread(threading.Thread):

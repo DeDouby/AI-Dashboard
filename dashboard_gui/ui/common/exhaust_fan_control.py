@@ -35,13 +35,29 @@ class ExhaustFanControl(BoxLayout):
         if isinstance(data, dict):
             self.latest_data = data
         try:
-            if rpm is None or rpm < 0: # Berücksichtigung deiner Pseudo-Werte
-                self.icon.color = (0.4, 0.4, 0.4, 1)
+            # 1. FEHLER/OFFLINE: Pseudo-Werte (z.B. -0.5, -255) abfangen
+            if rpm is None or rpm < 0: 
+                self.icon.color = (0.4, 0.4, 0.4, 1)  # Grau
                 return
+            
             val = int(rpm)
-            self.icon.color = (0, 0.7, 1, 1) if val > 0 else (1, 0, 0, 1)
-        except:
-            self.icon.color = (0.4, 0.4, 0.4, 1)
+
+            # 2. FARBSTUFEN LOGIK (0 - 2000 RPM)
+            if val <= 0:
+                self.icon.color = (1, 0, 0, 1)        # Rot (Aus)
+            elif val < 600:
+                self.icon.color = (0, 0.7, 1, 1)      # Hellblau (Sehr niedrig)
+            elif val < 800:
+                self.icon.color = (0, 1, 0.5, 1)      # Türkis/Cyan (Niedrig)
+            elif val < 1000:
+                self.icon.color = (0, 1, 0, 1)        # Hellgrün (Optimal/Mittel)
+            elif val < 1400:
+                self.icon.color = (1, 0.8, 0, 1)      # Gelb/Orange (Hoch)
+            else:
+                self.icon.color = (1, 0.4, 0, 1)      # Dunkelorange/Rot (Maximum)
+                
+        except Exception:
+            self.icon.color = (0.4, 0.4, 0.4, 1)      # Grau bei Crash
 
     def on_touch_down(self, touch):
         if not self.collide_point(*touch.pos): return False

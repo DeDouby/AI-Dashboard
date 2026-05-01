@@ -122,11 +122,11 @@ class SignalInspector(FloatLayout):
             pos_hint={"x": 0, "y": 0} # Damit es genau auf dem Panel liegt
         )
 
-        self.lbl = Label(markup=True, halign="left", valign="top", font_size=sp_scaled(13))
+        self.lbl = Label(markup=True, halign="left", valign="top", font_size=sp_scaled(18))
         self.lbl.bind(size=lambda *_: setattr(self.lbl, "text_size", self.lbl.size))
         
         self.raw_lbl = Label(markup=True, halign="left", font_name="RobotoMono-Regular", 
-                             font_size=sp_scaled(9), size_hint_y=None, height=dp_scaled(20), 
+                             font_size=sp_scaled(18), size_hint_y=None, height=dp_scaled(20), 
                              color=(0.5, 0.8, 1, 0.5))
         self.raw_lbl.bind(size=lambda *_: setattr(self.raw_lbl, "text_size", self.raw_lbl.size))
 

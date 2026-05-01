@@ -8,7 +8,7 @@
 #define PIN_CIRC_TACHO     9
 
 #define PIN_EXH_FAN        47
-#define PIN_EXH_TACHO      7
+#define PIN_EXH_TACHO      1
 
 // -------------------- LIGHT --------------------
 #define PIN_LIGHT          21

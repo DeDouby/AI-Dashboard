@@ -125,7 +125,7 @@ class ExternalIcon(BoxLayout):
         
         # Text-Label zentrieren
         self.text_label = Label(
-            font_size=sp_scaled(12), 
+            font_size=sp_scaled(14), 
             color=(0.8, 0.8, 0.8, 1),
             halign="left",
             valign="middle"
@@ -160,7 +160,7 @@ class BatteryIcon(BoxLayout):
         self.size_hint = (None, 1)
         self.width = dp_scaled(75) # Platz für Icon + "4.1V"
 
-        self.icon = IconLabel(font_size=sp_scaled(18))
+        self.icon = IconLabel(font_size=sp_scaled(22))
         self.text_label = Label(
             text="--V",
             font_size=sp_scaled(12),

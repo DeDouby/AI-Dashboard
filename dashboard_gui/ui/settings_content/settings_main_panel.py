@@ -86,9 +86,9 @@ class SettingsMainPanel(BoxLayout):
         def add_slider(label_text, key, min_v, max_v, step, target_container):
             row = BoxLayout(size_hint_y=None, height=dp_scaled(48), spacing=dp_scaled(10))
             
-            lbl = Label(text=I18N.t(label_text), size_hint=(0.4, 1), font_size=sp_scaled(14))
+            lbl = Label(text=I18N.t(label_text), size_hint=(0.4, 1), font_size=sp_scaled(16))
             slider = Slider(min=min_v, max=max_v, step=step, value=float(self.cfg.get(key,0)), size_hint=(0.4, 1))
-            val = Label(text=str(self.cfg.get(key,0)), size_hint=(0.2, 1), font_size=sp_scaled(14))
+            val = Label(text=str(self.cfg.get(key,0)), size_hint=(0.2, 1), font_size=sp_scaled(16))
             
             slider.bind(value=lambda inst, v, lab=val: setattr(lab, "text", f"{v:.1f}"))
             self.inputs[key] = slider
@@ -124,7 +124,7 @@ class SettingsMainPanel(BoxLayout):
         
         # Temperature Unit (Links)
         toggle_row = BoxLayout(size_hint_y=None, height=dp_scaled(48), spacing=dp_scaled(10))
-        toggle_row.add_widget(Label(text=I18N.t("settings.temperature_unit"), size_hint=(0.4,1), font_size=sp_scaled(14)))
+        toggle_row.add_widget(Label(text=I18N.t("settings.temperature_unit"), size_hint=(0.4,1), font_size=sp_scaled(16)))
         self.temp_unit = self.cfg.get("temperature_unit","C")
         self.btn_C = Button(text="°C", background_color=(0.4,0.7,1,1) if self.temp_unit=="C" else (0.3,0.3,0.3,1))
         self.btn_F = Button(text="°F", background_color=(0.4,0.7,1,1) if self.temp_unit=="F" else (0.3,0.3,0.3,1))
@@ -136,7 +136,7 @@ class SettingsMainPanel(BoxLayout):
 
         # Language Row (Rechts)
         lang_row = BoxLayout(size_hint_y=None, height=dp_scaled(48), spacing=dp_scaled(10))
-        lang_row.add_widget(Label(text=I18N.t("settings.language"), size_hint=(0.4,1), font_size=sp_scaled(14)))
+        lang_row.add_widget(Label(text=I18N.t("settings.language"), size_hint=(0.4,1), font_size=sp_scaled(16)))
         self.lang_buttons = {}
         for code, label in [("en","EN"),("de","DE"),("es","ES")]:
             btn = Button(text=label, background_color=(0.4,0.7,1,1) if self.cfg.get("language","en")==code else (0.3,0.3,0.3,1))

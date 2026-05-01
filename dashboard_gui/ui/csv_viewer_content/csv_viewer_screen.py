@@ -114,7 +114,7 @@ class CSVViewerScreen(Screen):
                 # Wenn aktiv: Kurvenfarbe | Wenn inaktiv: Dunkelgrau
                 background_color=(c[0], c[1], c[2], 1) if is_active else (0.15, 0.15, 0.15, 1),
                 color=(1, 1, 1, 1) if is_active else (0.6, 0.6, 0.6, 1),
-                font_size=sp_scaled(11),
+                font_size=sp_scaled(16),
                 bold=is_active
             )
             btn.bind(on_release=lambda b, c=col: self._toggle_filter(c))

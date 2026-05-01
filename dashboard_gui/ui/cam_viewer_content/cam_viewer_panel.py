@@ -77,7 +77,7 @@ class CamViewerPanel(BoxLayout):
         # ------- LOG -------
         self.log = Label(text="RTSP idle.",
                          valign="top", halign="left",
-                         size_hint_y=1, font_size=sp_scaled(14))
+                         size_hint_y=1, font_size=sp_scaled(16))
         self.log.bind(size=lambda *_: setattr(self.log, "text_size", self.log.size))
 
         scroll = ScrollView(size_hint=(1,1))

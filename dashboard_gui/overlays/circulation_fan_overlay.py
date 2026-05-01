@@ -18,6 +18,7 @@ from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.overlays.unified_slider import UnifiedSlider
 from dashboard_gui.overlays.lock_overlay import LockOverlay
+from dashboard_gui.overlays.base_overlay import BaseOverlayEngine
 from kivy.uix.widget import Widget
 
 
@@ -38,8 +39,7 @@ class CirculationFanOverlay(FloatLayout):
         self._max_retries = 5
 
         self._update_event = Clock.schedule_interval(self.update_ui, 1.0)
-        self._sync_event = Clock.schedule_interval(self._sync_to_client, 1.3)
-        
+        self.engine = BaseOverlayEngine()
         self._locked = True
         self._target_mode = "nat"
         self._ui_lock = False
@@ -72,7 +72,7 @@ class CirculationFanOverlay(FloatLayout):
         # Titel + Sync Icon
         title_row = BoxLayout(size_hint_y=None, height=dp_scaled(40), spacing=dp_scaled(5))
         self.lbl_title = Label(text="CIRCULATION FAN CONTROL", bold=True, color=(0, 1, 0, 1),
-                               font_size=sp_scaled(15), halign="left", valign="middle")
+                               font_size=sp_scaled(18), halign="left", valign="middle")
         self.lbl_title.bind(size=self.lbl_title.setter('text_size'))
         
         self.sync_icon = Button(text="[font=FA]\uf021[/font]", markup=True,
@@ -92,8 +92,8 @@ class CirculationFanOverlay(FloatLayout):
         self.panel.add_widget(self.lbl_val)
 
         info_row = BoxLayout(size_hint_y=None, height=dp_scaled(25))
-        self.lbl_rpm = Label(text="RPM: 0", font_size=sp_scaled(15), color=(0.7, 0.7, 1, 0.8))
-        self.lbl_live_speed = Label(text="LIVE: 0%", font_size=sp_scaled(15), bold=True, color=(0, 1, 1, 0.8))
+        self.lbl_rpm = Label(text="RPM: 0", font_size=sp_scaled(18), color=(0.7, 0.7, 1, 0.8))
+        self.lbl_live_speed = Label(text="LIVE: 0%", font_size=sp_scaled(18), bold=True, color=(0, 1, 1, 0.8))
         info_row.add_widget(self.lbl_rpm)
         info_row.add_widget(self.lbl_live_speed)
         self.panel.add_widget(info_row)
@@ -101,7 +101,7 @@ class CirculationFanOverlay(FloatLayout):
         self.panel.add_widget(Widget(size_hint_y=None, height=dp_scaled(15)))
 
         self.panel.add_widget(Label(text="SPEED RANGE (MIN - MAX)", 
-                                  font_size=sp_scaled(15), color=(0,1,0,0.5), 
+                                  font_size=sp_scaled(18), color=(0,1,0,0.5), 
                                   size_hint_y=None, height=dp_scaled(15)))
         
         self.range_slider = UnifiedSlider(min=0, max=100, mode='range', 
@@ -151,12 +151,14 @@ class CirculationFanOverlay(FloatLayout):
         )
 
         if new_rev:
-            self._last_sent_rev = new_rev
+            self.engine.mark_sent(new_rev)
+            self._last_sent_rev = new_rev   # BACKWARD SAFE (noch behalten!)
             self._last_send_time = time.time()
+        
             self._set_orange()
-
+        
             if not is_retry:
-                self._retry_count = 0   # Nur echte User-Aktion setzt Zähler zurück
+                self.engine.reset_retry()
 
 
     # =========================================================================
@@ -173,53 +175,59 @@ class CirculationFanOverlay(FloatLayout):
         server_rev = int(server_data.get('rev_circfan', 0))
         
         # Das ist das Herzstück: Hat der ESP meinen Ping gespiegelt?
-        is_alive = (server_init == self._my_handshake_id)
+        if self.engine.adopt_new_session(server_init, server_rev):
+            self._last_sent_rev = server_rev
+            return
         
-        # Falls der ESP neu gestartet ist (neue Session-ID vom ESP):
-        if not hasattr(self, "_last_adopted_init") or self._last_adopted_init != server_init:
-            self._last_adopted_init = server_init
-            # Wenn der ESP rebootet, müssen wir unsere Revs angleichen
-            if not is_alive: 
-                self._last_sent_rev = server_rev
-            return 
+        is_alive = self.engine.is_alive(server_init)
 
         # === 2. STATUS ANALYSE ===
         last_sent = getattr(self, '_last_sent_rev', 0)
         time_since_action = time.time() - self._last_user_action
 
         # Revisionen abgleichen
-        pending = last_sent > server_rev
+        pending = self.engine.is_pending(server_rev)
         
-        # Nur Grün wenn: Handshake OK + Keine Rev ausstehend + User fertig + Zeit rum
-        is_synced = is_alive and (not pending) and not self._user_active and (time_since_action > 1.5)
-
-        # === 3. AUTO RETRY LOGIK ===
-        if pending and (time.time() - self._last_send_time > 3.0):
-            if self._retry_count < self._max_retries:
-                self._retry_count += 1
+        if pending and self.engine.should_retry():
+            if self.engine.retry_allowed():
+                self.engine.register_retry()
                 self._send_current_state(is_retry=True)
                 return
+        
+        is_synced = self.engine.is_synced(
+            server_init,
+            server_rev,
+            self._user_active,
+            self._last_user_action
+        )
 
         # Live-Werte immer anzeigen
         self.lbl_rpm.text = f"RPM: {int(server_data.get('circulation_fan_rpm', 0))}"
         self.lbl_live_speed.text = f"LIVE: {int(server_data.get('circulation_fan_speed_now', 0))}%"
 
 # === 4. ICON LOGIK (Der ehrliche Status) ===
-        if not is_synced:
-            # Wenn nicht alive (Handshake fehlt) ODER pending (Befehl unterwegs) -> Orange
-            self.sync_icon.text = "[font=FA]\uf021[/font]" 
+        status = self.engine.get_status(
+            server_init,
+            server_rev,
+            self._user_active,
+            self._last_user_action
+        )
+        
+        if status == "green":
+            self.sync_icon.text = "[font=FA]\uf058[/font]"
+            self.sync_icon.color = (0, 1, 0, 1)
+        elif status == "retry":
+            self.sync_icon.text = "[font=FA]\uf021[/font]"
             self.sync_icon.color = (1, 0.5, 0, 1)
-            
-            # Spezialfall: Timeout nach Max Retries -> Rot
-            if pending and self._retry_count >= self._max_retries:
-                self.sync_icon.text = "[font=FA]\uf071[/font]"
-                self.sync_icon.color = (1, 0.3, 0, 1)
+        elif status == "error":
+            self.sync_icon.text = "[font=FA]\uf071[/font]"
+            self.sync_icon.color = (1, 0.3, 0, 1)
+        else:
+            self.sync_icon.text = "[font=FA]\uf021[/font]"
+            self.sync_icon.color = (1, 0.5, 0, 1)
+        
+        if status != "green":
             return
-
-        # === ALLES OK (Grüner Haken) ===
-        self._retry_count = 0
-        self.sync_icon.text = "[font=FA]\uf058[/font]"
-        self.sync_icon.color = (0, 1, 0, 1)
 
         # UI-Werte vom ESP übernehmen (nur wenn User gerade nicht schiebt)
         if not self._user_active:
@@ -283,7 +291,7 @@ class CirculationFanOverlay(FloatLayout):
     def _create_styled_btn(self, text):
         return Button(text=text, markup=True, background_normal="",
                       background_color=(0.15, 0.15, 0.15, 1),
-                      color=(0.5, 0.5, 0.5, 1), font_size=sp_scaled(15))
+                      color=(0.5, 0.5, 0.5, 1), font_size=sp_scaled(18))
 
     def _apply_button_styles(self, mode):
         c_bg = (0.15, 0.15, 0.15, 1)
@@ -295,25 +303,7 @@ class CirculationFanOverlay(FloatLayout):
         self.btn_nat.color  = (1,1,1,1) if mode == "nat" else (0.6,0.6,0.6,1)
         self.btn_chao.color = (1,1,1,1) if mode == "chao" else (0.6,0.6,0.6,1)
 
-    def _sync_to_client(self, dt):
-        if not self._pending_updates: return
-        mac = GLOBAL_STATE.get_active_device_id()
-        if not mac: return
-        try:
-            data = {}
-            if os.path.exists(self.sync_path):
-                with open(self.sync_path, "r") as f:
-                    content = f.read()
-                    if content: data = json.loads(content)
-            if mac not in data: data[mac] = {}
-            data[mac].update(self._pending_updates)
-            tmp_path = self.sync_path + ".tmp"
-            with open(tmp_path, "w") as f: 
-                json.dump(data, f)
-            os.replace(tmp_path, self.sync_path)
-            self._pending_updates.clear()
-        except: 
-            pass
+
 
     def _init_values(self, *_):
         mac = GLOBAL_STATE.get_active_device_id()
@@ -323,9 +313,7 @@ class CirculationFanOverlay(FloatLayout):
             return
 
         # 1. ZUERST die ID erstellen (Wichtig: Vor dem Senden!)
-        self._my_handshake_id = int(time.time())
-        
-        # 2. DANACH die ID an die Engine übergeben
+        self._my_handshake_id = self.engine.create_handshake()
         GLOBAL_STATE.overlay_engine.send_fan_handshake(mac, self._my_handshake_id)
         
         # --- Rest der Initialisierung ---
@@ -359,6 +347,5 @@ class CirculationFanOverlay(FloatLayout):
 
     def close(self):
         if self._update_event: self._update_event.cancel()
-        if self._sync_event:   self._sync_event.cancel()
         if self.parent: self.parent.remove_widget(self)
         GLOBAL_STATE.ui_handler.active_circulation_fan_overlay = None

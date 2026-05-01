@@ -12,11 +12,28 @@ class CSVGraphView(BoxLayout):
         self.padding = dp_scaled(6)
 
         self.colors = {
-            "T_i": (0.3, 0.9, 1.0, 1), "H_i": (0.3, 1.0, 0.3, 1),
-            "T_e": (1.0, 0.8, 0.3, 1), "H_e": (0.8, 0.6, 1.0, 1),
-            "vpd_i": (1.0, 0.4, 0.4, 1), "vpd_e": (1.0, 0.7, 0.7, 0.8)
+            # INTERNAL
+            "T_i": (0.3, 0.9, 1.0, 1),
+            "H_i": (0.3, 1.0, 0.3, 1),
+        
+            # EXTERNAL
+            "T_e": (1.0, 0.8, 0.3, 1),
+            "H_e": (0.8, 0.6, 1.0, 1),
+        
+            # BLE SPS
+            "ble_sps_T": (0.2, 0.7, 1.0, 1),
+            "ble_sps_H": (0.2, 1.0, 0.7, 1),
+        
+            # BLE TB2
+            "ble_tb2_T": (1.0, 0.5, 0.2, 1),
+            "ble_tb2_H": (1.0, 0.8, 0.4, 1),
+        
+            # ACTUATORS
+            "light": (1.0, 1.0, 0.3, 1),
+            "exhaust": (1.0, 0.3, 0.3, 1),
+            "circulation": (0.3, 0.6, 1.0, 1),
         }
-        self.active_plots = ["T_i", "H_i", "vpd_i"]
+        self.active_plots = ["T_i", "H_i", "light"]
         self._zoom, self._view_offset, self._last_tap_time = 1.0, 0, 0
         self.all_data_by_device, self.smoothed, self.smoothing = {}, {}, 0.25
 
@@ -56,11 +73,11 @@ class CSVGraphView(BoxLayout):
                     
                     for col in self.colors.keys():
                         val = row.get(col)
-                        if val and val.strip():
-                            try:
-                                self.all_data_by_device[display_name][col].append(float(val))
-                            except:
-                                pass
+                        try:
+                            v = float(val)
+                            self.all_data_by_device[display_name][col].append(v)
+                        except:
+                            self.all_data_by_device[display_name][col].append(None)
             return sorted(list(self.all_data_by_device.keys()))
         except:
             return []
@@ -82,7 +99,10 @@ class CSVGraphView(BoxLayout):
                     self.smoothed[key] = []
                     last = None
                     for v in arr:
-                        sm = v if last is None else last * (1 - self.smoothing) + v * self.smoothing
+                        if v is None:
+                            sm = last if last is not None else 0.0
+                        else:
+                            sm = v if last is None else last * (1 - self.smoothing) + v * self.smoothing
                         self.smoothed[key].append(sm)
                         last = sm
         
@@ -144,10 +164,10 @@ class CSVGraphView(BoxLayout):
             view = arr[start:end]
             pts = []
             for i, v in enumerate(view):
-                # VPD Boost nur, wenn mehr als eine Filter-Kategorie aktiv ist
-                val = v * 25 if "vpd" in col_part and len(self.active_plots) > 1 else v
-                pts.append((i, val))
-                vals.append(val)
+                if v is None:
+                    continue
+                pts.append((i, v))
+                vals.append(v)
             
             self.plots_main[full_key].points = pts
             self.plots_glow[full_key].points = pts
@@ -170,7 +190,16 @@ class CSVGraphView(BoxLayout):
         labels = {
             "T_i": "Ti", "H_i": "Hi",
             "T_e": "Te", "H_e": "He",
-            "vpd_i": "VPD_i", "vpd_e": "VPD_e"
+        
+            "ble_sps_T": "SPS_T",
+            "ble_sps_H": "SPS_H",
+        
+            "ble_tb2_T": "TB2_T",
+            "ble_tb2_H": "TB2_H",
+        
+            "light": "Light",
+            "exhaust": "Exh",
+            "circulation": "Circ",
         }
 
         # Wir gehen durch alle Kurven, die wir im Speicher haben
@@ -182,9 +211,18 @@ class CSVGraphView(BoxLayout):
             # Nur anzeigen, wenn der Filter für diese Spalte aktiv ist
             if col in self.active_plots and arr and idx-1 < len(arr):
                 lbl = labels.get(col, col)
-                unit = "°C" if "T_" in col else "%" if "H_" in col else "kP"
-                val_str = f"{lbl}:{arr[idx-1]:.1f}{unit}"
+                if "T" in col:
+                    unit = "°C"
+                elif "H" in col:
+                    unit = "%"
+                else:
+                    unit = "%"
+                v = arr[idx-1]
                 
+                if v is None:
+                    continue
+                
+                val_str = f"{lbl}:{v:.1f}{unit}"                
                 if device_name not in device_data:
                     device_data[device_name] = []
                 device_data[device_name].append(val_str)

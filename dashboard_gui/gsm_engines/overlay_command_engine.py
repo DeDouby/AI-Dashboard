@@ -117,18 +117,22 @@ class OverlayCommandEngine:
         print(f"[CircFan] SEND -> Rev: {new_rev} | Mode: {payload['circulation_fan_mode']}")
         
         return new_rev 
+    
     def send_exhaust_command(self, mac, **kwargs):
         current = self.get_latest_device_data(mac)
         new_rev = int(current.get("rev_exhaust", 0)) + 1
         
-        # Wir nutzen kwargs.get mit Fallbacks, um Teil-Updates (Ranges) 
-        # und Voll-Updates (Mode-Wechsel) in einer Logik zu vereinen
+        # Modus Mapping: Wir stellen sicher, dass "chao" ankommt
+        requested_mode = kwargs.get("mode", current.get("exhaust_fan_mode", "auto"))
+        
         payload = {
             "exhaust_fan_min": int(kwargs.get("min", current.get("exhaust_fan_min", 20))),
             "exhaust_fan_pct": int(kwargs.get("max", current.get("exhaust_fan_pct", 65))),
-            "exhaust_fan_mode": kwargs.get("mode", current.get("exhaust_fan_mode", "auto")),
-            "target_temp_min": int(kwargs.get("t_min", current.get("target_temp_min", 22))),
-            "target_temp_max": int(kwargs.get("t_max", current.get("target_temp_max", 28))),
+            "exhaust_fan_mode": requested_mode, # Hier geht jetzt "chao", "auto" oder "man" raus
+            "exhaust_fan_chaos": bool(kwargs.get("chaos", current.get("exhaust_fan_chaos_active", False))),
+
+            "target_temp_min": round(float(kwargs.get("t_min", current.get("target_temp_min", 22.0))), 1),
+            "target_temp_max": round(float(kwargs.get("t_max", current.get("target_temp_max", 28.0))), 1),
             "target_humidity_min": int(kwargs.get("h_min", current.get("target_humidity_min", 40))),
             "target_humidity_max": int(kwargs.get("h_max", current.get("target_humidity_max", 70))),
             "target_vpd_min": float(kwargs.get("vpd_min", current.get("target_vpd_min", 0.8))),
@@ -137,13 +141,6 @@ class OverlayCommandEngine:
         }
         WEB_CLIENT.send_control(mac, payload)
         return new_rev
-
-
-    def send_exhaust_handshake(self, mac, handshake_id):
-        """Rein flüchtiger Ping für Exhaust Fan"""
-        payload = {"rev_init_exhaust": handshake_id}
-        WEB_CLIENT.send_control(mac, payload)
-
 
     def send_exhaust_range(self, mac, **kwargs):
         """Update nur für Slider-Änderungen (behält aktuellen Modus)"""
@@ -155,8 +152,11 @@ class OverlayCommandEngine:
             "exhaust_fan_min": int(kwargs.get("min")),
             "exhaust_fan_pct": int(kwargs.get("max")),
             "exhaust_fan_mode": current_data.get("exhaust_fan_mode", "auto"),
-            "target_temp_min": int(kwargs.get("t_min")),
-            "target_temp_max": int(kwargs.get("t_max")),
+            
+            # --- FIX: Auch hier float für die Präzision ---
+            "target_temp_min": round(float(kwargs.get("t_min")), 1),
+            "target_temp_max": round(float(kwargs.get("t_max")), 1),
+            
             "target_humidity_min": int(kwargs.get("h_min")),
             "target_humidity_max": int(kwargs.get("h_max")),
             "target_vpd_min": float(kwargs.get("vpd_min")),
@@ -166,9 +166,11 @@ class OverlayCommandEngine:
         WEB_CLIENT.send_control(mac, payload)
         return new_rev
 
+    def send_exhaust_handshake(self, mac, handshake_id):
+        """Rein flüchtiger Ping für Exhaust Fan"""
+        payload = {"rev_init_exhaust": handshake_id}
+        WEB_CLIENT.send_control(mac, payload)
 
-
- # === DIE KORREKTUR DER SCHWACHSTELLE ===
 
     def get_latest_device_data(self, mac):
         """Holt die decodierten Daten aus dem BUFFER (Single Source of Truth)"""

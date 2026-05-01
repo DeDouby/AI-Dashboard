@@ -198,7 +198,7 @@ class DevicePickerScreen(Screen):
         # MAC label
         mac_lbl = Label(
             text=mac,
-            font_size=sp_scaled(14),
+            font_size=sp_scaled(16),
             color=(0.7, 0.7, 0.7, 1),
             size_hint_y=None,
             height=dp_scaled(18),

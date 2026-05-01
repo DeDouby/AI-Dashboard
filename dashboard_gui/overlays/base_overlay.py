@@ -1,69 +1,82 @@
-from kivy.uix.floatlayout import FloatLayout
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.button import Button
-from kivy.uix.label import Label
-from kivy.uix.widget import Widget
-from kivy.graphics import Color, RoundedRectangle, Line
-from kivy.clock import Clock
 import time
-import config
-from dashboard_gui.global_state_manager import GLOBAL_STATE
-from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
-from dashboard_gui.overlays.lock_overlay import LockOverlay
-from dashboard_gui.overlays.unified_slider import UnifiedSlider
 
 
-class BaseOverlay(FloatLayout):
-    """Gemeinsame Basis für alle Geräte-Overlays (Fan, Exhaust, Light)"""
+class BaseOverlayEngine:
+    """
+    Zentrale State-Maschine für:
+    - Handshake (rev_init)
+    - Revision Tracking (rev)
+    - Retry Logik
+    - Sync Status (Green/Orange/Red)
+    """
 
-    def __init__(self, title, command_type, **kwargs):
-        super().__init__(**kwargs)
-        
-        self.title = title
-        self.command_type = command_type          # z.B. "circulation_fan"
+    def __init__(self):
         self._last_sent_rev = 0
-        self._last_user_action = time.time()
-        self._user_active = False
-        self._ui_lock = False
-        self._init_done = False
-        self._locked = True
-        self._target_state = {}                   # wird in Child gefüllt
+        self._last_send_time = 0
+        self._retry_count = 0
+        self._max_retries = 5
 
-        # Hintergrund + Panel (gemeinsam)
-        self._build_ui()
+        self._my_handshake_id = 0
+        self._last_adopted_init = None
 
-        self._update_event = Clock.schedule_interval(self.update_ui, 1.0)
-        self._sync_event = Clock.schedule_interval(self._sync_check, 1.2)
+    # =========================
+    # HANDSHAKE
+    # =========================
+    def create_handshake(self):
+        self._my_handshake_id = int(time.time())
+        return self._my_handshake_id
 
-        Clock.schedule_once(self._init_values, 0.2)
+    def is_alive(self, server_init):
+        return server_init == self._my_handshake_id
 
-    def _build_ui(self):
-        # ... hier kommt der komplette Aufbau (Panel, Titel, Sync-Icon, Slider-Bereich, etc.)
-        # Ich kann dir den vollständigen Code geben, wenn du willst.
-        pass
+    def adopt_new_session(self, server_init, server_rev):
+        if self._last_adopted_init != server_init:
+            self._last_adopted_init = server_init
+            if not self.is_alive(server_init):
+                self._last_sent_rev = server_rev
+            return True
+        return False
 
-    # === Gemeinsame Methoden ===
-    def _set_orange(self):
-        self.sync_icon.text = "[font=FA]\uf021[/font]"
-        self.sync_icon.color = (1, 0.5, 0, 1)
+    # =========================
+    # REVISION / RETRY
+    # =========================
+    def mark_sent(self, rev):
+        self._last_sent_rev = rev
+        self._last_send_time = time.time()
 
-    def _set_green(self):
-        self.sync_icon.text = "[font=FA]\uf058[/font]"
-        self.sync_icon.color = (0, 1, 0, 1)
+    def is_pending(self, server_rev):
+        return self._last_sent_rev > server_rev
 
-    def _send_command(self, **extra_kwargs):
-        """Einheitlicher Weg zum Senden"""
-        payload = {**self._target_state, **extra_kwargs}
-        new_rev = GLOBAL_STATE.send_overlay_command(self.command_type, **payload)
-        
-        if new_rev:
-            self._last_sent_rev = new_rev
-            self._last_user_action = time.time()
-            self._set_orange()
+    def should_retry(self):
+        return (time.time() - self._last_send_time) > 3.0
 
-    def update_ui(self, *_):
-        # Die wasserdichte Sync-Logik, die wir schon haben
-        # ...
-        pass
+    def retry_allowed(self):
+        return self._retry_count < self._max_retries
 
-    # Weitere gemeinsame Methoden: _touch_down, _touch_up, _on_slider_change, etc.
+    def register_retry(self):
+        self._retry_count += 1
+
+    def reset_retry(self):
+        self._retry_count = 0
+
+    # =========================
+    # SYNC STATE
+    # =========================
+    def is_synced(self, server_init, server_rev, user_active, last_user_action):
+        alive = self.is_alive(server_init)
+        pending = self.is_pending(server_rev)
+        time_ok = (time.time() - last_user_action) > 1.5
+
+        return alive and (not pending) and (not user_active) and time_ok
+
+    def get_status(self, server_init, server_rev, user_active, last_user_action):
+        if self.is_synced(server_init, server_rev, user_active, last_user_action):
+            self.reset_retry()
+            return "green"
+
+        if self.is_pending(server_rev):
+            if self.retry_allowed():
+                return "retry"
+            return "error"
+
+        return "orange"

@@ -39,7 +39,7 @@ def run_service():
         # --- 2. FOREGROUND NOTIFICATION ---
         # Wichtig: Der String-Klassenname muss exakt zu deiner buildozer.spec passen
         try:
-            ServiceClass = autoclass("org.hackintosh1980.foregroundtest.ServiceBle_service")
+            ServiceClass = autoclass("org.hackintosh1980.espgrowcontroller.ServiceBle_service")
             # Wir nutzen den Service selbst als Kontext
             ServiceClass.start(service, "BLE Bridge: Aktiv im Hintergrund")
             print("[Service] Foreground Service Notification gestartet")

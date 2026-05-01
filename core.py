@@ -130,7 +130,7 @@ def start():
         activity = PythonActivity.mActivity
 
         # PythonService starten (Foreground)
-        ServiceBle = autoclass("org.hackintosh1980.foregroundtest.ServiceBle_service")
+        ServiceBle = autoclass("org.hackintosh1980.espgrowcontroller.ServiceBle_service")
         ServiceBle.start(activity, "BLE service running")
         print("[Core] BLE Python Service gestartet (Foreground)")
 

@@ -95,14 +95,14 @@ class GrowControllerScreen(Screen):
             self.body.add_widget(Widget(size_hint_x=None, width=0))
 
     def _create_info_card(self, key, label, initial_val="---", unit=""):
-        card = BoxLayout(orientation="vertical", size_hint_y=None, height=dp_scaled(65), padding=[dp(12), dp(8)])
+        card = BoxLayout(orientation="vertical", size_hint_y=None, height=dp_scaled(100), padding=[dp(12), dp(8)])
         with card.canvas.before:
             Color(0.1, 0.1, 0.15, 0.7)
             card.bg = Rectangle(pos=card.pos, size=card.size)
         card.bind(pos=lambda s, v: setattr(card.bg, 'pos', v), size=lambda s, v: setattr(card.bg, 'size', v))
         
-        card.add_widget(Label(text=label.upper(), font_size=sp_scaled(10), color=(0.6, 0.6, 0.7, 1), halign="left", text_size=(dp_scaled(150), None)))
-        val_label = Label(text=f"{initial_val} {unit}", font_size=sp_scaled(16), bold=True, color=(1,1,1,1), halign="left", text_size=(dp_scaled(150), None))
+        card.add_widget(Label(text=label.upper(), font_size=sp_scaled(18), color=(0.6, 0.6, 0.7, 1), halign="left", text_size=(dp_scaled(150), None)))
+        val_label = Label(text=f"{initial_val} {unit}", font_size=sp_scaled(18), bold=True, color=(1,1,1,1), halign="left", text_size=(dp_scaled(150), None))
         self.labels[key] = val_label
         card.add_widget(val_label)
         return card

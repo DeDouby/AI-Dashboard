@@ -103,7 +103,7 @@ class SetupMainPanel(BoxLayout):
             size_hint_x=0.25,
             halign="left",
             valign="middle",
-            font_size=sp_scaled(14),
+            font_size=sp_scaled(16),
             color=(0.7, 0.7, 0.7, 1)
         ))
         legend.add_widget(Label(
@@ -111,7 +111,7 @@ class SetupMainPanel(BoxLayout):
             size_hint_x=0.25,
             halign="center",
             valign="middle",
-            font_size=sp_scaled(14),
+            font_size=sp_scaled(16),
             color=(0.7, 0.7, 0.7, 1)
         ))
         legend.add_widget(Label(
@@ -119,7 +119,7 @@ class SetupMainPanel(BoxLayout):
             size_hint_x=0.25,
             halign="center",
             valign="middle",
-            font_size=sp_scaled(14),
+            font_size=sp_scaled(16),
             color=(0.7, 0.7, 0.7, 1)
         ))
         legend.add_widget(Label(
@@ -127,7 +127,7 @@ class SetupMainPanel(BoxLayout):
             size_hint_x=0.25,
             halign="center",
             valign="middle",
-            font_size=sp_scaled(14),
+            font_size=sp_scaled(16),
             color=(0.7, 0.7, 0.7, 1)
         ))
         self.add_widget(legend)

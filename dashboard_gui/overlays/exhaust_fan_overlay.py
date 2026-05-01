@@ -18,6 +18,7 @@ from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.overlays.unified_slider import UnifiedSlider
 from dashboard_gui.overlays.lock_overlay import LockOverlay
+from dashboard_gui.overlays.base_overlay import BaseOverlayEngine
 from kivy.uix.widget import Widget
 
 
@@ -30,6 +31,7 @@ class ExhaustFanOverlay(FloatLayout):
         self._init_done = False
         self._locked = True
         self._target_mode = "auto"
+        self._chaos_enabled = False
 
         # === AUTO-RETRY VARIABLEN ===
         self._last_sent_rev = 0
@@ -40,7 +42,7 @@ class ExhaustFanOverlay(FloatLayout):
         self._ui_lock = False
         self.sync_path = os.path.join(config.DATA, "settings_sync.json")
         self._pending_updates = {}
-
+        self.engine = BaseOverlayEngine()
         # Hintergrund
         bg = Button(background_color=(0, 0, 0, 0.25))
         bg.bind(on_release=lambda *_: self.close())
@@ -67,7 +69,7 @@ class ExhaustFanOverlay(FloatLayout):
         # Header
         title_row = BoxLayout(size_hint_y=None, height=dp_scaled(35), spacing=dp_scaled(5))
         self.lbl_title = Label(text="EXHAUST FAN CONTROL", bold=True, color=(0, 1, 0, 1),
-                               font_size=sp_scaled(15), halign="left", valign="middle")
+                               font_size=sp_scaled(18), halign="left", valign="middle")
         self.lbl_title.bind(size=self.lbl_title.setter('text_size'))
         
         self.sync_icon = Button(text="[font=FA]\uf021[/font]", markup=True,
@@ -86,8 +88,8 @@ class ExhaustFanOverlay(FloatLayout):
         self.panel.add_widget(self.lbl_val)
 
         info_row = BoxLayout(size_hint_y=None, height=dp_scaled(30))
-        self.lbl_rpm = Label(text="RPM: 0", font_size=sp_scaled(14), color=(0.7, 0.7, 1, 0.8))
-        self.lbl_live_speed = Label(text="LIVE: 0%", font_size=sp_scaled(14), bold=True, color=(0, 1, 1, 0.8))
+        self.lbl_rpm = Label(text="RPM: 0", font_size=sp_scaled(18), color=(0.7, 0.7, 1, 0.8))
+        self.lbl_live_speed = Label(text="LIVE: 0%", font_size=sp_scaled(18), bold=True, color=(0, 1, 1, 0.8))
         info_row.add_widget(self.lbl_rpm)
         info_row.add_widget(self.lbl_live_speed)
         self.panel.add_widget(info_row)
@@ -135,13 +137,19 @@ class ExhaustFanOverlay(FloatLayout):
         btn_row.add_widget(self.btn_auto)
         btn_row.add_widget(self.btn_chao)
         self.panel.add_widget(btn_row)
-
+        
+        self._phase_map = {
+            0: "DAY",
+            1: "EVENING",
+            2: "NIGHT",
+            3: "MORNING"
+        }
+        self._last_phase = -1
         # Lock & Events
         self.lock_overlay = LockOverlay(parent=self, panel=self.panel, unlock_callback=self._on_unlock)
         Clock.schedule_once(lambda dt: self.lock_overlay.create(), 0.3)
         
         self._update_event = Clock.schedule_interval(self.update_ui, 1.0)
-        self._sync_event = Clock.schedule_interval(self._sync_to_client, 1.3)
         
         Clock.schedule_once(self._init_values, 0.1)
         self.add_widget(self.panel)
@@ -160,22 +168,25 @@ class ExhaustFanOverlay(FloatLayout):
             "exhaust_fan",
             min=int(self.range_slider.min_value),
             max=int(self.range_slider.max_value),
-            t_min=int(self.temp_slider.min_value),
-            t_max=int(self.temp_slider.max_value),
+            t_min=round(float(self.temp_slider.min_value), 1),
+            t_max=round(float(self.temp_slider.max_value), 1),
             h_min=int(self.hum_slider.min_value),
             h_max=int(self.hum_slider.max_value),
             vpd_min=round(self.vpd_slider.min_value / 10.0, 1),
             vpd_max=round(self.vpd_slider.max_value / 10.0, 1),
-            mode=mode
+            mode=mode,
+            chaos=self._chaos_enabled   # 🔥 NEU
         )
 
         if rev:
-            self._last_sent_rev = rev
+            self.engine.mark_sent(rev)
+            self._last_sent_rev = rev   # fallback-safe
             self._last_send_time = time.time()
+        
             self.sync_icon.color = (1, 0.5, 0, 1)
-
+        
             if not is_retry:
-                self._retry_count = 0   # Nur echte User-Aktion setzt Retry-Zähler zurück
+                self.engine.reset_retry()
 
     # ===================================================================
     # UPDATE_UI mit starkem Auto-Retry
@@ -189,8 +200,8 @@ class ExhaustFanOverlay(FloatLayout):
         s_max = int(data.get('exhaust_fan_pct', 65))
         s_mode = data.get('exhaust_fan_mode', 'auto')
 
-        t_min = int(data.get('target_temp_min', 22))
-        t_max = int(data.get('target_temp_max', 28))
+        t_min = float(data.get('target_temp_min', 22))
+        t_max = float(data.get('target_temp_max', 28))
         h_min = int(data.get('target_humidity_min', 40))
         h_max = int(data.get('target_humidity_max', 70))
 
@@ -215,17 +226,25 @@ class ExhaustFanOverlay(FloatLayout):
         self.lbl_hum.text = f"{h_min}% - {h_max}%"
         self.lbl_vpd.text = f"{v_min:.1f} - {v_max:.1f}"
 
-        self._apply_button_styles(s_mode)
+# Wir holen uns den Chaos-Status aus den Daten (0 oder 1 vom ESP)
+        s_chaos = bool(data.get('exhaust_fan_chaos_active', 0)) 
+
+# Jetzt übergeben wir beides
+        self._apply_button_styles(s_mode, s_chaos)
         self._target_mode = s_mode
         self._last_sent_rev = int(data.get('rev_exhaust', 0))
-
+        phase = int(data.get("plant_phase", 0))
+        
+        if phase != self._last_phase:
+            self._last_phase = phase
+            self.lbl_title.text = f"EXHAUST FAN CONTROL • {self._phase_map.get(phase, 'UNK')}"
     # ===================================================================
     # Weitere Methoden
     # ===================================================================
     def _add_slider_label(self, left_text, right_text=""):
         row = BoxLayout(size_hint_y=None, height=dp_scaled(15))
-        row.add_widget(Label(text=left_text, font_size=sp_scaled(13), color=(0,1,0,0.5), halign="left"))
-        lbl_right = Label(text=right_text, font_size=sp_scaled(13), color=(1,1,1,0.6), halign="right")
+        row.add_widget(Label(text=left_text, font_size=sp_scaled(18), color=(0,1,0,0.5), halign="left"))
+        lbl_right = Label(text=right_text, font_size=sp_scaled(18), color=(1,1,1,0.6), halign="right")
         row.add_widget(lbl_right)
         self.panel.add_widget(row)
         return lbl_right
@@ -233,13 +252,27 @@ class ExhaustFanOverlay(FloatLayout):
     def _create_styled_btn(self, text):
         return Button(text=text, markup=True, background_normal="", 
                       background_color=(0.15, 0.15, 0.15, 1),
-                      color=(0.5, 0.5, 0.5, 1), font_size=sp_scaled(14))
+                      color=(0.5, 0.5, 0.5, 1), font_size=sp_scaled(18))
 
     def _set_mode(self, mode):
-        if self._locked: 
-            return
-        self._target_mode = mode
-        self._send_current_state()          # User-Aktion
+        if self._locked: return
+        
+        if mode == "chao":
+            self._chaos_enabled = not self._chaos_enabled
+        else:
+            self._target_mode = mode
+            
+        self._send_current_state()
+
+    def _apply_button_styles(self, mode, chaos_active):
+        c_bg = (0.15, 0.15, 0.15, 1) # Dunkel (Aus)
+        
+        # Basis-Buttons (Exklusiv)
+        self.btn_man.background_color  = (0, 1, 0, 0.8) if mode == "man" else c_bg
+        self.btn_auto.background_color = (0, 0.7, 1, 0.8) if mode == "auto" else c_bg
+        
+        # Chaos-Button (Zusätzlich/Toggle)
+        self.btn_chao.background_color = (1, 0.5, 0, 0.8) if chaos_active else c_bg
 
     def _on_slider_change(self, *args):
         if not self._init_done or self._ui_lock or self._locked: 
@@ -250,7 +283,8 @@ class ExhaustFanOverlay(FloatLayout):
     def _on_env_slider_change(self, *args):
         if not self._init_done or self._ui_lock or self._locked: 
             return
-        self.lbl_temp.text = f"{int(self.temp_slider.min_value)}° - {int(self.temp_slider.max_value)}°"
+        # .1f sorgt für die Anzeige einer Nachkommastelle
+        self.lbl_temp.text = f"{self.temp_slider.min_value:.1f}° - {self.temp_slider.max_value:.1f}°"
         self.lbl_hum.text = f"{int(self.hum_slider.min_value)}% - {int(self.hum_slider.max_value)}%"
         self.sync_icon.color = (1, 0.5, 0, 1)
 
@@ -276,11 +310,7 @@ class ExhaustFanOverlay(FloatLayout):
     def _force_sync(self, *_):
         self._send_current_state()
 
-    def _apply_button_styles(self, mode):
-        c_bg = (0.15, 0.15, 0.15, 1)
-        self.btn_man.background_color  = (0, 1, 0, 0.8) if mode == "man" else c_bg
-        self.btn_auto.background_color = (0, 0.7, 1, 0.8) if mode == "auto" else c_bg
-        self.btn_chao.background_color = (1, 0.5, 0, 0.8) if mode == "chao" else c_bg
+
 
     def _init_values(self, *_):
         mac = GLOBAL_STATE.get_active_device_id()
@@ -290,9 +320,8 @@ class ExhaustFanOverlay(FloatLayout):
             return
 
         # === 1. HANDSHAKE ID GENERIEREN & SENDEN ===
-        self._my_handshake_id = int(time.time())
+        self._my_handshake_id = self.engine.create_handshake()
         GLOBAL_STATE.overlay_engine.send_exhaust_handshake(mac, self._my_handshake_id)
-
         # === 2. WERTE AUS BUFFER HOLEN ===
         s_min = int(data.get("exhaust_fan_min", 20))
         s_max = int(data.get("exhaust_fan_pct", 65))
@@ -324,68 +353,66 @@ class ExhaustFanOverlay(FloatLayout):
         is_alive = (server_init == self._my_handshake_id)
         
         # Falls Reboot/Fremd-Init erkannt wird:
-        if not hasattr(self, "_last_adopted_init") or self._last_adopted_init != server_init:
-            self._last_adopted_init = server_init
-            if not is_alive: self._last_sent_rev = server_rev
+        if self.engine.adopt_new_session(server_init, server_rev):
+            self._last_sent_rev = server_rev
             return
-
+        
+        is_alive = self.engine.is_alive(server_init)
         # === 2. STATUS ANALYSE ===
         # === 2. STATUS ANALYSE ===
         last_sent = getattr(self, '_last_sent_rev', 0)
         time_since_action = time.time() - self._last_user_action
 
         # Revisionen abgleichen
-        pending = last_sent > server_rev
+        pending = self.engine.is_pending(server_rev)
         
-        # Nur Grün wenn: Handshake OK + Keine Rev ausstehend + User fertig + Zeit rum
-        is_synced = is_alive and (not pending) and not self._user_active and (time_since_action > 1.5)
-
-        # === 3. AUTO RETRY LOGIK ===
-        if pending and (time.time() - self._last_send_time > 3.0):
-            if self._retry_count < self._max_retries:
-                self._retry_count += 1
+        if pending and self.engine.should_retry():
+            if self.engine.retry_allowed():
+                self.engine.register_retry()
                 self._send_current_state(is_retry=True)
                 return
-
+        
+        is_synced = self.engine.is_synced(
+            server_init,
+            server_rev,
+            self._user_active,
+            self._last_user_action
+        )
+        phase = int(server_data.get("plant_phase", 0))
+        
+        if phase != self._last_phase:
+            self._last_phase = phase
+            self.lbl_title.text = f"EXHAUST FAN CONTROL • {self._phase_map.get(phase, 'UNK')}"
         # Live-Werte immer anzeigen
         self.lbl_rpm.text = f"RPM: {int(server_data.get('exhaust_fan_rpm', 0))}"
         self.lbl_live_speed.text = f"LIVE: {int(server_data.get('exhaust_fan_speed_now', 0))}%"
 
 # === 4. ICON LOGIK (Der ehrliche Status) ===
-        if not is_synced:
-            # Wenn nicht alive (Handshake fehlt) ODER pending (Befehl unterwegs) -> Orange
-            self.sync_icon.text = "[font=FA]\uf021[/font]" 
+        status = self.engine.get_status(
+            server_init,
+            server_rev,
+            self._user_active,
+            self._last_user_action
+        )
+        
+        if status == "green":
+            self.sync_icon.text = "[font=FA]\uf058[/font]"
+            self.sync_icon.color = (0, 1, 0, 1)
+        elif status == "retry":
+            self.sync_icon.text = "[font=FA]\uf021[/font]"
             self.sync_icon.color = (1, 0.5, 0, 1)
-            
-            # Spezialfall: Timeout nach Max Retries -> Rot
-            if pending and self._retry_count >= self._max_retries:
-                self.sync_icon.text = "[font=FA]\uf071[/font]"
-                self.sync_icon.color = (1, 0.3, 0, 1)
+        elif status == "error":
+            self.sync_icon.text = "[font=FA]\uf071[/font]"
+            self.sync_icon.color = (1, 0.3, 0, 1)
+        else:
+            self.sync_icon.text = "[font=FA]\uf021[/font]"
+            self.sync_icon.color = (1, 0.5, 0, 1)
+        
+        if status != "green":
             return
+    
+    
 
-        # === ALLES OK (Grüner Haken) ===
-        self._retry_count = 0
-        self.sync_icon.text = "[font=FA]\uf058[/font]"
-        self.sync_icon.color = (0, 1, 0, 1)
-    
-    
-    def _sync_to_client(self, dt):
-        if not self._pending_updates: return
-        mac = GLOBAL_STATE.get_active_device_id()
-        if not mac: return
-        try:
-            data = {}
-            if os.path.exists(self.sync_path):
-                with open(self.sync_path, "r") as f:
-                    content = f.read()
-                    if content: data = json.loads(content)
-            if mac not in data: data[mac] = {}
-            data[mac].update(self._pending_updates)
-            tmp_path = self.sync_path + ".tmp"
-            with open(tmp_path, "w") as f: json.dump(data, f)
-            os.replace(tmp_path, self.sync_path)
-            self._pending_updates.clear()
-        except: pass
 
     def _on_unlock(self):
         self._locked = False

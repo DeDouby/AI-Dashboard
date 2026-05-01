@@ -122,7 +122,7 @@ class CSVViewerFileBrowser(FloatLayout):
                         background_down="",
                         background_color=(0.16, 0.16, 0.22, 1),  # Dark-Pro List-Item
                         color=(0.95, 0.95, 0.98, 1),
-                        font_size=sp_scaled(14),
+                        font_size=sp_scaled(16),
                     )
                     btn.bind(on_release=lambda _, n=name: self._choose(base, n))
                     box.add_widget(btn)
@@ -135,7 +135,7 @@ class CSVViewerFileBrowser(FloatLayout):
                 background_down="",
                 background_color=(0.25, 0.16, 0.16, 1),
                 color=(0.98, 0.90, 0.90, 1),
-                font_size=sp_scaled(13),
+                font_size=sp_scaled(16),
             )
             box.add_widget(btn)
 
@@ -149,7 +149,7 @@ class CSVViewerFileBrowser(FloatLayout):
             background_down="",
             background_color=(0.45, 0.15, 0.15, 1),  # Dark-Pro Stop-Farbe
             color=(0.98, 0.95, 0.95, 1),
-            font_size=sp_scaled(14),
+            font_size=sp_scaled(16),
         )
         btn_close.bind(on_release=lambda *_: self._close())
         root.add_widget(btn_close)

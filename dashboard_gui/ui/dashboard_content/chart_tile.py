@@ -82,7 +82,7 @@ class ChartTile(ButtonBehavior, BoxLayout):
         # AVG (unten rechts)
         self.lbl_avg = Label(
             text="avg: --", 
-            font_size=sp_scaled(13), # Kleiner ist oft edler
+            font_size=sp_scaled(16), # Kleiner ist oft edler
             color=(1, 1, 1, 0.5),    # Halbe Transparenz für Hintergrund-Feeling
             size_hint=(None, None),
             size=(dp_scaled(120), dp_scaled(20)),

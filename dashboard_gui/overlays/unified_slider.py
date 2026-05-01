@@ -157,28 +157,30 @@ class UnifiedSlider(Widget):
 
     def _handle_touch(self, touch):
         """Handle touch events for both single and range modes"""
-        range_span = self.range_max - self.range_min
-        if range_span <= 0:
+        # 1. Sicherstellen, dass wir valide Werte haben
+        r_min = float(self.range_min)
+        r_max = float(self.range_max)
+        range_span = r_max - r_min
+        
+        if range_span <= 0 or self.width <= 0:
             return 
         
-        if self.width <= 0:
-            return 
-        
-        side_padding = dp_scaled(34)/2 + dp_scaled(4)   # gleicher Wert wie oben
+        # 2. Padding berechnen (wie in der Grafik-Logik)
+        side_padding = dp_scaled(34)/2 + dp_scaled(4)
         usable_width = self.width - 2 * side_padding
     
+        # 3. Relative Position bestimmen und CLAMPEN (0.0 - 1.0)
         relative_x = (touch.x - (self.x + side_padding)) / usable_width
         relative_x = max(0.0, min(1.0, relative_x))
-        # Scale to range value
-        raw_val = relative_x * range_span + self.range_min
-        val = int(round(raw_val))
         
-        # --- ABSOLUTER HARD CLAMP ---
-        # Das hier stellt sicher, dass 'val' NIEMALS außerhalb von range_min/max landet
-        val = max(self.range_min, min(self.range_max, val))
+        # 4. Wert berechnen basierend auf dem ECHTEN range_max (z.B. 96)
+        raw_val = relative_x * range_span + r_min
+        
+        # 5. HARD CLAMP auf den definierten Bereich
+        val = max(r_min, min(r_max, raw_val))
         
         if self.mode == 'single':
-            self._handle_single_touch(val, relative_x)
+            self.max_value = val # Setzt via AliasProperty auch 'self.value'
         else:  # 'range'
             self._handle_range_touch(val, relative_x)
 

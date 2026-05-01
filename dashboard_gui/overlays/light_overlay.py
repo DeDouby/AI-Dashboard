@@ -15,6 +15,7 @@ from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.overlays.unified_slider import UnifiedSlider
 from dashboard_gui.overlays.lock_overlay import LockOverlay
+from dashboard_gui.overlays.base_overlay import BaseOverlayEngine
 from kivy.uix.widget import Widget
 
 class LightOverlay(FloatLayout):
@@ -33,7 +34,7 @@ class LightOverlay(FloatLayout):
         self._ui_lock = False
         self._pending_updates = {}
         self.sync_path = os.path.join("data", "settings_sync.json")
-
+        self.engine = BaseOverlayEngine()
         # Hintergrund
         bg = Button(background_color=(0, 0, 0, 0.25))
         bg.bind(on_release=lambda *_: self.close())
@@ -59,7 +60,7 @@ class LightOverlay(FloatLayout):
 
         # Header
         title_row = BoxLayout(size_hint_y=None, height=dp_scaled(40), spacing=dp_scaled(5))
-        self.lbl_title = Label(text="LIGHT CONTROL PRO", bold=True, color=(0, 1, 0, 1), font_size=sp_scaled(15))
+        self.lbl_title = Label(text="LIGHT CONTROL PRO", bold=True, color=(0, 1, 0, 1), font_size=sp_scaled(18))
         self.sync_icon = Button(text="[font=FA]\uf021[/font]", markup=True, font_size=sp_scaled(30),
                                 background_color=(0, 0, 0, 0), color=(1, 1, 1, 1), size_hint_x=None, width=dp_scaled(45))
         self.sync_icon.bind(on_release=self._force_sync)
@@ -69,9 +70,9 @@ class LightOverlay(FloatLayout):
 
         # Wert-Box
         val_box = BoxLayout(size_hint_y=None, height=dp_scaled(35))
-        self.lbl_val = Label(text="0%", font_size=sp_scaled(42), bold=True, size_hint_x=None, width=dp_scaled(140))
+        self.lbl_val = Label(text="0%", font_size=sp_scaled(36), bold=True, size_hint_x=None, width=dp_scaled(140))
         self.lbl_target = Label(text="(TARGET: 0%)", font_size=sp_scaled(20), color=(0.7, 0.7, 0.7, 0.8), size_hint_x=None, width=dp_scaled(100))
-        self.lbl_status_text = Label(text="STATUS: INIT", font_size=sp_scaled(15), bold=True, color=(0, 1, 0, 0.7))
+        self.lbl_status_text = Label(text="STATUS: INIT", font_size=sp_scaled(18), bold=True, color=(0, 1, 0, 0.7))
         val_box.add_widget(self.lbl_val); val_box.add_widget(self.lbl_target); val_box.add_widget(self.lbl_status_text)
         self.panel.add_widget(val_box)
 
@@ -81,21 +82,21 @@ class LightOverlay(FloatLayout):
         self.panel.add_widget(self.slider)
 
         # Sunrise/Sunset
-        self.lbl_sunrise_sunset = Label(text="RAMPEN: --", markup=True, font_size=sp_scaled(15), color=(1, 0.8, 0.2, 0.8), size_hint_y=None, height=dp_scaled(15))
+        self.lbl_sunrise_sunset = Label(text="RAMPEN: --", markup=True, font_size=sp_scaled(18), color=(1, 0.8, 0.2, 0.8), size_hint_y=None, height=dp_scaled(15))
         self.panel.add_widget(self.lbl_sunrise_sunset)
         self.slider_sunrise_sunset = UnifiedSlider(min=1, max=96, mode='range', fill_entire_track=True)        
         self.slider_sunrise_sunset.bind(min_value=self._on_sunrise_sunset_change, max_value=self._on_sunrise_sunset_change, on_touch_down=self._touch_down, on_touch_up=self._touch_up)
         self.panel.add_widget(self.slider_sunrise_sunset)
 
         # Startzeit
-        self.lbl_start = Label(text="START: --", font_size=sp_scaled(15), size_hint_y=None, height=dp_scaled(15))
+        self.lbl_start = Label(text="START: --", font_size=sp_scaled(18), size_hint_y=None, height=dp_scaled(15))
         self.panel.add_widget(self.lbl_start)
         self.slider_start = UnifiedSlider(min=0, max=95, mode='single', size_hint_y=None, height=dp_scaled(38))
         self.slider_start.bind(value=self._on_start_change, on_touch_down=self._touch_down, on_touch_up=self._touch_up)
         self.panel.add_widget(self.slider_start)
 
         # Dauer
-        self.lbl_dur = Label(text="DAUER: --", font_size=sp_scaled(15), size_hint_y=None, height=dp_scaled(15))
+        self.lbl_dur = Label(text="DAUER: --", font_size=sp_scaled(18), size_hint_y=None, height=dp_scaled(15))
         self.panel.add_widget(self.lbl_dur)
         self.slider_dur = UnifiedSlider(min=1, max=96, mode='single', size_hint_y=None, height=dp_scaled(38))
         self.slider_dur.bind(value=self._on_dur_change, on_touch_down=self._touch_down, on_touch_up=self._touch_up)
@@ -104,7 +105,7 @@ class LightOverlay(FloatLayout):
         self.panel.add_widget(Widget())
 
         # RESTZEIT LABEL (WIEDER DA!)
-        self.lbl_remaining = Label(text="RESTZEIT: --", font_size=sp_scaled(15), color=(1, 0.8, 0, 1), size_hint_y=None, height=dp_scaled(20))
+        self.lbl_remaining = Label(text="RESTZEIT: --", font_size=sp_scaled(18), color=(1, 0.8, 0, 1), size_hint_y=None, height=dp_scaled(20))
         self.panel.add_widget(self.lbl_remaining)
 
         # Buttons
@@ -122,17 +123,16 @@ class LightOverlay(FloatLayout):
         Clock.schedule_once(self._init_values, 0.1)
         
         self._update_event = Clock.schedule_interval(self.update_ui, 1.0)
-        self._sync_event = Clock.schedule_interval(self._sync_to_client, 1.3)
         self.add_widget(self.panel)
 
     def _create_styled_btn(self, text):
-        return Button(text=text, markup=True, background_normal="", background_color=(0.15, 0.15, 0.15, 1), color=(0.5, 0.5, 0.5, 1), font_size=sp_scaled(15))
+        return Button(text=text, markup=True, background_normal="", background_color=(0.15, 0.15, 0.15, 1), color=(0.5, 0.5, 0.5, 1), font_size=sp_scaled(18))
 
     def _init_values(self, *_):
         mac = GLOBAL_STATE.get_active_device_id()
         data = GLOBAL_STATE.overlay_engine.get_buffer_data(mac)
         if not data: Clock.schedule_once(self._init_values, 0.3); return
-        self._my_handshake_id = int(time.time())
+        self._my_handshake_id = self.engine.create_handshake()
         GLOBAL_STATE.overlay_engine.send_light_handshake(mac, self._my_handshake_id)
         self._ui_lock = True
         self._apply_server_snapshot(data)
@@ -161,34 +161,53 @@ class LightOverlay(FloatLayout):
         self._apply_button_styles(mode, target)
 
     def _calculate_remaining_time(self, data):
-        """Berechnet Restzeit (wenn AN) oder Wartezeit (wenn AUS)."""
         mode = data.get('light_mode', 'man')
-        if mode != "tim": return "RESTZEIT: --"
+        if mode != "tim": 
+            return "MODUS: MANUELL/AUS"
         
         h, m = int(data.get('l_start_h', 8)), int(data.get('l_start_m', 0))
-        dur = int(data.get('l_dur', 720))
-        
+        dur = int(data.get('l_dur', 720))  # Dauer in Minuten
+
         now = time.localtime()
         current_min = now.tm_hour * 60 + now.tm_min
         start_min = h * 60 + m
-        end_min = (start_min + dur) % 1440
-        
+        end_min = (start_min + dur)  # Kann > 1440 sein
+
+        # 1. Prüfen: Ist das Licht GERADE AN?
         is_active = False
-        if start_min < end_min:
-            if start_min <= current_min < end_min: is_active = True
-        else: # Über Mitternacht
-            if current_min >= start_min or current_min < end_min: is_active = True
+        
+        # Fall A: Zeitfenster liegt innerhalb eines Tages (z.B. 08:00 - 20:00)
+        if end_min <= 1440:
+            if start_min <= current_min < end_min:
+                is_active = True
+        # Fall B: Zeitfenster geht über Mitternacht (z.B. 20:00 - 04:00)
+        else:
+            if current_min >= start_min or current_min < (end_min % 1440):
+                is_active = True
+
+        # 2. Berechnung der Anzeige
+        if is_active:
+            # Wie viel Zeit ist noch übrig?
+            if current_min >= start_min:
+                # Wir sind am ersten Tag des Zyklus
+                rem_min = end_min - current_min
+            else:
+                # Wir sind am zweiten Tag (nach Mitternacht)
+                rem_min = (end_min % 1440) - current_min
             
-        if not is_active:
-            # BERECHNUNG BIS ZUM NÄCHSTEN START
+            return f"RESTZEIT: {rem_min // 60}h {rem_min % 60:02d}m"
+        else:
+            # Licht ist aus -> Berechne Zeit bis zum nächsten Start
             wait_min = (start_min - current_min + 1440) % 1440
             return f"STARTET IN: {wait_min // 60}h {wait_min % 60:02d}m"
         
-        # BERECHNUNG BIS ZUM AUSSCHALTEN
-        rem_min = (end_min - current_min + 1440) % 1440
-        return f"RESTZEIT: {rem_min // 60}h {rem_min % 60:02d}m"
+
     def _send_command(self, is_retry=False, **kwargs):
         mac = GLOBAL_STATE.get_active_device_id()
+        start_step = max(0, min(95, int(self.slider_start.value)))
+        start_min = start_step * 15
+        dur_steps = max(1, min(96, int(self.slider_dur.value)))
+        dur_min = dur_steps * 15
         if not mac or not self._init_done: return
         start_min = int(self.slider_start.value) * 15
         rev = GLOBAL_STATE.send_overlay_command("light", pct=int(self.slider.value), mode=kwargs.get("mode", self._target_mode),
@@ -196,8 +215,12 @@ class LightOverlay(FloatLayout):
             sunrise=int(self.slider_sunrise_sunset.min_value) * 15, 
             sunset=int(self.slider_sunrise_sunset.range_max - self.slider_sunrise_sunset.max_value) * 15)
         if rev:
-            self._last_sent_rev, self._last_send_time = rev, time.time()
-            if not is_retry: self._retry_count = 0
+            self.engine.mark_sent(rev)
+            self._last_sent_rev = rev   # fallback-safe
+            self._last_send_time = time.time()
+        
+            if not is_retry:
+                self.engine.reset_retry()
 
     def _on_slider_change(self, *args):
         if self._init_done and not self._ui_lock and not self._locked:
@@ -206,13 +229,16 @@ class LightOverlay(FloatLayout):
 
     def _on_dur_change(self, instance, value):
         if self._init_done and not self._ui_lock:
-            steps = int(value)
+            steps = max(1, min(96, int(value)))   # 💥 FIX
+            self.slider_dur.value = steps         # 💥 wichtig (UI zurückdrücken)
+    
             self.lbl_dur.text = f"DAUER: {(steps*15)//60}h {(steps*15)%60:02d}m"
             self.slider_sunrise_sunset.range_max = steps
 
     def _on_start_change(self, instance, value):
         if self._init_done and not self._ui_lock:
-            m = int(value) * 15
+            value = max(0, min(95, int(value)))   # 💥 FIX
+            m = value * 15
             self.lbl_start.text = f"START: {m//60:02d}:{m%60:02d}"
 
     def _update_ramp_label(self, sr, ss):
@@ -251,26 +277,47 @@ class LightOverlay(FloatLayout):
         server_rev = int(server_data.get('rev_light', 0))
         is_alive = (server_init == self._my_handshake_id)
         
-        if not hasattr(self, "_last_adopted_init") or self._last_adopted_init != server_init:
-            self._last_adopted_init = server_init
-            if not is_alive: self._last_sent_rev = server_rev
+        if self.engine.adopt_new_session(server_init, server_rev):
+            self._last_sent_rev = server_rev
             return
+        
+        is_alive = self.engine.is_alive(server_init)
 
         last_sent = getattr(self, '_last_sent_rev', 0)
-        pending = last_sent > server_rev
-        if pending and (time.time() - self._last_send_time > 3.0):
-            if self._retry_count < self._max_retries:
-                self._retry_count += 1; self._send_command(is_retry=True); return
+        pending = self.engine.is_pending(server_rev)
+        
+        if pending and self.engine.should_retry():
+            if self.engine.retry_allowed():
+                self.engine.register_retry()
+                self._send_command(is_retry=True)
+                return
+        
+        is_synced = self.engine.is_synced(
+            server_init,
+            server_rev,
+            self._user_active,
+            self._last_user_action
+        )
 
         is_synced = is_alive and (not pending) and not self._user_active and (time.time() - self._last_user_action > 1.5)
-        if not is_synced:
+        status = self.engine.get_status(
+            server_init,
+            server_rev,
+            self._user_active,
+            self._last_user_action
+        )
+        
+        if status == "green":
+            self.sync_icon.text, self.sync_icon.color = "[font=FA]\uf058[/font]", (0, 1, 0, 1)
+        elif status == "retry":
             self.sync_icon.text, self.sync_icon.color = "[font=FA]\uf021[/font]", (1, 0.5, 0, 1)
-            if pending and self._retry_count >= self._max_retries:
-                self.sync_icon.text, self.sync_icon.color = "[font=FA]\uf071[/font]", (1, 0.3, 0, 1)
+        elif status == "error":
+            self.sync_icon.text, self.sync_icon.color = "[font=FA]\uf071[/font]", (1, 0.3, 0, 1)
+        else:
+            self.sync_icon.text, self.sync_icon.color = "[font=FA]\uf021[/font]", (1, 0.5, 0, 1)
+        
+        if status != "green":
             return
-
-        self._retry_count = 0
-        self.sync_icon.text, self.sync_icon.color = "[font=FA]\uf058[/font]", (0, 1, 0, 1)
         if not self._user_active:
             self._ui_lock = True; self._apply_server_snapshot(server_data); self._ui_lock = False
 
@@ -285,25 +332,9 @@ class LightOverlay(FloatLayout):
         self.bg_rect.pos, self.bg_rect.size = self.panel.pos, self.panel.size
         self.outline.rounded_rectangle = (self.panel.x, self.panel.y, self.panel.width, self.panel.height, dp_scaled(20))
     
-    def _sync_to_client(self, dt):
-        if not self._pending_updates: return
-        mac = GLOBAL_STATE.get_active_device_id()
-        if not mac: return
-        try:
-            data = {}
-            if os.path.exists(self.sync_path):
-                with open(self.sync_path, "r") as f:
-                    content = f.read()
-                    if content: data = json.loads(content)
-            if mac not in data: data[mac] = {}
-            data[mac].update(self._pending_updates)
-            with open(self.sync_path + ".tmp", "w") as f: json.dump(data, f)
-            os.replace(self.sync_path + ".tmp", self.sync_path)
-            self._pending_updates.clear()
-        except: pass
+
 
     def close(self):
         if self._update_event: self._update_event.cancel()
-        if self._sync_event: self._sync_event.cancel()
         if self.parent: self.parent.remove_widget(self)
         GLOBAL_STATE.ui_handler.active_light_overlay = None

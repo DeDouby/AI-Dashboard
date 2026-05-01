@@ -13,9 +13,6 @@ static const BLEAddress TB2_ADDR("f0:f1:00:00:06:19");
 const uint32_t SCAN_TIME_MS      = 5000;   // Scan-Dauer
 const uint32_t SCAN_INTERVAL_MS  = 6000;   // Alle 6 Sekunden starten
 const uint32_t SENSOR_WATCHDOG_MS = 60000;
-
-BLEScan* pBLEScan = nullptr;
-
 struct SensorData {
     float temp = -256.0f;
     float humid = -256.0f;
@@ -24,8 +21,25 @@ struct SensorData {
     bool is_online = false;
 };
 
-static SensorData sps;   // Inkbird
-static SensorData tb2;   // ThermoBeacon
+static SensorData sps;
+static SensorData tb2;
+BLEScan* pBLEScan = nullptr;
+namespace BLEScanner {
+
+float get_sps_temp() {
+    return sps.is_online ? sps.temp : -256.0f;
+}
+
+float get_sps_hum() {
+    return sps.is_online ? sps.humid : -256.0f;
+}
+
+bool is_sps_online() {
+    return sps.is_online;
+}
+
+}
+
 
 float parseValue(const uint8_t* data, int offset, float scale) {
     int16_t raw = data[offset] | (data[offset + 1] << 8);
