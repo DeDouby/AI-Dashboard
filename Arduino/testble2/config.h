@@ -4,8 +4,8 @@
 #include <Arduino.h>
 
 // -------------------- FAN --------------------
-#define PIN_CIRC_FAN       4
-#define PIN_CIRC_TACHO     9
+#define PIN_CIRC_FAN       45
+#define PIN_CIRC_TACHO     2
 
 #define PIN_EXH_FAN        47
 #define PIN_EXH_TACHO      1
@@ -22,6 +22,6 @@
 #define RTC_SCL            14
 
 // -------------------- POWER --------------------
-#define PIN_BAT            5
+#define PIN_BAT            6
 
 #endif

@@ -9,15 +9,28 @@ extern TwoWire I2C_RTC;
 
 
 
-
-void recoverI2C() {
-    // Falls ein Bus hängt, hier Reset-Logik (optional)
-    I2C_RTC.begin(RTC_SDA, RTC_SCL, 100000);
+void recoverI2C(TwoWire &bus, int sda, int scl) {
+    bus.end();
+    delay(10);
+    bus.begin(sda, scl, 50000);
+    delay(10);
 }
+
+
+
 void init_sensor_bus()
 {
-    I2C_Sensor.begin(I2C_SDA, I2C_SCL, 100000);
-    I2C_Sensor.setTimeOut(50);
+    // Wir nutzen deine Config-Pins 4 und 5
+    I2C_Sensor.end(); 
+    delay(50); 
+    
+    // Initialisierung mit deinen Werten aus der config.h
+    I2C_Sensor.begin(I2C_SDA, I2C_SCL, 50000);
+    
+    // Timeout auf 20ms, damit der Bus bei Fehlern nicht hängen bleibt
+    I2C_Sensor.setTimeOut(20);
+    
+    Serial.println("Sensor-Bus (Extern) mit Pins 4/5 gestartet.");
 }
 
 void scan_i2c_devices()
@@ -51,7 +64,7 @@ void init_hardware() {
     pinMode(PIN_BAT, INPUT);
 
     // Sensor Bus starten
-    I2C_Sensor.begin(I2C_SDA, I2C_SCL, 100000);
+    I2C_Sensor.begin(I2C_SDA, I2C_SCL, 50000);
     
     // RTC Bus starten
     I2C_RTC.begin(RTC_SDA, RTC_SCL, 100000);

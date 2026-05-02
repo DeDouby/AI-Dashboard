@@ -23,7 +23,8 @@
 #include "circulation_fan.h"
 #include <Preferences.h> // NEU: Für persistente Speicherung
 #include "config.h"
-
+#define CIRC_FAN_PULSES_PER_REV 2
+#define CIRC_FAN_DEBOUNCE_US 500
 // Variablen mit sicheren Startwerten
 static uint8_t _circulation_fan_pin; // Keine Zahl hier!
 static uint8_t _tacho_pin;          // Keine Zahl hier!
@@ -32,7 +33,7 @@ int current_circulation_fan_speed = 60;
 circulation_fanMode current_circulation_fan_mode = circulation_fan_MODE_NATURAL; // Direkt mit Natural starten
 int current_circulation_fan_min_speed = 20; // Standardmäßig 20% Min-Speed
 int effective_circulation_fan_speed = 0;    // Das ist das SPEED_NOW (Ist)
-volatile int circulation_fan_pulse_count = 0; 
+volatile uint32_t circulation_fan_pulse_count = 0;
 static uint32_t last_circulation_fan_rpm_check = 0;
 static int current_circulation_fan_rpm = 0;
 // Zeitstempel für Entprellung
@@ -49,7 +50,7 @@ void circulation_fan_save_state() {
 
 void IRAM_ATTR count_circulation_fan_pulse() {
     uint32_t now = micros();
-    if (now - last_circulation_fan_pulse_time > 2000) { 
+    if (now - last_circulation_fan_pulse_time > CIRC_FAN_DEBOUNCE_US) { 
         circulation_fan_pulse_count++;
         last_circulation_fan_pulse_time = now;
     }
@@ -123,7 +124,7 @@ int circulation_fan_get_rpm() {
         circulation_fan_pulse_count = 0;
         interrupts();
 
-        current_circulation_fan_rpm = (circulation_fan_pulses * 60) / 2;
+        current_circulation_fan_rpm = (circulation_fan_pulses * 60) / CIRC_FAN_PULSES_PER_REV;
         last_circulation_fan_rpm_check = now;
     }
     return current_circulation_fan_rpm;

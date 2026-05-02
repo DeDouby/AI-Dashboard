@@ -29,23 +29,31 @@ class CirculationFanControl(BoxLayout):
         if isinstance(data, dict):
             self.latest_data = data
             
-        # 1. OFFLINE / KEINE DATEN
-        if rpm is None:
-            self.icon.color = (0.3, 0.3, 0.3, 1)  # Grau
+        # 1. OFFLINE / PSEUDO-WERTE (z.B. -0.5, -256)
+        if rpm is None or rpm < 0:
+            self.icon.color = (0.4, 0.4, 0.4, 1)  # Grau
             return
     
-        # 2. SAFE CAST (Wie im Licht-Modul!)
+        # 2. SAFE CAST
         try:
             val = int(rpm)
-        except:
-            self.icon.color = (0.3, 0.3, 0.3, 1)  # Grau bei korrupten Daten
+        except Exception:
+            self.icon.color = (0.4, 0.4, 0.4, 1)  # Grau bei Fehler
             return
     
-        # 3. SEMANTIK
-        if val > 0:
-            self.icon.color = (0.2, 1, 0.2, 1)   # Grün (An)
+        # 3. FARBSTUFEN LOGIK (0 - 2000 RPM)
+        if val <= 0:
+            self.icon.color = (1, 0.2, 0.2, 1)    # Rot (Aus)
+        elif val < 400:
+            self.icon.color = (0, 0.7, 1, 1)      # Hellblau (Sanfte Brise)
+        elif val < 800:
+            self.icon.color = (0, 1, 0.5, 1)      # Türkis
+        elif val < 1200:
+            self.icon.color = (0, 1, 0, 1)        # Hellgrün (Optimal)
+        elif val < 1600:
+            self.icon.color = (1, 1, 0, 1)        # Gelb (Viel Umluft)
         else:
-            self.icon.color = (1, 0.2, 0.2, 1)   # Rot (Aus)
+            self.icon.color = (1, 0.5, 0, 1)      # Orange (Maximum)
             
     def on_touch_down(self, touch):
         if not self.collide_point(*touch.pos): 

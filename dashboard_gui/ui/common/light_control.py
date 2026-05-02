@@ -32,30 +32,38 @@ class LightControl(BoxLayout):
     def set_brightness(self, brightness, data=None):
         if isinstance(data, dict):
             self.latest_data = data
-        # 1. NICHT VORHANDEN / OFFLINE
-        if brightness is None:
-            self.icon.text = "\uf0eb"
-            self.icon.color = (0.3, 0.3, 0.3, 1)  # Grau
+
+        # 1. OFFLINE / SENSOR-FEHLER (Pseudo-Werte < 0)
+        # Grau durchscheinend (Alpha 0.5) signalisiert Verbindungsabbruch
+        if brightness is None or brightness < 0:
+            self.icon.color = (0.5, 0.5, 0.5, 0.5) 
             return
     
         # 2. SAFE CAST
         try:
             val = int(brightness)
-        except:
-            self.icon.text = "\uf0eb"
-            self.icon.color = (0.3, 0.3, 0.3, 1)  # Grau bei Müll
+        except Exception:
+            self.icon.color = (0.5, 0.5, 0.5, 0.5)
             return
     
-        # 3. SEMANTIK
-        if val > 0:
-            # AN
-            self.icon.text = "\uf0eb"
-            self.icon.color = (1, 1, 0, 1)   # Grün
+        # 3. LICHT-STUFEN (Gelbstufen je nach Prozentwert)
+        if val <= 0:
+            # AUS: Ein eindeutiges, sattes Anthrazit-Grau
+            self.icon.color = (0.2, 0.2, 0.2, 1) 
+        elif val < 20:
+            # Ganz schwaches Glimmen (Dunkel-Gold)
+            self.icon.color = (0.6, 0.5, 0, 1)
+        elif val < 50:
+            # Gedimmtes Licht (Standard-Gelb)
+            self.icon.color = (0.8, 0.8, 0, 1)
+        elif val < 80:
+            # Hell (Leuchtendes Gelb)
+            self.icon.color = (1, 1, 0, 1)
         else:
-            # AUS (explizit!)
-            self.icon.text = "\uf0eb"
-            self.icon.color = (1, 0.2, 0.2, 1)   # Rot
-            
+            # VOLLGAS (Strahlenweißes Gelb)
+            # Hier mischen wir etwas Weiß bei (1, 1, 0.6), damit es "leuchtet"
+            self.icon.color = (1, 1, 0.6, 1)
+
     def on_touch_down(self, touch):
         if not self.collide_point(*touch.pos): return False
         
