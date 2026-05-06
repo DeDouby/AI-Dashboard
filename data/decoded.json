@@ -1,6 +1,6 @@
 [
   {
-    "timestamp": 1778086591.916469,
+    "timestamp": 1778093479.2813818,
     "device_id": "E697B52A-2E7F-D41E-BC4D-2D027CB38D0B",
     "name": "Real_Grow!",
     "adv": {
@@ -140,22 +140,22 @@
       "raw": null,
       "internal": {
         "temperature": {
-          "value": 24.76,
+          "value": 24.37,
           "unit": "°C"
         },
         "humidity": {
-          "value": 48.48,
+          "value": 45.77,
           "unit": "%"
         }
       },
       "external": {
         "present": true,
         "temperature": {
-          "value": 24.42,
+          "value": 24.24,
           "unit": "°C"
         },
         "humidity": {
-          "value": 49.27,
+          "value": 46.11,
           "unit": "%"
         }
       },
@@ -166,85 +166,85 @@
           "unit": "°C"
         },
         "vpd_leaf": {
-          "value": 1.755,
+          "value": 1.867,
           "unit": "kPa"
         }
       },
       "vpd_internal": {
-        "value": 1.609,
+        "value": 1.654,
         "unit": "kPa"
       },
       "vpd_external": {
-        "value": 1.552,
+        "value": 1.631,
         "unit": "kPa"
       },
-      "battery_voltage": 7.89,
+      "battery_voltage": 7.611,
       "dew_point_internal": {
-        "value": 13.16,
+        "value": 11.92,
         "unit": "°C"
       },
       "dew_point_external": {
-        "value": 13.09,
+        "value": 11.92,
         "unit": "°C"
       },
       "coord": {
         "internal": {
-          "x": 48.48,
-          "y": 24.76
+          "x": 45.77,
+          "y": 24.37
         },
         "external": {
-          "x": 49.27,
-          "y": 24.42
+          "x": 46.11,
+          "y": 24.24
         }
       },
-      "timestamp": 1778086591.647834,
+      "timestamp": 1778093478.869911,
       "circulation_fan": {
-        "circulation_fan_rpm": 0,
+        "circulation_fan_rpm": 3228,
         "unit": "RPM"
       },
       "exhaust_fan": {
-        "exhaust_fan_rpm": 520,
+        "exhaust_fan_rpm": 915,
         "unit": "RPM"
       },
-      "light_pct": 82,
+      "light_pct": 78,
       "light_mode": "tim",
       "health": {
         "signal": {
-          "rssi": -48
+          "rssi": -50
         }
       },
       "rtc_found": true,
-      "rtc_time": "18:56",
-      "temp_in": 24.76,
-      "temp_ext": 24.42,
-      "humid_ext": 49.27,
-      "humid_in": 48.48,
+      "rtc_time": "20:51",
+      "temp_in": 24.37,
+      "temp_ext": 24.24,
+      "humid_ext": 46.11,
+      "humid_in": 45.77,
       "leaf_temp": 25.5,
-      "vbat": 7.89,
+      "vbat": 7.611,
       "rev": 0,
-      "exhaust_fan_rpm": 520,
+      "exhaust_fan_rpm": 915,
       "exhaust_fan_pct": 77,
-      "exhaust_fan_min": 0,
-      "exhaust_fan_speed_now": 0,
+      "exhaust_fan_min": 8,
+      "exhaust_fan_speed_now": 19,
       "exhaust_fan_mode": "auto",
       "target_temp_min": 16.4,
       "target_temp_max": 24.7,
       "target_humidity_min": 50,
       "target_humidity_max": 55,
-      "target_vpd_min": 0.8,
-      "target_vpd_max": 1.7,
-      "rev_exhaust": 378,
-      "rev_init_exhaust": 1778086447,
-      "plant_phase": 0,
+      "target_vpd_min": 1,
+      "target_vpd_max": 1.5,
+      "rev_exhaust": 335,
+      "rev_init_exhaust": 1778093456,
+      "plant_phase": 1,
       "exhaust_fan_chaos_active": true,
-      "exhaust_fan_state_reason": "chaos_active",
-      "circulation_fan_rpm": 0,
-      "circulation_fan_pct": 97,
-      "circulation_fan_speed_now": 95,
-      "circulation_fan_min": 17,
+      "exhaust_fan_state_reason": "vpd_high_fix",
+      "circulation_fan_rpm": 3228,
+      "circulation_fan_pct": 80,
+      "circulation_fan_speed_now": 19,
+      "circulation_fan_min": 0,
       "circulation_fan_mode": "nat",
-      "rev_circfan": 0,
-      "rev_init_circfan": 374,
+      "rev_circfan": 7,
+      "rev_init_circfan": 1778092533,
       "light_target": 82,
       "l_start_h": 11,
       "l_start_m": 0,
@@ -253,19 +253,19 @@
       "l_sunset": 135,
       "light_humidity_min": 40,
       "light_humidity_max": 70,
-      "light_remaining": 243,
+      "light_remaining": 128,
       "rev_light": 0,
-      "rev_init_light": 1778085956,
+      "rev_init_light": 1778092591,
       "dev_name": "LGS_Grow_Master",
       "log_level": 2,
-      "uptime_esp_s": 1099,
+      "uptime_esp_s": 2317,
       "fw_ver": "v2.4.1-beta",
       "ip": "192.168.2.20",
       "ssid": "Cudy-Indoor",
-      "rssi": -47,
-      "free_heap": 169600,
-      "max_alloc": 126964,
-      "heap_usage": 162268,
+      "rssi": -49,
+      "free_heap": 172504,
+      "max_alloc": 131060,
+      "heap_usage": 159372,
       "boot_cause": "Power Cut / Hard Reset",
       "rev_grow": 0,
       "rev_init_grow": 0,
@@ -274,39 +274,39 @@
         "sps": {
           "online": true,
           "temperature": {
-            "value": 20.6,
+            "value": 19.98,
             "unit": "°C"
           },
           "humidity": {
-            "value": 49.79,
+            "value": 54.11,
             "unit": "%"
           },
           "vpd": {
-            "value": 1.218,
+            "value": 1.072,
             "unit": "kPa"
           },
           "coord": {
-            "x": 49.79,
-            "y": 20.6
+            "x": 54.11,
+            "y": 19.98
           }
         },
         "tb2": {
           "online": true,
           "temperature": {
-            "value": 21.0625,
+            "value": 21.375,
             "unit": "°C"
           },
           "humidity": {
-            "value": 54.25,
+            "value": 49.8125,
             "unit": "%"
           },
           "vpd": {
-            "value": 1.142,
+            "value": 1.277,
             "unit": "kPa"
           },
           "coord": {
-            "x": 54.25,
-            "y": 21.0625
+            "x": 49.8125,
+            "y": 21.375
           }
         }
       }
@@ -315,16 +315,16 @@
     "status": "active",
     "health": {
       "uptime": {
-        "value": 660.7693510055542,
+        "value": 5705.399371623993,
         "unit": "s"
       },
       "battery": {
         "value": null,
         "unit": "V",
-        "voltage": 7.89
+        "voltage": 7.611
       },
       "signal": {
-        "rssi": -48,
+        "rssi": -50,
         "quality": null
       }
     },
@@ -332,7 +332,7 @@
     "web_alive": true
   },
   {
-    "timestamp": 1778086591.916469,
+    "timestamp": 1778093479.2813818,
     "device_id": "C898B4F2-B452-7502-1A67-0536E77D49EA",
     "name": "sps",
     "adv": {
@@ -534,7 +534,7 @@
     "status": "offline",
     "health": {
       "uptime": {
-        "value": 660.7693510055542,
+        "value": 5705.399371623993,
         "unit": "s"
       },
       "battery": {
@@ -551,7 +551,7 @@
     "web_alive": false
   },
   {
-    "timestamp": 1778086591.916469,
+    "timestamp": 1778093479.2813818,
     "device_id": "FF-FF-A1-00-00-01",
     "name": "LGS_NODE_17",
     "adv": {
@@ -753,7 +753,7 @@
     "status": "offline",
     "health": {
       "uptime": {
-        "value": 660.7693510055542,
+        "value": 5705.399371623993,
         "unit": "s"
       },
       "battery": {
@@ -770,7 +770,7 @@
     "web_alive": false
   },
   {
-    "timestamp": 1778086591.916469,
+    "timestamp": 1778093479.2813818,
     "device_id": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
     "name": "ThermoBeacon2",
     "adv": {
@@ -972,7 +972,7 @@
     "status": "offline",
     "health": {
       "uptime": {
-        "value": 660.7693510055542,
+        "value": 5705.399371623993,
         "unit": "s"
       },
       "battery": {
@@ -989,7 +989,7 @@
     "web_alive": false
   },
   {
-    "timestamp": 1778086591.916469,
+    "timestamp": 1778093479.2813818,
     "device_id": "827482CC-A977-43D7-835E-8E8B6978E66A",
     "name": "Grow_Test",
     "adv": {
@@ -1191,7 +1191,7 @@
     "status": "offline",
     "health": {
       "uptime": {
-        "value": 660.7693510055542,
+        "value": 5705.399371623993,
         "unit": "s"
       },
       "battery": {
@@ -1208,7 +1208,7 @@
     "web_alive": false
   },
   {
-    "timestamp": 1778086591.916469,
+    "timestamp": 1778093479.2813818,
     "device_id": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
     "name": "TP351S (987A)",
     "adv": {
@@ -1410,7 +1410,7 @@
     "status": "offline",
     "health": {
       "uptime": {
-        "value": 660.7693510055542,
+        "value": 5705.399371623993,
         "unit": "s"
       },
       "battery": {

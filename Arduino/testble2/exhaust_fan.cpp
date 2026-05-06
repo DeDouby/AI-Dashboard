@@ -189,7 +189,18 @@ int exhaust_fan_get_rpm() {
     }
     return current_exhaust_fan_rpm;
 }
-
+// Hilfsfunktion: Berechnet VPD in kPa
+float calculate_current_vpd(float temp, float hum) {
+    if (temp < -50.0f || hum < 0.0f) return 1.0f; // Failsafe
+    
+    // Sättigungsdampfdruck (SVP) in kPa
+    float svp = 0.61078f * exp((17.27f * temp) / (temp + 237.3f));
+    // Tatsächlicher Dampfdruck (AVP)
+    float avp = svp * (hum / 100.0f);
+    
+    // VPD ist die Differenz
+    return svp - avp;
+}
 // Hilfsfunktion zur Schätzung der Zielfeuchte nach Erwärmung
 float estimate_refined_humidity(float temp_out, float hum_out, float temp_target) {
     if (temp_out >= temp_target) return hum_out; // Keine Veredelung durch Wärme möglich
@@ -280,6 +291,9 @@ void exhaust_fan_update() {
     // ============================================================
     // 3. BASIS-REGELUNG
     // ============================================================
+// ============================================================
+    // 3. BASIS-REGELUNG (TEMP, HUM & VPD)
+    // ============================================================
     if (is_manual) {
         final_pct = (float)exhaust_fan_pct;
         exhaust_fan_state_reason = "manual";
@@ -287,39 +301,49 @@ void exhaust_fan_update() {
     else {
         float mix_factor = 0.0f;
         if (in_temp > -200.0f && in_hum > -200.0f) {
-            // Skalierung: 0..1 innerhalb von 3°C / 10% rH über Target
+            
+            // A: Temperatur-Stress (Regelt hoch, wenn t > max)
             float t_f = constrain((in_temp - target_temp_max) / 3.0f, 0.0f, 1.0f);
-            float h_f = constrain((in_hum - target_humidity_max) / 10.0f, 0.0f, 1.0f);
-            mix_factor = max(t_f, h_f);
+            
+            // B: Feuchtigkeits-Stress (Regelt hoch, wenn h > max)
+            float h_f = constrain((in_hum - (float)target_humidity_max) / 10.0f, 0.0f, 1.0f);
+            
+            // C: VPD-Stress (NEU)
+            float current_vpd = calculate_current_vpd(in_temp, in_hum);
+            float vpd_f = 0.0f;
 
-            // Nacht-Absenkung
+            if (current_vpd < target_vpd_min) {
+                // VPD zu niedrig (Luft zu gesättigt/kalt) -> Lüfter HOCH
+                vpd_f = constrain((target_vpd_min - current_vpd) / 0.3f, 0.0f, 1.0f);
+            } else if (current_vpd > target_vpd_max) {
+                // VPD zu hoch (Luft zu trocken/heiß) -> Lüfter HOCH (zum Kühlen/Austausch)
+                // Hinweis: Hier könnte man auch drosseln, aber meist dominiert Temp-Max
+                vpd_f = constrain((current_vpd - target_vpd_max) / 0.5f, 0.0f, 1.0f);
+            }
 
+            // Der dominante Faktor bestimmt den Lüfter-Einsatz
+            mix_factor = max({t_f, h_f, vpd_f});
+
+            // Nacht-Absenkung & Phasen-Anpassung
             if (phase == NIGHT_RECOVERY) {
                 mix_factor *= 0.5f;
-            }
-            else if (phase == EVENING_TRANSITION) {
+            } else if (phase == EVENING_TRANSITION) {
                 mix_factor *= 0.75f;
-            }
-            else if (phase == MORNING_WAKEUP) {
-                mix_factor *= 1.1f; // leichter Boost beim Hochfahren
+            } else if (phase == MORNING_WAKEUP) {
+                mix_factor *= 1.1f; 
             }        
-        
         }
 
         int fan_range = exhaust_fan_pct - exhaust_fan_min;
         final_pct = (float)exhaust_fan_min + (fan_range * mix_factor);
         
-        // PERSISTENCE BOOST (Träge Masse abfangen)
-        if (in_temp > target_temp_max || in_hum > (float)target_humidity_max) {
-            if (target_over_threshold_start == 0) target_over_threshold_start = now;
-            uint32_t duration = now - target_over_threshold_start;
-            persistence_boost = constrain(duration / 10000.0f, 0.0f, 1.0f) * 10.0f;
-        } else {
-            target_over_threshold_start = 0;
-            persistence_boost = max(0.0f, persistence_boost - 0.5f);
+        // Grund für die Regelung im Status setzen (fürs UI Debugging)
+        if (mix_factor > 0) {
+            float current_vpd = calculate_current_vpd(in_temp, in_hum);
+            if (current_vpd < target_vpd_min) exhaust_fan_state_reason = "vpd_low_fix";
+            else if (current_vpd > target_vpd_max) exhaust_fan_state_reason = "vpd_high_fix";
+            else exhaust_fan_state_reason = (phase == NIGHT_RECOVERY) ? "night_auto" : "day_auto";
         }
-        final_pct += persistence_boost;
-        exhaust_fan_state_reason = (phase == NIGHT_RECOVERY) ? "night_auto" : "day_auto";
 
         // ============================================================
         // 4. SMART FAILSAFE (MIT VEREDELUNGS-CHECK)

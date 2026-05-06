@@ -48,9 +48,10 @@ void circulation_fan_save_state() {
     circulation_fanPrefs.putInt("min_speed", current_circulation_fan_min_speed);
 }
 
-void IRAM_ATTR count_circulation_fan_pulse() {
+void IRAM_ATTR count_circ_fan_pulse() {
     uint32_t now = micros();
-    if (now - last_circulation_fan_pulse_time > CIRC_FAN_DEBOUNCE_US) { 
+    // Nutze den korrekten Namen: last_circulation_fan_pulse_time
+    if (now - last_circulation_fan_pulse_time > 800) { 
         circulation_fan_pulse_count++;
         last_circulation_fan_pulse_time = now;
     }
@@ -69,14 +70,13 @@ void circulation_fan_init(uint8_t pin, uint8_t tacho_pin) {
     current_circulation_fan_min_speed = circulation_fanPrefs.getInt("min_speed", 20);
     
     // 3. Tacho Setup
-    if (_tacho_pin != 255) {
-        pinMode(_tacho_pin, INPUT_PULLUP);
-        delay(50); 
-        int irq = digitalPinToInterrupt(_tacho_pin);
-        if (irq != -1) {
-            attachInterrupt(irq, count_circulation_fan_pulse, FALLING);
+    if (tacho_pin != 255) {
+            pinMode(tacho_pin, INPUT_PULLUP);
+            int irq = digitalPinToInterrupt(tacho_pin);
+            // Hier muss der Name der Funktion oben stehen: count_circ_fan_pulse
+            attachInterrupt(irq, count_circ_fan_pulse, FALLING); 
         }
-    }
+    
 
     // INITIALER SETTER FIX:
     // Wir rufen circulation_fan_set_mode auf, damit die Logik sofort greift
@@ -115,16 +115,26 @@ void circulation_fan_set_min_speed(int percent) {
 
 
 
+// 3. Die RPM-Abfrage (Reaktionsfreudige Glättung)
 int circulation_fan_get_rpm() {
     uint32_t now = millis();
+    // Nutze den korrekten Namen: last_circulation_fan_rpm_check
     if (now - last_circulation_fan_rpm_check >= 1000) {
-
         noInterrupts();
-        uint32_t circulation_fan_pulses = circulation_fan_pulse_count;
+        uint32_t pulses = circulation_fan_pulse_count;
         circulation_fan_pulse_count = 0;
         interrupts();
 
-        current_circulation_fan_rpm = (circulation_fan_pulses * 60) / CIRC_FAN_PULSES_PER_REV;
+        // 2 Pulse pro Umdrehung
+        int new_rpm = (pulses * 60) / 2; 
+
+        // Schnelle Glättung (60% neu, 40% alt)
+        if (current_circulation_fan_rpm == 0) {
+            current_circulation_fan_rpm = new_rpm;
+        } else {
+            current_circulation_fan_rpm = (current_circulation_fan_rpm * 0.4f) + (new_rpm * 0.6f);
+        }
+        
         last_circulation_fan_rpm_check = now;
     }
     return current_circulation_fan_rpm;
