@@ -35,29 +35,39 @@ class ExhaustFanControl(BoxLayout):
         if isinstance(data, dict):
             self.latest_data = data
         try:
-            # 1. FEHLER/OFFLINE: Pseudo-Werte (z.B. -0.5, -255) abfangen
+            # 1. FEHLER/OFFLINE: Pseudo-Werte (-0.5, -256 etc.)
             if rpm is None or rpm < 0: 
-                self.icon.color = (0.4, 0.4, 0.4, 1)  # Grau
+                self.icon.color = (0.3, 0.3, 0.3, 1)  # Dezentes Dunkelgrau
                 return
             
             val = int(rpm)
 
-            # 2. FARBSTUFEN LOGIK (0 - 2000 RPM)
+            # 2. FEINE FARBSTUFEN (200 RPM Schritte, Hellton-Stil)
             if val <= 0:
-                self.icon.color = (1, 0, 0, 1)        # Rot (Aus)
+                self.icon.color = (1, 0.4, 0.4, 1)      # Soft-Rot (Aus)
+            elif val < 200:
+                self.icon.color = (0.6, 0.9, 1, 1)      # Sehr helles Blau
+            elif val < 400:
+                self.icon.color = (0.5, 1, 0.9, 1)      # Helles Aquamarin
             elif val < 600:
-                self.icon.color = (0, 0.7, 1, 1)      # Hellblau (Sehr niedrig)
+                self.icon.color = (0.5, 1, 0.7, 1)      # Helles Mintgrün
             elif val < 800:
-                self.icon.color = (0, 1, 0.5, 1)      # Türkis/Cyan (Niedrig)
+                self.icon.color = (0.7, 1, 0.5, 1)      # Pastell-Limetten-Grün
             elif val < 1000:
-                self.icon.color = (0, 1, 0, 1)        # Hellgrün (Optimal/Mittel)
+                self.icon.color = (0.9, 1, 0.5, 1)      # Helles Gelbgrün
+            elif val < 1200:
+                self.icon.color = (1, 1, 0.6, 1)        # Soft-Gelb
             elif val < 1400:
-                self.icon.color = (1, 0.8, 0, 1)      # Gelb/Orange (Hoch)
+                self.icon.color = (1, 0.9, 0.5, 1)      # Helles Gold/Sand
+            elif val < 1600:
+                self.icon.color = (1, 0.8, 0.5, 1)      # Helles Apricot
+            elif val < 1800:
+                self.icon.color = (1, 0.7, 0.5, 1)      # Soft-Orange
             else:
-                self.icon.color = (1, 0.4, 0, 1)      # Dunkelorange/Rot (Maximum)
+                self.icon.color = (1, 0.6, 0.5, 1)      # Helles Koralle/Lachs (Max)
                 
         except Exception:
-            self.icon.color = (0.4, 0.4, 0.4, 1)      # Grau bei Crash
+            self.icon.color = (0.3, 0.3, 0.3, 1)
 
     def on_touch_down(self, touch):
         if not self.collide_point(*touch.pos): return False

@@ -12,8 +12,6 @@ enum exhaust_fanMode {
 
 // --- SYSTEM-REVISION (Wichtig für das Sync-Gesetz) ---
 extern uint32_t device_confirmed_rev; // Die Bestätigung für die UI
-int light_get_effective_brightness();
-int light_get_minutes_to_next_change();
 // --- FUNKTIONEN ---
 void exhaust_fan_init(uint8_t pin, uint8_t tacho_pin);
 void exhaust_fan_update();

@@ -101,6 +101,7 @@ void loop() {
 
     circulation_fan_update(); 
     exhaust_fan_update(); 
+    light_control_set_humidity(getInternalHumidity());
     light_update();
     power_manager_update();
     BLEScanner::update(); // 3. Den Scanner am Leben erhalten
@@ -157,9 +158,14 @@ void loop() {
         last_ble_broadcast = millis();
         
         // Nur kurz broadcasten, damit wir den Rest der Zeit für WiFi & Scan frei haben
+        
         bleBridge.updateBroadcast(
-            getTempExt(), getExternalHumidity(), getTempIn(),
-            40.0, 25.5f, get_battery_voltage_now(),
+            getTempExt(),            // Extern Temp
+            getExternalHumidity(),   // Extern Hum
+            getTempIn(),             // Intern Temp
+            getInternalHumidity(),   // Intern Hum (Hier war die 40.0!)
+            25.5f,                   // Hier steht noch ein Fixwert (evtl. Gehäuse-Temp?)
+            get_battery_voltage_now(), 
             circulation_fan_get_rpm()
         );
     }

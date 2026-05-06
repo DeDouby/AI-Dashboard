@@ -37,7 +37,12 @@ void light_update();
 void light_set_brightness(int percent);
 void light_set_mode(LightMode mode);
 void light_set_timer(int h, int m, int dur);
-
+void light_control_set_humidity(float humidity);
+int light_get_start_h();
+int light_get_start_m();
+int light_get_duration_min();
+int light_get_sunrise_min();
+int light_get_sunset_min();
 // GETTER
 int light_get_minutes_to_next_change(); 
 int light_get_effective_brightness();
@@ -49,5 +54,9 @@ void light_control_process_json(JsonObject doc);
 extern int target_brightness; 
 extern LightMode current_light_mode;
 extern uint32_t sunrise_offset_sec;
-
+extern int light_target_humidity_min;
+extern int light_target_humidity_max;
+int light_get_effective_brightness();
+bool light_is_on();
+float light_get_phase_progress(); // 0.0 → 1.0 innerhalb aktueller Phase
 #endif

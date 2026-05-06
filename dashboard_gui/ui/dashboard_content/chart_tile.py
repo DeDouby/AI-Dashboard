@@ -10,7 +10,8 @@ from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from kivy.uix.anchorlayout import AnchorLayout
 from dashboard_gui.ui.formatters import UIFormatter
-
+# Oben bei den anderen Graphics-Imports hinzufügen:
+from kivy.graphics import Rectangle, Color, RoundedRectangle
 import config
 
 class ChartTile(ButtonBehavior, BoxLayout):
@@ -32,12 +33,23 @@ class ChartTile(ButtonBehavior, BoxLayout):
         # -------------------------------------------------
         # 1. HINTERGRUND
         # -------------------------------------------------
+        # -------------------------------------------------
+        # 1. HINTERGRUND (Jetzt abgerundet!)
+        # -------------------------------------------------
         self.bg_path = os.path.join("dashboard_gui", "assets", "tiles", bg) if bg else None
         with self.canvas.before:
             Color(1, 1, 1, 1)
-            self.bg_rect = Rectangle(pos=self.pos, size=self.size)
+            # Hier: RoundedRectangle statt Rectangle
+            # radius=[(15, 15), (15, 15), (15, 15), (15, 15)] macht alle Ecken rund
+            self.bg_rect = RoundedRectangle(
+                pos=self.pos, 
+                size=self.size, 
+                radius=[dp_scaled(15)] 
+            )
             if self.bg_path and os.path.exists(self.bg_path):
                 self.bg_rect.source = self.bg_path
+        
+        
         self.bind(pos=self._upd_bg, size=self._upd_bg)
 
         # -------------------------------------------------
@@ -120,6 +132,8 @@ class ChartTile(ButtonBehavior, BoxLayout):
     def _upd_bg(self, *args):
         self.bg_rect.pos = self.pos
         self.bg_rect.size = self.size
+        # Falls sich der Radius dynamisch ändern soll, könnte man ihn hier auch setzen:
+        # self.bg_rect.radius = [dp_scaled(15)]
 
 
     # UPDATE – Die Steuerzentrale

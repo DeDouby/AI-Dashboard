@@ -75,6 +75,7 @@
 #include "light_control.h"
 #include <time.h>
 #include <Preferences.h>
+#include <math.h>
 #include "config.h"      // <--- WICHTIG: Hier kommt PIN_LIGHT her
 Preferences lightPrefs;
 
@@ -82,6 +83,9 @@ time_t light_start_unix = 0;
 uint32_t light_duration_sec = 43200;  // Sekunden
 int target_brightness = 50;
 int effective_brightness = 0;
+float light_current_humidity = -256.0f;
+int light_target_humidity_min = 40;
+int light_target_humidity_max = 70;
 // ===== 15-MINUTEN-RASTER (ab jetzt) =====
 int l_target_h = 8;         // Stunden (0-23)
 int l_target_m = 0;         // Minuten (0, 15, 30, 45 ONLY)
@@ -93,7 +97,14 @@ LightMode current_light_mode = LIGHT_MODE_MANUAL;
 extern uint32_t current_rev;
 static uint32_t light_rev = 0;              // ← NEU: Eigenes Revision für das Licht-Modul
 static uint32_t light_init_rev = 0;
+
+
+
+bool light_is_on() {
+    return effective_brightness > 0;
+}
 void light_reconstruct_after_boot();
+
 
 void light_save_state() {
     lightPrefs.putInt("l_h", l_target_h);
@@ -103,6 +114,8 @@ void light_save_state() {
     lightPrefs.putInt("l_sunset", l_target_sunset);   // Minuten (15-min Raster)
     lightPrefs.putInt("mode", (int)current_light_mode);
     lightPrefs.putInt("target", target_brightness);
+    lightPrefs.putInt("humid_min", light_target_humidity_min);
+    lightPrefs.putInt("humid_max", light_target_humidity_max);
 }
 
 // === REBOOT RECONSTRUCT ===
@@ -134,6 +147,8 @@ void light_init() {
     l_target_sunset = lightPrefs.getInt("l_sunset", 60);
     current_light_mode = (LightMode)lightPrefs.getInt("mode", (int)LIGHT_MODE_MANUAL);
     target_brightness = lightPrefs.getInt("target", 50);
+    light_target_humidity_min = lightPrefs.getInt("humid_min", 40);
+    light_target_humidity_max = lightPrefs.getInt("humid_max", 70);
 
     light_duration_sec = (uint32_t)l_target_dur * 60;
     light_reconstruct_after_boot();
@@ -157,11 +172,13 @@ void light_init() {
 
 void light_update() {
     time_t now = time(nullptr);
-    if (now < 1000000) return; // Ohne Zeit kein Licht-Timer
-
+    bool hasTime = (now >= 1000000);
     struct tm ti_now;
-    localtime_r(&now, &ti_now);
-    int now_sec = ti_now.tm_hour * 3600 + ti_now.tm_min * 60 + ti_now.tm_sec;
+    int now_sec = 0;
+    if (hasTime) {
+        localtime_r(&now, &ti_now);
+        now_sec = ti_now.tm_hour * 3600 + ti_now.tm_min * 60 + ti_now.tm_sec;
+    }
     
     bool timer_should_be_on = false;
     uint32_t elapsed = 0; 
@@ -199,17 +216,72 @@ void light_update() {
                 effective_brightness = (target_brightness * remaining) / sunset_sec;
             } else {
                 effective_brightness = target_brightness;
+                if (light_current_humidity > -200.0f) {
+                    if (light_current_humidity < (float)light_target_humidity_min) {
+                        effective_brightness = (int)(target_brightness * 0.8f + 0.5f);
+                    } else if (light_current_humidity > (float)light_target_humidity_max) {
+                        effective_brightness = (int)(target_brightness * 1.2f + 0.5f);
+                    }
+                    effective_brightness = constrain(effective_brightness, 0, 100);
+                }
             }
         } else {
             effective_brightness = 0;
         }
+    } else if (current_light_mode == LIGHT_MODE_MANUAL) {
+        effective_brightness = target_brightness;
+    } else if (current_light_mode == LIGHT_MODE_BREATH) {
+        float phase = (millis() % 8000) / 8000.0f;
+        effective_brightness = (int)((sinf(phase * 3.14159265f * 2.0f) * 0.5f + 0.5f) * target_brightness + 0.5f);
+    } else if (current_light_mode == LIGHT_MODE_FLICKER) {
+        static uint32_t last_flicker = 0;
+        static int flicker_brightness = 0;
+        if (millis() - last_flicker > 120) {
+            flicker_brightness = constrain(target_brightness + random(-12, 13), 0, 100);
+            last_flicker = millis();
+        }
+        effective_brightness = flicker_brightness;
     } else {
-        effective_brightness = target_brightness; // Manueller Modus
+        effective_brightness = target_brightness;
     }
 
     ledcWrite(PIN_LIGHT, map(effective_brightness, 0, 100, 0, 255));
 }
 
+
+
+float light_get_phase_progress() {
+    time_t now = time(nullptr);
+    if (now < 946684800) return 0.0f;
+
+    struct tm ti;
+    localtime_r(&now, &ti);
+
+    int now_sec = ti.tm_hour * 3600 + ti.tm_min * 60 + ti.tm_sec;
+
+    int start_sec = l_target_h * 3600 + l_target_m * 60;
+    int dur_sec = l_target_dur * 60;
+    int end_sec = start_sec + dur_sec;
+
+    int sunrise_sec = l_target_sunrise * 60;
+    int sunset_sec = l_target_sunset * 60;
+
+    // 🌙 Nacht komplett
+    if (effective_brightness <= 0) return 0.0f;
+
+    // 🌅 MORNING (Ramp Up)
+    if (now_sec >= start_sec && now_sec < start_sec + sunrise_sec) {
+        return (float)(now_sec - start_sec) / sunrise_sec;
+    }
+
+    // 🌇 EVENING (Ramp Down)
+    if (now_sec >= (end_sec - sunset_sec) && now_sec < end_sec) {
+        return 1.0f - (float)(end_sec - now_sec) / sunset_sec;
+    }
+
+    // 🌞 DAY Plateau
+    return 1.0f;
+}
 // DIESE BEIDEN HIER MÜSSEN UNBEDINGT UNTER DER UPDATE FUNKTION STEHEN:
 int light_get_effective_brightness() {
     return effective_brightness;
@@ -289,6 +361,10 @@ void light_set_mode(LightMode m) {
     light_update();
 }
 
+void light_control_set_humidity(float humidity) {
+    light_current_humidity = humidity;
+}
+
 // 15-Minuten-Raster Validierung
 int _round_to_15min(int minutes) {
     return ((minutes + 7) / 15) * 15;  // Rundet auf nächstes 15er-Vielfaches
@@ -320,6 +396,27 @@ void light_set_timer(int h, int m, int d) {
     
     light_save_state();
     Serial.printf("RECOVERY: Timer auf %02d:%02d gesetzt.\n", l_target_h, l_target_m);
+}
+
+
+int light_get_start_h() {
+    return l_target_h;
+}
+
+int light_get_start_m() {
+    return l_target_m;
+}
+
+int light_get_duration_min() {
+    return l_target_dur;
+}
+
+int light_get_sunrise_min() {
+    return l_target_sunrise;
+}
+
+int light_get_sunset_min() {
+    return l_target_sunset;
 }
 void light_control_process_json(JsonObject doc) {
     bool flash_changed = false;
@@ -366,6 +463,16 @@ void light_control_process_json(JsonObject doc) {
                 flash_changed = true;
             }
 
+            // E: Humidity-Modulation Ziele für Timer-Plateau
+            if (doc.containsKey("light_humidity_min")) {
+                light_target_humidity_min = constrain((int)doc["light_humidity_min"], 0, 100);
+                flash_changed = true;
+            }
+            if (doc.containsKey("light_humidity_max")) {
+                light_target_humidity_max = constrain((int)doc["light_humidity_max"], 0, 100);
+                flash_changed = true;
+            }
+
             // D: Modus-Wechsel
             if (doc.containsKey("light_mode")) {
                 String lm = doc["light_mode"];
@@ -384,6 +491,7 @@ void light_control_process_json(JsonObject doc) {
     // 3. PERSISTIERUNG
     if (flash_changed) {
         light_save_state();
+        light_update();
         Serial.printf("Light Control Flash Update | Rev: %u\n", light_rev);
     }
 }
@@ -398,7 +506,12 @@ void light_control_get_status(JsonObject doc) {
     doc["l_sunrise"] = l_target_sunrise;  // MINUTEN (15-min Raster)
     doc["l_sunset"] = l_target_sunset;    // MINUTEN (15-min Raster)
     
-    doc["light_mode"] = (current_light_mode == LIGHT_MODE_TIMER) ? "tim" : "man";
+    if (current_light_mode == LIGHT_MODE_TIMER) doc["light_mode"] = "tim";
+    else if (current_light_mode == LIGHT_MODE_BREATH) doc["light_mode"] = "brth";
+    else if (current_light_mode == LIGHT_MODE_FLICKER) doc["light_mode"] = "flicker";
+    else doc["light_mode"] = "man";
+    doc["light_humidity_min"] = light_target_humidity_min;
+    doc["light_humidity_max"] = light_target_humidity_max;
     doc["light_remaining"] = light_get_minutes_to_next_change();
     doc["rev_light"] = light_rev;
     doc["rev_init_light"] = light_init_rev;

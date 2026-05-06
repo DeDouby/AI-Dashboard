@@ -235,7 +235,7 @@ class ExhaustFanOverlay(FloatLayout):
         self._last_sent_rev = int(data.get('rev_exhaust', 0))
         phase = int(data.get("plant_phase", 0))
         
-        if phase != self._last_phase:
+        if phase != self._last_phase and phase in self._phase_map:
             self._last_phase = phase
             self.lbl_title.text = f"EXHAUST FAN CONTROL • {self._phase_map.get(phase, 'UNK')}"
     # ===================================================================
@@ -380,7 +380,7 @@ class ExhaustFanOverlay(FloatLayout):
         )
         phase = int(server_data.get("plant_phase", 0))
         
-        if phase != self._last_phase:
+        if phase != self._last_phase and phase in self._phase_map:
             self._last_phase = phase
             self.lbl_title.text = f"EXHAUST FAN CONTROL • {self._phase_map.get(phase, 'UNK')}"
         # Live-Werte immer anzeigen

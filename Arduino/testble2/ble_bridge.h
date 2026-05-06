@@ -35,7 +35,6 @@ public:
         pAdvertising->start();
     }
 
-    // ... innerhalb der Klasse BLEBridge ...
     
     // HIER: int rpm als 7. Parameter hinzufügen!
     void updateBroadcast(float t_ext, float h_ext, float t_int, float h_int, float t_leaf, float v_bat, int rpm) {
@@ -49,7 +48,10 @@ public:
         int16_t he = (h_ext < -250.0f) ? -25600 : (int16_t)(h_ext * 100);
         int16_t tl = (t_leaf < -250.0f) ? -25600 : (int16_t)(t_leaf * 100);
         int16_t ti = (t_int < -250.0f) ? -25600 : (int16_t)(t_int * 100);
-        uint16_t hi = (uint16_t)(h_int * 100);
+        
+        // NEU: Auch hier auf -250 prüfen und int16_t statt uint16_t verwenden!
+        int16_t hi = (h_int < -250.0f) ? -25600 : (int16_t)(h_int * 100); 
+
         uint16_t vb = (v_bat < 0.1f) ? 0 : (uint16_t)(v_bat * 100);
     
         // Bytes 2 bis 13 befüllen (wie bisher)

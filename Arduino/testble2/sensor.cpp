@@ -69,23 +69,40 @@ float getExternalHumidity() {
 
 // Gleiches Spiel für Intern
 float getInternalHumidity() {
+    // 1. Grund-Check: War der Sensor beim Start überhaupt da?
     if (!internalSensorFound) return -256.0;
     
     float h = sht31_int.readHumidity();
     
-    if (isnan(h)) {
-        delay(50);
+    // 2. Plausibilitäts-Check: SHT31 Humidity ist physikalisch 0-100%
+    // Alles über 100 (wie deine 399) oder unter 0 ist ein Sensor-Error.
+    if (isnan(h) || h > 100.0f || h < 0.0f) {
+        // Kurzer Retry
+        delay(20);
         h = sht31_int.readHumidity();
+        
+        // Wenn immer noch Müll oder NaN, dann knallhart Pseudo-Value
+        if (isnan(h) || h > 100.0f || h < 0.0f) {
+            Serial.println("INT SHT31 SENSOR ERROR (Value out of range or NaN)");
+            return -256.0; 
+        }
     }
     
-    return isnan(h) ? -256.0 : h;
+    return h;
 }
 
+// Empfehlung: Mach das gleiche bei getTempIn() zur Sicherheit!
 float getTempIn() {
     if (!internalSensorFound) return -256.0;
     float t = sht31_int.readTemperature();
-    return isnan(t) ? -256.0 : t;
+    
+    // SHT31 Range ist -40 bis +125 Grad. Alles darüber/darunter ist Quatsch.
+    if (isnan(t) || t > 130.0f || t < -45.0f) {
+        return -256.0;
+    }
+    return t;
 }
+
 
 
 bool initInternalSensor()

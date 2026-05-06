@@ -23,12 +23,22 @@
 #include "exhaust_fan.h"
 #include <Preferences.h>
 #include "sensor.h"
-#include "light_control.h"
+#include <time.h>
 #include "ble_scanner.h"
+#include "light_control.h"
+
+enum PlantPhase {
+    DAY_TRANSPIRE,
+    EVENING_TRANSITION,
+    NIGHT_RECOVERY,
+    MORNING_WAKEUP
+};
 static uint8_t _exhaust_fan_pin;
 static uint8_t _tacho_pin; 
+static uint32_t failsafe_phase = 0;
+static PlantPhase current_phase = DAY_TRANSPIRE;
 Preferences exhaust_fanPrefs;
-#define EXHAUST_FAILSAFE_MIN 55
+#define EXHAUST_FAILSAFE_MIN 33
 // Definitionen ohne 'static' damit sie 'extern' funktionieren
 int current_exhaust_fan_speed = 60;
 exhaust_fanMode current_exhaust_fan_mode = exhaust_fan_MODE_AUTOMATIC;
@@ -69,36 +79,11 @@ static float temp_before_test = 0.0f;
 static uint32_t last_wind_change = 0;
 static uint32_t last_rev_seen = 0;
 static uint32_t last_warn_msg = 0; // Neu: Damit die Konsole nicht zugespamt wird
+static String exhaust_fan_state_reason = "day_auto";
+static PlantPhase last_phase = DAY_TRANSPIRE;
+
 // Ganz oben bei den anderen globalen Variablen einfügen:
 bool exhaust_fan_chaos_active = false;
-
-enum PlantPhase {
-    DAY_TRANSPIRE,
-    EVENING_TRANSITION,
-    NIGHT_RECOVERY,
-    MORNING_WAKEUP
-};
-
-PlantPhase getPlantPhase() {
-
-    int light = light_get_effective_brightness();
-    int remaining = light_get_minutes_to_next_change();
-
-    // Nacht = Licht aus + lange Phase
-    if (light == 0) return NIGHT_RECOVERY;
-
-    // Übergänge
-    if (remaining != -1 && remaining < 60) {
-        return EVENING_TRANSITION;
-    }
-
-    if (light > 80) {
-        return DAY_TRANSPIRE;
-    }
-
-    return DAY_TRANSPIRE;
-}
-
 
 
 void IRAM_ATTR count_exhaust_fan_pulse() {
@@ -204,82 +189,177 @@ int exhaust_fan_get_rpm() {
     }
     return current_exhaust_fan_rpm;
 }
+
+// Hilfsfunktion zur Schätzung der Zielfeuchte nach Erwärmung
+float estimate_refined_humidity(float temp_out, float hum_out, float temp_target) {
+    if (temp_out >= temp_target) return hum_out; // Keine Veredelung durch Wärme möglich
+    
+    // Vereinfachte Magnus-Formel Näherung: 
+    // Pro 1°C Erwärmung sinkt die rel. Feuchte um ca. 5% vom aktuellen Wert
+    // Genauer: Sättigungsdampfdruck steigt, dadurch sinkt rel. Feuchte.
+    float temp_diff = temp_target - temp_out;
+    float refined_hum = hum_out * pow(0.945f, temp_diff); 
+    return constrain(refined_hum, 0.0f, 100.0f);
+}
+
 void exhaust_fan_update() {
     uint32_t now = millis();
     static uint32_t last_wind_change = 0;
     static uint32_t last_rev_seen = 0;
-
-    // 1. REVISION-CHECK (Sofortige Reaktion bei UI-Änderung)
+    
+    // ============================================================
+    // 1. REVISION & TIMING CHECK
+    // ============================================================
     if (last_rev_seen != exhaust_fan_rev) {
         last_rev_seen = exhaust_fan_rev;
-        last_wind_change = 0; 
-        reset_exhaust_logic(); 
+        last_wind_change = 0;
+        reset_exhaust_logic();
     }
 
     if (now - last_wind_change < 1500 && last_wind_change != 0) return;
     last_wind_change = now;
 
     float final_pct = 0.0f;
+    bool is_manual = (current_exhaust_fan_mode == exhaust_fan_MODE_MANUAL);
+    int brightness = light_get_effective_brightness();
+    float phase_progress = light_get_phase_progress();
+    
+    PlantPhase phase;
+    
+    if (brightness <= 0) {
+        phase = NIGHT_RECOVERY;
+    }
+    else {
+        // HOL DIR DIREKT DIE ZEITPARAMETER
+        time_t now = time(nullptr);
+        struct tm ti;
+        localtime_r(&now, &ti);
+        int now_sec = ti.tm_hour * 3600 + ti.tm_min * 60 + ti.tm_sec;
+    
+        int start_sec = light_get_start_h() * 3600 + light_get_start_m() * 60;
+        int dur_sec   = light_get_duration_min() * 60;
+        int end_sec   = start_sec + dur_sec;
+        
+        int sunrise_sec = light_get_sunrise_min() * 60;
+        int sunset_sec  = light_get_sunset_min() * 60;
+    
+        if (now_sec >= start_sec && now_sec < start_sec + sunrise_sec) {
+            phase = MORNING_WAKEUP;
+        }
+        else if (now_sec >= end_sec - sunset_sec && now_sec < end_sec) {
+            phase = EVENING_TRANSITION;
+        }
+        else {
+            phase = DAY_TRANSPIRE;
+        }
+        
+        current_phase = phase;
+    }
+    
+    
+    float in_temp = getTempExt();
+    float in_hum  = getExternalHumidity();
+    float out_temp = BLEScanner::get_sps_temp();
+    float out_hum  = BLEScanner::get_sps_hum();
+    bool out_ok    = BLEScanner::is_sps_online();
 
     // ============================================================
-    // SCHRITT A: BASIS-WERT ERMITTELN
+    // 2. VEREDELUNGS-ANALYSE (THERMODYNAMIK)
     // ============================================================
-    if (current_exhaust_fan_mode == exhaust_fan_MODE_MANUAL) {
-        // Basis ist der Reglerwert aus dem UI
+    bool air_can_be_refined = false;
+    if (out_ok && out_temp < target_temp_max) {
+        // Wie feucht wäre die Außenluft, wenn sie auf unsere Ziel-Temp erwärmt wird?
+        float potential_hum = estimate_refined_humidity(out_temp, out_hum, target_temp_max);
+        
+        // Wenn die Luft nach Erwärmung unter unser Feuchte-Target fällt -> TOP!
+        if (potential_hum <= (float)target_humidity_max) {
+            air_can_be_refined = true;
+        }
+    }
+
+    // ============================================================
+    // 3. BASIS-REGELUNG
+    // ============================================================
+    if (is_manual) {
         final_pct = (float)exhaust_fan_pct;
+        exhaust_fan_state_reason = "manual";
     } 
     else {
-        // Basis ist die Sensor-Logik (Auto)
-        float in_temp = getTempExt();
-        float in_hum  = getExternalHumidity();
         float mix_factor = 0.0f;
-
-        if (in_temp > -250.0f && in_hum > -250.0f) {
-            float t_f = constrain((in_temp - target_temp_max) / 5.0f, 0.0f, 1.0f);
+        if (in_temp > -200.0f && in_hum > -200.0f) {
+            // Skalierung: 0..1 innerhalb von 3°C / 10% rH über Target
+            float t_f = constrain((in_temp - target_temp_max) / 3.0f, 0.0f, 1.0f);
             float h_f = constrain((in_hum - target_humidity_max) / 10.0f, 0.0f, 1.0f);
             mix_factor = max(t_f, h_f);
 
-            PlantPhase phase = getPlantPhase();
-            if (phase == NIGHT_RECOVERY) mix_factor *= 0.55f;
-            else if (phase == EVENING_TRANSITION) mix_factor *= 0.75f;
+            // Nacht-Absenkung
+
+            if (phase == NIGHT_RECOVERY) {
+                mix_factor *= 0.5f;
+            }
+            else if (phase == EVENING_TRANSITION) {
+                mix_factor *= 0.75f;
+            }
+            else if (phase == MORNING_WAKEUP) {
+                mix_factor *= 1.1f; // leichter Boost beim Hochfahren
+            }        
+        
         }
 
         int fan_range = exhaust_fan_pct - exhaust_fan_min;
         final_pct = (float)exhaust_fan_min + (fan_range * mix_factor);
-    }
+        
+        // PERSISTENCE BOOST (Träge Masse abfangen)
+        if (in_temp > target_temp_max || in_hum > (float)target_humidity_max) {
+            if (target_over_threshold_start == 0) target_over_threshold_start = now;
+            uint32_t duration = now - target_over_threshold_start;
+            persistence_boost = constrain(duration / 10000.0f, 0.0f, 1.0f) * 10.0f;
+        } else {
+            target_over_threshold_start = 0;
+            persistence_boost = max(0.0f, persistence_boost - 0.5f);
+        }
+        final_pct += persistence_boost;
+        exhaust_fan_state_reason = (phase == NIGHT_RECOVERY) ? "night_auto" : "day_auto";
 
-    // ============================================================
-    // SCHRITT B: CHAOS ÜBERSTÜLPEN (Egal ob Auto oder Manuell)
-    // ============================================================
-    if (exhaust_fan_chaos_active) {
-        // Wir erzeugen eine Schwankung von ca. +/- 15%
-        float wobble = (float)random(-15, 16);
-        final_pct += wobble;
-    }
+        // ============================================================
+        // 4. SMART FAILSAFE (MIT VEREDELUNGS-CHECK)
+        // ============================================================
+        bool values_too_high = (in_temp > target_temp_max || in_hum > target_humidity_max);
+        
+        // Failsafe (Pulsieren) nur wenn:
+        // - Werte zu hoch 
+        // - UND Außenluft schlechter ist
+        // - UND Außenluft NICHT durch Wärme veredelt werden kann
+        bool outside_is_bad = (out_temp > in_temp + 0.2f || out_hum > in_hum + 2.0f);
 
-    // ============================================================
-    // SCHRITT C: SCHUTZFUNKTIONEN (NUR für Auto!)
-    // ============================================================
-    if (current_exhaust_fan_mode == exhaust_fan_MODE_AUTOMATIC) {
-        float in_temp = getTempExt();
-        float in_hum  = getExternalHumidity();
-        float out_temp = BLEScanner::get_sps_temp();
-        float out_hum  = BLEScanner::get_sps_hum();
-        bool out_ok    = BLEScanner::is_sps_online();
-
-        // Wenn Außenluft schlechter ist, greift der Failsafe (min. 55%)
-        bool outside_bad = out_ok && (out_temp > in_temp + 0.5f || out_hum > in_hum + 3.0f);
-        int failsafe = max((int)EXHAUST_FAILSAFE_MIN, exhaust_fan_min);
-
-        if (outside_bad && final_pct < (float)failsafe) {
-            final_pct = (float)failsafe;
+        if (out_ok && values_too_high && outside_is_bad && !air_can_be_refined) {
+            failsafe_phase += 1;
+            float pulse = (sin(failsafe_phase * 0.15f) * 0.5f + 0.5f);
+            int fs_min = max((int)EXHAUST_FAILSAFE_MIN, exhaust_fan_min);
+            final_pct = fs_min + ((exhaust_fan_pct - fs_min) * pulse);
+            exhaust_fan_state_reason = "failsafe_unrefinable";
+        } 
+        else if (values_too_high && air_can_be_refined) {
+            // Luft ist zwar außen feucht, wird aber im Zelt gut -> Normal regeln
+            exhaust_fan_state_reason = "using_refined_air";
         }
     }
 
     // ============================================================
-    // SCHRITT D: HARDWARE-OUTPUT
+    // 5. CHAOS & HARDWARE OUTPUT
     // ============================================================
-    current_exhaust_fan_speed = constrain((int)final_pct, 0, 100);
+    if (exhaust_fan_chaos_active) {
+        float wobble = (float)random(-80, 81) / 10.0f; // +/- 8%
+        final_pct += wobble;
+        if (!is_manual && exhaust_fan_state_reason.startsWith("day")) {
+            exhaust_fan_state_reason = "chaos_active";
+        }
+    }
+
+    // Finale Begrenzung auf User-Settings
+    final_pct = constrain(final_pct, (float)exhaust_fan_min, (float)exhaust_fan_pct);
+    current_exhaust_fan_speed = (int)(final_pct + 0.5f);
+    
     ledcWrite(_exhaust_fan_pin, map(current_exhaust_fan_speed, 0, 100, 0, 255));
 }
 void exhaust_fan_process_json(JsonObject doc) {
@@ -363,6 +443,7 @@ void exhaust_fan_get_status(JsonObject doc) {
     
     doc["rev_exhaust"] = exhaust_fan_rev;        // ← WICHTIG: Eigenes Rev zurücksenden
     doc["rev_init_exhaust"] = exhaust_fan_init_rev;
-    doc["plant_phase"] = getPlantPhase();
+    doc["plant_phase"] = (int)current_phase;
     doc["exhaust_fan_chaos_active"] = exhaust_fan_chaos_active;
+    doc["exhaust_fan_state_reason"] = exhaust_fan_state_reason;
 }
