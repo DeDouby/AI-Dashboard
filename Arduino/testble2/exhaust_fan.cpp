@@ -27,12 +27,6 @@
 #include "ble_scanner.h"
 #include "light_control.h"
 
-enum PlantPhase {
-    DAY_TRANSPIRE,
-    EVENING_TRANSITION,
-    NIGHT_RECOVERY,
-    MORNING_WAKEUP
-};
 static uint8_t _exhaust_fan_pin;
 static uint8_t _tacho_pin; 
 static uint32_t failsafe_phase = 0;
@@ -80,19 +74,24 @@ static uint32_t last_wind_change = 0;
 static uint32_t last_rev_seen = 0;
 static uint32_t last_warn_msg = 0; // Neu: Damit die Konsole nicht zugespamt wird
 static String exhaust_fan_state_reason = "day_auto";
-static PlantPhase last_phase = DAY_TRANSPIRE;
 
 // Ganz oben bei den anderen globalen Variablen einfügen:
 bool exhaust_fan_chaos_active = false;
 
-
+// In der ISR: Wir bleiben bei den Zeitabständen, machen sie aber präziser
 void IRAM_ATTR count_exhaust_fan_pulse() {
     uint32_t now = micros();
-    if (now - last_exhaust_fan_pulse_time > 2000) { 
+    uint32_t delta = now - last_exhaust_fan_pulse_time;
+
+    // Ein Lüfter mit 4 Pulsen schafft physikalisch selten mehr als 5000 RPM.
+    // 5000 RPM bei 4 Pulsen = 3ms pro Puls. 
+    // Alles, was schneller als 2.5ms (2500µs) kommt, MUSS Rauschen sein.
+    if (delta > 2500) { 
         exhaust_fan_pulse_count++;
         last_exhaust_fan_pulse_time = now;
     }
 }
+
 
 void exhaust_fan_save_state() {
     exhaust_fanPrefs.putInt("min_p", exhaust_fan_min);
@@ -173,17 +172,30 @@ void exhaust_fan_set_min_speed(int percent) {
     exhaust_fan_save_state();
 }
 
+
 int exhaust_fan_get_rpm() {
     uint32_t now = millis();
-    if (now - last_exhaust_fan_rpm_check >= 1000) {
+    uint32_t elapsed = now - last_exhaust_fan_rpm_check;
+
+    if (elapsed >= 1000) {
         noInterrupts();
         uint32_t pulses = exhaust_fan_pulse_count;
         exhaust_fan_pulse_count = 0;
         interrupts();
 
-        int new_rpm = (pulses * 60) / 4; // 2 Pulse pro Umdrehung
-        // Glättung: 70% alter Wert, 30% neuer Wert (verhindert Springen)
-        current_exhaust_fan_rpm = (current_exhaust_fan_rpm * 0.7f) + (new_rpm * 0.3f);
+        // DEIN GESETZ: Teiler 4. Berechnung basierend auf echtem Zeit-Delta:
+        float pulses_per_rev = 4.0f;
+        int calculated_rpm = (int)((pulses / pulses_per_rev) * (60000.0f / elapsed));
+
+        // Plausibilitäts-Filter:
+        // Wenn der neue Wert mehr als 50% vom alten abweicht (bei hohen Drehzahlen),
+        // ist es wahrscheinlich ein Glitch. Wir dämpfen das extrem.
+        if (current_exhaust_fan_rpm > 500 && calculated_rpm > current_exhaust_fan_rpm * 1.5f) {
+            calculated_rpm = current_exhaust_fan_rpm + 50; // Nur sanfter Anstieg erlaubt
+        }
+
+        // Glättung für das UI (80% alt, 20% neu)
+        current_exhaust_fan_rpm = (current_exhaust_fan_rpm * 0.8f) + (calculated_rpm * 0.2f);
         
         last_exhaust_fan_rpm_check = now;
     }
@@ -232,40 +244,14 @@ void exhaust_fan_update() {
 
     float final_pct = 0.0f;
     bool is_manual = (current_exhaust_fan_mode == exhaust_fan_MODE_MANUAL);
-    int brightness = light_get_effective_brightness();
-    float phase_progress = light_get_phase_progress();
     
-    PlantPhase phase;
     
-    if (brightness <= 0) {
-        phase = NIGHT_RECOVERY;
-    }
-    else {
-        // HOL DIR DIREKT DIE ZEITPARAMETER
-        time_t now = time(nullptr);
-        struct tm ti;
-        localtime_r(&now, &ti);
-        int now_sec = ti.tm_hour * 3600 + ti.tm_min * 60 + ti.tm_sec;
-    
-        int start_sec = light_get_start_h() * 3600 + light_get_start_m() * 60;
-        int dur_sec   = light_get_duration_min() * 60;
-        int end_sec   = start_sec + dur_sec;
+    PlantPhase phase = getPlantPhase();
         
-        int sunrise_sec = light_get_sunrise_min() * 60;
-        int sunset_sec  = light_get_sunset_min() * 60;
-    
-        if (now_sec >= start_sec && now_sec < start_sec + sunrise_sec) {
-            phase = MORNING_WAKEUP;
-        }
-        else if (now_sec >= end_sec - sunset_sec && now_sec < end_sec) {
-            phase = EVENING_TRANSITION;
-        }
-        else {
-            phase = DAY_TRANSPIRE;
-        }
-        
-        current_phase = phase;
-    }
+    // KRITISCH:
+    // IMMER setzen.
+    // Nicht nur im else!
+    current_phase = phase;
     
     
     float in_temp = getTempExt();

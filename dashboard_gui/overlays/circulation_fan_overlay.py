@@ -45,7 +45,9 @@ class CirculationFanOverlay(FloatLayout):
         self._ui_lock = False
         
         self._target_state = {"min": 20, "max": 65, "mode": "nat"}
-
+        # Nach den anderen self._xxx Variablen
+        self.is_circulation = True
+        self._my_handshake_id = 0
         # Hintergrund
         bg = Button(background_color=(0, 0, 0, 0.25))
         bg.bind(on_release=lambda *_: self.close())
@@ -169,15 +171,13 @@ class CirculationFanOverlay(FloatLayout):
         server_data = GLOBAL_STATE.overlay_engine.get_buffer_data(mac)
         if not server_data: 
             return
-
+        
         # === 1. HANDSHAKE & SESSION CHECK ===
         server_init = server_data.get('rev_init_circfan', 0)
         server_rev = int(server_data.get('rev_circfan', 0))
         
         # Das ist das Herzstück: Hat der ESP meinen Ping gespiegelt?
-        if self.engine.adopt_new_session(server_init, server_rev):
-            self._last_sent_rev = server_rev
-            return
+        self.engine.adopt_new_session(server_init, server_rev)
         
         is_alive = self.engine.is_alive(server_init)
 
@@ -236,6 +236,10 @@ class CirculationFanOverlay(FloatLayout):
             self.range_slider.max_value = int(server_data.get('circulation_fan_pct', 65))
             self._ui_lock = False
             self.lbl_val.text = f"{int(self.range_slider.min_value)}% - {int(self.range_slider.max_value)}%"
+            self._target_state["mode"] = server_data.get(
+                'circulation_fan_mode',
+                'nat'
+            )
             self._apply_button_styles(server_data.get('circulation_fan_mode', 'nat'))
 
     def _on_slider_change(self, instance, value):
@@ -274,14 +278,53 @@ class CirculationFanOverlay(FloatLayout):
         if not mac:
             return
     
-        # 1. NEUE SESSION ID
-        self._my_handshake_id = int(time.time())
+        # =========================================================
+        # 1. NEUE HANDSHAKE SESSION
+        # =========================================================
+        self._my_handshake_id = self.engine.create_handshake()
     
-        # 2. HANDSHAKE SENDEN (RAM ONLY)
-        GLOBAL_STATE.overlay_engine.send_fan_handshake(mac, self._my_handshake_id)
+        GLOBAL_STATE.overlay_engine.send_fan_handshake(
+            mac,
+            self._my_handshake_id
+        )
     
-        # 3. OPTIONAL: State direkt pushen
-        self._send_current_state()
+        # =========================================================
+        # 2. FRISCHEN SERVER SNAPSHOT HOLEN
+        # =========================================================
+        data = GLOBAL_STATE.overlay_engine.get_buffer_data(mac)
+    
+        if data:
+            srv_min = data.get("circulation_fan_min", 20)
+            srv_max = data.get("circulation_fan_pct", 65)
+            srv_mode = data.get("circulation_fan_mode", "nat")
+    
+            self._ui_lock = True
+            self.range_slider.min_value = srv_min
+            self.range_slider.max_value = srv_max
+            self._ui_lock = False
+    
+            self._target_state["mode"] = srv_mode
+    
+            self.lbl_val.text = f"{int(srv_min)}% - {int(srv_max)}%"
+    
+            self._apply_button_styles(srv_mode)
+    
+            # KRITISCH:
+            self._last_sent_rev = int(data.get("rev_circfan", 0))
+            self.engine._last_sent_rev = self._last_sent_rev
+    
+        # =========================================================
+        # 3. STATE ERNEUT PUSHEN
+        # =========================================================
+        Clock.schedule_once(
+            lambda dt: self._send_current_state(),
+            0.05
+        )
+    
+        # =========================================================
+        # 4. FEEDBACK
+        # =========================================================
+        self._set_orange()
 
     def _set_orange(self):
         self.sync_icon.text = "[font=FA]\uf021[/font]"
@@ -330,7 +373,9 @@ class CirculationFanOverlay(FloatLayout):
         self.lbl_val.text = f"{int(srv_min)}% - {int(srv_max)}%"
         self._apply_button_styles(srv_mode)
 
-        self._last_sent_rev = data.get('rev_circfan', 0)
+        self._last_sent_rev = int(data.get('rev_circfan', 0))
+        self.engine._last_sent_rev = self._last_sent_rev
+        
         self._retry_count = 0
         self._last_send_time = 0
         self._init_done = True

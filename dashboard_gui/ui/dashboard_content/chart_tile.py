@@ -272,3 +272,44 @@ class ChartTile(ButtonBehavior, BoxLayout):
         
         if hasattr(GLOBAL_STATE, "ggm"):
             GLOBAL_STATE.ggm.engines["dashboard"].open_fullscreen(full_key)
+
+
+    def rebuild_graph(self):
+        print(f"[GRAPH] rebuilding {self.tile_id}")
+    
+        old_points = list(self.plot.points)
+    
+        # Alten Graph komplett entfernen
+        try:
+            self.graph_container.remove_widget(self.graph)
+        except Exception as e:
+            print("remove graph failed:", e)
+    
+        # Komplett neuen Graph bauen
+        self.graph = Graph(
+            draw_border=False,
+            background_color=(0,0,0,0),
+            padding=dp_scaled(15),
+            xmin=0,
+            xmax=self.window,
+            ymin=0,
+            ymax=1,
+            size_hint=(1, 1),
+            pos_hint={'x': 0, 'y': 0}
+        )
+    
+        # Neuer Plot
+        self.plot = LinePlot(
+            color=self.color,
+            line_width=dp_scaled(2.2)
+        )
+    
+        self.plot.points = old_points
+    
+        self.graph.add_plot(self.plot)
+    
+        # Wieder einfügen
+        self.graph_container.add_widget(self.graph, index=0)
+    
+        # Refresh erzwingen
+        self.graph.canvas.ask_update()

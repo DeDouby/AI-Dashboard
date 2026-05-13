@@ -127,7 +127,7 @@ void grow_controller_get_status(JsonObject doc) {
     doc["log_level"] = _log_level;
     
     doc["uptime_esp_s"] = millis() / 1000;
-    doc["fw_ver"] = "v2.4.1-beta";
+    doc["fw_ver"] = "v2.5.6-rc";
     
     // IP + WLAN
     

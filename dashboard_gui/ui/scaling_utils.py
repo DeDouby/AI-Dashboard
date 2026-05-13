@@ -9,31 +9,32 @@ from kivy.metrics import dp, sp
 
 def compute_ui_scale():
     w, h = Window.size
+    # Wir holen uns die echte physikalische Dichte
+    # Aber Vorsicht: Manche Phones lügen hier!
+    dpi = Window.dpi if Window.dpi and Window.dpi > 100 else 160
+    short_side = min(w, h)
 
-    # DPI SAFE FALLBACK (wichtig für Android!)
-    dpi = Window.dpi
-    if not dpi or dpi < 100:
-        dpi = 160
-
-    # ---------------------------------------------------
-    # 🖥️ DESKTOP
-    # ---------------------------------------------------
     if platform not in ("android", "ios"):
-        base = 1.15
-        geom = w / 1400.0
-        geom = max(0.95, min(geom, 1.10))
-        return base * geom
+        return 1.15 * max(0.95, min(w / 1400.0, 1.10))
 
-    # ---------------------------------------------------
-    # 📱 ANDROID
-    # ---------------------------------------------------
-    density = dpi / 420.0
-    density = max(0.85, min(density, 1.15))
+    # --- DIE RADIKAL-WEICHE ---
+    
+    # 1. Check: Ist es ein High-Res Display wie das Huawei?
+    # Wenn die kurze Seite >= 1080px ist UND die DPI hoch ist
+    if short_side >= 1080 or dpi > 350:
+        # Hier schalten wir fast alle Faktoren aus. 
+        # 0.55 - 0.60 ist oft der "Sweet Spot" für FHD Geräte,
+        # damit die Widgets nicht den Screen sprengen.
+        return 0.58 
 
-    geom = w / 1080.0
-    geom = max(0.85, min(geom, 1.0))
-
-    return 0.75 * density * geom
+    # 2. Check: Das Nokia/Redmi Profil (HD+)
+    # Das hat ja bei dir "Geil" ausgesehen.
+    # Wir nehmen den Wert, der beim Nokia funktionierte:
+    base = 0.78
+    geom = short_side / 720.0
+    density_boost = max(1.0, min(400.0 / dpi, 1.10))
+    
+    return base * geom * density_boost
 
 
 # 🔥 GLOBAL SCALE (nur 1x berechnet!)

@@ -140,11 +140,38 @@ class LightOverlay(FloatLayout):
         self._init_done = True
 
     def _apply_server_snapshot(self, data):
+        if not data: return
         mode = data.get('light_mode', 'man')
-        target = data.get('light_target', 0)
+        target = int(data.get('light_target', 0))    # Dein eingestellter Wert
+        current_hw = int(data.get('light_pct', 0))   # Was die Lampe wirklich tut
+        
         h, m = int(data.get('l_start_h', 8)), int(data.get('l_start_m', 0))
         dur, srise, sset = int(data.get('l_dur', 720)), int(data.get('l_sunrise', 60)), int(data.get('l_sunset', 60))
 
+        # --- LOGIK: GOLDENE STUNDE ---
+        # Wenn im Timer-Modus der Ist-Wert vom Soll-Wert abweicht (Rampe aktiv)
+        if mode == "tim" and current_hw != target and current_hw > 0:
+            self.lbl_val.color = (1, 0.8, 0, 1) # GOLD-Farbe
+        else:
+            self.lbl_val.color = (1, 1, 1, 1)    # Standard Weiß
+
+        # Der große Wert repräsentiert deine Einstellung (Target)
+        self.lbl_val.text = f"{target}%"
+        # Das kleine Label zeigt zur Kontrolle die Hardware-Realität
+        self.lbl_target.text = f"({current_hw}%)"
+
+        # --- STATUS TEXT FIX (Weg von INIT) ---
+        if mode == "off":
+            self.lbl_status_text.text = "STATUS: AUS"
+            self.lbl_status_text.color = (1, 0.2, 0.2, 0.8)
+        elif mode == "man":
+            self.lbl_status_text.text = "STATUS: MANUELL"
+            self.lbl_status_text.color = (0, 0.8, 1, 1)
+        else:
+            self.lbl_status_text.text = "STATUS: TIMER"
+            self.lbl_status_text.color = (0, 1, 0, 1)
+
+        # Slider-Werte setzen
         self.slider.value = target
         self.slider_start.value = (h * 60 + m) // 15
         dur_steps = dur // 15
@@ -153,8 +180,6 @@ class LightOverlay(FloatLayout):
         self.slider_sunrise_sunset.min_value = srise // 15
         self.slider_sunrise_sunset.max_value = dur_steps - (sset // 15)
 
-        self.lbl_val.text = f"{int(target)}%"
-        self.lbl_target.text = f"(TARGET: {int(data.get('light_pct', 0))}%)"
         self.lbl_start.text = f"START: {h:02d}:{m:02d}"
         self.lbl_dur.text = f"DAUER: {dur//60}h {dur%60:02d}m"
         self._update_ramp_label(srise, sset)

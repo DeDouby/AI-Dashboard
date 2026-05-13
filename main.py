@@ -8,7 +8,7 @@ from kivy.core.text import LabelBase
 from kivy.uix.screenmanager import ScreenManager, FadeTransition
 from kivy.core.window import Window
 from kivy.metrics import dp, sp
-
+from kivy.clock import Clock
 # -------------------------------------------------------
 # Screens & Logik-Module
 # -------------------------------------------------------
@@ -100,13 +100,22 @@ class DashboardApp(App):
         # nichts tun, nur resident bleiben
         return True
 
-#    def on_resume(self):
-#        try:
-#            import core
-#            print("[APP] resume → bridge restart")
-#            core.restart_adv_bridge()
-#        except Exception as e:
-#            print("[APP] bridge restart failed:", e)
+    def on_resume(self):
+        print("[APP] RESUME")
+    
+        Clock.schedule_once(self._rebuild_dashboard_graphs, 0.5)
+    
+        return True
+    
+    def _rebuild_dashboard_graphs(self, dt):
+        try:
+            dashboard = self.root.get_screen("dashboard")
+    
+            for tile in dashboard.content.tile_map.values():
+                tile.rebuild_graph()
+    
+        except Exception as e:
+            print("[RESUME ERROR]", e)
 
 # -------------------------------------------------------
 # Offizieller Einstiegspunkt

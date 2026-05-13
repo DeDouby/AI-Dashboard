@@ -265,7 +265,7 @@ class VPDScatterScreen(Screen):
         self.bg_rect.texture = CoreImage(path).texture
         self._active_bg = key
 
-# -------------------------------------------------
+    # -------------------------------------------------
     # DATA LOAD
     # -------------------------------------------------
     def _load_points(self):
@@ -280,43 +280,42 @@ class VPDScatterScreen(Screen):
     
         def get_last(metric):
             buf = self.gsm.get_graph_data(f"{prefix}_{metric}")
-            return float(buf[-1]) if buf and buf[-1] is not None else None
+            if not buf or buf[-1] is None:
+                return None
+            val = float(buf[-1])
+            # Check auf Pseudo-Werte (Sensor nicht erkannt)
+            if val < -250: 
+                return None
+            return val
     
-        # 1. Koordinaten für die Canvas-Punkte (X=Hum, Y=Temp)
-        coords = {
-            "in":  (get_last("vpd_x_in"),  get_last("vpd_y_in")),
-            "ex":  (get_last("vpd_x_ex"),  get_last("vpd_y_ex")),
-            "sps": (get_last("vpd_x_sps"), get_last("vpd_y_sps")),
-            "tb2": (get_last("vpd_x_tb2"), get_last("vpd_y_tb2"))
-        }
-    
-        # 2. Werte für die Info-Box (VPD, Temp, Hum)
+        # Daten sammeln
         self._box = {
             "in":  {"t": get_last("temp_in"),  "h": get_last("hum_in"),  "vpd": get_last("vpd_in")},
             "ex":  {"t": get_last("temp_ex"),  "h": get_last("hum_ex"),  "vpd": get_last("vpd_ex")},
             "sps": {"t": get_last("ble_temp_sps"), "h": get_last("ble_hum_sps"), "vpd": get_last("ble_vpd_sps")},
             "tb2": {"t": get_last("ble_temp_tb2"), "h": get_last("ble_hum_tb2"), "vpd": get_last("ble_vpd_tb2")}
         }
-    
-        # 3. Punkte auf dem Canvas platzieren
-        mapping = {
-            "in": self.p_in, 
-            "ex": self.p_ex, 
-            "sps": self.p_sps, 
-            "tb2": self.p_tb2
+        
+        # Koordinaten für Scatter (X=Hum, Y=Temp)
+        coords = {
+            "in":  (get_last("vpd_x_in"),  get_last("vpd_y_in")),
+            "ex":  (get_last("vpd_x_ex"),  get_last("vpd_y_ex")),
+            "sps": (get_last("vpd_x_sps"), get_last("vpd_y_sps")),
+            "tb2": (get_last("vpd_x_tb2"), get_last("vpd_y_tb2"))
         }
+
+        # Canvas Mapping
+        mapping = {"in": self.p_in, "ex": self.p_ex, "sps": self.p_sps, "tb2": self.p_tb2}
 
         for key, ellipse in mapping.items():
             hx, ty = coords[key]
             if hx is not None and ty is not None:
                 self._place_point(ellipse, ty, hx)
             else:
-                # Punkt weit weg schieben, wenn keine Daten da sind
                 ellipse.pos = (-1000, -1000)
     
-        # 4. Jetzt erst die Box rendern (jetzt sind alle Keys drin!)
         self._update_value_box()
-    # -------------------------------------------------
+   # -------------------------------------------------
     def _place_point(self, ellipse, temp, hum):
         gx, gy = self.graph.pos
         gw, gh = self.graph.size
@@ -348,22 +347,44 @@ class VPDScatterScreen(Screen):
     def _tick(self, *_):
         pass
     def _update_value_box(self):
-        def fmt(v, unit=""):
-            return f"{v:.2f} {unit}".strip() if v is not None else "--"
-    
+        def fmt(v, unit="", precision=1):
+            """Hilfsfunktion für saubere Formatierung."""
+            if v is None or v < -250:  # Pseudo-Werte Check
+                return "--"
+            return f"{v:.{precision}f}{unit}"
+
         b = getattr(self, "_box", None)
-        if not b: return
-    
-        # Farben definieren (passend zum Canvas)
-        self.value_label.text = (
-            "[color=#FFD933]●[/color] [b]INTERNAL[/b]: " + fmt(b['in']['vpd'], "kPa") + "\n"
-            "[color=#4DFF4D]●[/color] [b]EXTERNAL[/b]: " + fmt(b['ex']['vpd'], "kPa") + "\n"
-            "[color=#FF3399]●[/color] [b]SPS BLE[/b]:  " + fmt(b['sps']['vpd'], "kPa") + "\n"
-            "[color=#33CCFF]●[/color] [b]TB2 BLE[/b]:  " + fmt(b['tb2']['vpd'], "kPa") + "\n\n"
+        if not b: 
+            return
+
+        # Farbcodes (RGBA Hex)
+        c_in  = "FFD933FF" # Gelb
+        c_ex  = "4DFF4DFF" # Grün
+        c_sps = "FF3399FF" # Pink
+        c_tb2 = "33CCFFFF" # Cyan
+        
+        lines = []
+        
+        # Mapping der Sensoren für die Schleife (Key, Label, Farbe)
+        sensors = [
+            ("in",  "INT", c_in),
+            ("ex",  "EXT", c_ex),
+            ("sps", "SPS", c_sps),
+            ("tb2", "TB2", c_tb2)
+        ]
+
+        for key, name, color in sensors:
+            vpd = fmt(b[key]['vpd'], "k", 2)
+            t   = fmt(b[key]['t'], "°")
+            h   = fmt(b[key]['h'], "%")
             
-            f"[size=16sp][color=#AAAAAA]SPS:[/color] {fmt(b['sps']['t'], '°C')} / {fmt(b['sps']['h'], '%')}\n"
-            f"[color=#AAAAAA]TB2:[/color] {fmt(b['tb2']['t'], '°C')} / {fmt(b['tb2']['h'], '%')}[/size]"
-        )    # ============================================================
+            # Die Zeile: Punkt | Name | VPD | T/H
+            line = (f"[color=#{color}]●[/color] [b]{name}:[/b] {vpd} "
+                    f"[size={int(sp_scaled(15))}]({t}/{h})[/size]")
+            lines.append(line)
+
+        # Zusammenfügen mit Zeilenumbruch
+        self.value_label.text = "\n".join(lines)
 
     # -------------------------------------------------
     # RESET

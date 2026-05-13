@@ -81,6 +81,7 @@ void circulation_fan_init(uint8_t pin, uint8_t tacho_pin) {
     // INITIALER SETTER FIX:
     // Wir rufen circulation_fan_set_mode auf, damit die Logik sofort greift
     circulation_fan_init_rev = millis() + 1;
+    circulation_fan_rev = millis();
     circulation_fan_set_mode(current_circulation_fan_mode);
     circulation_fan_set_speed(current_circulation_fan_speed);
 
@@ -143,8 +144,24 @@ int circulation_fan_get_rpm() {
 void circulation_fan_update() {
     // Falls Manuell: Der effektive Wert ist einfach das Target
     if (current_circulation_fan_mode == circulation_fan_MODE_MANUAL) {
+    
         effective_circulation_fan_speed = current_circulation_fan_speed;
-        return; 
+    
+        uint32_t duty = 0;
+    
+        if (effective_circulation_fan_speed > 0) {
+            duty = map(
+                effective_circulation_fan_speed,
+                1,
+                100,
+                65,
+                255
+            );
+        }
+    
+        ledcWrite(_circulation_fan_pin, duty);
+    
+        return;
     }
 
     static uint32_t last_wind_change = 0;

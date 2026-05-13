@@ -22,7 +22,18 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h> // WICHTIG: Für den Postboten-Modus
-
+enum LightPhase {
+    LIGHT_PHASE_NIGHT = 0,
+    LIGHT_PHASE_MORNING,
+    LIGHT_PHASE_DAY,
+    LIGHT_PHASE_EVENING
+};
+enum PlantPhase {
+    DAY_TRANSPIRE,
+    EVENING_TRANSITION,
+    NIGHT_RECOVERY,
+    MORNING_WAKEUP
+};
 enum LightMode {
     LIGHT_MODE_OFF_LOCKED = 0, 
     LIGHT_MODE_MANUAL = 1,
@@ -59,4 +70,6 @@ extern int light_target_humidity_max;
 int light_get_effective_brightness();
 bool light_is_on();
 float light_get_phase_progress(); // 0.0 → 1.0 innerhalb aktueller Phase
+LightPhase light_get_current_phase();
+PlantPhase getPlantPhase();
 #endif

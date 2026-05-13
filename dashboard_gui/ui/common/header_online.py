@@ -462,7 +462,7 @@ class HeaderBar(BoxLayout):
         # Center flexible area: branding + device label
         self.center_zone = BoxLayout(size_hint=(1, 1), spacing=dp_scaled(6))
         self.lbl_title.size_hint = (None, 1)
-        self.lbl_title.width = dp_scaled(70)
+        self.lbl_title.width = dp_scaled(170)
         self.lbl_dev.size_hint = (1, 1)
         self.lbl_dev.width = dp_scaled(170)
         self.center_zone.add_widget(self.lbl_title)

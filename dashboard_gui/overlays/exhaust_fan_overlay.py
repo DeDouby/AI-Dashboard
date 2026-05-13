@@ -43,6 +43,8 @@ class ExhaustFanOverlay(FloatLayout):
         self.sync_path = os.path.join(config.DATA, "settings_sync.json")
         self._pending_updates = {}
         self.engine = BaseOverlayEngine()
+        # Nach den anderen self._xxx Variablen
+        self._my_handshake_id = 0       
         # Hintergrund
         bg = Button(background_color=(0, 0, 0, 0.25))
         bg.bind(on_release=lambda *_: self.close())
@@ -58,10 +60,12 @@ class ExhaustFanOverlay(FloatLayout):
             pos_hint={"right": 0.98, "top": 0.98}
         )
 
+        # Suche diesen Block in deiner __init__:
         with self.panel.canvas.before:
             Color(0, 0, 0, 0.75)
             self.bg_rect = RoundedRectangle(radius=[dp_scaled(20)])
-            Color(0, 1, 0, 0.3)
+            # ÄNDERE DAS HIER:
+            self.outline_color = Color(0, 1, 0, 0.3)  # <-- Referenz speichern!
             self.outline = Line(width=1.2)
 
         self.panel.bind(pos=self._u, size=self._u)
@@ -157,14 +161,16 @@ class ExhaustFanOverlay(FloatLayout):
     # ===================================================================
     # ZENTRALE SEND-METHODE MIT AUTO-RETRY
     # ===================================================================
+    # ===================================================================
     def _send_current_state(self, is_retry=False, **kwargs):
-        """Sendet den kompletten aktuellen Zustand (alle Slider + Modus)"""
+        """Einheitliche Sende-Methode mit Retry-Unterstützung"""
         if not self._init_done:
             return
 
         mode = kwargs.get("mode", self._target_mode)
 
-        rev = GLOBAL_STATE.send_overlay_command(
+        # Alle aktuellen UI-Werte sammeln
+        new_rev = GLOBAL_STATE.send_overlay_command(
             "exhaust_fan",
             min=int(self.range_slider.min_value),
             max=int(self.range_slider.max_value),
@@ -175,22 +181,17 @@ class ExhaustFanOverlay(FloatLayout):
             vpd_min=round(self.vpd_slider.min_value / 10.0, 1),
             vpd_max=round(self.vpd_slider.max_value / 10.0, 1),
             mode=mode,
-            chaos=self._chaos_enabled   # 🔥 NEU
+            chaos=self._chaos_enabled
         )
 
-        if rev:
-            self.engine.mark_sent(rev)
-            self._last_sent_rev = rev   # fallback-safe
+        if new_rev:
+            self.engine.mark_sent(new_rev)
+            self._last_sent_rev = new_rev
             self._last_send_time = time.time()
-        
-            self.sync_icon.color = (1, 0.5, 0, 1)
+            self._set_orange()
         
             if not is_retry:
                 self.engine.reset_retry()
-
-    # ===================================================================
-    # UPDATE_UI mit starkem Auto-Retry
-    # ===================================================================
 
 
     def _apply_server_snapshot(self, data):
@@ -233,11 +234,20 @@ class ExhaustFanOverlay(FloatLayout):
         self._apply_button_styles(s_mode, s_chaos)
         self._target_mode = s_mode
         self._last_sent_rev = int(data.get('rev_exhaust', 0))
-        phase = int(data.get("plant_phase", 0))
+        phase_idx = int(data.get("plant_phase", 0))
+        phase_name = self._phase_map.get(phase_idx, "OFF")
         
-        if phase != self._last_phase and phase in self._phase_map:
-            self._last_phase = phase
-            self.lbl_title.text = f"EXHAUST FAN CONTROL • {self._phase_map.get(phase, 'UNK')}"
+        # Update Header
+        self.lbl_title.text = f"EXHAUST FAN CONTROL • {phase_name}"
+        
+        # Nacht-Spezial: UI verdunkeln wenn Nacht
+        # Ersetze den fehlerhaften Block (ca. Zeile 246) durch das hier:
+        
+        # Nacht-Spezial: UI verdunkeln wenn Nacht
+        if phase_idx == 2:
+            self.outline_color.rgba = (0.2, 0.2, 0.2, 1)
+        else:
+            self.outline_color.rgba = (0, 1, 0, 0.3)
     # ===================================================================
     # Weitere Methoden
     # ===================================================================
@@ -307,63 +317,26 @@ class ExhaustFanOverlay(FloatLayout):
             self._send_current_state()          # User-Aktion → Retry-Zähler zurück
             return False
 
-    def _force_sync(self, *_):
-        self._send_current_state()
 
 
-
-    def _init_values(self, *_):
-        mac = GLOBAL_STATE.get_active_device_id()
-        data = GLOBAL_STATE.overlay_engine.get_buffer_data(mac)
-        if not data:
-            Clock.schedule_once(self._init_values, 0.3)
-            return
-
-        # === 1. HANDSHAKE ID GENERIEREN & SENDEN ===
-        self._my_handshake_id = self.engine.create_handshake()
-        GLOBAL_STATE.overlay_engine.send_exhaust_handshake(mac, self._my_handshake_id)
-        # === 2. WERTE AUS BUFFER HOLEN ===
-        s_min = int(data.get("exhaust_fan_min", 20))
-        s_max = int(data.get("exhaust_fan_pct", 65))
-        s_mode = data.get("exhaust_fan_mode", "auto")
-        # ... (restliche Werte wie Temp/Hum/VPD bleiben gleich)
-
-        self._ui_lock = True
-        self.range_slider.min_value = s_min
-        self.range_slider.max_value = s_max
-        # ... (Slider Zuweisung wie gehabt)
-        self._ui_lock = False
-
-        self._last_sent_rev = int(data.get("rev_exhaust", 0))
-        self._init_done = True
-
+    # ===================================================================
+    # UPDATE_UI (Idiotensicher & Target-Revision-Konform)
+    # ===================================================================
     def update_ui(self, *_):
         mac = GLOBAL_STATE.get_active_device_id()
         server_data = GLOBAL_STATE.overlay_engine.get_buffer_data(mac)
-        if not server_data: return
-            # ✅ FIX: SERVER SNAPSHOT IMMER ÜBERNEHMEN
-        # ✅ NUR ÜBERNEHMEN WENN USER NICHT AKTIV
-        if not self._user_active:
-            self._apply_server_snapshot(server_data)
+        if not server_data: 
+            return
+
         # === 1. HANDSHAKE & SESSION CHECK ===
         server_init = server_data.get('rev_init_exhaust', 0)
         server_rev = int(server_data.get('rev_exhaust', 0))
         
-        # Der ehrliche Check
-        is_alive = (server_init == self._my_handshake_id)
-        
-        # Falls Reboot/Fremd-Init erkannt wird:
+        # Hat der ESP die Session gewechselt oder meinen Handshake gespiegelt?
         if self.engine.adopt_new_session(server_init, server_rev):
             self._last_sent_rev = server_rev
-            return
         
-        is_alive = self.engine.is_alive(server_init)
-        # === 2. STATUS ANALYSE ===
-        # === 2. STATUS ANALYSE ===
-        last_sent = getattr(self, '_last_sent_rev', 0)
-        time_since_action = time.time() - self._last_user_action
-
-        # Revisionen abgleichen
+        # === 2. AUTO-RETRY LOGIK ===
         pending = self.engine.is_pending(server_rev)
         
         if pending and self.engine.should_retry():
@@ -371,23 +344,12 @@ class ExhaustFanOverlay(FloatLayout):
                 self.engine.register_retry()
                 self._send_current_state(is_retry=True)
                 return
-        
-        is_synced = self.engine.is_synced(
-            server_init,
-            server_rev,
-            self._user_active,
-            self._last_user_action
-        )
-        phase = int(server_data.get("plant_phase", 0))
-        
-        if phase != self._last_phase and phase in self._phase_map:
-            self._last_phase = phase
-            self.lbl_title.text = f"EXHAUST FAN CONTROL • {self._phase_map.get(phase, 'UNK')}"
-        # Live-Werte immer anzeigen
+
+        # === 3. LIVE-WERTE (immer aktuell) ===
         self.lbl_rpm.text = f"RPM: {int(server_data.get('exhaust_fan_rpm', 0))}"
         self.lbl_live_speed.text = f"LIVE: {int(server_data.get('exhaust_fan_speed_now', 0))}%"
 
-# === 4. ICON LOGIK (Der ehrliche Status) ===
+        # === 4. ICON LOGIK (Status-Feedback) ===
         status = self.engine.get_status(
             server_init,
             server_rev,
@@ -395,6 +357,13 @@ class ExhaustFanOverlay(FloatLayout):
             self._last_user_action
         )
         
+        self._update_sync_icon(status)
+
+        # === 5. UI-SYNC (Nur wenn nicht aktiv bedient) ===
+        if status == "green" and not self._user_active:
+            self._apply_server_snapshot(server_data)
+
+    def _update_sync_icon(self, status):
         if status == "green":
             self.sync_icon.text = "[font=FA]\uf058[/font]"
             self.sync_icon.color = (0, 1, 0, 1)
@@ -405,12 +374,69 @@ class ExhaustFanOverlay(FloatLayout):
             self.sync_icon.text = "[font=FA]\uf071[/font]"
             self.sync_icon.color = (1, 0.3, 0, 1)
         else:
-            self.sync_icon.text = "[font=FA]\uf021[/font]"
-            self.sync_icon.color = (1, 0.5, 0, 1)
-        
-        if status != "green":
+            self._set_orange()
+
+    def _set_orange(self):
+        self.sync_icon.text = "[font=FA]\uf021[/font]"
+        self.sync_icon.color = (1, 0.5, 0, 1)
+
+    def _force_sync(self, *_):
+        mac = GLOBAL_STATE.get_active_device_id()
+        if not mac:
             return
     
+        # =========================================================
+        # 1. NEUE HANDSHAKE SESSION
+        # =========================================================
+        self._my_handshake_id = self.engine.create_handshake()
+    
+        GLOBAL_STATE.overlay_engine.send_exhaust_handshake(
+            mac,
+            self._my_handshake_id
+        )
+    
+        # =========================================================
+        # 2. AKTUELLEN SERVER SNAPSHOT HOLEN
+        # =========================================================
+        data = GLOBAL_STATE.overlay_engine.get_buffer_data(mac)
+    
+        if data:
+            self._apply_server_snapshot(data)
+    
+            # KRITISCH:
+            self._last_sent_rev = int(data.get("rev_exhaust", 0))
+            self.engine._last_sent_rev = self._last_sent_rev
+    
+        # =========================================================
+        # 3. AKTUELLEN UI STATE NOCHMAL PUSHEN
+        # =========================================================
+        Clock.schedule_once(
+            lambda dt: self._send_current_state(),
+            0.05
+        )
+    
+        # =========================================================
+        # 4. VISUELLES FEEDBACK
+        # =========================================================
+        self._set_orange()
+
+    def _init_values(self, *_):
+        mac = GLOBAL_STATE.get_active_device_id()
+        data = GLOBAL_STATE.overlay_engine.get_buffer_data(mac)
+        if not data:
+            Clock.schedule_once(self._init_values, 0.3)
+            return
+
+        # Handshake initialisieren
+        self._my_handshake_id = self.engine.create_handshake()
+        GLOBAL_STATE.overlay_engine.send_exhaust_handshake(mac, self._my_handshake_id)
+        
+        # Werte einmalig laden
+        self._apply_server_snapshot(data)
+        
+        self._last_sent_rev = int(data.get('rev_exhaust', 0))
+        self._init_done = True
+        self.range_slider.disabled = False
     
 
 

@@ -30,7 +30,7 @@ class DevicePickerMenu(FloatLayout):
         # 2) Panel für Buttons
         # -----------------------------
         num_buttons = len(device_list) + 2  # + ADV + GATT
-        self.panel_width = dp_scaled(220)
+        self.panel_width = dp_scaled(300)
         panel_height = min(
             dp_scaled(360),
             dp_scaled(50 * (len(device_list) + 3))  # devices + separator + channels

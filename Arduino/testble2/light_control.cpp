@@ -256,31 +256,179 @@ float light_get_phase_progress() {
 
     struct tm ti;
     localtime_r(&now, &ti);
-
     int now_sec = ti.tm_hour * 3600 + ti.tm_min * 60 + ti.tm_sec;
 
     int start_sec = l_target_h * 3600 + l_target_m * 60;
     int dur_sec = l_target_dur * 60;
-    int end_sec = start_sec + dur_sec;
+    int end_sec = (start_sec + dur_sec); 
 
-    int sunrise_sec = l_target_sunrise * 60;
-    int sunset_sec = l_target_sunset * 60;
-
-    // 🌙 Nacht komplett
-    if (effective_brightness <= 0) return 0.0f;
-
-    // 🌅 MORNING (Ramp Up)
-    if (now_sec >= start_sec && now_sec < start_sec + sunrise_sec) {
-        return (float)(now_sec - start_sec) / sunrise_sec;
+    // Prüfung: Sind wir aktuell innerhalb des Licht-Fensters?
+    bool is_on = false;
+    uint32_t elapsed = 0;
+    if (end_sec <= 86400) {
+        if (now_sec >= start_sec && now_sec < end_sec) {
+            is_on = true;
+            elapsed = now_sec - start_sec;
+        }
+    } else {
+        if (now_sec >= start_sec || now_sec < (end_sec - 86400)) {
+            is_on = true;
+            elapsed = (now_sec >= start_sec) ? (now_sec - start_sec) : (86400 - start_sec + now_sec);
+        }
     }
 
-    // 🌇 EVENING (Ramp Down)
-    if (now_sec >= (end_sec - sunset_sec) && now_sec < end_sec) {
-        return 1.0f - (float)(end_sec - now_sec) / sunset_sec;
-    }
+    if (!is_on) return -1.0f; // 🔥 WICHTIG: -1.0 signalisiert "ECHTE NACHT" ans UI
 
-    // 🌞 DAY Plateau
+    uint32_t sunrise_sec = l_target_sunrise * 60;
+    uint32_t sunset_sec = l_target_sunset * 60;
+
+    // 🌅 MORNING
+    if (elapsed < sunrise_sec) return (float)elapsed / sunrise_sec;
+    
+    // 🌇 EVENING
+    uint32_t remaining = dur_sec - elapsed;
+    if (remaining < sunset_sec) return 1.0f - ((float)remaining / sunset_sec);
+
+    // 🌞 DAY
     return 1.0f;
+}
+
+
+LightPhase light_get_current_phase() {
+
+    time_t now = time(nullptr);
+
+    if (now < 946684800) {
+        return LIGHT_PHASE_DAY;
+    }
+
+    struct tm ti;
+    localtime_r(&now, &ti);
+
+    int now_sec =
+        ti.tm_hour * 3600 +
+        ti.tm_min * 60 +
+        ti.tm_sec;
+
+    int start_sec =
+        l_target_h * 3600 +
+        l_target_m * 60;
+
+    int dur_sec =
+        l_target_dur * 60;
+
+    int end_sec =
+        start_sec + dur_sec;
+
+    uint32_t sunrise_sec =
+        l_target_sunrise * 60;
+
+    uint32_t sunset_sec =
+        l_target_sunset * 60;
+
+    bool is_on = false;
+    uint32_t elapsed = 0;
+    uint32_t remaining = 0;
+
+    // =====================================================
+    // MITTERNACHTSLOGIK
+    // =====================================================
+
+    if (end_sec <= 86400) {
+
+        if (now_sec >= start_sec &&
+            now_sec < end_sec) {
+
+            is_on = true;
+
+            elapsed =
+                now_sec - start_sec;
+
+            remaining =
+                end_sec - now_sec;
+        }
+    }
+    else {
+
+        int overflow =
+            end_sec - 86400;
+
+        if (now_sec >= start_sec ||
+            now_sec < overflow) {
+
+            is_on = true;
+
+            elapsed =
+                (now_sec >= start_sec)
+                ? (now_sec - start_sec)
+                : (86400 - start_sec + now_sec);
+
+            remaining =
+                (now_sec >= start_sec)
+                ? (86400 - now_sec + overflow)
+                : (overflow - now_sec);
+        }
+    }
+
+    // =====================================================
+    // PHASEN
+    // =====================================================
+
+    if (!is_on) {
+        return LIGHT_PHASE_NIGHT;
+    }
+
+    if (elapsed < sunrise_sec) {
+        return LIGHT_PHASE_MORNING;
+    }
+
+    if (remaining < sunset_sec) {
+        return LIGHT_PHASE_EVENING;
+    }
+
+    return LIGHT_PHASE_DAY;
+}
+
+PlantPhase getPlantPhase() {
+    time_t now = time(nullptr);
+    struct tm ti;
+    localtime_r(&now, &ti);
+
+    int now_sec = ti.tm_hour * 3600 + ti.tm_min * 60 + ti.tm_sec;
+
+    int start_sec = light_get_start_h() * 3600 + light_get_start_m() * 60;
+    int dur_sec   = light_get_duration_min() * 60;
+    int end_sec   = start_sec + dur_sec;
+
+    int sunrise_sec = light_get_sunrise_min() * 60;
+    int sunset_sec  = light_get_sunset_min() * 60;
+
+    bool in_morning = false;
+    bool in_evening = false;
+
+    // MORNING
+    if (sunrise_sec > 0) {
+        int sunrise_end = start_sec + sunrise_sec;
+
+        in_morning =
+            (now_sec >= start_sec &&
+             now_sec < sunrise_end);
+    }
+
+    // EVENING
+    if (sunset_sec > 0) {
+        in_evening =
+            (now_sec >= (end_sec - sunset_sec) &&
+             now_sec < end_sec);
+    }
+
+    if (in_morning) return MORNING_WAKEUP;
+    if (in_evening) return EVENING_TRANSITION;
+
+    if (now_sec >= start_sec && now_sec < end_sec)
+        return DAY_TRANSPIRE;
+
+    return NIGHT_RECOVERY;
 }
 // DIESE BEIDEN HIER MÜSSEN UNBEDINGT UNTER DER UPDATE FUNKTION STEHEN:
 int light_get_effective_brightness() {
