@@ -1,30 +1,49 @@
 #include "esp_watch.h"
 #include "hardware_init.h"   // für recoverI2C()
+#include <time.h>
+#include <sys/time.h>
 
-#define DS3231_TIME_REG 0x00
-#define EEPROM_ADDR     0x57
+#define DS3231_TIME_REG   0x00
+#define DS3231_STATUS_REG 0x0F
+#define EEPROM_ADDR       0x57
 
 // Hilfsfunktionen
 static uint8_t dec2bcd(uint8_t val) { return ((val / 10 * 16) + (val % 10)); }
 static uint8_t bcd2dec(uint8_t val) { return ((val / 16 * 10) + (val % 16)); }
 
-// ==================== BEGIN ====================
 bool ESPWatch::begin(TwoWire &wire, uint8_t addr) {
-    bus = &wire; // Wir merken uns den übergebenen Bus (I2C_RTC)
+    bus = &wire;
     _addr = addr;
-
-    // Wir rufen hier KEIN bus->begin() auf, das haben wir schon in hardware_init erledigt
-    // Wir prüfen nur, ob die RTC antwortet
     bus->beginTransmission(_addr);
     return (bus->endTransmission() == 0);
 }
 
-// ==================== HEALTH ====================
 bool ESPWatch::isRTCHealthy() {
     if (!bus) return false;
     bus->beginTransmission(_addr);
-    byte error = bus->endTransmission();
-    return (error == 0);
+    return (bus->endTransmission() == 0);
+}
+
+// ==================== NEU: HARDWARE-STATUS ABFRAGEN ====================
+bool ESPWatch::isRTCSet() {
+    if (!bus) return false;
+
+    // Status-Register 0x0F ansteuern
+    bus->beginTransmission(_addr);
+    bus->write(DS3231_STATUS_REG); 
+    if (bus->endTransmission() != 0) return false;
+
+    bus->requestFrom(_addr, (uint8_t)1);
+    if (bus->available() < 1) return false;
+
+    uint8_t statusReg = bus->read();
+    
+    // Bit 7 (OSF) ist 1, wenn der Oszillator gestoppt war (Stromausfall ohne Batterie)
+    // Wenn Bit 7 also 1 ist, ist die Uhr UNGESETZT / UNGÜLTIG.
+    if (statusReg & 0x80) {
+        return false; 
+    }
+    return true;
 }
 
 // ==================== SYNC FROM RTC ====================
@@ -32,7 +51,7 @@ bool ESPWatch::syncFromRTC() {
     if (!bus) return false;
 
     bus->beginTransmission(_addr);
-    bus->write(0x00); // Start-Register
+    bus->write(DS3231_TIME_REG); // Start-Register
     if (bus->endTransmission() != 0) return false;
 
     bus->requestFrom(_addr, (uint8_t)7);
@@ -62,36 +81,41 @@ bool ESPWatch::syncFromRTC() {
     return true;
 }
 
-// Die anderen Funktionen (writeToRTC, Backup etc.) kannst du später ergänzen.
-// Für jetzt reicht erstmal syncFromRTC.
-
+// ==================== WRITE TO RTC ====================
 bool ESPWatch::writeToRTC() {
     if (!bus) return false;
 
     struct tm ti;
     if (!getLocalTime(&ti)) {
-        Serial.println("RTC Write: Fehler! Keine Systemzeit vorhanden.");
+        Serial.println("RTC Write: Fehler! Keine valide Systemzeit vorhanden.");
         return false;
     }
 
+    // 1. Zeitdaten in die Register 0x00 bis 0x06 schreiben
     bus->beginTransmission(_addr);
-    bus->write(DS3231_TIME_REG); // Start bei Register 0x00
-
-    // Konvertiere Systemzeit in BCD Format für den Chip
+    bus->write(DS3231_TIME_REG); 
     bus->write(dec2bcd(ti.tm_sec));
     bus->write(dec2bcd(ti.tm_min));
     bus->write(dec2bcd(ti.tm_hour));
-    bus->write(dec2bcd(ti.tm_wday + 1)); // DS3231 nutzt 1-7
+    bus->write(dec2bcd(ti.tm_wday + 1)); 
     bus->write(dec2bcd(ti.tm_mday));
-    bus->write(dec2bcd(ti.tm_mon + 1));  // tm_mon ist 0-11, RTC will 1-12
-    bus->write(dec2bcd(ti.tm_year - 100)); // Jahre seit 2000
+    bus->write(dec2bcd(ti.tm_mon + 1));  
+    bus->write(dec2bcd(ti.tm_year - 100)); 
+    if (bus->endTransmission() != 0) {
+        Serial.println("RTC Write: I2C Fehler beim Zeitscheiben");
+        return false;
+    }
 
+    // 2. STATUS-REGISTER (0x0F) AKTUALISIEREN: OSF-Bit (Bit 7) auf 0 löschen!
+    bus->beginTransmission(_addr);
+    bus->write(DS3231_STATUS_REG);
+    bus->write(0x00); // Löscht das OSF Flag und setzt Alarme zurück
     if (bus->endTransmission() == 0) {
-        Serial.printf("RTC Schreiben erfolgreich: %02d:%02d:%02d\n", ti.tm_hour, ti.tm_min, ti.tm_sec);
+        Serial.printf("RTC Geheilt & Synchronisiert: %02d:%02d:%02d (OSF gelöscht)\n", ti.tm_hour, ti.tm_min, ti.tm_sec);
         return true;
     }
     
-    Serial.println("RTC Write: I2C Fehler");
+    Serial.println("RTC Write: I2C Fehler beim Löschen des OSF-Flags");
     return false;
 }
 

@@ -43,20 +43,26 @@ class I18N:
             "menu.about": "About",
             "menu.grow_controller": "Grow-Controller",
             # --- About Screen ---
-            "about.version": "LivingGrowSensors 1.24",
+            # --- About Screen (EN) ---
+            "about.version": "LGS Grow Master S3 v2.0",
             "about.description": (
-                "LivingGrowSensors is a monitoring and analysis system for Bluetooth Low Energy (BLE) sensors.\n\n"
-                "It unifies data from different manufacturers and protocols (ADV, GATT, hybrid devices) "
-                "into a single, consistent model.\n\n"
-                "Focus is on real-time signals, explicit control, and transparent configuration — "
-                "no hidden automations.\n\n"
-                "LivingGrowSensors interprets devices as they behave, without forcing simplified abstractions.\n\n"
-                "Bluetooth is required to detect and read sensors. "
-                "Please enable it and grant requested permissions."
+                "LivingGrowSensors (LGS) is a hybrid ecosystem for monitoring and controlling "
+                "cultivation environments.\n\n"
+                "The system combines precise Bluetooth sensing (ADV/GATT) with active hardware control "
+                "via the LGS Grow Master S3. Thanks to the integrated network stack, the controller "
+                "seamlessly switches between AP and Router mode (STA).\n\n"
+                "A key highlight is the 'Target Revision Law': UI and hardware operate "
+                "asynchronously and only acknowledge commands after a successful match (Revision Sync). "
+                "This ensures absolute stability without volatile command errors.\n\n"
+                "The focus is on transparency and explicit control over lighting, exhaust, and "
+                "circulation fans — with no hidden automations. Sensors are processed efficiently "
+                "using pseudo-values to save space in communication packages.\n\n"
+                "Bluetooth and WiFi are required to read sensors and manage the controller. "
+                "Please grant the requested permissions."
             ),
             "about.repo_url": "https://github.com/Hackintosh1980/AI-Dashboard",
             "about.repo_text": "Project & Updates:",
-            "about.copyright": "© 2025 Dominik Rosenthal (Hackintosh1980)",
+            "about.copyright": "© 2026 Dominik Rosenthal (Hackintosh1980)",
         },
 
         "es": {
@@ -93,22 +99,26 @@ class I18N:
              "menu.grow_controller": "Grow-Controller",
            
             # --- About Screen ---
-            "about.version": "LivingGrowSensors 1.24",
+            # --- About Screen (ES) ---
+            "about.version": "LGS Grow Master S3 v2.0",
             "about.description": (
-                "LivingGrowSensors es un sistema de monitorización y análisis para sensores "
-                "Bluetooth Low Energy (BLE).\n\n"
-                "Unifica datos de diferentes fabricantes y protocolos (ADV, GATT, dispositivos híbridos) "
-                "en un modelo único y consistente.\n\n"
-                "Se centra en señales en tiempo real, control explícito y configuración transparente — "
-                "sin automatizaciones ocultas.\n\n"
-                "LivingGrowSensorsinterpreta los dispositivos tal como se comportan, "
-                "sin forzarlos a abstracciones simplificadas.\n\n"
-                "Bluetooth es necesario para detectar y leer los sensores. "
-                "Actívalo y concede los permisos solicitados."
+                "LivingGrowSensors (LGS) es un ecosistema híbrido para el monitoreo y control "
+                "de entornos de cultivo.\n\n"
+                "El sistema combina sensores Bluetooth de precisión (ADV/GATT) con el control activo "
+                "del hardware mediante el LGS Grow Master S3. Gracias a su stack de red integrado, "
+                "el controlador cambia fluidamente entre el modo AP y el modo Router (STA).\n\n"
+                "Un aspecto destacado es la 'Ley de Revisión de Objetivo': la interfaz y el hardware "
+                "operan de forma asíncrona y solo confirman los comandos tras una sincronización exitosa "
+                "(Revision Sync). Esto garantiza una estabilidad absoluta sin errores de comandos volátiles.\n\n"
+                "El enfoque se centra en la transparencia y el control explícito de la iluminación, la "
+                "extracción y la recirculación de aire, sin automatismos ocultos. Los sensores se procesan "
+                "eficientemente mediante pseudo-valores para optimizar el espacio.\n\n"
+                "Se requiere Bluetooth y WiFi para leer los sensores y gestionar el controlador. "
+                "Por favor, conceda los permisos solicitados."
             ),
             "about.repo_url": "https://github.com/Hackintosh1980/AI-Dashboard",
             "about.repo_text": "Proyecto y Actualizaciones:",
-            "about.copyright": "© 2025 Dominik Rosenthal (Hackintosh1980)",
+            "about.copyright": "© 2026 Dominik Rosenthal (Hackintosh1980)",
         },
 
         "de": {
@@ -146,21 +156,26 @@ class I18N:
             "menu.grow_controller": "Grow-Controller",
 
             # --- About Screen ---
-            "about.version": "LivingGrowSensors 1.24",
+            # --- About Screen ---
+            "about.version": "LGS Grow Master S3 v2.0",
             "about.description": (
-                "LivingGrowSensors ist ein Überwachungs- und Analysesystem für Bluetooth Low Energy (BLE)-Sensoren.\n\n"
-                "Es vereint Daten von verschiedenen Herstellern und Protokollen (ADV, GATT, hybride Geräte) "
-                "in einem einheitlichen, konsistenten Modell.\n\n"
-                "Fokus liegt auf Echtzeitsignalen, expliziter Steuerung und transparenter Konfiguration — "
-                "keine versteckten Automatismen.\n\n"
-                "LivingGrowSensors interpretiert Geräte so, wie sie sich verhalten, "
-                "ohne sie in vereinfachte Abstraktionen zu zwingen.\n\n"
-                "Bluetooth ist erforderlich, um Sensoren zu erkennen und auszulesen. "
-                "Bitte aktiviere es und gewähre die angeforderten Berechtigungen."
+                "LivingGrowSensors (LGS) ist ein hybrides Ökosystem zur Überwachung und Steuerung "
+                "von Grow-Umgebungen.\n\n"
+                "Das System vereint präzise Bluetooth-Sensorik (ADV/GATT) mit aktiver Hardware-Steuerung "
+                "über den LGS Grow Master S3. Durch den integrierten Netzwerk-Stack wechselt der Controller "
+                "nahtlos zwischen AP- und Router-Mode (STA).\n\n"
+                "Ein zentrales Highlight ist das 'Target-Revision-Gesetz': UI und Hardware arbeiten "
+                "asynchron und quittieren Befehle erst nach erfolgreichem Abgleich (Revision-Sync). "
+                "Das garantiert absolute Stabilität ohne flüchtige Fehlkommandos.\n\n"
+                "Fokus liegt auf Transparenz und expliziter Kontrolle über Licht, Abluft und Umluft — "
+                "ganz ohne versteckte Automatismen. Sensoren werden durch Pseudo-Values platzsparend "
+                "und effizient im System verarbeitet.\n\n"
+                "Bluetooth und WiFi sind erforderlich, um Sensoren auszulesen und den Controller zu steuern. "
+                "Bitte gewähre die angeforderten Berechtigungen."
             ),
             "about.repo_url": "https://github.com/Hackintosh1980/AI-Dashboard",
             "about.repo_text": "Projekt & Updates:",
-            "about.copyright": "© 2025 Dominik Rosenthal (Hackintosh1980)",
+            "about.copyright": "© 2026 Dominik Rosenthal (Hackintosh1980)",
         }
     }
 

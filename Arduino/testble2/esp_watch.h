@@ -10,6 +10,7 @@ public:
     bool isRTCHealthy();
     bool syncFromRTC();        // <--- muss genau so heißen
     bool writeToRTC();
+    bool isRTCSet();
     void forceRTCAsTimebase();
 
     void writeBackupU32(uint16_t memAddr, uint32_t value);

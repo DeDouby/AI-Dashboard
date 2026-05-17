@@ -12,6 +12,8 @@
 #include "esp_watch.h"
 #include "esp_sntp.h"
 #include "ble_scanner.h"
+#include "esp_sntp.h" // WICHTIG für sntp_get_sync_status()
+
 // BLE & System
 ESPWatch watch;
 BLEBridge bleBridge;
@@ -50,22 +52,34 @@ void setup() {
     Serial.begin(115200);
     init_hardware();
 
-    // 2. ABSOLUTE PRIORITÄT: HARDWARE INIT
-    // Zuerst die Preferences laden, damit wir wissen, wie hell das Licht sein soll
-    grow_controller_init(); 
+    // 2. ABSOLUTE PRIORITÄT: HARDWARE INIT & ZEITBASIS
+    grow_controller_init(); // Lädt Preferences
     
-    // JETZT SOFORT das Licht und die Lüfter anwerfen (VOR dem WLAN!)
+    // RTC starten und SOFORT prüfen
+    if (watch.begin(I2C_RTC)) {
+        Serial.println("RTC Hardware gefunden.");
+        
+        if (watch.isRTCSet()) {
+            Serial.println("RTC Register-Validierung: OK. Synchronisiere Systemzeit...");
+            watch.syncFromRTC(); // Uhrzeit läuft, lade sie in den ESP32
+        } else {
+            Serial.println("WARNUNG: RTC meldet OSF-Flag! Uhr ist ungesetzt (Batterie leer/Fabrikneu). Wait for NTP.");
+            // Wir laden die RTC-Zeit NICHT, da sie Schrott ist. Systemuhr bleibt auf 1970 Boot-Basis.
+        }
+    } else {
+        Serial.println("CRITICAL: RTC Hardware nicht auf dem I2C-Bus gefunden!");
+    }
 
+    // JETZT das Licht-Modul starten. Es findet entweder die RTC-Zeit vor, 
+    // oder sieht das Jahr 1970 und bleibt im sicheren AUS-Zustand.
+    light_init();
     
-    Serial.println(">>> Hardware läuft (Pflanzen versorgt) <<<");
+    Serial.println(">>> Hardware läuft (Zeitbasis initialisiert) <<<");
 
     // 3. INFRASTRUKTUR
     BLEDevice::init("LGS_Grow_Master");
-    if (watch.begin(I2C_RTC)) {
-        Serial.println("RTC gefunden");
-    }
 
-    // 4. NETZWERK (Darf jetzt so lange blockieren wie es will)
+    // 4. NETZWERK
     int wifi_mode = grow_controller_get_wifi_mode();
     if (wifi_mode == 0 || _wifi_ssid == "" || _wifi_ssid == "NULL") {
         Serial.println(">>> AP-MODUS <<<");
@@ -77,7 +91,7 @@ void setup() {
 
     // 5. BACKGROUND SERVICES
     configTzTime("CET-1CEST,M3.5.0/2,M10.5.0/3", "pool.ntp.org", "time.nist.gov");
-    light_init();
+    
     circulation_fan_init(PIN_CIRC_FAN, PIN_CIRC_TACHO);
     exhaust_fan_init(PIN_EXH_FAN, PIN_EXH_TACHO);
     externalSensorFound = sht31_ext.begin(0x44);
@@ -88,6 +102,7 @@ void setup() {
     
     if (internalSensorFound) Serial.println("INT SHT31 OK (Bus1)");
         else Serial.println("INT SHT31 FEHLT");
+        
     power_manager_init();
     BLEScanner::init();   
     bleBridge.begin();
@@ -96,75 +111,61 @@ void setup() {
 }
 // ---------- LOOP ----------
 // ---------- LOOP ----------
+
 void loop() {
-    WebModule::update();           // Web-Server muss laufen bleiben!
+    WebModule::update();           // Web-Server am Leben erhalten
 
     circulation_fan_update(); 
     exhaust_fan_update(); 
     light_control_set_humidity(getInternalHumidity());
-    light_update();
+    light_update();                // Berechnet stur den Lichtzustand anhand der Systemzeit
     power_manager_update();
-    BLEScanner::update(); // 3. Den Scanner am Leben erhalten
-    // ==================== ZEIT-MANAGEMENT ====================
-    static uint32_t last_time_check = 0;
-    static bool initial_sync_done = false;
+    BLEScanner::update(); 
 
-    static uint32_t last_sync = 0;
+    // ==================== ZEIT-MANAGEMENT (PROFI-VERSION) ====================
+    static uint32_t last_rtc_sync = 0;
     
-    if (millis() - last_sync > 15000) {
-        last_sync = millis();
-    
-        if (WiFi.status() == WL_CONNECTED) {
-            struct tm timeinfo;
-            if (getLocalTime(&timeinfo, 2000)) {
-                if (!initial_sync_done) {
-                    Serial.println("NTP Sync → schreibe in RTC");
-                    watch.writeToRTC();        // Systemzeit → RTC
-                    initial_sync_done = true;
-                }
-                // Optional: alle 6 Stunden RTC mit Systemzeit abgleichen
-                else if (millis() > 6*3600*1000UL) {
-                    watch.writeToRTC();
-                }
-            }
+    // Bedingung für RTC-Update: 
+    // Entweder es ist eine Stunde vergangen (Routine-Abgleich)
+    // ODER wir haben Internetzeit und die RTC meldet hardwareseitig, dass sie ungesetzt ist (Sofort-Heilung!)
+    if ((millis() - last_rtc_sync > 3600000) || (sntp_get_sync_status() == SNTP_SYNC_STATUS_COMPLETED && !watch.isRTCSet())) { 
+        
+        if (sntp_get_sync_status() == SNTP_SYNC_STATUS_COMPLETED) {
+            Serial.println("Zeitmanagement: NTP-Zeit valide. Aktualisiere Hardware-RTC & lösche OSF...");
+            watch.writeToRTC();       // Schreibt Internetzeit in DS3231 und löscht OSF-Flag
+            last_rtc_sync = millis(); // Timer zurücksetzen
         }
-    
-        // Immer RTC als Backup nutzen, falls Systemzeit kaputt
-        if (time(nullptr) < 946684800 && watch.isRTCHealthy()) {
+    }
+
+    // KRISENVORSORGE: Falls die Systemuhr im Betrieb durch einen Software-Glitch auf 1970 fällt,
+    // holen wir uns die Rettung aus der RTC (aber nur, wenn die RTC auch gestellt ist!)
+    static uint32_t last_backup_check = 0;
+    if (millis() - last_backup_check > 60000) { 
+        last_backup_check = millis();
+        if (time(nullptr) < 946684800 && watch.isRTCHealthy() && watch.isRTCSet()) { 
+            Serial.println("NOTFALL: Systemzeit korrupt! Synchronisiere sofort mit intakter RTC...");
             watch.syncFromRTC();
         }
     }
     
-    // Statt direkt pBLEScan->stop() zu benutzen:
+    // ==================== BLE SCANNER RESTART ====================
     static uint32_t lastBLErestart = 0;
-    
     if (millis() - lastBLErestart > 2*3600*1000UL) {   // alle 2 Stunden
         lastBLErestart = millis();
-        BLEScanner::restart();        // ← So geht's sauber
+        BLEScanner::restart();        
     }
     
-    static bool light_boot_synced = false;
-    if (!light_boot_synced) {
-        if (time(nullptr) > 946684800) {
-            light_update();   // FORCE derived state build
-            light_boot_synced = true;
-            Serial.println("LIGHT BOOT SYNC EXECUTED");
-        }
-    }
-    // BLE Broadcast (alle 5 Sek)
-    // Im loop() Bereich für BLE Broadcast
+    // ==================== BLE BROADCAST (alle 5 Sek) ====================
     static uint32_t last_ble_broadcast = 0;
     if (millis() - last_ble_broadcast > 5000) {
         last_ble_broadcast = millis();
         
-        // Nur kurz broadcasten, damit wir den Rest der Zeit für WiFi & Scan frei haben
-        
         bleBridge.updateBroadcast(
-            getTempExt(),            // Extern Temp
-            getExternalHumidity(),   // Extern Hum
-            getTempIn(),             // Intern Temp
-            getInternalHumidity(),   // Intern Hum (Hier war die 40.0!)
-            25.5f,                   // Hier steht noch ein Fixwert (evtl. Gehäuse-Temp?)
+            getTempExt(),            
+            getExternalHumidity(),   
+            getTempIn(),             
+            getInternalHumidity(),   
+            25.5f,                   
             get_battery_voltage_now(), 
             circulation_fan_get_rpm()
         );
