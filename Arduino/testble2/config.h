@@ -3,6 +3,8 @@
 
 #include <Arduino.h>
 
+
+#define PIN_RESET_BUTTON  7  // Den Knopf einfach mit GPIO 4 und GND verbinden
 // -------------------- FAN --------------------
 #define PIN_CIRC_FAN       45
 #define PIN_CIRC_TACHO     2

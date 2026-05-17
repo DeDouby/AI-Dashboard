@@ -13,6 +13,7 @@
 #include "esp_sntp.h"
 #include "ble_scanner.h"
 #include "esp_sntp.h" // WICHTIG für sntp_get_sync_status()
+#include "system_reset.h"    // <--- 1. NEUES RESET MODUL INCLUDIEREN
 
 // BLE & System
 ESPWatch watch;
@@ -52,6 +53,7 @@ void setup() {
     Serial.begin(115200);
     init_hardware();
 
+    SystemReset::init(PIN_RESET_BUTTON); // <--- 2. RESET KNOPF INITIALISIEREN
     // 2. ABSOLUTE PRIORITÄT: HARDWARE INIT & ZEITBASIS
     grow_controller_init(); // Lädt Preferences
     
@@ -114,7 +116,7 @@ void setup() {
 
 void loop() {
     WebModule::update();           // Web-Server am Leben erhalten
-
+    SystemReset::update();         // <--- 3. PERMANENT DEN KNOPF ÜBERWACHEN
     circulation_fan_update(); 
     exhaust_fan_update(); 
     light_control_set_humidity(getInternalHumidity());
