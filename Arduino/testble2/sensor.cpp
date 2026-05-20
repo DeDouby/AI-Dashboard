@@ -103,6 +103,13 @@ float getTempIn() {
     return t;
 }
 
+// Validate sensor values centrally to avoid sentinel inconsistencies
+bool is_sensor_value_valid(float val) {
+    if (isnan(val)) return false;
+    // We use -256.0 as the sentinel for 'invalid' in this project
+    if (val <= -250.0f) return false;
+    return true;
+}
 
 
 bool initInternalSensor()

@@ -224,61 +224,115 @@ class GrowControllerScreen(Screen):
             self._last_send_time = time.time()
             self._retry_count = 0
             print(f"[GrowController] Command '{command_name}' gesendet. Neue Ziel-Rev: {new_rev}")
+   
     def open_wifi_settings(self, *_):
-        content = BoxLayout(orientation='vertical', padding=dp(15), spacing=dp(10))
-        
-        content.add_widget(Label(text="WLAN KONFIGURATION", bold=True, size_hint_y=None, height=dp(30)))
+        # Falls das Overlay bereits offen ist, nicht doppelt öffnen
+        if hasattr(self, 'wifi_overlay') and self.wifi_overlay in self.children:
+            return
 
-        # SSID Input - 'placeholder' wurde durch 'hint_text' ersetzt
+        # 1. Das Fullscreen-Container-Layout (Simuliert ein sauberes, modales Fenster)
+        from kivy.uix.relativelayout import RelativeLayout
+        self.wifi_overlay = RelativeLayout(size_hint=(1, 1))
+
+        # Halbtransparenter Hintergrund, um den Rest abzudunkeln
+        with self.wifi_overlay.canvas.before:
+            Color(0, 0, 0, 0.6)
+            self.overlay_bg = Rectangle(pos=(0, 0), size=self.wifi_overlay.size)
+        self.wifi_overlay.bind(size=lambda s, v: setattr(self.overlay_bg, 'size', v))
+
+        # 2. Die eigentliche Eingabekarte (zentriert, wie deine Device Manager Boxen)
+        # Wir nutzen eine feste Breite via dp_scaled, damit es auf Mobile & Desktop gut aussieht
+        box = BoxLayout(
+            orientation="vertical",
+            padding=[dp_scaled(20), dp_scaled(15)],
+            spacing=dp_scaled(12),
+            size_hint=(None, None),
+            size=(dp_scaled(320), dp_scaled(360)),
+            pos_hint={'center_x': 0.5, 'center_y': 0.5}
+        )
+
+        # Hintergrund der Eingabekarte im Stil des Device Pickers
+        with box.canvas.before:
+            Color(0.18, 0.18, 0.22, 1)
+            self.box_bg = Rectangle(pos=box.pos, size=box.size)
+        box.bind(
+            pos=lambda s, v: setattr(self.box_bg, 'pos', v),
+            size=lambda s, v: setattr(self.box_bg, 'size', v)
+        )
+
+        # Titel
+        box.add_widget(Label(
+            text="WLAN KONFIGURATION", 
+            bold=True, 
+            font_size=sp_scaled(16),
+            size_hint_y=None, 
+            height=dp_scaled(30),
+            color=(0.2, 1, 0.4, 1)
+        ))
+
+        # SSID Input
+        box.add_widget(Label(text="Netzwerk Name (SSID):", halign="left", size_hint_y=None, height=dp_scaled(20), text_size=(dp_scaled(280), None)))
         self.ssid_input = TextInput(
             text=self.labels["ssid"].text if self.labels["ssid"].text != "---" else "",
             hint_text="SSID (Netzwerk Name)", 
             multiline=False, 
+            font_size=sp_scaled(16),
             size_hint_y=None, 
-            height=dp(45),
-            background_color=(0.15, 0.15, 0.15, 1), 
+            height=dp_scaled(45),
+            background_color=(0.1, 0.1, 0.12, 1), 
             foreground_color=(1, 1, 1, 1)
         )
+        box.add_widget(self.ssid_input)
         
-        # Passwort Input - 'placeholder' wurde durch 'hint_text' ersetzt
+        # Passwort Input
+        box.add_widget(Label(text="Passwort:", halign="left", size_hint_y=None, height=dp_scaled(20), text_size=(dp_scaled(280), None)))
         self.pw_input = TextInput(
             hint_text="Passwort eingeben", 
             password=True, 
             multiline=False, 
+            font_size=sp_scaled(16),
             size_hint_y=None, 
-            height=dp(45),
-            background_color=(0.15, 0.15, 0.15, 1), 
+            height=dp_scaled(45),
+            background_color=(0.1, 0.1, 0.12, 1), 
             foreground_color=(1, 1, 1, 1)
         )
+        box.add_widget(self.pw_input)
         
-        content.add_widget(Label(text="Netzwerk Name (SSID):", halign="left", size_hint_y=None, height=dp(20)))
-        content.add_widget(self.ssid_input)
-        content.add_widget(Label(text="Passwort:", halign="left", size_hint_y=None, height=dp(20)))
-        content.add_widget(self.pw_input)
+        # Buttons (Senden & Abbrechen)
+        btn_box = BoxLayout(size_hint_y=None, height=dp_scaled(45), spacing=dp_scaled(10))
         
-        btn_box = BoxLayout(size_hint_y=None, height=dp(50), spacing=dp(10), padding=[0, dp(10), 0, 0])
-        save_btn = GlassButton(text="DATEN SENDEN & REBOOT", color=(0.2, 1, 0.4, 1))
-        save_btn.bind(on_release=lambda x: self._apply_wifi_settings(popup))
+        save_btn = GlassButton(text="SENDEN", font_size=sp_scaled(12))
+        save_btn.bind(on_release=lambda x: self._apply_wifi_settings())
+        
+        cancel_btn = GlassButton(text="ABBRECHEN", font_size=sp_scaled(12))
+        cancel_btn.color = (1, 0.3, 0.3, 1)
+        cancel_btn.bind(on_release=lambda x: self.close_wifi_settings())
         
         btn_box.add_widget(save_btn)
-        content.add_widget(btn_box)
+        btn_box.add_widget(cancel_btn)
+        box.add_widget(btn_box)
         
-        popup = Popup(title="WiFi Setup", content=content, size_hint=(0.8, 0.5))
-        popup.open()
+        # Overlay zusammensetzen und an den Haupt-Screen hängen
+        self.wifi_overlay.add_widget(box)
+        self.add_widget(self.wifi_overlay)
 
-    def _apply_wifi_settings(self, popup):
+    def close_wifi_settings(self):
+        if hasattr(self, 'wifi_overlay') and self.wifi_overlay in self.children:
+            self.remove_widget(self.wifi_overlay)
+
+    def _apply_wifi_settings(self):
         # Sende Befehl über die Engine
         new_rev = GLOBAL_STATE.send_overlay_command(
             "grow_controller",
-            wifi_ssid=self.ssid_input.text,
-            wifi_pw=self.pw_input.text,
+            wifi_ssid=self.ssid_input.text.strip(),
+            wifi_pw=self.pw_input.text.strip(),
             wifi_mode=1 # Schaltet in den Router-Modus (STA)
         )
         
         if new_rev:
             self._last_sent_rev = new_rev
             self._last_send_time = time.time()
-            popup.dismiss()
+            self.close_wifi_settings()
 
     # ====================== BUTTONS ======================
     def test_rev(self, *_):

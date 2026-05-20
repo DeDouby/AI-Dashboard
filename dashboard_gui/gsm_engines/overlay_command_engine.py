@@ -156,13 +156,14 @@ class OverlayCommandEngine:
         new_rev = last + 1
         
         payload = {
-            "light_pct": int(kwargs.get("pct", 0)),
-            "light_mode": kwargs.get("mode", "man"),
-            "l_start_h": int(kwargs.get("h", 8)),
-            "l_start_m": int(kwargs.get("m", 0)),
-            "l_dur": int(kwargs.get("dur", 720)),
-            "l_sunrise": int(kwargs.get("sunrise", 60)),
-            "l_sunset": int(kwargs.get("sunset", 60)),
+            "light_pct": int(kwargs.get("pct", current.get("light_pct", 0))),
+            "light_mode": kwargs.get("mode", current.get("light_mode", "man")),
+            "l_start_h": int(kwargs.get("h", current.get("l_start_h", 8))),
+            "l_start_m": int(kwargs.get("m", current.get("l_start_m", 0))),
+            "l_dur": int(kwargs.get("dur", current.get("l_dur", 720))),
+            "l_sunrise": int(kwargs.get("sunrise", current.get("l_sunrise", 60))),
+            "l_sunset": int(kwargs.get("sunset", current.get("l_sunset", 60))),
+            "light_climate_override": bool(kwargs.get("climate_override", current.get("light_climate_override", False))),
             "rev_light": new_rev
         }
         

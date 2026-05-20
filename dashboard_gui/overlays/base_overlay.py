@@ -1,6 +1,5 @@
 import time
 
-
 class BaseOverlayEngine:
     """
     Zentrale State-Maschine für:
@@ -33,6 +32,8 @@ class BaseOverlayEngine:
         if self._last_adopted_init != server_init:
             self._last_adopted_init = server_init
             if not self.is_alive(server_init):
+                # Fremde Session erkannt -> Wir passen unsere Basis-Revision an,
+                # damit wir nicht fälschlicherweise im "pending" State hängenbleiben.
                 self._last_sent_rev = server_rev
             return True
         return False
@@ -60,14 +61,17 @@ class BaseOverlayEngine:
         self._retry_count = 0
 
     # =========================
-    # SYNC STATE
+    # SYNC STATE (FIXED FOR MULTI-UI)
     # =========================
     def is_synced(self, server_init, server_rev, user_active, last_user_action):
-        alive = self.is_alive(server_init)
+        # MULTI-UI FIX: Der Server ist valide, wenn überhaupt ein Handshake aktiv ist (> 0)
+        server_alive = server_init > 0
         pending = self.is_pending(server_rev)
         time_ok = (time.time() - last_user_action) > 1.5
 
-        return alive and (not pending) and (not user_active) and time_ok
+        # Wir sind synchronisiert, wenn der ESP erreichbar ist, keine lokalen Updates
+        # auf Bestätigung warten, der User nicht aktiv schiebt und der Cooldown vorbei ist.
+        return server_alive and (not pending) and (not user_active) and time_ok
 
     def get_status(self, server_init, server_rev, user_active, last_user_action):
         if self.is_synced(server_init, server_rev, user_active, last_user_action):

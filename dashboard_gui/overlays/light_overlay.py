@@ -1,5 +1,6 @@
 ###############################################################################
-# !!! REPARIERTES OVERLAY: RESTZEIT & LOGIK WIEDERHERGESTELLT !!!
+# !!! REPARIERTES & BEGRADIGTES OVERLAY: HIGH-TECH DESIGN MIT BACKGROUND-GRAPH !!!
+# INKLUSIVE ROTEM ZEITINDIKATOR & X-ACHSEN-ZEITLEGENDE
 ###############################################################################
 
 import os
@@ -35,51 +36,97 @@ class LightOverlay(FloatLayout):
         self._pending_updates = {}
         self.sync_path = os.path.join("data", "settings_sync.json")
         self.engine = BaseOverlayEngine()
+        
         # Hintergrund
         bg = Button(background_color=(0, 0, 0, 0.25))
         bg.bind(on_release=lambda *_: self.close())
         self.add_widget(bg)
 
-        # Panel
+        # Panel (Abmessungen exakt beibehalten)
         self.panel = BoxLayout(
             orientation="vertical", 
             spacing=dp_scaled(7),
             size_hint=(None, None), 
-            size=(dp_scaled(440), dp_scaled(480)), 
+            size=(dp_scaled(440), dp_scaled(500)), 
             padding=[dp_scaled(25), dp_scaled(15), dp_scaled(25), dp_scaled(25)],
             pos_hint={"right": 0.98, "top": 0.98}
         )
 
+        # Leinwand für Hintergrund-Styling und Tageskurve
         with self.panel.canvas.before:
-            Color(0, 0, 0, 0.75)
+            Color(0.05, 0.05, 0.05, 0.85) # Tieferes, edleres Anthrazit
             self.bg_rect = RoundedRectangle(radius=[dp_scaled(20)])
-            Color(0, 1, 0, 0.3)
+            Color(0, 1, 0, 0.25)
             self.outline = Line(width=1.2)
+            
+            # --- EDLER BACKGROUND GRAPH (Tageskurve) ---
+            from kivy.graphics import Mesh
+            Color(1, 0.72, 0.05, 0.15) # Schön sichtbares, dezentes Hintergrund-Gold
+            self.graph_fill = Mesh(mode='triangle_strip')
+            
+            Color(1, 0.72, 0.05, 0.08) # Glow
+            self.graph_glow = Line(width=dp_scaled(4), joint='round')
+            Color(1, 0.72, 0.15, 1.25) # Line
+            self.graph_line = Line(width=dp_scaled(1.5), joint='round')
+
+            # --- VERTIKALER ROTER ZEITINDIKATOR ---
+            Color(1, 0.2, 0.2, 0.85) 
+            self.time_indicator = Line(width=dp_scaled(1.5))
 
         self.panel.bind(pos=self._u, size=self._u)
 
         # Header
+
         title_row = BoxLayout(size_hint_y=None, height=dp_scaled(40), spacing=dp_scaled(5))
-        self.lbl_title = Label(text="LIGHT CONTROL PRO", bold=True, color=(0, 1, 0, 1), font_size=sp_scaled(18))
+        
+        self.lbl_title = Label(text="LIGHT CONTROL PRO", bold=True, color=(0, 1, 0, 1),
+                               font_size=sp_scaled(18), halign="left", valign="middle")
+        self.lbl_title.bind(size=self.lbl_title.setter('text_size'))
+        
         self.sync_icon = Button(text="[font=FA]\uf021[/font]", markup=True, font_size=sp_scaled(30),
-                                background_color=(0, 0, 0, 0), color=(1, 1, 1, 1), size_hint_x=None, width=dp_scaled(45))
-        self.sync_icon.bind(on_release=self._force_sync)
+                                background_color=(0, 0, 0, 0), color=(1, 1, 1, 1), 
+                                size_hint_x=None, width=dp_scaled(45))
+        
         title_row.add_widget(self.lbl_title)
         title_row.add_widget(self.sync_icon)
         self.panel.add_widget(title_row)
 
-        # Wert-Box
-        val_box = BoxLayout(size_hint_y=None, height=dp_scaled(35))
-        self.lbl_val = Label(text="0%", font_size=sp_scaled(36), bold=True, size_hint_x=None, width=dp_scaled(140))
-        self.lbl_target = Label(text="(TARGET: 0%)", font_size=sp_scaled(20), color=(0.7, 0.7, 0.7, 0.8), size_hint_x=None, width=dp_scaled(100))
-        self.lbl_status_text = Label(text="STATUS: INIT", font_size=sp_scaled(18), bold=True, color=(0, 1, 0, 0.7))
-        val_box.add_widget(self.lbl_val); val_box.add_widget(self.lbl_target); val_box.add_widget(self.lbl_status_text)
-        self.panel.add_widget(val_box)
+        # === STATUS BEREICH (nur aktueller Wert + Status + Restzeit) ===
+        status_box = BoxLayout(size_hint_y=None, height=dp_scaled(50), spacing=dp_scaled(15))
+        
+        self.lbl_val = Label(text="0%", font_size=sp_scaled(39), bold=True, 
+                            size_hint_x=None, width=dp_scaled(115), halign='center')
+        
+        status_right = BoxLayout(orientation='vertical', size_hint_x=1, spacing=dp_scaled(1))
+        self.lbl_status_text = Label(text="STATUS: INIT", font_size=sp_scaled(15.5), bold=True, color=(0, 1, 0, 0.85))
+        self.lbl_remaining = Label(text="RESTZEIT: --", font_size=sp_scaled(16.5), color=(1, 1, 0, 1), bold=True)
+        
+        status_right.add_widget(self.lbl_status_text)
+        status_right.add_widget(self.lbl_remaining)
+        
+        status_box.add_widget(self.lbl_val)
+        status_box.add_widget(status_right)
+        self.panel.add_widget(status_box)
 
-        # Main Brightness
+        # === INTENSITÄT SLIDER MIT BESCHRIFTUNG (SOLL-WERT DARÜBER) ===
+        intensity_header = BoxLayout(size_hint_y=None, height=dp_scaled(24), spacing=dp_scaled(8))
+        self.lbl_intensity = Label(text="INTENSITÄT", font_size=sp_scaled(17), 
+                                  color=(1, 1, 1, 0.9), bold=True, size_hint_x=None, width=dp_scaled(145))
+        self.lbl_slider_target = Label(text="0%", font_size=sp_scaled(21), bold=True, 
+                                      color=(0.0, 0.75, 1, 1), size_hint_x=1, halign='right')
+        
+        intensity_header.add_widget(self.lbl_intensity)
+        intensity_header.add_widget(self.lbl_slider_target)
+        self.panel.add_widget(intensity_header)
+
+        # Haupt-Slider
         self.slider = UnifiedSlider(min=0, max=100, mode='single', size_hint_y=None, height=dp_scaled(38))
         self.slider.bind(value=self._on_slider_change, on_touch_down=self._touch_down, on_touch_up=self._touch_up)
         self.panel.add_widget(self.slider)
+
+        # === Weiter mit Sunrise/Sunset etc. ===
+
+        # === Rest bleibt gleich (Sunrise/Sunset, Start, Dauer...) ===
 
         # Sunrise/Sunset
         self.lbl_sunrise_sunset = Label(text="RAMPEN: --", markup=True, font_size=sp_scaled(18), color=(1, 0.8, 0.2, 0.8), size_hint_y=None, height=dp_scaled(15))
@@ -102,27 +149,43 @@ class LightOverlay(FloatLayout):
         self.slider_dur.bind(value=self._on_dur_change, on_touch_down=self._touch_down, on_touch_up=self._touch_up)
         self.panel.add_widget(self.slider_dur)
 
-        self.panel.add_widget(Widget())
+        # Etwas weniger Platz vor dem Graphen (da Restzeit jetzt oben ist)
+        self.panel.add_widget(Widget(size_hint_y=None, height=dp_scaled(4)))
 
-        # RESTZEIT LABEL (WIEDER DA!)
-        self.lbl_remaining = Label(text="RESTZEIT: --", font_size=sp_scaled(18), color=(1, 0.8, 0, 1), size_hint_y=None, height=dp_scaled(20))
-        self.panel.add_widget(self.lbl_remaining)
+        # Timeline (X-Achse)
+        self.timeline_layout = FloatLayout(size_hint_y=None, height=dp_scaled(15))
+        self.lbl_time_00 = Label(text="00:00", font_size=sp_scaled(11), color=(0.5, 0.5, 0.5, 0.8), size_hint=(None, None), size=(dp_scaled(40), dp_scaled(15)))
+        self.lbl_time_06 = Label(text="06:00", font_size=sp_scaled(11), color=(0.5, 0.5, 0.5, 0.8), size_hint=(None, None), size=(dp_scaled(40), dp_scaled(15)))
+        self.lbl_time_12 = Label(text="12:00", font_size=sp_scaled(11), color=(0.5, 0.5, 0.5, 0.8), size_hint=(None, None), size=(dp_scaled(40), dp_scaled(15)))
+        self.lbl_time_18 = Label(text="18:00", font_size=sp_scaled(11), color=(0.5, 0.5, 0.5, 0.8), size_hint=(None, None), size=(dp_scaled(40), dp_scaled(15)))
+        
+        self.timeline_layout.add_widget(self.lbl_time_00)
+        self.timeline_layout.add_widget(self.lbl_time_06)
+        self.timeline_layout.add_widget(self.lbl_time_12)
+        self.timeline_layout.add_widget(self.lbl_time_18)
+        self.panel.add_widget(self.timeline_layout)
 
         # Buttons
-        btn_row = BoxLayout(size_hint_y=None, height=dp_scaled(40), spacing=dp_scaled(8))
-        self.btn_man = self._create_styled_btn("MANUELL"); self.btn_tim = self._create_styled_btn("TIMER"); self.btn_off = self._create_styled_btn("AUS")
-        btn_row.add_widget(self.btn_man); btn_row.add_widget(self.btn_tim); btn_row.add_widget(self.btn_off)
+        btn_row = BoxLayout(size_hint_y=None, height=dp_scaled(30), spacing=dp_scaled(8))
+        self.btn_man = self._create_styled_btn("MANUELL")
+        self.btn_tim = self._create_styled_btn("TIMER")
+        self.btn_climate = self._create_styled_btn("CLIMA OVR")
+        btn_row.add_widget(self.btn_man)
+        btn_row.add_widget(self.btn_tim)
+        btn_row.add_widget(self.btn_climate)
         self.panel.add_widget(btn_row)
+
 
         self.btn_man.bind(on_release=lambda *_: self._set_mode("man"))
         self.btn_tim.bind(on_release=lambda *_: self._set_mode("tim"))
-        self.btn_off.bind(on_release=lambda *_: self._set_mode("off"))
+        self.btn_climate.bind(on_release=lambda *_: self._toggle_climate_override()) # <- Eigene Toggle-Funktion
 
         self.lock_overlay = LockOverlay(parent=self, panel=self.panel, unlock_callback=self._on_unlock)
         Clock.schedule_once(lambda dt: self.lock_overlay.create(), 0.3)
         Clock.schedule_once(self._init_values, 0.1)
         
         self._update_event = Clock.schedule_interval(self.update_ui, 1.0)
+        
         self.add_widget(self.panel)
 
     def _create_styled_btn(self, text):
@@ -138,29 +201,25 @@ class LightOverlay(FloatLayout):
         self._apply_server_snapshot(data)
         self._ui_lock = False
         self._init_done = True
+        self._update_graph()
 
     def _apply_server_snapshot(self, data):
         if not data: return
         mode = data.get('light_mode', 'man')
-        target = int(data.get('light_target', 0))    # Dein eingestellter Wert
-        current_hw = int(data.get('light_pct', 0))   # Was die Lampe wirklich tut
+        target = int(data.get('light_target', 0))    
+        current_hw = int(data.get('light_pct', 0))   
         
         h, m = int(data.get('l_start_h', 8)), int(data.get('l_start_m', 0))
         dur, srise, sset = int(data.get('l_dur', 720)), int(data.get('l_sunrise', 60)), int(data.get('l_sunset', 60))
 
-        # --- LOGIK: GOLDENE STUNDE ---
-        # Wenn im Timer-Modus der Ist-Wert vom Soll-Wert abweicht (Rampe aktiv)
         if mode == "tim" and current_hw != target and current_hw > 0:
-            self.lbl_val.color = (1, 0.8, 0, 1) # GOLD-Farbe
+            self.lbl_val.color = (1, 0.72, 0.05, 1) 
         else:
-            self.lbl_val.color = (1, 1, 1, 1)    # Standard Weiß
+            self.lbl_val.color = (1, 1, 1, 1)       
 
-        # Der große Wert repräsentiert deine Einstellung (Target)
-        self.lbl_val.text = f"{target}%"
-        # Das kleine Label zeigt zur Kontrolle die Hardware-Realität
-        self.lbl_target.text = f"({current_hw}%)"
-
-        # --- STATUS TEXT FIX (Weg von INIT) ---
+        self.lbl_val.text = f"{current_hw}%"
+        self.lbl_slider_target.text = f"{target}%"      # <- neu
+        
         if mode == "off":
             self.lbl_status_text.text = "STATUS: AUS"
             self.lbl_status_text.color = (1, 0.2, 0.2, 0.8)
@@ -171,7 +230,6 @@ class LightOverlay(FloatLayout):
             self.lbl_status_text.text = "STATUS: TIMER"
             self.lbl_status_text.color = (0, 1, 0, 1)
 
-        # Slider-Werte setzen
         self.slider.value = target
         self.slider_start.value = (h * 60 + m) // 15
         dur_steps = dur // 15
@@ -184,6 +242,90 @@ class LightOverlay(FloatLayout):
         self.lbl_dur.text = f"DAUER: {dur//60}h {dur%60:02d}m"
         self._update_ramp_label(srise, sset)
         self._apply_button_styles(mode, target)
+        self._update_graph()
+
+    def _update_graph(self, *args):
+        if not self._init_done: return
+        try:
+            target = int(self.slider.value)
+            start_min = int(self.slider_start.value) * 15
+            dur_min = int(self.slider_dur.value) * 15
+            srise_min = int(self.slider_sunrise_sunset.min_value) * 15
+            sset_min = int(self.slider_sunrise_sunset.range_max - self.slider_sunrise_sunset.max_value) * 15
+        except Exception:
+            return
+
+        # Koordinaten-Mapping auf Basis der festen Panel-Größe
+        x_base = self.panel.x + dp_scaled(25)
+        y_base = self.panel.y + dp_scaled(75) 
+        w_graph = self.panel.width - dp_scaled(50)
+        h_graph = dp_scaled(30) 
+
+        points = []
+        end_min = start_min + dur_min
+
+        for step in range(97):
+            t = (step * 15) % 1440
+            if step == 96: t = 1440
+            
+            is_active = False
+            t_rel = 0
+
+            if end_min <= 1440:
+                if start_min <= t <= end_min:
+                    is_active = True
+                    t_rel = t - start_min
+            else:
+                if t >= start_min:
+                    is_active = True
+                    t_rel = t - start_min
+                elif t <= (end_min % 1440):
+                    is_active = True
+                    t_rel = t + 1440 - start_min
+
+            pct = 0
+            if is_active and dur_min > 0:
+                if t_rel < srise_min and srise_min > 0:
+                    pct = target * (t_rel / srise_min)
+                elif t_rel > (dur_min - sset_min) and sset_min > 0:
+                    pct = target * ((dur_min - t_rel) / sset_min)
+                else:
+                    pct = target
+
+            x_p = x_base + (step / 96.0) * w_graph
+            y_p = y_base + (pct / 100.0) * h_graph
+            points.extend([x_p, y_p])
+
+        self.graph_line.points = points
+        self.graph_glow.points = points
+
+        vertices = []
+        for i in range(0, len(points), 2):
+            x_p = points[i]
+            y_p = points[i+1]
+            vertices.extend([x_p, y_base, 0, 0])
+            vertices.extend([x_p, y_p, 0, 0])
+
+        self.graph_fill.indices = list(range(len(vertices) // 4))
+        self.graph_fill.vertices = vertices
+
+        # --- POSITION DER ROTEN TIME-LINE ---
+        now = time.localtime()
+        current_total_minutes = now.tm_hour * 60 + now.tm_min
+        day_progress = current_total_minutes / 1440.0
+        indicator_x = x_base + (day_progress * w_graph)
+        
+        self.time_indicator.points = [
+            indicator_x, y_base, 
+            indicator_x, y_base + h_graph + dp_scaled(5)
+        ]
+
+        # --- NEU: DYNAMISCHE POSITIONIERUNG DER ZEIT-LABEL (LEGENDE) ---
+        # Wir platzieren die Label relativ zur X-Achse des Graphen um Verschiebungen zu verhindern
+        self.lbl_time_00.pos = (x_base - self.lbl_time_00.width / 2, y_base - dp_scaled(16))
+        self.lbl_time_06.pos = (x_base + (0.25 * w_graph) - self.lbl_time_06.width / 2, y_base - dp_scaled(16))
+        self.lbl_time_12.pos = (x_base + (0.50 * w_graph) - self.lbl_time_12.width / 2, y_base - dp_scaled(16))
+        self.lbl_time_18.pos = (x_base + (0.75 * w_graph) - self.lbl_time_18.width / 2, y_base - dp_scaled(16))
 
     def _calculate_remaining_time(self, data):
         mode = data.get('light_mode', 'man')
@@ -191,80 +333,49 @@ class LightOverlay(FloatLayout):
             return "MODUS: MANUELL/AUS"
         
         h, m = int(data.get('l_start_h', 8)), int(data.get('l_start_m', 0))
-        dur = int(data.get('l_dur', 720))  # Dauer in Minuten
+        dur = int(data.get('l_dur', 720))
 
         now = time.localtime()
         current_min = now.tm_hour * 60 + now.tm_min
         start_min = h * 60 + m
-        end_min = (start_min + dur)  # Kann > 1440 sein
+        end_min = (start_min + dur)
 
-        # 1. Prüfen: Ist das Licht GERADE AN?
         is_active = False
-        
-        # Fall A: Zeitfenster liegt innerhalb eines Tages (z.B. 08:00 - 20:00)
         if end_min <= 1440:
-            if start_min <= current_min < end_min:
-                is_active = True
-        # Fall B: Zeitfenster geht über Mitternacht (z.B. 20:00 - 04:00)
+            if start_min <= current_min < end_min: is_active = True
         else:
-            if current_min >= start_min or current_min < (end_min % 1440):
-                is_active = True
+            if current_min >= start_min or current_min < (end_min % 1440): is_active = True
 
-        # 2. Berechnung der Anzeige
         if is_active:
-            # Wie viel Zeit ist noch übrig?
-            if current_min >= start_min:
-                # Wir sind am ersten Tag des Zyklus
-                rem_min = end_min - current_min
-            else:
-                # Wir sind am zweiten Tag (nach Mitternacht)
-                rem_min = (end_min % 1440) - current_min
-            
+            rem_min = (end_min - current_min) if current_min >= start_min else ((end_min % 1440) - current_min)
             return f"RESTZEIT: {rem_min // 60}h {rem_min % 60:02d}m"
         else:
-            # Licht ist aus -> Berechne Zeit bis zum nächsten Start
             wait_min = (start_min - current_min + 1440) % 1440
             return f"STARTET IN: {wait_min // 60}h {wait_min % 60:02d}m"
-        
 
-    def _send_command(self, is_retry=False, **kwargs):
-        mac = GLOBAL_STATE.get_active_device_id()
-        start_step = max(0, min(95, int(self.slider_start.value)))
-        start_min = start_step * 15
-        dur_steps = max(1, min(96, int(self.slider_dur.value)))
-        dur_min = dur_steps * 15
-        if not mac or not self._init_done: return
-        start_min = int(self.slider_start.value) * 15
-        rev = GLOBAL_STATE.send_overlay_command("light", pct=int(self.slider.value), mode=kwargs.get("mode", self._target_mode),
-            h=start_min // 60, m=start_min % 60, dur=int(self.slider_dur.value) * 15,
-            sunrise=int(self.slider_sunrise_sunset.min_value) * 15, 
-            sunset=int(self.slider_sunrise_sunset.range_max - self.slider_sunrise_sunset.max_value) * 15)
-        if rev:
-            self.engine.mark_sent(rev)
-            self._last_sent_rev = rev   # fallback-safe
-            self._last_send_time = time.time()
-        
-            if not is_retry:
-                self.engine.reset_retry()
+
 
     def _on_slider_change(self, *args):
         if self._init_done and not self._ui_lock and not self._locked:
-            self.lbl_val.text = f"{int(self.slider.value)}%"
+            value = int(self.slider.value)
+            self.lbl_slider_target.text = f"{value}%"      # nur noch hier
             self.sync_icon.color = (1, 0.5, 0, 1)
+            self._update_graph()
 
     def _on_dur_change(self, instance, value):
         if self._init_done and not self._ui_lock:
-            steps = max(1, min(96, int(value)))   # 💥 FIX
-            self.slider_dur.value = steps         # 💥 wichtig (UI zurückdrücken)
-    
+            steps = max(1, min(96, int(value)))
+            self.slider_dur.value = steps
             self.lbl_dur.text = f"DAUER: {(steps*15)//60}h {(steps*15)%60:02d}m"
             self.slider_sunrise_sunset.range_max = steps
+            self._update_graph()
 
     def _on_start_change(self, instance, value):
         if self._init_done and not self._ui_lock:
-            value = max(0, min(95, int(value)))   # 💥 FIX
+            value = max(0, min(95, int(value)))
             m = value * 15
             self.lbl_start.text = f"START: {m//60:02d}:{m%60:02d}"
+            self._update_graph()
 
     def _update_ramp_label(self, sr, ss):
         self.lbl_sunrise_sunset.text = f"[font=FA]\uf185[/font] SUNRISE: {sr}m | [font=FA]\uf186[/font] SUNSET: {ss}m"
@@ -273,6 +384,7 @@ class LightOverlay(FloatLayout):
         if self._init_done and not self._ui_lock:
             sr, ss = int(self.slider_sunrise_sunset.min_value) * 15, int(self.slider_sunrise_sunset.range_max - self.slider_sunrise_sunset.max_value) * 15
             self._update_ramp_label(sr, ss)
+            self._update_graph()
 
     def _touch_down(self, slider, touch):
         if not self._locked and slider.collide_point(*touch.pos): self._user_active = True
@@ -295,20 +407,15 @@ class LightOverlay(FloatLayout):
         server_data = GLOBAL_STATE.overlay_engine.get_buffer_data(mac)
         if not server_data: return
 
-        # Restzeit-Update bei jedem Tick
         self.lbl_remaining.text = self._calculate_remaining_time(server_data)
-
         server_init = int(server_data.get('rev_init_light', 0))
         server_rev = int(server_data.get('rev_light', 0))
-        is_alive = (server_init == self._my_handshake_id)
         
         if self.engine.adopt_new_session(server_init, server_rev):
             self._last_sent_rev = server_rev
             return
         
         is_alive = self.engine.is_alive(server_init)
-
-        last_sent = getattr(self, '_last_sent_rev', 0)
         pending = self.engine.is_pending(server_rev)
         
         if pending and self.engine.should_retry():
@@ -317,20 +424,7 @@ class LightOverlay(FloatLayout):
                 self._send_command(is_retry=True)
                 return
         
-        is_synced = self.engine.is_synced(
-            server_init,
-            server_rev,
-            self._user_active,
-            self._last_user_action
-        )
-
-        is_synced = is_alive and (not pending) and not self._user_active and (time.time() - self._last_user_action > 1.5)
-        status = self.engine.get_status(
-            server_init,
-            server_rev,
-            self._user_active,
-            self._last_user_action
-        )
+        status = self.engine.get_status(server_init, server_rev, self._user_active, self._last_user_action)
         
         if status == "green":
             self.sync_icon.text, self.sync_icon.color = "[font=FA]\uf058[/font]", (0, 1, 0, 1)
@@ -341,23 +435,67 @@ class LightOverlay(FloatLayout):
         else:
             self.sync_icon.text, self.sync_icon.color = "[font=FA]\uf021[/font]", (1, 0.5, 0, 1)
         
-        if status != "green":
-            return
+        self._update_graph()
+
+        if status != "green": return
         if not self._user_active:
             self._ui_lock = True; self._apply_server_snapshot(server_data); self._ui_lock = False
+
+    def _toggle_climate_override(self):
+        if not self._locked:
+            mac = GLOBAL_STATE.get_active_device_id()
+            server_data = GLOBAL_STATE.overlay_engine.get_buffer_data(mac)
+            # Aktuellen Zustand invertieren
+            current_override = server_data.get('light_climate_override', False)
+            new_override = not current_override
+            
+            # Befehl mit neuem Override-Zustand absenden
+            self._send_command(climate_override=new_override)
+
+    def _send_command(self, is_retry=False, **kwargs):
+        mac = GLOBAL_STATE.get_active_device_id()
+        if not mac or not self._init_done: return
+        start_min = max(0, min(95, int(self.slider_start.value))) * 15
+        
+        # Hol den Klima-Zustand: Entweder aus den kwargs (frischer Klick) oder aus dem UI-Buffer-Zustand
+        server_data = GLOBAL_STATE.overlay_engine.get_buffer_data(mac)
+        climate_state = kwargs.get("climate_override", server_data.get('light_climate_override', False))
+
+        rev = GLOBAL_STATE.send_overlay_command(
+            "light", 
+            pct=int(self.slider.value), 
+            mode=kwargs.get("mode", self._target_mode),
+            h=start_min // 60, 
+            m=start_min % 60, 
+            dur=int(self.slider_dur.value) * 15,
+            sunrise=int(self.slider_sunrise_sunset.min_value) * 15, 
+            sunset=int(self.slider_sunrise_sunset.range_max - self.slider_sunrise_sunset.max_value) * 15,
+            climate_override=climate_state # <- Wird an die Engine übergeben
+        )
+        if rev:
+            self.engine.mark_sent(rev)
+            self._last_sent_rev = rev
+            self._last_send_time = time.time()
+            if not is_retry: self.engine.reset_retry()
 
     def _apply_button_styles(self, mode, target=0):
         c_bg = (0.15, 0.15, 0.15, 1)
         self.btn_man.background_color = (0, 1, 0, 0.8) if mode == "man" else c_bg
         self.btn_tim.background_color = (0, 0.6, 1, 0.8) if mode == "tim" else c_bg
-        is_off = (mode == "off") or (mode == "man" and int(target) < 1)
-        self.btn_off.background_color = (1, 0.2, 0.2, 0.8) if is_off else c_bg
+        
+        # Klima-Button Styling basierend auf dem echten Live-Status des ESP32 aus dem Puffer
+        mac = GLOBAL_STATE.get_active_device_id()
+        server_data = GLOBAL_STATE.overlay_engine.get_buffer_data(mac)
+        climate_active = server_data.get('light_climate_override', False)
+        
+        # Wenn aktiv, leuchtet der Button in edlem Warn-Orange/Gelb
+        self.btn_climate.background_color = (1, 0.6, 0, 0.8) if climate_active else c_bg
+        self.btn_climate.color = (1, 1, 1, 1) if climate_active else (0.5, 0.5, 0.5, 1)
 
     def _u(self, *_):
         self.bg_rect.pos, self.bg_rect.size = self.panel.pos, self.panel.size
         self.outline.rounded_rectangle = (self.panel.x, self.panel.y, self.panel.width, self.panel.height, dp_scaled(20))
-    
-
+        self._update_graph()
 
     def close(self):
         if self._update_event: self._update_event.cancel()

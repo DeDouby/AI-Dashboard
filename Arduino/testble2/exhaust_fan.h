@@ -34,4 +34,9 @@ extern float target_humidity;
 extern int target_exhaust_fan_pct;
 extern float target_vpd_min;
 extern float target_vpd_max;
+extern float target_temp_min;
+extern float target_temp_max;
+
+extern int target_humidity_min;
+extern int target_humidity_max;
 #endif

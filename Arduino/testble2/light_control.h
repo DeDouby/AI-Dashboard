@@ -22,6 +22,13 @@
 
 #include <Arduino.h>
 #include <ArduinoJson.h> // WICHTIG: Für den Postboten-Modus
+
+extern bool light_climate_override;
+extern float light_current_temp;
+extern float light_current_humidity;
+
+void light_control_set_temperature(float temperature);
+
 enum LightPhase {
     LIGHT_PHASE_NIGHT = 0,
     LIGHT_PHASE_MORNING,
@@ -35,13 +42,11 @@ enum PlantPhase {
     MORNING_WAKEUP
 };
 enum LightMode {
-    LIGHT_MODE_OFF_LOCKED = 0, 
+    LIGHT_MODE_OFF_LOCKED = 0,
     LIGHT_MODE_MANUAL = 1,
-    LIGHT_MODE_BREATH = 2,
-    LIGHT_MODE_FLICKER = 3,
-    LIGHT_MODE_TIMER = 4
+    LIGHT_MODE_TIMER = 2
 };
-void light_control_get_status(JsonObject doc);
+void light_control_get_status(JsonObject &doc);
 // Modul-Funktionen
 void light_init(); 
 void light_update();
@@ -59,7 +64,7 @@ int light_get_minutes_to_next_change();
 int light_get_effective_brightness();
 
 // DER NEUE POSTBOTE
-void light_control_process_json(JsonObject doc);
+void light_control_process_json(JsonObject &doc);
 
 // Externs (für handleData im Webserver)
 extern int target_brightness; 

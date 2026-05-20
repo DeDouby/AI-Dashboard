@@ -28,4 +28,7 @@ float getExternalHumidity();
 float getTempIn();
 float getInternalHumidity();
 
+// Helper: validate sensor value sentinel/NaN
+bool is_sensor_value_valid(float val);
+
 #endif
