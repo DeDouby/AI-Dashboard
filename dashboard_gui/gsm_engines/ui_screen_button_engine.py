@@ -1,14 +1,16 @@
-# dashboard_gui/ui_manager.py
+# dashboard_gui/ui_screen_button_engine.py
 class UIManager:
     def __init__(self, gsm):
         self.gsm = gsm  # Rückreferenz auf den Boss (GSM)
         self.broadcast_buttons = []# Alle Screen-Referenzen zentral hier
         self.active_inspector = None
+        
         self.screens = {
             "dashboard": None, "fullscreen": None, "setup": None,
             "about": None, "settings": None, "vpd_scatter": None,
             "debug": None, "csv_viewer": None, "cam_viewer": None,
-            "device_picker": None, "sensor_mixed_mode": None, "grow_controller": None
+            "device_picker": None, "sensor_mixed_mode": None,
+            "grow_controller": None, "plant_planner": None
         }
 
     def attach_screen(self, name, ref):

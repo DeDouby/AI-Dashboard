@@ -43,9 +43,40 @@ class OverlayCommandEngine:
             return self.send_light_command(mac, **kwargs)
         elif cmd_type == "grow_controller":
             return self.send_grow_controller_command(mac, **kwargs)
-    
+        elif cmd_type == "plant_planner":
+            return self.send_plant_planner_command(mac, **kwargs)
         return None
 
+
+
+    def send_plant_planner_handshake(self, mac, handshake_id):
+        payload = {
+            "rev_init_plant_planner": int(handshake_id)
+        }
+    
+        WEB_CLIENT.send_control(mac, payload)
+        return handshake_id
+    
+    def send_plant_planner_command(self, mac, **kwargs):
+        current = self.get_latest_device_data(mac)
+    
+        pp = current.get("plant_planner", {})
+    
+        last_rev = int(pp.get("rev_plant_planner", 0))
+        new_rev = last_rev + 1
+    
+        payload = {
+            "rev_plant_planner": new_rev,
+            "plant_planner": {
+                "plants": kwargs.get("plants", pp.get("plants", []))
+            }
+        }
+    
+        WEB_CLIENT.send_control(mac, payload)
+    
+        print(f"[PlantPlanner] TARGET-REV -> {new_rev}")
+    
+        return new_rev    
     # =========================================================================
     # EXHAUST FAN COMMANDS (Target-Revision v2.0)
     # =========================================================================

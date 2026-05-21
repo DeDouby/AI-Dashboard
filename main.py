@@ -27,7 +27,7 @@ from dashboard_gui.ui.sensor_mixed_mode_content.sensor_mixed_mode_screen import 
 from dashboard_gui.ui.grow_controller_content.grow_controller_screen import GrowControllerScreen
 from dashboard_gui.ui.i18n import I18N
 from dashboard_gui.global_state_manager import GLOBAL_STATE
-
+from dashboard_gui.ui.plant_planner_content.plant_planner_screen import PlantPlannerScreen
 import core
 # main.py (nach GLOBAL_STATE initialisiert)
 from dashboard_gui.global_state_manager import GLOBAL_STATE
@@ -81,7 +81,7 @@ class DashboardApp(App):
         sm.add_widget(VPDScatterScreen(name="vpd_scatter"))
         sm.add_widget(SensorMixedModeScreen(name="sensor_mixed_mode"))
         sm.add_widget(GrowControllerScreen(name="grow_controller"))
-        
+        sm.add_widget(PlantPlannerScreen(name="plant_planner"))
         GLOBAL_STATE.bind_screen_manager(sm)
         
         return sm

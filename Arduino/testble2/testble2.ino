@@ -14,7 +14,7 @@
 #include "ble_scanner.h"
 #include "esp_sntp.h" // WICHTIG für sntp_get_sync_status()
 #include "system_reset.h"    // <--- 1. NEUES RESET MODUL INCLUDIEREN
-
+#include "plant_planner.h"  // <--- 1. NEUES PLANT PLANNER MODUL INCLUDIEREN
 // BLE & System
 ESPWatch watch;
 BLEBridge bleBridge;
@@ -96,6 +96,7 @@ void setup() {
     
     circulation_fan_init(PIN_CIRC_FAN, PIN_CIRC_TACHO);
     exhaust_fan_init(PIN_EXH_FAN, PIN_EXH_TACHO);
+    plant_planner_init();
     externalSensorFound = sht31_ext.begin(0x44);
     internalSensorFound = sht31_int.begin(0x44);
     

@@ -42,6 +42,8 @@ class I18N:
             "menu.devices": "Devices",
             "menu.about": "About",
             "menu.grow_controller": "Grow-Controller",
+            "menu.plant_planner": "Plant Planner",
+
             # --- About Screen ---
             # --- About Screen (EN) ---
             "about.version": "LGS Grow Master S3 v2.0",
@@ -96,8 +98,9 @@ class I18N:
             "menu.camera": "Cámara",
             "menu.devices": "Dispositivos",
             "menu.about": "Acerca de",
-             "menu.grow_controller": "Grow-Controller",
-           
+            "menu.grow_controller": "Grow-Controller",
+            "menu.plant_planner": "Plant Planner",
+
             # --- About Screen ---
             # --- About Screen (ES) ---
             "about.version": "LGS Grow Master S3 v2.0",
@@ -154,6 +157,7 @@ class I18N:
             "menu.devices": "Geräte",
             "menu.about": "Über",
             "menu.grow_controller": "Grow-Controller",
+            "menu.plant_planner": "Pflanzen-Planer",
 
             # --- About Screen ---
             # --- About Screen ---

@@ -11,13 +11,19 @@ class WebClientThread(threading.Thread):
         self.interval = interval
         self.running = True
         self.path = os.path.join(config.DATA, "web_dump.json")
+        # NEU: Separater Pfad für die Pflanzendaten auf der Festplatte
+        self.plants_path = os.path.join(config.DATA, "plants_store.json") 
         self.current_data = {} 
         self._last_ts = {}
         self.settings_path = os.path.join(config.DATA, "settings_sync.json")
         self.first_sync_done = False
         self.ready = False
         self._last_disk_write = 0.0
-        self._disk_interval = 60.0  # 🔥 1 Minute
+        self._disk_interval = 60.0  # Minütlicher Klima-Dump
+        
+        # NEU: RAM-Cache für den Revisions-Abgleich pro ESP32-MAC
+        self._local_plant_revs = {} 
+        self._load_local_plant_revs()
 
 
 
@@ -41,6 +47,21 @@ class WebClientThread(threading.Thread):
             except Exception as e:
                 print(f"[WebClient] Loop Error: {e}")
                 time.sleep(1)
+    
+
+
+    def _load_local_plant_revs(self):
+        """ Lädt beim Start den aktuellen Revisionsstand der Pflanzen von Disk. """
+        if os.path.exists(self.plants_path):
+            try:
+                with open(self.plants_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    for mac, content in data.items():
+                        # Holt die "rev_plant_planner" aus dem gespeicherten Objekt
+                        if "plant_planner" in content:
+                            self._local_plant_revs[mac] = content["plant_planner"].get("rev_plant_planner", 0)
+            except:
+                pass
 
     def fetch_all_web_data(self):
         changed = False
@@ -48,7 +69,6 @@ class WebClientThread(threading.Thread):
         devices = cfg.get("devices", {})
         now = time.time()
         
-        # LOCAL IMPORT um Circular Imports zu killen
         try:
             from decoder import inject_web_data
         except ImportError:
@@ -58,13 +78,45 @@ class WebClientThread(threading.Thread):
             ip = dev_cfg.get("ip_address", "").strip()
             if not ip: continue
             user, pw = config.get_device_auth(mac)
+            
+            # 1. SCHLANKE KLIMADATEN ABHOLEN (/data)
             try:
                 r = requests.get(f"http://{ip}/data", timeout=0.7, auth=(user, pw) if user else None)
                 if r.status_code == 200:
                     payload = r.json()
                     payload["timestamp"] = now 
                     
-                    # JETZT DIE INJECTION
+                    # Holt die flache Revisionsnummer aus dem Payload
+                    esp_plant_rev = payload.get("rev_plant_planner", 0)
+                    local_rev = self._local_plant_revs.get(mac, -1)
+
+                    # 2. LAZY LOADING: Nur wenn der ESP32 eine neuere Revision meldet
+                    if esp_plant_rev > local_rev:
+                        self._fetch_heavy_plant_data(mac, ip, user, pw)
+
+                    # Injektion in den Decoder (NUR Klimadaten, da payload kein "plant_planner" enthält)
+                    # =========================================================
+                    # PLANTS IN PAYLOAD MERGEN
+                    # =========================================================
+                    
+                    if os.path.exists(self.plants_path):
+                        try:
+                            with open(self.plants_path, "r", encoding="utf-8") as f:
+                                all_plants = json.load(f)
+                    
+                            if mac in all_plants:
+                                payload["plant_planner"] = (
+                                    all_plants[mac]
+                                    .get("plant_planner", {})
+                                )
+                    
+                        except Exception as e:
+                            print(f"[PlantPlanner] Merge Error: {e}")
+                    
+                    # =========================================================
+                    # JETZT ERST IN BUFFER
+                    # =========================================================
+                    
                     inject_web_data(mac, payload)
                     
                     self.current_data[mac] = payload
@@ -74,6 +126,38 @@ class WebClientThread(threading.Thread):
                 
         self.ready = True
         return changed
+
+    def _fetch_heavy_plant_data(self, mac, ip, user, pw):
+        """ Holt die großen Pflanzendaten isoliert ab und speichert sie atomar. """
+        try:
+            r = requests.get(f"http://{ip}/data/plants", timeout=2.0, auth=(user, pw) if user else None)
+            if r.status_code == 200:
+                plant_payload = r.json() # Enthält {"plant_planner": {"rev_plant_planner": X, "plants": [...]}}
+                
+                # Bestehende Datei lesen oder neu anlegen
+                all_plants = {}
+                if os.path.exists(self.plants_path):
+                    with open(self.plants_path, "r", encoding="utf-8") as f:
+                        try: all_plants = json.load(f)
+                        except: pass
+
+                # Daten für diese spezifische MAC-Adresse updaten
+                all_plants[mac] = plant_payload
+
+                # Atomarer Schreibvorgang auf die Festplatte (plants_store.json)
+                tmp_plants = self.plants_path + ".tmp"
+                with open(tmp_plants, "w", encoding="utf-8") as f:
+                    json.dump(all_plants, f, indent=2)
+                    f.flush()
+                    os.fsync(f.fileno())
+                os.replace(tmp_plants, self.plants_path)
+
+                # Internen RAM-Cache updaten, damit nicht nochmal gefetched wird
+                if "plant_planner" in plant_payload:
+                    self._local_plant_revs[mac] = plant_payload["plant_planner"].get("rev_plant_planner", 0)
+                    print(f"[WebClient] Pflanzen-Revision für {mac} erfolgreich auf {self._local_plant_revs[mac]} aktualisiert.")
+        except Exception as e:
+            print(f"[WebClient] Heavy Plant Fetch Error für {mac}: {e}")
 
     def send_control(self, mac, payload):
         """ Target-Revision-Prinzip: Wir schreiben nur das neue Target vorab. """

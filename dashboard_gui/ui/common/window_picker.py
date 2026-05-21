@@ -83,6 +83,7 @@ class WindowPicker(FloatLayout):
         entries += [
             ("menu.camera", lambda: setattr(sm, "current", "cam_viewer")),
             ("menu.grow_controller", lambda: setattr(sm, "current", "grow_controller")),
+            ("menu.plant_planner", lambda: setattr(sm, "current", "plant_planner")),
             ("menu.csv",    lambda: setattr(sm, "current", "csv_viewer")),  
             ("menu.devices", lambda: setattr(sm, "current", "device_picker")),
             ("menu.settings",    lambda: setattr(sm, "current", "settings")),
@@ -104,6 +105,8 @@ class WindowPicker(FloatLayout):
             "menu.sensor_mixed_mode":   "\uf1de", # ✅ sliders-h
             "menu.about":               "\uf05a",   # fa-info-circle
             "menu.grow_controller":          "\uf015", # fa-home / grow room symbol
+            "menu.plant_planner":       "\uf073",  # fa-calendar
+
         }
         
         for label, cb in entries:
