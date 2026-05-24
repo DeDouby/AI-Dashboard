@@ -1,6 +1,6 @@
 [
   {
-    "timestamp": 1779326960.9017432,
+    "timestamp": 1779662404.4575841,
     "device_id": "E697B52A-2E7F-D41E-BC4D-2D027CB38D0B",
     "name": "Real_Grow!",
     "adv": {
@@ -140,22 +140,22 @@
       "raw": null,
       "internal": {
         "temperature": {
-          "value": 20.45,
+          "value": 20.97,
           "unit": "°C"
         },
         "humidity": {
-          "value": 55.26,
+          "value": 58.09,
           "unit": "%"
         }
       },
       "external": {
         "present": true,
         "temperature": {
-          "value": 20.24,
+          "value": 20.8,
           "unit": "°C"
         },
         "humidity": {
-          "value": 55.14,
+          "value": 57.74,
           "unit": "%"
         }
       },
@@ -166,106 +166,107 @@
           "unit": "°C"
         },
         "vpd_leaf": {
-          "value": 1.954,
+          "value": 1.845,
           "unit": "kPa"
         }
       },
       "vpd_internal": {
-        "value": 0.98,
+        "value": 0.948,
         "unit": "kPa"
       },
       "vpd_external": {
-        "value": 0.97,
+        "value": 0.946,
         "unit": "kPa"
       },
-      "battery_voltage": 8.007,
+      "battery_voltage": 8.028,
       "dew_point_internal": {
-        "value": 11.17,
+        "value": 12.41,
         "unit": "°C"
       },
       "dew_point_external": {
-        "value": 10.94,
+        "value": 12.16,
         "unit": "°C"
       },
       "coord": {
         "internal": {
-          "x": 55.26,
-          "y": 18.95
+          "x": 58.09,
+          "y": 19.47
         },
         "external": {
-          "x": 55.14,
-          "y": 18.74
+          "x": 57.74,
+          "y": 19.3
         }
       },
-      "timestamp": 1779326960.046929,
+      "timestamp": 1779662404.164761,
       "circulation_fan": {
-        "circulation_fan_rpm": 1262,
+        "circulation_fan_rpm": 2214,
         "unit": "RPM"
       },
       "exhaust_fan": {
-        "exhaust_fan_rpm": 428,
+        "exhaust_fan_rpm": 680,
         "unit": "RPM"
       },
       "light_pct": 0,
       "light_mode": "tim",
       "health": {
         "signal": {
-          "rssi": -51
+          "rssi": -43
         }
       },
       "rtc_found": true,
-      "rtc_time": "03:29",
-      "temp_in": 20.45,
-      "temp_ext": 20.24,
-      "humid_ext": 55.14,
-      "humid_in": 55.26,
+      "rtc_time": "00:40",
+      "temp_in": 20.97,
+      "temp_ext": 20.8,
+      "humid_ext": 57.74,
+      "humid_in": 58.09,
       "leaf_temp": 25.5,
-      "vbat": 8.007,
+      "vbat": 8.028,
       "rev": 0,
-      "exhaust_fan_rpm": 428,
-      "exhaust_fan_pct": 41,
+      "exhaust_fan_rpm": 680,
+      "exhaust_fan_pct": 100,
       "exhaust_fan_min": 0,
-      "exhaust_fan_speed_now": 0,
+      "exhaust_fan_speed_now": 18,
       "exhaust_fan_mode": "auto",
-      "target_temp_min": 19,
-      "target_temp_max": 23.5,
-      "target_humidity_min": 50,
-      "target_humidity_max": 56,
-      "target_vpd_min": 1,
+      "target_temp_min": 19.8,
+      "target_temp_max": 24.5,
+      "target_humidity_min": 45,
+      "target_humidity_max": 55,
+      "target_vpd_min": 1.2,
       "target_vpd_max": 1.6,
-      "rev_exhaust": 342,
-      "rev_init_exhaust": 343,
+      "rev_exhaust": 363,
+      "rev_init_exhaust": 1779660920,
       "plant_phase": 2,
       "exhaust_fan_chaos_active": true,
-      "exhaust_fan_state_reason": "chaos_active",
-      "circulation_fan_rpm": 1262,
-      "circulation_fan_pct": 84,
-      "circulation_fan_speed_now": 70,
-      "circulation_fan_min": 5,
+      "exhaust_fan_state_reason": "using_refined_air",
+      "circulation_fan_rpm": 2214,
+      "circulation_fan_pct": 86,
+      "circulation_fan_speed_now": 43,
+      "circulation_fan_min": 18,
       "circulation_fan_mode": "nat",
-      "rev_circfan": 337,
-      "rev_init_circfan": 338,
-      "rev_plant_planner": 11,
-      "light_target": 90,
+      "rev_circfan": 345,
+      "rev_init_circfan": 1779660975,
+      "rev_plant_planner": 41,
+      "light_target": 92,
       "l_start_h": 11,
       "l_start_m": 0,
       "l_dur": 720,
       "l_sunrise": 90,
-      "l_sunset": 240,
+      "l_sunset": 210,
       "light_climate_override": true,
-      "light_remaining": 450,
-      "rev_light": 0,
-      "rev_init_light": 0,
+      "light_remaining": 619,
+      "rev_light": 2,
+      "rev_init_light": 1779660725,
+      "light_state_reason": "NIGHT",
       "dev_name": "LGS_Grow_Master",
       "log_level": 2,
-      "uptime_esp_s": 2044,
+      "uptime_esp_s": 2695,
       "fw_ver": "v2.5.6-rc",
       "ip": "192.168.2.20",
       "ssid": "Cudy-Indoor",
-      "rssi": -51,
-      "free_heap": 170108,
-      "max_alloc": 129012,
-      "heap_usage": 161592,
+      "rssi": -43,
+      "free_heap": 169380,
+      "max_alloc": 126964,
+      "heap_usage": 162304,
       "boot_cause": "Power Cut / Hard Reset",
       "rev_grow": 0,
       "rev_init_grow": 0,
@@ -274,54 +275,54 @@
         "sps": {
           "online": true,
           "temperature": {
-            "value": 20.74,
+            "value": 21.7,
             "unit": "°C"
           },
           "humidity": {
-            "value": 51.85,
+            "value": 51.61,
             "unit": "%"
           },
           "vpd": {
-            "value": 1.178,
+            "value": 1.256,
             "unit": "kPa"
           },
           "coord": {
-            "x": 51.85,
-            "y": 19.24
+            "x": 51.61,
+            "y": 20.2
           }
         },
         "tb2": {
           "online": true,
           "temperature": {
-            "value": 20.1875,
+            "value": 20.8125,
             "unit": "°C"
           },
           "humidity": {
-            "value": 54.6875,
+            "value": 56.5,
             "unit": "%"
           },
           "vpd": {
-            "value": 1.072,
+            "value": 1.069,
             "unit": "kPa"
           },
           "coord": {
-            "x": 54.6875,
-            "y": 18.6875
+            "x": 56.5,
+            "y": 19.3125
           }
         }
       },
       "plant_planner": {
-        "rev_plant_planner": 11,
-        "rev_init_plant_planner": 1779326848,
+        "rev_plant_planner": 41,
+        "rev_init_plant_planner": 1779661003,
         "plants": [
           {
             "name": "Amnesia",
-            "strain": "Widow",
-            "breeder": "Spanish Seeds ",
-            "phenotype": "fem",
+            "strain": "",
+            "breeder": "",
+            "phenotype": "",
             "pot_size": "",
-            "medium": "BioBizz LightMix",
-            "light": "LED 720Watt",
+            "medium": "",
+            "light": "",
             "location": "",
             "notes": "",
             "tags": "",
@@ -330,17 +331,11 @@
             "favorite": false,
             "harvest_date": "",
             "germination_start": "",
-            "germination_end": "",
-            "seedling_start": "2026-03-01",
-            "seedling_end": "",
-            "vegetative_start": "2026-03-26",
-            "vegetative_end": "",
-            "flowering_start": "2026-05-03",
-            "flowering_end": "",
+            "seedling_start": "",
+            "vegetative_start": "",
+            "flowering_start": "2026-04-01",
             "drying_start": "",
-            "drying_end": "",
-            "curing_start": "",
-            "curing_end": ""
+            "curing_start": ""
           }
         ]
       }
@@ -349,16 +344,16 @@
     "status": "active",
     "health": {
       "uptime": {
-        "value": 120.17267298698425,
+        "value": 1681.502639055252,
         "unit": "s"
       },
       "battery": {
         "value": null,
         "unit": "V",
-        "voltage": 8.007
+        "voltage": 8.028
       },
       "signal": {
-        "rssi": -51,
+        "rssi": -43,
         "quality": null
       }
     },
@@ -366,7 +361,7 @@
     "web_alive": true
   },
   {
-    "timestamp": 1779326960.9017432,
+    "timestamp": 1779662404.4575841,
     "device_id": "C898B4F2-B452-7502-1A67-0536E77D49EA",
     "name": "sps",
     "adv": {
@@ -568,7 +563,7 @@
     "status": "offline",
     "health": {
       "uptime": {
-        "value": 120.17267298698425,
+        "value": 1681.502639055252,
         "unit": "s"
       },
       "battery": {
@@ -585,7 +580,7 @@
     "web_alive": false
   },
   {
-    "timestamp": 1779326960.9017432,
+    "timestamp": 1779662404.4575841,
     "device_id": "FF-FF-A1-00-00-01",
     "name": "LGS_NODE_17",
     "adv": {
@@ -787,7 +782,7 @@
     "status": "offline",
     "health": {
       "uptime": {
-        "value": 120.17267298698425,
+        "value": 1681.502639055252,
         "unit": "s"
       },
       "battery": {
@@ -804,7 +799,7 @@
     "web_alive": false
   },
   {
-    "timestamp": 1779326960.9017432,
+    "timestamp": 1779662404.4575841,
     "device_id": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
     "name": "ThermoBeacon2",
     "adv": {
@@ -1006,7 +1001,7 @@
     "status": "offline",
     "health": {
       "uptime": {
-        "value": 120.17267298698425,
+        "value": 1681.502639055252,
         "unit": "s"
       },
       "battery": {
@@ -1023,7 +1018,7 @@
     "web_alive": false
   },
   {
-    "timestamp": 1779326960.9017432,
+    "timestamp": 1779662404.4575841,
     "device_id": "827482CC-A977-43D7-835E-8E8B6978E66A",
     "name": "Grow_Test",
     "adv": {
@@ -1157,8 +1152,8 @@
       }
     },
     "webserver": {
-      "alive": true,
-      "status": "active",
+      "alive": false,
+      "status": "offline",
       "packet_counter": null,
       "raw": null,
       "internal": {
@@ -1183,9 +1178,9 @@
         }
       },
       "external2": {
-        "present": true,
+        "present": false,
         "leaf_temp": {
-          "value": 25.5,
+          "value": null,
           "unit": "°C"
         },
         "vpd_leaf": {
@@ -1201,7 +1196,7 @@
         "value": null,
         "unit": "kPa"
       },
-      "battery_voltage": 4.197,
+      "battery_voltage": null,
       "dew_point_internal": {
         "value": null,
         "unit": "°C"
@@ -1219,205 +1214,30 @@
           "x": null,
           "y": null
         }
-      },
-      "timestamp": 1779326959.313737,
-      "circulation_fan": {
-        "circulation_fan_rpm": 0,
-        "unit": "RPM"
-      },
-      "exhaust_fan": {
-        "exhaust_fan_rpm": 0,
-        "unit": "RPM"
-      },
-      "light_pct": 0,
-      "light_mode": "tim",
-      "health": {
-        "signal": {
-          "rssi": -70
-        }
-      },
-      "rtc_found": false,
-      "rtc_time": "offline",
-      "temp_in": -256,
-      "temp_ext": -256,
-      "humid_ext": -256,
-      "humid_in": -256,
-      "leaf_temp": 25.5,
-      "vbat": 4.197,
-      "rev": 0,
-      "exhaust_fan_rpm": 0,
-      "exhaust_fan_pct": 38,
-      "exhaust_fan_min": 7,
-      "exhaust_fan_speed_now": 7,
-      "exhaust_fan_mode": "auto",
-      "target_temp_min": 17.3,
-      "target_temp_max": 28.4,
-      "target_humidity_min": 36,
-      "target_humidity_max": 72,
-      "target_vpd_min": 0.8,
-      "target_vpd_max": 2.2,
-      "rev_exhaust": 330,
-      "rev_init_exhaust": 331,
-      "plant_phase": 2,
-      "exhaust_fan_chaos_active": false,
-      "exhaust_fan_state_reason": "day_auto",
-      "circulation_fan_rpm": 0,
-      "circulation_fan_pct": 53,
-      "circulation_fan_speed_now": 26,
-      "circulation_fan_min": 20,
-      "circulation_fan_mode": "nat",
-      "rev_circfan": 325,
-      "rev_init_circfan": 326,
-      "rev_plant_planner": 19,
-      "light_target": 66,
-      "l_start_h": 4,
-      "l_start_m": 0,
-      "l_dur": 960,
-      "l_sunrise": 270,
-      "l_sunset": 120,
-      "light_climate_override": true,
-      "light_remaining": 30,
-      "rev_light": 0,
-      "rev_init_light": 0,
-      "dev_name": "LGS_Grow_Master",
-      "log_level": 2,
-      "uptime_esp_s": 2015,
-      "fw_ver": "v2.5.6-rc",
-      "ip": "192.168.2.39",
-      "ssid": "Cudy-Indoor",
-      "rssi": -70,
-      "free_heap": 169368,
-      "max_alloc": 122868,
-      "heap_usage": 162332,
-      "boot_cause": "Power Cut / Hard Reset",
-      "rev_grow": 0,
-      "rev_init_grow": 0,
-      "wifi_mode": 1,
-      "ble_sensors": {
-        "sps": {
-          "online": true,
-          "temperature": {
-            "value": 20.75,
-            "unit": "°C"
-          },
-          "humidity": {
-            "value": 51.81,
-            "unit": "%"
-          },
-          "vpd": {
-            "value": 1.18,
-            "unit": "kPa"
-          },
-          "coord": {
-            "x": 51.81,
-            "y": 19.25
-          }
-        },
-        "tb2": {
-          "online": true,
-          "temperature": {
-            "value": 20.125,
-            "unit": "°C"
-          },
-          "humidity": {
-            "value": 54.6875,
-            "unit": "%"
-          },
-          "vpd": {
-            "value": 1.068,
-            "unit": "kPa"
-          },
-          "coord": {
-            "x": 54.6875,
-            "y": 18.625
-          }
-        }
-      },
-      "plant_planner": {
-        "rev_plant_planner": 19,
-        "rev_init_plant_planner": 1779326217,
-        "plants": [
-          {
-            "name": "Amnesia",
-            "strain": "Widow",
-            "breeder": "Spanish Seeds ",
-            "phenotype": "fem",
-            "pot_size": "",
-            "medium": "BioBizz LightMix",
-            "light": "LED 720Watt",
-            "location": "",
-            "notes": "",
-            "tags": "",
-            "harvest_weight": "",
-            "dry_weight": "",
-            "favorite": false,
-            "harvest_date": "",
-            "germination_start": "",
-            "germination_end": "",
-            "seedling_start": "2026-05-26",
-            "seedling_end": "",
-            "vegetative_start": "2026-05-01",
-            "vegetative_end": "",
-            "flowering_start": "2026-04-1",
-            "flowering_end": "",
-            "drying_start": "",
-            "drying_end": "",
-            "curing_start": "",
-            "curing_end": ""
-          },
-          {
-            "name": "Somango Gelato",
-            "strain": "Widow",
-            "breeder": "Spanish Seeds ",
-            "phenotype": "fem",
-            "pot_size": "",
-            "medium": "BioBizz LightMix",
-            "light": "LED 720Watt",
-            "location": "",
-            "notes": "",
-            "tags": "",
-            "harvest_weight": "",
-            "dry_weight": "",
-            "favorite": false,
-            "harvest_date": "",
-            "germination_start": "",
-            "germination_end": "",
-            "seedling_start": "2026-05-26",
-            "seedling_end": "",
-            "vegetative_start": "2026-05-31",
-            "vegetative_end": "",
-            "flowering_start": "2026-04-1",
-            "flowering_end": "",
-            "drying_start": "",
-            "drying_end": "",
-            "curing_start": "",
-            "curing_end": ""
-          }
-        ]
       }
     },
-    "alive": true,
-    "status": "active",
+    "alive": false,
+    "status": "offline",
     "health": {
       "uptime": {
-        "value": 120.17267298698425,
+        "value": 1681.502639055252,
         "unit": "s"
       },
       "battery": {
         "value": null,
         "unit": "V",
-        "voltage": 4.197
+        "voltage": null
       },
       "signal": {
-        "rssi": -70,
+        "rssi": null,
         "quality": null
       }
     },
-    "device_online": true,
-    "web_alive": true
+    "device_online": false,
+    "web_alive": false
   },
   {
-    "timestamp": 1779326960.9017432,
+    "timestamp": 1779662404.4575841,
     "device_id": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
     "name": "TP351S (987A)",
     "adv": {
@@ -1619,7 +1439,7 @@
     "status": "offline",
     "health": {
       "uptime": {
-        "value": 120.17267298698425,
+        "value": 1681.502639055252,
         "unit": "s"
       },
       "battery": {

@@ -60,17 +60,11 @@ void plant_planner_process_json(JsonObject doc) {
 
                         p.harvest_date = pObj["harvest_date"] | "";
                         p.germination_start = pObj["germination_start"] | "";
-                        p.germination_end = pObj["germination_end"] | "";
                         p.seedling_start = pObj["seedling_start"] | "";
-                        p.seedling_end = pObj["seedling_end"] | "";
                         p.vegetative_start = pObj["vegetative_start"] | "";
-                        p.vegetative_end = pObj["vegetative_end"] | "";
                         p.flowering_start = pObj["flowering_start"] | "";
-                        p.flowering_end = pObj["flowering_end"] | "";
                         p.drying_start = pObj["drying_start"] | "";
-                        p.drying_end = pObj["drying_end"] | "";
                         p.curing_start = pObj["curing_start"] | "";
-                        p.curing_end = pObj["curing_end"] | "";
 
                         system_plants.push_back(p);
                     }
@@ -112,17 +106,11 @@ void plant_planner_get_status(JsonObject doc) {
 
         pObj["harvest_date"] = p.harvest_date;
         pObj["germination_start"] = p.germination_start;
-        pObj["germination_end"] = p.germination_end;
         pObj["seedling_start"] = p.seedling_start;
-        pObj["seedling_end"] = p.seedling_end;
         pObj["vegetative_start"] = p.vegetative_start;
-        pObj["vegetative_end"] = p.vegetative_end;
         pObj["flowering_start"] = p.flowering_start;
-        pObj["flowering_end"] = p.flowering_end;
         pObj["drying_start"] = p.drying_start;
-        pObj["drying_end"] = p.drying_end;
         pObj["curing_start"] = p.curing_start;
-        pObj["curing_end"] = p.curing_end;
     }
 }
 
@@ -155,17 +143,11 @@ void plant_planner_save_state() {
         pObj["favorite"] = p.favorite;
         pObj["harvest_date"] = p.harvest_date;
         pObj["germination_start"] = p.germination_start;
-        pObj["germination_end"] = p.germination_end;
         pObj["seedling_start"] = p.seedling_start;
-        pObj["seedling_end"] = p.seedling_end;
         pObj["vegetative_start"] = p.vegetative_start;
-        pObj["vegetative_end"] = p.vegetative_end;
         pObj["flowering_start"] = p.flowering_start;
-        pObj["flowering_end"] = p.flowering_end;
         pObj["drying_start"] = p.drying_start;
-        pObj["drying_end"] = p.drying_end;
         pObj["curing_start"] = p.curing_start;
-        pObj["curing_end"] = p.curing_end;
     }
 
     if (serializeJson(tempDoc, file) == 0) {
@@ -213,17 +195,11 @@ void plant_planner_load_state() {
         p.favorite = pObj["favorite"] | false;
         p.harvest_date = pObj["harvest_date"] | "";
         p.germination_start = pObj["germination_start"] | "";
-        p.germination_end = pObj["germination_end"] | "";
         p.seedling_start = pObj["seedling_start"] | "";
-        p.seedling_end = pObj["seedling_end"] | "";
         p.vegetative_start = pObj["vegetative_start"] | "";
-        p.vegetative_end = pObj["vegetative_end"] | "";
         p.flowering_start = pObj["flowering_start"] | "";
-        p.flowering_end = pObj["flowering_end"] | "";
         p.drying_start = pObj["drying_start"] | "";
-        p.drying_end = pObj["drying_end"] | "";
         p.curing_start = pObj["curing_start"] | "";
-        p.curing_end = pObj["curing_end"] | "";
 
         system_plants.push_back(p);
     }

@@ -1,17 +1,17 @@
 {
-  "827482CC-A977-43D7-835E-8E8B6978E66A": {
+  "E697B52A-2E7F-D41E-BC4D-2D027CB38D0B": {
     "plant_planner": {
-      "rev_plant_planner": 19,
-      "rev_init_plant_planner": 1779326217,
+      "rev_plant_planner": 41,
+      "rev_init_plant_planner": 1779661003,
       "plants": [
         {
           "name": "Amnesia",
-          "strain": "Widow",
-          "breeder": "Spanish Seeds ",
-          "phenotype": "fem",
+          "strain": "",
+          "breeder": "",
+          "phenotype": "",
           "pot_size": "",
-          "medium": "BioBizz LightMix",
-          "light": "LED 720Watt",
+          "medium": "",
+          "light": "",
           "location": "",
           "notes": "",
           "tags": "",
@@ -20,62 +20,28 @@
           "favorite": false,
           "harvest_date": "",
           "germination_start": "",
-          "germination_end": "",
-          "seedling_start": "2026-05-26",
-          "seedling_end": "",
-          "vegetative_start": "2026-05-01",
-          "vegetative_end": "",
-          "flowering_start": "2026-04-1",
-          "flowering_end": "",
+          "seedling_start": "",
+          "vegetative_start": "",
+          "flowering_start": "2026-04-01",
           "drying_start": "",
-          "drying_end": "",
-          "curing_start": "",
-          "curing_end": ""
-        },
-        {
-          "name": "Somango Gelato",
-          "strain": "Widow",
-          "breeder": "Spanish Seeds ",
-          "phenotype": "fem",
-          "pot_size": "",
-          "medium": "BioBizz LightMix",
-          "light": "LED 720Watt",
-          "location": "",
-          "notes": "",
-          "tags": "",
-          "harvest_weight": "",
-          "dry_weight": "",
-          "favorite": false,
-          "harvest_date": "",
-          "germination_start": "",
-          "germination_end": "",
-          "seedling_start": "2026-05-26",
-          "seedling_end": "",
-          "vegetative_start": "2026-05-31",
-          "vegetative_end": "",
-          "flowering_start": "2026-04-1",
-          "flowering_end": "",
-          "drying_start": "",
-          "drying_end": "",
-          "curing_start": "",
-          "curing_end": ""
+          "curing_start": ""
         }
       ]
     }
   },
-  "E697B52A-2E7F-D41E-BC4D-2D027CB38D0B": {
+  "827482CC-A977-43D7-835E-8E8B6978E66A": {
     "plant_planner": {
-      "rev_plant_planner": 11,
-      "rev_init_plant_planner": 1779326848,
+      "rev_plant_planner": 37,
+      "rev_init_plant_planner": 1779368358,
       "plants": [
         {
-          "name": "Amnesia",
-          "strain": "Widow",
-          "breeder": "Spanish Seeds ",
-          "phenotype": "fem",
+          "name": "neue Pflanze",
+          "strain": "",
+          "breeder": "",
+          "phenotype": "",
           "pot_size": "",
-          "medium": "BioBizz LightMix",
-          "light": "LED 720Watt",
+          "medium": "",
+          "light": "",
           "location": "",
           "notes": "",
           "tags": "",
@@ -84,17 +50,11 @@
           "favorite": false,
           "harvest_date": "",
           "germination_start": "",
-          "germination_end": "",
-          "seedling_start": "2026-03-01",
-          "seedling_end": "",
-          "vegetative_start": "2026-03-26",
-          "vegetative_end": "",
-          "flowering_start": "2026-05-03",
-          "flowering_end": "",
+          "seedling_start": "",
+          "vegetative_start": "",
+          "flowering_start": "",
           "drying_start": "",
-          "drying_end": "",
-          "curing_start": "",
-          "curing_end": ""
+          "curing_start": ""
         }
       ]
     }

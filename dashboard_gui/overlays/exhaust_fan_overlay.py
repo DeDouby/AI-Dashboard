@@ -87,9 +87,43 @@ class ExhaustFanOverlay(FloatLayout):
         self.panel.add_widget(title_row)
 
         # Wert-Anzeigen
-        self.lbl_val = Label(text="0% - 0%", font_size=sp_scaled(30), bold=True, 
-                             size_hint_y=None, height=dp_scaled(30))
-        self.panel.add_widget(self.lbl_val)
+        # ==========================================================
+        # HAUPTWERT + STATUS
+        # ==========================================================
+        value_row = BoxLayout(
+            orientation="horizontal",
+            size_hint_y=None,
+            height=dp_scaled(42),
+            spacing=dp_scaled(10)
+        )
+        
+        # LINKS: SPEED RANGE
+        self.lbl_val = Label(
+            text="0% - 0%",
+            font_size=sp_scaled(30),
+            bold=True,
+            halign="left",
+            valign="middle",
+            size_hint_x=0.52
+        )
+        self.lbl_val.bind(size=self.lbl_val.setter("text_size"))
+        
+        # RECHTS: LIVE STATUS
+        self.lbl_reason = Label(
+            text="AUTO IDLE",
+            font_size=sp_scaled(16),
+            bold=True,
+            halign="right",
+            valign="middle",
+            color=(0, 1, 1, 0.9),
+            size_hint_x=0.48
+        )
+        self.lbl_reason.bind(size=self.lbl_reason.setter("text_size"))
+        
+        value_row.add_widget(self.lbl_val)
+        value_row.add_widget(self.lbl_reason)
+        
+        self.panel.add_widget(value_row)
 
         info_row = BoxLayout(size_hint_y=None, height=dp_scaled(30))
         self.lbl_rpm = Label(text="RPM: 0", font_size=sp_scaled(18), color=(0.7, 0.7, 1, 0.8))
@@ -113,13 +147,19 @@ class ExhaustFanOverlay(FloatLayout):
         self.panel.add_widget(self.temp_slider)
 
         self.lbl_hum = self._add_slider_label("HUMIDITY TARGET", "40% - 70%")
-        self.hum_slider = UnifiedSlider(min=0, max=100, mode='range', size_hint_y=None, height=dp_scaled(35))
+        # UnifiedSlider muss die Grenzen kennen, damit das Mapping stimmt
+        self.hum_slider = UnifiedSlider(
+            range_min=30, range_max=70, 
+            min=40, max=70, 
+            mode='range', 
+            size_hint_y=None, height=dp_scaled(35)
+        )
         self.hum_slider.bind(min_value=self._on_env_slider_change, max_value=self._on_env_slider_change,
                              on_touch_down=self._touch_down, on_touch_up=self._touch_up)
         self.panel.add_widget(self.hum_slider)
 
         self.lbl_vpd = self._add_slider_label("VPD TARGET", "0.8 - 1.5")
-        self.vpd_slider = UnifiedSlider(min=8, max=15, range_min=0, range_max=30, mode='range', 
+        self.vpd_slider = UnifiedSlider(min=8, max=15, range_min=1, range_max=20, mode='range', 
                                       size_hint_y=None, height=dp_scaled(35))
         self.vpd_slider.bind(min_value=self._on_vpd_slider_change, max_value=self._on_vpd_slider_change,
                              on_touch_down=self._touch_down, on_touch_up=self._touch_up)
@@ -209,14 +249,20 @@ class ExhaustFanOverlay(FloatLayout):
         v_min = float(data.get('target_vpd_min', 0.8))
         v_max = float(data.get('target_vpd_max', 1.5))
 
+        # --- SNAPSHOT BLOCK ---
         self._ui_lock = True
 
         self.range_slider.max_value = s_max
         self.range_slider.min_value = s_min
         self.temp_slider.max_value = t_max
         self.temp_slider.min_value = t_min
+
+        # HIER WIRD DER HUMIDITY SLIDER AUF 30-80 GENAGELT:
+        self.hum_slider.range_min = 30
+        self.hum_slider.range_max = 70
         self.hum_slider.max_value = h_max
         self.hum_slider.min_value = h_min
+
         self.vpd_slider.max_value = int(v_max * 10)
         self.vpd_slider.min_value = int(v_min * 10)
 
@@ -228,11 +274,17 @@ class ExhaustFanOverlay(FloatLayout):
         self.lbl_vpd.text = f"{v_min:.1f} - {v_max:.1f}"
 
 # Wir holen uns den Chaos-Status aus den Daten (0 oder 1 vom ESP)
-        s_chaos = bool(data.get('exhaust_fan_chaos_active', 0)) 
-
-# Jetzt übergeben wir beides
-        self._apply_button_styles(s_mode, s_chaos)
+        s_chaos = bool(data.get('exhaust_fan_chaos_active', 0))
+        
+        # KRITISCHER FIX:
+        # Snapshot muss den lokalen Send-State synchronisieren
+        self._chaos_enabled = s_chaos
+        
+        # Hauptmodus synchronisieren
         self._target_mode = s_mode
+        
+        # Buttons aktualisieren
+        self._apply_button_styles(s_mode, s_chaos)
         self._last_sent_rev = int(data.get('rev_exhaust', 0))
         phase_idx = int(data.get("plant_phase", 0))
         phase_name = self._phase_map.get(phase_idx, "OFF")
@@ -253,36 +305,64 @@ class ExhaustFanOverlay(FloatLayout):
     # ===================================================================
     def _add_slider_label(self, left_text, right_text=""):
         row = BoxLayout(size_hint_y=None, height=dp_scaled(15))
-        row.add_widget(Label(text=left_text, font_size=sp_scaled(18), color=(0,1,0,0.5), halign="left"))
-        lbl_right = Label(text=right_text, font_size=sp_scaled(18), color=(1,1,1,0.6), halign="right")
+        row.add_widget(Label(text=left_text, font_size=sp_scaled(18), color=(0.0, 0.85, 0.35, 0.75), halign="left"))
+        lbl_right = Label(text=right_text, font_size=sp_scaled(18), color=(1,1,1,1), halign="right")
         row.add_widget(lbl_right)
         self.panel.add_widget(row)
         return lbl_right
 
     def _create_styled_btn(self, text):
-        return Button(text=text, markup=True, background_normal="", 
-                      background_color=(0.15, 0.15, 0.15, 1),
-                      color=(0.5, 0.5, 0.5, 1), font_size=sp_scaled(18))
+        return Button(
+            text=text,
+            markup=True,
+            background_normal="",
+            background_down="",
+            background_color=(0.15, 0.15, 0.15, 1),
+            color=(1, 1, 1, 1),  # 🔥 FIX: LESBARKEIT
+            font_size=sp_scaled(18)
+        )
 
     def _set_mode(self, mode):
-        if self._locked: return
-        
+        if self._locked:
+            return
+    
+        # CHAOS = TOGGLE
         if mode == "chao":
             self._chaos_enabled = not self._chaos_enabled
-        else:
+    
+        # NUR echte Hauptmodi setzen
+        elif mode in ("auto", "man"):
             self._target_mode = mode
-            
+    
+        self._last_user_action = time.time()
+        self._user_active = True
+    
         self._send_current_state()
+    
+        Clock.schedule_once(
+            lambda dt: setattr(self, "_user_active", False),
+            0.4
+        )
 
     def _apply_button_styles(self, mode, chaos_active):
-        c_bg = (0.15, 0.15, 0.15, 1) # Dunkel (Aus)
-        
-        # Basis-Buttons (Exklusiv)
-        self.btn_man.background_color  = (0, 1, 0, 0.8) if mode == "man" else c_bg
-        self.btn_auto.background_color = (0, 0.7, 1, 0.8) if mode == "auto" else c_bg
-        
-        # Chaos-Button (Zusätzlich/Toggle)
-        self.btn_chao.background_color = (1, 0.5, 0, 0.8) if chaos_active else c_bg
+        base = (0.15, 0.15, 0.15, 1)
+    
+        # MANUAL
+        self.btn_man.background_color = (0, 1, 0, 0.85) if mode == "man" else base
+    
+        # AUTO
+        self.btn_auto.background_color = (0, 0.7, 1, 0.85) if mode == "auto" else base
+    
+        # CHAOS
+        self.btn_chao.background_color = (1, 0.5, 0, 0.85) if chaos_active else base
+    
+        # 🔥 TEXT KONTRAST FIX (WICHTIG!)
+        def fix(btn, active):
+            btn.color = (0, 0, 0, 1) if active else (1, 1, 1, 1)
+    
+        fix(self.btn_man, mode == "man")
+        fix(self.btn_auto, mode == "auto")
+        fix(self.btn_chao, chaos_active)
 
     def _on_slider_change(self, *args):
         if not self._init_done or self._ui_lock or self._locked: 
@@ -348,7 +428,37 @@ class ExhaustFanOverlay(FloatLayout):
         # === 3. LIVE-WERTE (immer aktuell) ===
         self.lbl_rpm.text = f"RPM: {int(server_data.get('exhaust_fan_rpm', 0))}"
         self.lbl_live_speed.text = f"LIVE: {int(server_data.get('exhaust_fan_speed_now', 0))}%"
-
+        
+        # ==========================================================
+        # LIVE STATE REASON
+        # ==========================================================
+        reason = server_data.get("exhaust_fan_state_reason", "idle")
+        
+        pretty_reason = (
+            reason
+            .replace("_", " ")
+            .upper()
+        )
+        
+        self.lbl_reason.text = pretty_reason
+        # STATUS FARBEN
+        if "FAILSAFE" in pretty_reason or "CRIT" in pretty_reason:
+            self.lbl_reason.color = (1, 0.2, 0.2, 1)
+        
+        elif "CHAOS" in pretty_reason:
+            self.lbl_reason.color = (1, 0.5, 0, 1)
+        
+        elif "VPD" in pretty_reason:
+            self.lbl_reason.color = (0.3, 1, 1, 1)
+        
+        elif "REFINED" in pretty_reason:
+            self.lbl_reason.color = (0.4, 1, 0.4, 1)
+        
+        elif "NIGHT" in pretty_reason:
+            self.lbl_reason.color = (0.6, 0.6, 1, 1)
+        
+        else:
+            self.lbl_reason.color = (1, 1, 1, 0.8)
         # === 4. ICON LOGIK (Status-Feedback) ===
         status = self.engine.get_status(
             server_init,

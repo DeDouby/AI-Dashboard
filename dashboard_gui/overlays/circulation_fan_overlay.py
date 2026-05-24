@@ -332,20 +332,36 @@ class CirculationFanOverlay(FloatLayout):
 
     # Rest bleibt fast unverändert (nur kleine Cleanups)
     def _create_styled_btn(self, text):
-        return Button(text=text, markup=True, background_normal="",
-                      background_color=(0.15, 0.15, 0.15, 1),
-                      color=(0.5, 0.5, 0.5, 1), font_size=sp_scaled(18))
+        return Button(
+            text=text,
+            markup=True,
+            background_normal="",
+            background_down="",
+            background_color=(0.15, 0.15, 0.15, 1),
+            color=(1, 1, 1, 1),  # Default lesbar wie Exhaust
+            font_size=sp_scaled(18)
+        )
 
     def _apply_button_styles(self, mode):
-        c_bg = (0.15, 0.15, 0.15, 1)
-        self.btn_man.background_color  = (0, 1, 0, 0.8) if mode == "man" else c_bg
-        self.btn_nat.background_color  = (0, 0.6, 1, 0.8) if mode == "nat" else c_bg
-        self.btn_chao.background_color = (1, 0.5, 0, 0.8) if mode == "chao" else c_bg
-        
-        self.btn_man.color  = (1,1,1,1) if mode == "man" else (0.6,0.6,0.6,1)
-        self.btn_nat.color  = (1,1,1,1) if mode == "nat" else (0.6,0.6,0.6,1)
-        self.btn_chao.color = (1,1,1,1) if mode == "chao" else (0.6,0.6,0.6,1)
-
+    
+        base = (0.15, 0.15, 0.15, 1)
+    
+        # MANUAL
+        self.btn_man.background_color = (0, 1, 0, 0.85) if mode == "man" else base
+    
+        # NATURAL
+        self.btn_nat.background_color = (0, 0.6, 1, 0.85) if mode == "nat" else base
+    
+        # CHAOS
+        self.btn_chao.background_color = (1, 0.5, 0, 0.85) if mode == "chao" else base
+    
+        # 🔥 KONTRAST FIX (wie Exhaust)
+        def fix(btn, active):
+            btn.color = (0, 0, 0, 1) if active else (1, 1, 1, 1)
+    
+        fix(self.btn_man, mode == "man")
+        fix(self.btn_nat, mode == "nat")
+        fix(self.btn_chao, mode == "chao")
 
 
     def _init_values(self, *_):

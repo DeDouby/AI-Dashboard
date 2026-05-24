@@ -53,61 +53,64 @@ void setup() {
     Serial.begin(115200);
     init_hardware();
 
-    SystemReset::init(PIN_RESET_BUTTON); // <--- 2. RESET KNOPF INITIALISIEREN
-    // 2. ABSOLUTE PRIORITÄT: HARDWARE INIT & ZEITBASIS
-    grow_controller_init(); // Lädt Preferences
-    
-    // RTC starten und SOFORT prüfen
+    SystemReset::init(PIN_RESET_BUTTON);
+
+    grow_controller_init();
+
+    // ==============================
+    // 🔥 ZEITBASIS: NUR 1 MASTER
+    // ==============================
+
+    // 1. TZ zuerst setzen (WICHTIG!)
+    configTzTime("CET-1CEST,M3.5.0/2,M10.5.0/3",
+                 "pool.ntp.org",
+                 "time.nist.gov");
+
+    tzset();
+
+    // 2. RTC nur ALS FALLBACK
     if (watch.begin(I2C_RTC)) {
         Serial.println("RTC Hardware gefunden.");
-        
+
         if (watch.isRTCSet()) {
-            Serial.println("RTC Register-Validierung: OK. Synchronisiere Systemzeit...");
-            watch.syncFromRTC(); // Uhrzeit läuft, lade sie in den ESP32
+            Serial.println("RTC OK → nutze als Backup falls NTP fehlt");
+
+            if (sntp_get_sync_status() != SNTP_SYNC_STATUS_COMPLETED) {
+                watch.syncFromRTC();  // nur wenn KEIN Internet
+            }
+
         } else {
-            Serial.println("WARNUNG: RTC meldet OSF-Flag! Uhr ist ungesetzt (Batterie leer/Fabrikneu). Wait for NTP.");
-            // Wir laden die RTC-Zeit NICHT, da sie Schrott ist. Systemuhr bleibt auf 1970 Boot-Basis.
+            Serial.println("RTC ungesetzt → warte auf NTP");
         }
     } else {
-        Serial.println("CRITICAL: RTC Hardware nicht auf dem I2C-Bus gefunden!");
+        Serial.println("CRITICAL: RTC fehlt!");
     }
 
-    // JETZT das Licht-Modul starten. Es findet entweder die RTC-Zeit vor, 
-    // oder sieht das Jahr 1970 und bleibt im sicheren AUS-Zustand.
+    // 3. Licht NACH stabiler Zeitbasis
     light_init();
-    
-    Serial.println(">>> Hardware läuft (Zeitbasis initialisiert) <<<");
 
-    // 3. INFRASTRUKTUR
+    Serial.println(">>> Hardware läuft (TIMEBASE STABIL) <<<");
+
+    // 4. INFRA
     BLEDevice::init("LGS_Grow_Master");
 
-    // 4. NETZWERK
     int wifi_mode = grow_controller_get_wifi_mode();
     if (wifi_mode == 0 || _wifi_ssid == "" || _wifi_ssid == "NULL") {
-        Serial.println(">>> AP-MODUS <<<");
         WebModule::init_ap(_device_name.c_str());
     } else {
-        Serial.printf(">>> Verbinde: %s <<<\n", _wifi_ssid.c_str());
         WebModule::init(_wifi_ssid.c_str(), _wifi_password.c_str());
     }
 
-    // 5. BACKGROUND SERVICES
-    configTzTime("CET-1CEST,M3.5.0/2,M10.5.0/3", "pool.ntp.org", "time.nist.gov");
-    
+    // 5. BACKGROUND
     circulation_fan_init(PIN_CIRC_FAN, PIN_CIRC_TACHO);
     exhaust_fan_init(PIN_EXH_FAN, PIN_EXH_TACHO);
     plant_planner_init();
+
     externalSensorFound = sht31_ext.begin(0x44);
     internalSensorFound = sht31_int.begin(0x44);
-    
-    if (externalSensorFound) Serial.println("EXT SHT31 OK (Bus0)");
-        else Serial.println("EXT SHT31 FEHLT");
-    
-    if (internalSensorFound) Serial.println("INT SHT31 OK (Bus1)");
-        else Serial.println("INT SHT31 FEHLT");
-        
+
     power_manager_init();
-    BLEScanner::init();   
+    BLEScanner::init();
     bleBridge.begin();
 
     Serial.println("System vollständig bereit.");
@@ -120,10 +123,14 @@ void loop() {
     SystemReset::update();         // <--- 3. PERMANENT DEN KNOPF ÜBERWACHEN
     circulation_fan_update(); 
     exhaust_fan_update(); 
+
+    // Beide Klimawerte sauber an das Lichtmodul übergeben (Push-Prinzip)
     light_control_set_humidity(getInternalHumidity());
+    light_control_set_temperature(getTempIn()); // <-- DIESE ZEILE HAT GEFEHLT!
+
     light_update();                // Berechnet stur den Lichtzustand anhand der Systemzeit
     power_manager_update();
-    BLEScanner::update(); 
+    BLEScanner::update();
 
     // ==================== ZEIT-MANAGEMENT (PROFI-VERSION) ====================
     static uint32_t last_rtc_sync = 0;

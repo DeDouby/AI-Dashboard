@@ -41,7 +41,7 @@ class GlassButton(Button):
         self.background_normal = ""
         self.background_color = (0.1, 0.1, 0.15, 0.55)
         self.color = (1, 1, 1, 1)
-        self.font_size = sp_scaled(13)
+        self.font_size = sp_scaled(18)
 
         self.bind(pos=self._update_canvas, size=self._update_canvas)
 
@@ -59,49 +59,70 @@ class GlassButton(Button):
 # =============================================================================
 # DATE PICKER
 # =============================================================================
+import calendar  # <-- Wichtig: Oben zu den Imports hinzufügen!
 
 class DatePickerPopup(Popup):
-
     selected_date = StringProperty("")
 
     def __init__(self, callback=None, **kwargs):
         super().__init__(**kwargs)
-
         self.callback = callback
-
         self.title = "SELECT DATE"
         self.size_hint = (0.92, 0.85)
         self.auto_dismiss = False
 
-        root = BoxLayout(
+        # Start mit dem aktuellen Monat und Jahr
+        today = date.today()
+        self.current_year = today.year
+        self.current_month = today.month
+
+        # Root-Layout
+        self.root_layout = BoxLayout(
             orientation="vertical",
             padding=dp_scaled(15),
             spacing=dp_scaled(10)
         )
 
-        self.days_grid = GridLayout(
-            cols=7,
-            spacing=dp_scaled(4)
+        # =========================================================
+        # MONATS- / JAHRESAUSWAHL (HEADER)
+        # =========================================================
+        self.header_box = BoxLayout(
+            size_hint_y=None,
+            height=dp_scaled(50),
+            spacing=dp_scaled(10)
         )
 
-        for d in range(1, 32):
-            btn = ToggleButton(
-                text=str(d),
-                group="date_picker",
-                size_hint_y=None,
-                height=dp_scaled(48),
-                background_color=(0.15, 0.15, 0.2, 1)
-            )
+        self.prev_btn = GlassButton(text="<", size_hint_x=0.2)
+        self.prev_btn.bind(on_release=self._prev_month)
 
-            btn.bind(on_release=self._select_day)
+        self.month_label = Label(
+            text="", 
+            font_size=sp_scaled(18), 
+            bold=True,
+            size_hint_x=0.6
+        )
 
-            self.days_grid.add_widget(btn)
+        self.next_btn = GlassButton(text=">", size_hint_x=0.2)
+        self.next_btn.bind(on_release=self._next_month)
 
-        scroll = ScrollView()
-        scroll.add_widget(self.days_grid)
+        self.header_box.add_widget(self.prev_btn)
+        self.header_box.add_widget(self.month_label)
+        self.header_box.add_widget(self.next_btn)
+        
+        self.root_layout.add_widget(self.header_box)
 
-        root.add_widget(scroll)
+        # =========================================================
+        # TAGE GRID & SCROLLVIEW
+        # =========================================================
+        self.scroll = ScrollView()
+        self.days_grid = GridLayout(cols=7, spacing=dp_scaled(4))
+        self.scroll.add_widget(self.days_grid)
+        
+        self.root_layout.add_widget(self.scroll)
 
+        # =========================================================
+        # UNTERE BUTTONS (CANCEL / SAVE)
+        # =========================================================
         btn_box = BoxLayout(
             size_hint_y=None,
             height=dp_scaled(52),
@@ -116,24 +137,77 @@ class DatePickerPopup(Popup):
 
         btn_box.add_widget(cancel_btn)
         btn_box.add_widget(save_btn)
+        self.root_layout.add_widget(btn_box)
 
-        root.add_widget(btn_box)
+        self.content = self.root_layout
 
-        self.content = root
+        # Initialen Kalender zeichnen
+        self._update_calendar_view()
+
+    def _update_calendar_view(self):
+        """Generiert das Tage-Grid basierend auf current_month & current_year völlig neu."""
+        self.days_grid.clear_widgets()
+
+        # Header-Text updaten (z.B. "MAY 2026")
+        month_name = calendar.month_name[self.current_month].upper()
+        self.month_label.text = f"{month_name} {self.current_year}"
+
+        # Wochentage als kleine Header-Kürzel hinzufügen (Optional, aber extrem hilfreich)
+        for day_name in ["MO", "TU", "WE", "TH", "FR", "SA", "SU"]:
+            self.days_grid.add_widget(Label(
+                text=day_name, 
+                size_hint_y=None, 
+                height=dp_scaled(30),
+                font_size=sp_scaled(18),
+                color=(0.5, 0.5, 0.5, 1)
+            ))
+
+        # Berechnen, mit welchem Wochentag der Monat startet und wie viele Tage er hat
+        # monthrange liefert (weekday_of_first_day, number_of_days). 0 = Montag
+        first_weekday, num_days = calendar.monthrange(self.current_year, self.current_month)
+
+        # Leere Plätze für den Versatz vor dem 1. des Monats einfügen
+        for _ in range(first_weekday):
+            self.days_grid.add_widget(Label(size_hint_y=None, height=dp_scaled(48)))
+
+        # Buttons für die echten Tage generieren
+        for d in range(1, num_days + 1):
+            btn = ToggleButton(
+                text=str(d),
+                group="date_picker",
+                size_hint_y=None,
+                height=dp_scaled(48),
+                background_color=(0.15, 0.15, 0.2, 1)
+            )
+            btn.bind(on_release=self._select_day)
+            self.days_grid.add_widget(btn)
+
+    def _prev_month(self, *_):
+        if self.current_month == 1:
+            self.current_month = 12
+            self.current_year -= 1
+        else:
+            self.current_month -= 1
+        self._update_calendar_view()
+
+    def _next_month(self, *_):
+        if self.current_month == 12:
+            self.current_month = 1
+            self.current_year += 1
+        else:
+            self.current_month += 1
+        self._update_calendar_view()
 
     def _select_day(self, btn):
-        today = date.today()
-
+        # Nutzt jetzt die dynamisch ausgewählten Werte statt date.today()
         self.selected_date = (
-            f"{today.year}-{today.month:02d}-{int(btn.text):02d}"
+            f"{self.current_year}-{self.current_month:02d}-{int(btn.text):02d}"
         )
 
     def _save(self, *_):
         if self.callback and self.selected_date:
             self.callback(self.selected_date)
-
         self.dismiss()
-
 
 # =============================================================================
 # SCREEN
@@ -169,7 +243,12 @@ class PlantPlannerScreen(Screen):
         self._last_send_time = 0
         self._retry_count = 0
         self._max_retries = 5
-
+        self._last_day = date.today()
+        
+        Clock.schedule_interval(
+            self._check_day_rollover,
+            30
+        )        
         # =========================================================
         # ROOT
         # =========================================================
@@ -220,7 +299,7 @@ class PlantPlannerScreen(Screen):
             background_color=(0.1, 0.1, 0.12, 1),
             foreground_color=(1, 1, 1, 1),
             cursor_color=(0.2, 1, 0.4, 1),
-            font_size=sp_scaled(15)
+            font_size=sp_scaled(18)
         )
 
         self.search_input.bind(text=self._on_search)
@@ -359,15 +438,20 @@ class PlantPlannerScreen(Screen):
     # =============================================================================
     # UI
     # =============================================================================
+# =============================================================================
+    # UI (OPTIMIERT: ASYNCHRONES / PROGRESSIVES LADEN)
+    # =============================================================================
 
     def build_ui(self):
-
+        # 1. Altes Zeug löschen
         self.body.clear_widgets()
+
+        # 2. Eventuell noch laufende Ladevorgänge abbrechen
+        Clock.unschedule(self._load_cards_progressive)
 
         filtered = self._filtered_plants()
 
         if not filtered:
-
             empty = Label(
                 text="NO PLANTS FOUND",
                 size_hint_y=None,
@@ -375,14 +459,30 @@ class PlantPlannerScreen(Screen):
                 font_size=sp_scaled(20),
                 color=(0.7, 0.7, 0.7, 1)
             )
-
             self.body.add_widget(empty)
             return
 
-        for plant in filtered:
-            self.body.add_widget(
-                self._build_plant_card(plant)
-            )
+        # 3. Starte das stufenweise Laden ab Index 0
+        self._load_cards_progressive(filtered, 0)
+
+    def _load_cards_progressive(self, plant_list, index, *args):
+        """ Schiebt Karte für Karte in den nächsten Frame, damit die UI nicht einfriert. """
+        # Sicherheitscheck: Sind wir schon am Ende der Liste?
+        if index >= len(plant_list):
+            return
+
+        # Sicherheitscheck: Hat der User den Screen während des Ladens verlassen?
+        if self.manager and self.manager.current != self.name:
+            return
+
+        # Baue GENAU EINE Karte
+        plant = plant_list[index]
+        card = self._build_plant_card(plant)
+        self.body.add_widget(card)
+
+        # Plane die nächste Karte für den exakt nächsten Frame (0 Sekunden Verzögerung) ein
+        Clock.schedule_once(lambda dt: self._load_cards_progressive(plant_list, index + 1), 0)
+
 
     # =============================================================================
     # CARD
@@ -397,7 +497,7 @@ class PlantPlannerScreen(Screen):
             spacing=dp_scaled(10)
         )
 
-        card.height = dp_scaled(220)
+        card.height = dp_scaled(280)
 
         with card.canvas.before:
             Color(0.08, 0.08, 0.12, 0.9)
@@ -434,7 +534,7 @@ class PlantPlannerScreen(Screen):
         phase_lbl = Label(
             text=phase.upper(),
             size_hint_x=0.35,
-            font_size=sp_scaled(15),
+            font_size=sp_scaled(18),
             color=self._phase_color(phase)
         )
 
@@ -467,13 +567,13 @@ class PlantPlannerScreen(Screen):
 
             box.add_widget(Label(
                 text=k,
-                font_size=sp_scaled(11),
+                font_size=sp_scaled(18),
                 color=(0.6, 0.6, 0.7, 1)
             ))
 
             box.add_widget(Label(
                 text=str(v),
-                font_size=sp_scaled(14),
+                font_size=sp_scaled(18),
                 color=(1, 1, 1, 1)
             ))
 
@@ -482,18 +582,36 @@ class PlantPlannerScreen(Screen):
         card.add_widget(info)
 
         # =========================================================
-        # DAYS
+        # DAYS (AUFGESCHLÜSSELT)
         # =========================================================
 
-        days = self.calc_total_days(plant)
+        # Einzelne Phasen berechnen
+        germination_days = self.calc_phase_days(plant, "germination")
+        seedling_days = self.calc_phase_days(plant, "seedling")
+        veg_days = self.calc_phase_days(plant, "vegetative")
+        flower_days = self.calc_phase_days(plant, "flowering")
+        
+        # Gesamtzeit aus der bestehenden Logik
+        total_days = self.calc_total_days(plant)
+        
+        # Vegi-Zeit kombiniert (Keimung + Sämling + Vegi)
+        combined_veg_days = germination_days + seedling_days + veg_days
+
+        # Dreizeiliges Label für die detaillierte Übersicht
+        days_text = (
+            f"[b]VEGI-ZEIT:[/b] {combined_veg_days} DAYS  |  "
+            f"[b]BLÜTEZEIT:[/b] {flower_days} DAYS  |  "
+            f"[b]GESAMTZEIT:[/b] {total_days} DAYS"
+        )
 
         days_lbl = Label(
-            text=f"[b]{days} DAYS TOTAL[/b]",
+            text=days_text,
             markup=True,
             size_hint_y=None,
-            height=dp_scaled(32),
-            font_size=sp_scaled(16),
-            color=(0.2, 1, 0.4, 1)
+            height=dp_scaled(40),
+            font_size=sp_scaled(18),
+            color=(0.2, 1, 0.4, 1),
+            halign="center"
         )
 
         card.add_widget(days_lbl)
@@ -584,33 +702,60 @@ class PlantPlannerScreen(Screen):
     # =============================================================================
     # DAYS
     # =============================================================================
+# =============================================================================
+    # DAYS (KORRIGIERTE LOGIK)
+    # =============================================================================
+
+    def calc_phase_days(self, plant, phase):
+        """Berechnet die Tage, die eine Pflanze exakt in dieser Phase verbracht hat."""
+        start_str = plant.get(f"{phase}_start", "")
+        if not start_str:
+            return 0
+            
+        try:
+            start_date = datetime.strptime(start_str, "%Y-%m-%d").date()
+            if start_date > date.today():
+                return 0  # Phase hat in der Zukunft noch nicht begonnen
+
+            # Bestimmen, wann diese Phase endet (Start der nächsten Phase)
+            end_date = date.today()
+            phase_index = self.PHASES.index(phase)
+            
+            # Suche nach der nächsten Phase, die ein gültiges Startdatum hat
+            for next_phase in self.PHASES[phase_index + 1:]:
+                next_start_str = plant.get(f"{next_phase}_start", "")
+                if next_start_str:
+                    try:
+                        next_start_date = datetime.strptime(next_start_str, "%Y-%m-%d").date()
+                        if next_start_date <= date.today():
+                            # Die nächste Phase hat bereits begonnen, also endete die aktuelle Phase am Tag davor
+                            end_date = next_start_date
+                            break
+                    except:
+                        pass
+
+            return max(0, (end_date - start_date).days)
+        except:
+            return 0
 
     def calc_total_days(self, plant):
-
-        total = 0
-
+        """Berechnet die Gesamtzeit vom allerersten Phasenstart bis heute (oder bis zum Trocknungs-/Curing-Ende)."""
+        first_start = None
         for phase in self.PHASES:
-
-            start = plant.get(f"{phase}_start", "")
-
-            if not start:
-                continue
-
-            try:
-                s = datetime.strptime(
-                    start,
-                    "%Y-%m-%d"
-                ).date()
-
-                total = max(
-                    total,
-                    (date.today() - s).days
-                )
-
-            except:
-                pass
-
-        return total
+            start_str = plant.get(f"{phase}_start", "")
+            if start_str:
+                try:
+                    s = datetime.strptime(start_str, "%Y-%m-%d").date()
+                    if s <= date.today():
+                        if first_start is None or s < first_start:
+                            first_start = s
+                except:
+                    pass
+                    
+        if first_start is None:
+            return 0
+            
+        return (date.today() - first_start).days
 
     # =============================================================================
     # EDIT
@@ -641,7 +786,6 @@ class PlantPlannerScreen(Screen):
 
             for phase in self.PHASES:
                 plant[f"{phase}_start"] = ""
-                plant[f"{phase}_end"] = ""
 
         self.current_plant = copy.deepcopy(plant)
 
@@ -877,56 +1021,72 @@ class PlantPlannerScreen(Screen):
     # =============================================================================
     # SYNC
     # =============================================================================
-
     def _check_sync_status(self, dt):
-
+    
         data = GLOBAL_STATE.overlay_engine.get_buffer_data(
             GLOBAL_STATE.get_active_device_id()
         )
-
+    
         if not data:
             return
-
-        pp = data.get("plant_planner", {})
-
+    
+        web_ch = data.get("webserver", {})
+    
+        pp = web_ch.get("plant_planner", {})
+    
         server_rev = int(
-            pp.get("rev_plant_planner", 0)
+            web_ch.get("rev_plant_planner", 0)
         )
-
+    
         if (
             self._last_sent_rev > server_rev and
             (time.time() - self._last_send_time > 3.0)
         ):
-
+    
             if self._retry_count < self._max_retries:
-
+    
                 self._retry_count += 1
-
+    
                 print(
                     f"[PlantPlanner] WAITING FOR REV CONFIRM "
                     f"{server_rev}/{self._last_sent_rev}"
                 )
 
+    def _check_day_rollover(self, dt):
+    
+        today = date.today()
+    
+        if today != self._last_day:
+    
+            self._last_day = today
+    
+            print(
+                "[PlantPlanner] DAY CHANGED -> REFRESH UI"
+            )
+    
+            self.build_ui()
     # =============================================================================
     # UPDATE
     # =============================================================================
 
     def update_from_global(self, data):
-
+    
         if not data:
             return
-
+    
         self.header.update_from_global(data)
-
-        pp = data.get("plant_planner", {})
-
+    
+        web_ch = data.get("webserver", {})
+    
+        pp = web_ch.get("plant_planner", {})
+    
         if "plants" not in pp:
             return
-        
+    
         new_plants = pp["plants"]
-        
+    
         if new_plants != self.plants:
-        
+    
             self.plants = copy.deepcopy(new_plants)
-        
+    
             self.build_ui()

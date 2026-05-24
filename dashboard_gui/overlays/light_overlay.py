@@ -109,14 +109,54 @@ class LightOverlay(FloatLayout):
         self.panel.add_widget(status_box)
 
         # === INTENSITÄT SLIDER MIT BESCHRIFTUNG (SOLL-WERT DARÜBER) ===
-        intensity_header = BoxLayout(size_hint_y=None, height=dp_scaled(24), spacing=dp_scaled(8))
-        self.lbl_intensity = Label(text="INTENSITÄT", font_size=sp_scaled(17), 
-                                  color=(1, 1, 1, 0.9), bold=True, size_hint_x=None, width=dp_scaled(145))
-        self.lbl_slider_target = Label(text="0%", font_size=sp_scaled(21), bold=True, 
-                                      color=(0.0, 0.75, 1, 1), size_hint_x=1, halign='right')
+        intensity_header = BoxLayout(
+            size_hint_y=None,
+            height=dp_scaled(24),
+            spacing=dp_scaled(4)
+        )
+        
+        self.lbl_intensity = Label(
+            text="INTENSITÄT",
+            font_size=sp_scaled(17),
+            color=(1, 1, 1, 0.9),
+            bold=True,
+            size_hint_x=None,
+            width=dp_scaled(120)
+        )
+        
+        # TARGET %
+        self.lbl_slider_target = Label(
+            text="0%",
+            font_size=sp_scaled(21),
+            bold=True,
+            color=(0.0, 0.75, 1, 1),
+            size_hint_x=None,
+            width=dp_scaled(72),
+            halign='right',
+            valign='middle'
+        )
+        self.lbl_slider_target.bind(
+            size=self.lbl_slider_target.setter('text_size')
+        )
+        
+        # >>> NEU: LIGHT STATE
+        self.lbl_light_state = Label(
+            text="DAY",
+            font_size=sp_scaled(14),
+            bold=True,
+            color=(0, 1, 0, 0.95),
+            size_hint_x=1,
+            halign='right',
+            valign='middle'
+        )
+        self.lbl_light_state.bind(
+            size=self.lbl_light_state.setter('text_size')
+        )
         
         intensity_header.add_widget(self.lbl_intensity)
         intensity_header.add_widget(self.lbl_slider_target)
+        intensity_header.add_widget(self.lbl_light_state)
+        
         self.panel.add_widget(intensity_header)
 
         # Haupt-Slider
@@ -154,10 +194,10 @@ class LightOverlay(FloatLayout):
 
         # Timeline (X-Achse)
         self.timeline_layout = FloatLayout(size_hint_y=None, height=dp_scaled(15))
-        self.lbl_time_00 = Label(text="00:00", font_size=sp_scaled(11), color=(0.5, 0.5, 0.5, 0.8), size_hint=(None, None), size=(dp_scaled(40), dp_scaled(15)))
-        self.lbl_time_06 = Label(text="06:00", font_size=sp_scaled(11), color=(0.5, 0.5, 0.5, 0.8), size_hint=(None, None), size=(dp_scaled(40), dp_scaled(15)))
-        self.lbl_time_12 = Label(text="12:00", font_size=sp_scaled(11), color=(0.5, 0.5, 0.5, 0.8), size_hint=(None, None), size=(dp_scaled(40), dp_scaled(15)))
-        self.lbl_time_18 = Label(text="18:00", font_size=sp_scaled(11), color=(0.5, 0.5, 0.5, 0.8), size_hint=(None, None), size=(dp_scaled(40), dp_scaled(15)))
+        self.lbl_time_00 = Label(text="00:00", font_size=sp_scaled(11), color=(0.82, 0.82, 0.82, 0.92), size_hint=(None, None), size=(dp_scaled(40), dp_scaled(15)))
+        self.lbl_time_06 = Label(text="06:00", font_size=sp_scaled(11), color=(0.82, 0.82, 0.82, 0.92), size_hint=(None, None), size=(dp_scaled(40), dp_scaled(15)))
+        self.lbl_time_12 = Label(text="12:00", font_size=sp_scaled(11), color=(0.82, 0.82, 0.82, 0.92), size_hint=(None, None), size=(dp_scaled(40), dp_scaled(15)))
+        self.lbl_time_18 = Label(text="18:00", font_size=sp_scaled(11), color=(0.82, 0.82, 0.82, 0.92), size_hint=(None, None), size=(dp_scaled(40), dp_scaled(15)))
         
         self.timeline_layout.add_widget(self.lbl_time_00)
         self.timeline_layout.add_widget(self.lbl_time_06)
@@ -187,10 +227,17 @@ class LightOverlay(FloatLayout):
         self._update_event = Clock.schedule_interval(self.update_ui, 1.0)
         
         self.add_widget(self.panel)
-
+    
     def _create_styled_btn(self, text):
-        return Button(text=text, markup=True, background_normal="", background_color=(0.15, 0.15, 0.15, 1), color=(0.5, 0.5, 0.5, 1), font_size=sp_scaled(18))
-
+        return Button(
+            text=text,
+            markup=True,
+            background_normal="",
+            background_down="",
+            background_color=(0.15, 0.15, 0.15, 1),
+            color=(1, 1, 1, 1),  # gleiche Basis wie Exhaust (lesbar default)
+            font_size=sp_scaled(18)
+        )
     def _init_values(self, *_):
         mac = GLOBAL_STATE.get_active_device_id()
         data = GLOBAL_STATE.overlay_engine.get_buffer_data(mac)
@@ -204,46 +251,184 @@ class LightOverlay(FloatLayout):
         self._update_graph()
 
     def _apply_server_snapshot(self, data):
-        if not data: return
+        if not data:
+            return
+    
         mode = data.get('light_mode', 'man')
-        target = int(data.get('light_target', 0))    
-        current_hw = int(data.get('light_pct', 0))   
-        
-        h, m = int(data.get('l_start_h', 8)), int(data.get('l_start_m', 0))
-        dur, srise, sset = int(data.get('l_dur', 720)), int(data.get('l_sunrise', 60)), int(data.get('l_sunset', 60))
-
+    
+        phase = str(
+            data.get('light_phase', 'DAY')
+        ).upper()
+    
+        climate_override = bool(
+            data.get('light_climate_override', False)
+        )
+    
+        state_reason = str(
+            data.get('light_state_reason', '')
+        ).upper().strip()
+    
+        target = int(data.get('light_target', 0))
+        current_hw = int(data.get('light_pct', 0))
+    
+        h = int(data.get('l_start_h', 8))
+        m = int(data.get('l_start_m', 0))
+    
+        dur = int(data.get('l_dur', 720))
+        srise = int(data.get('l_sunrise', 60))
+        sset = int(data.get('l_sunset', 60))
+    
+        # =====================================================
+        # CURRENT VALUE COLOR
+        # =====================================================
+    
         if mode == "tim" and current_hw != target and current_hw > 0:
-            self.lbl_val.color = (1, 0.72, 0.05, 1) 
+            self.lbl_val.color = (1, 0.72, 0.05, 1)
         else:
-            self.lbl_val.color = (1, 1, 1, 1)       
-
+            self.lbl_val.color = (1, 1, 1, 1)
+    
         self.lbl_val.text = f"{current_hw}%"
-        self.lbl_slider_target.text = f"{target}%"      # <- neu
-        
+        self.lbl_slider_target.text = f"{target}%"
+    
+        # =====================================================
+        # BASE LIGHT PHASE
+        # =====================================================
+    
+        if phase == "MORNING":
+    
+            base_text = "SUNRISE"
+            base_color = (1.0, 0.72, 0.15, 1)
+    
+        elif phase == "EVENING":
+    
+            base_text = "SUNSET"
+            base_color = (1.0, 0.45, 0.1, 1)
+    
+        elif phase == "NIGHT":
+    
+            base_text = "NIGHT"
+            base_color = (0.45, 0.65, 1.0, 1)
+    
+        else:
+    
+            base_text = "DAY"
+            base_color = (0.0, 1.0, 0.35, 1)
+    
+        # =====================================================
+        # STATE EXTENSIONS
+        # =====================================================
+    
+        extensions = []
+    
+        # -----------------------------------------------------
+        # CLIMATE OVERRIDE FLAG
+        # -----------------------------------------------------
+    
+        if climate_override:
+    
+            extensions.append(
+                "[color=00ff66]CLIM-OVR[/color]"
+            )
+    
+        # -----------------------------------------------------
+        # STATE REASON
+        # -----------------------------------------------------
+    
+        ignored_reasons = {
+            "",
+            "MANUAL",
+            "NORMAL",
+            "DAY",
+            "TIMER"
+        }
+    
+        if state_reason not in ignored_reasons:
+    
+            extensions.append(
+                f"[color=ffcc33]{state_reason}[/color]"
+            )
+    
+        # =====================================================
+        # FINAL LIGHT STATE LABEL
+        # =====================================================
+    
+        final_text = base_text
+    
+        if extensions:
+    
+            final_text += " | " + " | ".join(extensions)
+    
+        self.lbl_light_state.markup = True
+        self.lbl_light_state.text = final_text
+        self.lbl_light_state.color = base_color
+    
+        # =====================================================
+        # STATUS TEXT
+        # =====================================================
+    
         if mode == "off":
+    
             self.lbl_status_text.text = "STATUS: AUS"
             self.lbl_status_text.color = (1, 0.2, 0.2, 0.8)
+    
         elif mode == "man":
+    
             self.lbl_status_text.text = "STATUS: MANUELL"
             self.lbl_status_text.color = (0, 0.8, 1, 1)
+    
         else:
+    
             self.lbl_status_text.text = "STATUS: TIMER"
             self.lbl_status_text.color = (0, 1, 0, 1)
-
+    
+        # =====================================================
+        # SLIDERS
+        # =====================================================
+    
         self.slider.value = target
-        self.slider_start.value = (h * 60 + m) // 15
+    
+        self.slider_start.value = (
+            (h * 60 + m) // 15
+        )
+    
         dur_steps = dur // 15
+    
         self.slider_dur.value = dur_steps
+    
         self.slider_sunrise_sunset.range_max = dur_steps
-        self.slider_sunrise_sunset.min_value = srise // 15
-        self.slider_sunrise_sunset.max_value = dur_steps - (sset // 15)
-
-        self.lbl_start.text = f"START: {h:02d}:{m:02d}"
-        self.lbl_dur.text = f"DAUER: {dur//60}h {dur%60:02d}m"
+    
+        self.slider_sunrise_sunset.min_value = (
+            srise // 15
+        )
+    
+        self.slider_sunrise_sunset.max_value = (
+            dur_steps - (sset // 15)
+        )
+    
+        # =====================================================
+        # LABELS
+        # =====================================================
+    
+        self.lbl_start.text = (
+            f"START: {h:02d}:{m:02d}"
+        )
+    
+        self.lbl_dur.text = (
+            f"DAUER: {dur//60}h {dur%60:02d}m"
+        )
+    
+        # =====================================================
+        # FINALIZE
+        # =====================================================
+    
         self._update_ramp_label(srise, sset)
-        self._apply_button_styles(mode, target)
+    
+        self._apply_button_styles(
+            mode,
+            target
+        )
+    
         self._update_graph()
-
     def _update_graph(self, *args):
         if not self._init_done: return
         try:
@@ -479,19 +664,30 @@ class LightOverlay(FloatLayout):
             if not is_retry: self.engine.reset_retry()
 
     def _apply_button_styles(self, mode, target=0):
-        c_bg = (0.15, 0.15, 0.15, 1)
-        self.btn_man.background_color = (0, 1, 0, 0.8) if mode == "man" else c_bg
-        self.btn_tim.background_color = (0, 0.6, 1, 0.8) if mode == "tim" else c_bg
-        
-        # Klima-Button Styling basierend auf dem echten Live-Status des ESP32 aus dem Puffer
+    
+        base = (0.15, 0.15, 0.15, 1)
+    
+        # MANUAL
+        self.btn_man.background_color = (0, 1, 0, 0.85) if mode == "man" else base
+    
+        # TIMER
+        self.btn_tim.background_color = (0, 0.7, 1, 0.85) if mode == "tim" else base
+    
+        # CLIMATE (ESP LIVE STATUS)
         mac = GLOBAL_STATE.get_active_device_id()
         server_data = GLOBAL_STATE.overlay_engine.get_buffer_data(mac)
         climate_active = server_data.get('light_climate_override', False)
+    
+        self.btn_climate.background_color = (1, 0.5, 0, 0.85) if climate_active else base
+    
+        # 🔥 TEXT KONTRAST FIX (EXHAUST 1:1 übernommen)
+        def fix(btn, active):
+            btn.color = (0, 0, 0, 1) if active else (1, 1, 1, 1)
+    
+        fix(self.btn_man, mode == "man")
+        fix(self.btn_tim, mode == "tim")
+        fix(self.btn_climate, climate_active)
         
-        # Wenn aktiv, leuchtet der Button in edlem Warn-Orange/Gelb
-        self.btn_climate.background_color = (1, 0.6, 0, 0.8) if climate_active else c_bg
-        self.btn_climate.color = (1, 1, 1, 1) if climate_active else (0.5, 0.5, 0.5, 1)
-
     def _u(self, *_):
         self.bg_rect.pos, self.bg_rect.size = self.panel.pos, self.panel.size
         self.outline.rounded_rectangle = (self.panel.x, self.panel.y, self.panel.width, self.panel.height, dp_scaled(20))

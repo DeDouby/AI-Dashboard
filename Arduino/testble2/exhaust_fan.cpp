@@ -74,7 +74,7 @@ static uint32_t last_wind_change = 0;
 static uint32_t last_rev_seen = 0;
 static uint32_t last_warn_msg = 0; // Neu: Damit die Konsole nicht zugespamt wird
 static String exhaust_fan_state_reason = "day_auto";
-
+static bool vpd_control_enabled = true; // für zukünftige UI-Steuerung
 // Ganz oben bei den anderen globalen Variablen einfügen:
 bool exhaust_fan_chaos_active = false;
 
@@ -274,84 +274,92 @@ void exhaust_fan_update() {
         }
     }
 
+
     // ============================================================
-    // 3. BASIS-REGELUNG
-    // ============================================================
-// ============================================================
-    // 3. BASIS-REGELUNG (TEMP, HUM & VPD)
+    // 3. BASIS-REGELUNG (TEMP, HUM & VPD) WITH SENSOR FAILSAFE
     // ============================================================
     if (is_manual) {
         final_pct = (float)exhaust_fan_pct;
         exhaust_fan_state_reason = "manual";
     } 
     else {
-        float mix_factor = 0.0f;
-        if (in_temp > -200.0f && in_hum > -200.0f) {
+        bool sensors_valid = (in_temp > -200.0f && in_hum > -200.0f);
+
+        if (sensors_valid) {
+            float mix_factor = 0.0f;
             
-            // A: Temperatur-Stress (Regelt hoch, wenn t > max)
+            // A: Temperatur-Stress (immer aktiv)
             float t_f = constrain((in_temp - target_temp_max) / 3.0f, 0.0f, 1.0f);
             
-            // B: Feuchtigkeits-Stress (Regelt hoch, wenn h > max)
+            // B: Feuchtigkeits-Stress (immer aktiv)
             float h_f = constrain((in_hum - (float)target_humidity_max) / 10.0f, 0.0f, 1.0f);
             
-            // C: VPD-Stress (NEU)
-            float current_vpd = calculate_current_vpd(in_temp, in_hum);
+            // C: VPD-Stress → NUR bei Licht!
             float vpd_f = 0.0f;
+            bool vpd_active = false;
 
-            if (current_vpd < target_vpd_min) {
-                // VPD zu niedrig (Luft zu gesättigt/kalt) -> Lüfter HOCH
-                vpd_f = constrain((target_vpd_min - current_vpd) / 0.3f, 0.0f, 1.0f);
-            } else if (current_vpd > target_vpd_max) {
-                // VPD zu hoch (Luft zu trocken/heiß) -> Lüfter HOCH (zum Kühlen/Austausch)
-                // Hinweis: Hier könnte man auch drosseln, aber meist dominiert Temp-Max
-                vpd_f = constrain((current_vpd - target_vpd_max) / 0.5f, 0.0f, 1.0f);
+            // VPD nur aktiv während Lichtphase (inkl. Rampen)
+            if (phase == DAY_TRANSPIRE || 
+                phase == MORNING_WAKEUP || 
+                phase == EVENING_TRANSITION) {
+                
+                vpd_active = true;
+                float current_vpd = calculate_current_vpd(in_temp, in_hum);
+
+                if (current_vpd < target_vpd_min) {
+                    vpd_f = constrain((target_vpd_min - current_vpd) / 0.3f, 0.0f, 1.0f);
+                } else if (current_vpd > target_vpd_max) {
+                    vpd_f = constrain((current_vpd - target_vpd_max) / 0.5f, 0.0f, 1.0f);
+                }
             }
 
-            // Der dominante Faktor bestimmt den Lüfter-Einsatz
+            // Dominanter Faktor
             mix_factor = max({t_f, h_f, vpd_f});
 
-            // Nacht-Absenkung & Phasen-Anpassung
+            // === Phasen-Anpassung ===
             if (phase == NIGHT_RECOVERY) {
-                mix_factor *= 0.5f;
-            } else if (phase == EVENING_TRANSITION) {
+                mix_factor *= 0.5f;           // Nachtreduktion (nur Temp + Hum)
+                exhaust_fan_state_reason = "night_auto";
+            } 
+            else if (phase == EVENING_TRANSITION) {
                 mix_factor *= 0.75f;
-            } else if (phase == MORNING_WAKEUP) {
-                mix_factor *= 1.1f; 
-            }        
-        }
+                exhaust_fan_state_reason = vpd_active && vpd_f > 0.1f ? "vpd_sunset" : "sunset_ramp";
+            } 
+            else if (phase == MORNING_WAKEUP) {
+                mix_factor *= 1.1f;
+                exhaust_fan_state_reason = vpd_active && vpd_f > 0.1f ? "vpd_sunrise" : "sunrise_ramp";
+            } 
+            else { // DAY_TRANSPIRE
+                exhaust_fan_state_reason = (vpd_f > 0.15f) ? "vpd_day" : 
+                                          (t_f > h_f ? "temp_day" : "hum_day");
+            }
 
-        int fan_range = exhaust_fan_pct - exhaust_fan_min;
-        final_pct = (float)exhaust_fan_min + (fan_range * mix_factor);
-        
-        // Grund für die Regelung im Status setzen (fürs UI Debugging)
-        if (mix_factor > 0) {
-            float current_vpd = calculate_current_vpd(in_temp, in_hum);
-            if (current_vpd < target_vpd_min) exhaust_fan_state_reason = "vpd_low_fix";
-            else if (current_vpd > target_vpd_max) exhaust_fan_state_reason = "vpd_high_fix";
-            else exhaust_fan_state_reason = (phase == NIGHT_RECOVERY) ? "night_auto" : "day_auto";
-        }
-
-        // ============================================================
-        // 4. SMART FAILSAFE (MIT VEREDELUNGS-CHECK)
-        // ============================================================
-        bool values_too_high = (in_temp > target_temp_max || in_hum > target_humidity_max);
-        
-        // Failsafe (Pulsieren) nur wenn:
-        // - Werte zu hoch 
-        // - UND Außenluft schlechter ist
-        // - UND Außenluft NICHT durch Wärme veredelt werden kann
-        bool outside_is_bad = (out_temp > in_temp + 0.2f || out_hum > in_hum + 2.0f);
-
-        if (out_ok && values_too_high && outside_is_bad && !air_can_be_refined) {
-            failsafe_phase += 1;
-            float pulse = (sin(failsafe_phase * 0.15f) * 0.5f + 0.5f);
-            int fs_min = max((int)EXHAUST_FAILSAFE_MIN, exhaust_fan_min);
-            final_pct = fs_min + ((exhaust_fan_pct - fs_min) * pulse);
-            exhaust_fan_state_reason = "failsafe_unrefinable";
+            int fan_range = exhaust_fan_pct - exhaust_fan_min;
+            final_pct = (float)exhaust_fan_min + (fan_range * mix_factor);
         } 
-        else if (values_too_high && air_can_be_refined) {
-            // Luft ist zwar außen feucht, wird aber im Zelt gut -> Normal regeln
-            exhaust_fan_state_reason = "using_refined_air";
+        else {
+            // Sensor-Failsafe
+            final_pct = (float)exhaust_fan_pct;
+            exhaust_fan_state_reason = "CRIT_SENSOR_TIMEOUT";
+        }
+
+        // ============================================================
+        // 4. SMART FAILSAFE ( unverändert )
+        // ============================================================
+        if (sensors_valid) {
+            bool values_too_high = (in_temp > target_temp_max || in_hum > target_humidity_max);
+            bool outside_is_bad = (out_temp > in_temp + 0.2f || out_hum > in_hum + 2.0f);
+
+            if (out_ok && values_too_high && outside_is_bad && !air_can_be_refined) {
+                failsafe_phase += 1;
+                float pulse = (sin(failsafe_phase * 0.15f) * 0.5f + 0.5f);
+                int fs_min = max((int)EXHAUST_FAILSAFE_MIN, exhaust_fan_min);
+                final_pct = fs_min + ((exhaust_fan_pct - fs_min) * pulse);
+                exhaust_fan_state_reason = "failsafe_unrefinable";
+            } 
+            else if (values_too_high && air_can_be_refined) {
+                exhaust_fan_state_reason = "using_refined_air";
+            }
         }
     }
 
@@ -408,10 +416,13 @@ void exhaust_fan_process_json(JsonObject doc) {
             // --- MODUS (AUTO / MAN) ---
             if (doc.containsKey("exhaust_fan_mode")) {
                 String m = doc["exhaust_fan_mode"];
-                if (m == "auto") current_exhaust_fan_mode = exhaust_fan_MODE_AUTOMATIC;
-                else current_exhaust_fan_mode = exhaust_fan_MODE_MANUAL;
-                // 'chao' als eigenständigen Modus brauchen wir nicht mehr, 
-                // da es jetzt ein paralleles Flag ist!
+            
+                if (m == "auto") {
+                    current_exhaust_fan_mode = exhaust_fan_MODE_AUTOMATIC;
+                } else if (m == "man") {
+                    current_exhaust_fan_mode = exhaust_fan_MODE_MANUAL;
+                }
+            
                 flash_changed = true;
             }
 
@@ -442,8 +453,10 @@ void exhaust_fan_get_status(JsonObject doc) {
     doc["exhaust_fan_pct"] = exhaust_fan_pct;
     doc["exhaust_fan_min"] = exhaust_fan_min;
     doc["exhaust_fan_speed_now"] = current_exhaust_fan_speed;
-    doc["exhaust_fan_mode"] = (current_exhaust_fan_mode == exhaust_fan_MODE_AUTOMATIC) ? "auto" : 
-                             (current_exhaust_fan_mode == exhaust_fan_MODE_CHAOTIC) ? "chao" : "man";
+    doc["exhaust_fan_mode"] =
+        (current_exhaust_fan_mode == exhaust_fan_MODE_AUTOMATIC)
+        ? "auto"
+        : "man";
     doc["target_temp_min"] = target_temp_min;
     doc["target_temp_max"] = target_temp_max;
     doc["target_humidity_min"] = target_humidity_min;

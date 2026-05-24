@@ -62,8 +62,12 @@ class I18N:
                 "Bluetooth and WiFi are required to read sensors and manage the controller. "
                 "Please grant the requested permissions."
             ),
+            # EN
             "about.repo_url": "https://github.com/Hackintosh1980/AI-Dashboard",
             "about.repo_text": "Project & Updates:",
+            "about.community_text": "Community & Grow Talk:",
+            "about.community_url": "https://www.facebook.com/groups/896803673081754",
+            "about.community_name": "OpenGrowController Community ",
             "about.copyright": "© 2026 Dominik Rosenthal (Hackintosh1980)",
         },
 
@@ -119,8 +123,13 @@ class I18N:
                 "Se requiere Bluetooth y WiFi para leer los sensores y gestionar el controlador. "
                 "Por favor, conceda los permisos solicitados."
             ),
+            
+            # ES
             "about.repo_url": "https://github.com/Hackintosh1980/AI-Dashboard",
-            "about.repo_text": "Proyecto y Actualizaciones:",
+            "about.repo_text": "Proyecto y actualizaciones:",
+            "about.community_text": "Comunidad y charla Grow:",
+            "about.community_url": "https://www.facebook.com/groups/896803673081754",
+            "about.community_name": "OpenGrowController Community ",
             "about.copyright": "© 2026 Dominik Rosenthal (Hackintosh1980)",
         },
 
@@ -177,9 +186,13 @@ class I18N:
                 "Bluetooth und WiFi sind erforderlich, um Sensoren auszulesen und den Controller zu steuern. "
                 "Bitte gewähre die angeforderten Berechtigungen."
             ),
+                # DE
             "about.repo_url": "https://github.com/Hackintosh1980/AI-Dashboard",
             "about.repo_text": "Projekt & Updates:",
-            "about.copyright": "© 2026 Dominik Rosenthal (Hackintosh1980)",
+            "about.community_text": "Community & Grow Talk:",
+            "about.community_url": "https://www.facebook.com/groups/896803673081754",
+            "about.community_name": "OpenGrowController Community ",
+            "about.copyright": "© 2026 Dominik Rosenthal (Hackintosh1980)", 
         }
     }
 

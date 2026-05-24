@@ -24,17 +24,11 @@ struct Plant {
     // Phasen- und Datumsfelder
     String harvest_date;
     String germination_start;
-    String germination_end;
     String seedling_start;
-    String seedling_end;
     String vegetative_start;
-    String vegetative_end;
     String flowering_start;
-    String flowering_end;
     String drying_start;
-    String drying_end;
     String curing_start;
-    String curing_end;
 };
 
 // Modul-Schnittstellen

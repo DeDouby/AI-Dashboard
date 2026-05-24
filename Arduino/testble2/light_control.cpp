@@ -86,7 +86,7 @@ uint32_t light_duration_sec = 43200;  // Sekunden
 int target_brightness = 50;
 int effective_brightness = 0;
 bool light_climate_override = false;
-
+String light_state_reason = "manual";
 float light_current_temp = -256.0f;
 float light_current_humidity = -256.0f;
 
@@ -171,119 +171,229 @@ void light_init() {
     light_update();
     Serial.println("Light Module initialisiert (stabiler Modus)");
 }
-
 void light_update() {
     time_t now = time(nullptr);
     bool hasTime = (now >= 1000000);
+
     struct tm ti_now;
     int now_sec = 0;
+
     if (hasTime) {
         localtime_r(&now, &ti_now);
-        now_sec = ti_now.tm_hour * 3600 + ti_now.tm_min * 60 + ti_now.tm_sec;
+        now_sec =
+            ti_now.tm_hour * 3600 +
+            ti_now.tm_min * 60 +
+            ti_now.tm_sec;
     }
-    
+
     bool timer_should_be_on = false;
-    uint32_t elapsed = 0; 
+
+    uint32_t elapsed = 0;
     uint32_t remaining = 0;
 
-    if (current_light_mode == LIGHT_MODE_TIMER) {
-        int start_sec = l_target_h * 3600 + l_target_m * 60;
-        int dur_sec = l_target_dur * 60;
-        int end_sec = start_sec + dur_sec;
+    // =====================================================
+    // TIMER MODUS
+    // =====================================================
 
-        // Logik für Tag & Nachtübersprung
+    if (current_light_mode == LIGHT_MODE_TIMER) {
+
+        int start_sec =
+            l_target_h * 3600 +
+            l_target_m * 60;
+
+        int dur_sec =
+            l_target_dur * 60;
+
+        int end_sec =
+            start_sec + dur_sec;
+
+        // -------------------------------------------------
+        // MITTERNACHTSLOGIK
+        // -------------------------------------------------
+
         if (end_sec <= 86400) {
-            if (now_sec >= start_sec && now_sec < end_sec) {
+
+            if (now_sec >= start_sec &&
+                now_sec < end_sec) {
+
                 timer_should_be_on = true;
-                elapsed = now_sec - start_sec;
-                remaining = end_sec - now_sec;
+
+                elapsed =
+                    now_sec - start_sec;
+
+                remaining =
+                    end_sec - now_sec;
             }
-        } else {
-            int overflow = end_sec - 86400;
-            if (now_sec >= start_sec || now_sec < overflow) {
+        }
+        else {
+
+            int overflow =
+                end_sec - 86400;
+
+            if (now_sec >= start_sec ||
+                now_sec < overflow) {
+
                 timer_should_be_on = true;
-                elapsed = (now_sec >= start_sec) ? (now_sec - start_sec) : (86400 - start_sec + now_sec);
-                remaining = (now_sec >= start_sec) ? (86400 - now_sec + overflow) : (overflow - now_sec);
+
+                elapsed =
+                    (now_sec >= start_sec)
+                    ? (now_sec - start_sec)
+                    : (86400 - start_sec + now_sec);
+
+                remaining =
+                    (now_sec >= start_sec)
+                    ? (86400 - now_sec + overflow)
+                    : (overflow - now_sec);
             }
         }
 
+        // -------------------------------------------------
+        // =====================================================
+        // TIMER AKTIV
+        // =====================================================
+        
         if (timer_should_be_on) {
-            uint32_t sunrise_sec = l_target_sunrise * 60;
-            uint32_t sunset_sec = l_target_sunset * 60;
-            
-            // Rampen-Berechnung
+        
+            uint32_t sunrise_sec =
+                l_target_sunrise * 60;
+        
+            uint32_t sunset_sec =
+                l_target_sunset * 60;
+        
+            // STANDARD
+            effective_brightness =
+                target_brightness;
+        
+            // DEFAULT STATE
+            light_state_reason = "DAY";
+        
+            // =====================================================
+            // 🌅 MORNING RAMP
+            // =====================================================
+        
             if (elapsed < sunrise_sec) {
-                effective_brightness = (target_brightness * elapsed) / sunrise_sec;
-            } else if (remaining < sunset_sec) {
-                effective_brightness = (target_brightness * remaining) / sunset_sec;
-            } else {
-                effective_brightness = target_brightness;
-            
-                // =====================================================
-                // CLIMATE OVERRIDE
-                // NUR IM STABILEN PLATEAU
-                // KEINE RAMPEN
-                // KEINE TARGET-MUTATION
-                // =====================================================
-            
-                if (light_climate_override) {
-            
-                    bool temp_valid =
-                        is_sensor_value_valid(light_current_temp);
-            
-                    bool hum_valid =
-                        is_sensor_value_valid(light_current_humidity);
-            
-                    // Sensor-Failsafe:
-                    // Bei ungültigen Werten -> komplett ignorieren
-                    if (temp_valid && hum_valid) {
-            
-                        float brightness_factor = 1.0f;
-            
-                        // =========================================
-                        // TEMPERATUR
-                        // =========================================
-            
-                        if (light_current_temp > target_temp_max) {
-                            brightness_factor *= 0.8f;
-                        }
-                        else if (light_current_temp < target_temp_min) {
-                            brightness_factor *= 1.2f;
-                        }
-            
-                        // =========================================
-                        // HUMIDITY
-                        // =========================================
-            
-                        if (light_current_humidity > target_humidity_max) {
-                            brightness_factor *= 1.2f;
-                        }
-                        else if (light_current_humidity < target_humidity_min) {
-                            brightness_factor *= 0.8f;
-                        }
-            
-                        effective_brightness =
-                            (int)((float)target_brightness *
-                            brightness_factor + 0.5f);
-            
-                        effective_brightness =
-                            constrain(effective_brightness, 0, 100);
+        
+                light_state_reason = "SUNRISE";
+        
+                effective_brightness =
+                    (target_brightness * elapsed) /
+                    sunrise_sec;
+            }
+        
+            // =====================================================
+            // 🌇 EVENING RAMP
+            // =====================================================
+        
+            else if (remaining < sunset_sec) {
+        
+                light_state_reason = "SUNSET";
+        
+                effective_brightness =
+                    (target_brightness * remaining) /
+                    sunset_sec;
+            }
+        
+            // =====================================================
+            // 🌡️ CLIMATE OVERRIDE
+            // =====================================================
+        
+            if (light_climate_override) {
+
+                bool temp_valid =
+                    is_sensor_value_valid(light_current_temp);
+
+                bool hum_valid =
+                    is_sensor_value_valid(light_current_humidity);
+
+                if (temp_valid && hum_valid) {
+
+                    float brightness_factor = 1.0f;
+
+                    // TEMP HIGH
+                    if (light_current_temp > target_temp_max) {
+                        brightness_factor *= 0.8f;
                     }
+
+                    // TEMP LOW
+                    else if (light_current_temp < target_temp_min) {
+                        brightness_factor *= 1.2f;
+                    }
+
+                    // HUM HIGH
+                    if (light_current_humidity > (float)target_humidity_max) {
+                        brightness_factor *= 1.2f;
+                    }
+
+                    // HUM LOW
+                    else if (light_current_humidity < (float)target_humidity_min) {
+                        brightness_factor *= 0.8f;
+                    }
+
+                    effective_brightness =
+                        (int)(
+                            (float)effective_brightness *
+                            brightness_factor +
+                            0.5f
+                        );
+
+                    effective_brightness =
+                        constrain(
+                            effective_brightness,
+                            0,
+                            100
+                        );
                 }
             }
-        } else {
+        }
+
+        // -------------------------------------------------
+        // TIMER AUS
+        // -------------------------------------------------
+
+        else {
+
+            light_state_reason = "NIGHT";
             effective_brightness = 0;
         }
-    } else if (current_light_mode == LIGHT_MODE_MANUAL) {
-        effective_brightness = target_brightness;
-
-    } else {
-        effective_brightness = target_brightness;
     }
 
-    ledcWrite(PIN_LIGHT, map(effective_brightness, 0, 100, 0, 255));
-}
+    // =====================================================
+    // MANUAL MODUS
+    // =====================================================
 
+    else if (current_light_mode == LIGHT_MODE_MANUAL) {
+        
+        light_state_reason = "MANUAL";
+
+        effective_brightness =
+            target_brightness;
+    }
+
+    // =====================================================
+    // FALLBACK
+    // =====================================================
+
+    else {
+
+        effective_brightness =
+            target_brightness;
+    }
+
+    // =====================================================
+    // PWM OUTPUT
+    // =====================================================
+
+    ledcWrite(
+        PIN_LIGHT,
+        map(
+            effective_brightness,
+            0,
+            100,
+            0,
+            255
+        )
+    );
+}
 
 
 float light_get_phase_progress() {
@@ -426,45 +536,25 @@ LightPhase light_get_current_phase() {
 }
 
 PlantPhase getPlantPhase() {
-    time_t now = time(nullptr);
-    struct tm ti;
-    localtime_r(&now, &ti);
 
-    int now_sec = ti.tm_hour * 3600 + ti.tm_min * 60 + ti.tm_sec;
+    LightPhase lp =
+        light_get_current_phase();
 
-    int start_sec = light_get_start_h() * 3600 + light_get_start_m() * 60;
-    int dur_sec   = light_get_duration_min() * 60;
-    int end_sec   = start_sec + dur_sec;
+    switch (lp) {
 
-    int sunrise_sec = light_get_sunrise_min() * 60;
-    int sunset_sec  = light_get_sunset_min() * 60;
+        case LIGHT_PHASE_MORNING:
+            return MORNING_WAKEUP;
 
-    bool in_morning = false;
-    bool in_evening = false;
+        case LIGHT_PHASE_EVENING:
+            return EVENING_TRANSITION;
 
-    // MORNING
-    if (sunrise_sec > 0) {
-        int sunrise_end = start_sec + sunrise_sec;
+        case LIGHT_PHASE_DAY:
+            return DAY_TRANSPIRE;
 
-        in_morning =
-            (now_sec >= start_sec &&
-             now_sec < sunrise_end);
+        case LIGHT_PHASE_NIGHT:
+        default:
+            return NIGHT_RECOVERY;
     }
-
-    // EVENING
-    if (sunset_sec > 0) {
-        in_evening =
-            (now_sec >= (end_sec - sunset_sec) &&
-             now_sec < end_sec);
-    }
-
-    if (in_morning) return MORNING_WAKEUP;
-    if (in_evening) return EVENING_TRANSITION;
-
-    if (now_sec >= start_sec && now_sec < end_sec)
-        return DAY_TRANSPIRE;
-
-    return NIGHT_RECOVERY;
 }
 // DIESE BEIDEN HIER MÜSSEN UNBEDINGT UNTER DER UPDATE FUNKTION STEHEN:
 int light_get_effective_brightness() {
@@ -714,4 +804,5 @@ void light_control_get_status(JsonObject &doc) {
     doc["light_remaining"] = light_get_minutes_to_next_change();
     doc["rev_light"] = light_rev;
     doc["rev_init_light"] = light_init_rev;
+    doc["light_state_reason"] = light_state_reason;
 }

@@ -71,8 +71,11 @@ bool ESPWatch::syncFromRTC() {
     t.tm_hour  = hour;
     t.tm_mday  = day;
     t.tm_mon   = month - 1;
-    t.tm_year  = year + 100;   // Jahre seit 1900
-
+    t.tm_year  = year + 100;
+    
+    // WICHTIG: Sommerzeit automatisch erkennen
+    t.tm_isdst = -1;
+    
     time_t epoch = mktime(&t);
     struct timeval tv = {epoch, 0};
     settimeofday(&tv, nullptr);

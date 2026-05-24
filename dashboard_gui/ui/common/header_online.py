@@ -303,7 +303,7 @@ class HeaderBar(BoxLayout):
         self.gsm = GLOBAL_STATE
         self.orientation = "horizontal"
         self.size_hint_y = None
-        self.height = dp_scaled(40)   # Etwas höher für besseres Layout
+        self.height = dp_scaled(45)   # Etwas höher für besseres Layout
         self.spacing = dp_scaled(10)   # Kleineres Spacing für kompaktere Icons
         # Minimal Padding, Icon-Heavy Design
         self.padding = [dp_scaled(6), dp_scaled(2), dp_scaled(6), dp_scaled(2)]
@@ -331,7 +331,7 @@ class HeaderBar(BoxLayout):
             text="\uf060",
             font_name="FA",
             size_hint=(None, 1),
-            width=dp_scaled(40),
+            width=dp_scaled(70),
             background_color=(0.22, 0.25, 0.30, 0.9),
             color=(0.95, 0.95, 0.98, 1),
             font_size=sp_scaled(22),
@@ -529,16 +529,16 @@ class HeaderBar(BoxLayout):
     # Back Button Control
     # ---------------------------------------------------
     def update_back_button(self, screen_name):
-        if screen_name == "dashboard":
-            self.btn_back.opacity = 0
-            self.btn_back.disabled = True
-            self.btn_back.width = 0           # <<<<< WICHTIG
-            self.btn_back.size_hint_x = None
-        else:
-            self.btn_back.opacity = 1
-            self.btn_back.disabled = False
-            self.btn_back.width = dp_scaled(40)
-            self.btn_back.size_hint_x = None
+            if screen_name == "dashboard":
+                self.btn_back.opacity = 0
+                self.btn_back.disabled = True
+                self.btn_back.width = 0           
+                self.btn_back.size_hint_x = None
+            else:
+                self.btn_back.opacity = 1
+                self.btn_back.disabled = False
+                self.btn_back.width = dp_scaled(70) # <--- HIER: Breite ebenfalls auf 55
+                self.btn_back.size_hint_x = None
 
     def _go_back(self, *_):
         App.get_running_app().root.current = getattr(self, "_back_target", "dashboard")

@@ -47,19 +47,27 @@ class OverlayCommandEngine:
             return self.send_plant_planner_command(mac, **kwargs)
         return None
 
-
+    # =========================================================================
+    # PLANT PLANNER COMMANDS (Target-Revision v2.0 - Gesetztreu)
+    # =========================================================================
 
     def send_plant_planner_handshake(self, mac, handshake_id):
+        """
+        Reiner RAM-Ping an den ESP. Setzt rev_init_plant_planner im flüchtigen Speicher.
+        Belastet weder den Flash des ESP noch die Disk des Handys.
+        """
         payload = {
             "rev_init_plant_planner": int(handshake_id)
         }
-    
         WEB_CLIENT.send_control(mac, payload)
         return handshake_id
     
     def send_plant_planner_command(self, mac, **kwargs):
+        """
+        Inkrementiert die echte Revisionsnummer für Pflanzendaten.
+        Triggert atomares Schreiben auf dem ESP erst bei Revision-Match.
+        """
         current = self.get_latest_device_data(mac)
-    
         pp = current.get("plant_planner", {})
     
         last_rev = int(pp.get("rev_plant_planner", 0))
@@ -73,35 +81,26 @@ class OverlayCommandEngine:
         }
     
         WEB_CLIENT.send_control(mac, payload)
-    
         print(f"[PlantPlanner] TARGET-REV -> {new_rev}")
-    
         return new_rev    
+
     # =========================================================================
     # EXHAUST FAN COMMANDS (Target-Revision v2.0)
     # =========================================================================
     
     def send_exhaust_handshake(self, mac, handshake_id):
-        """
-        Rein flüchtiger Ping für Exhaust Fan.
-        Spiegelt rev_init_exhaust NUR im RAM des ESP (Alive-Check).
-        """
+        """ Rein flüchtiger Ping für Exhaust Fan. Spiegelt rev_init im RAM. """
         payload = {"rev_init_exhaust": int(handshake_id)}
         WEB_CLIENT.send_control(mac, payload)
         return handshake_id
 
     def send_exhaust_command(self, mac, **kwargs):
-        """
-        Zentrales Senden aller Exhaust-Parameter.
-        Erhöht rev_exhaust -> ESP schreibt erst bei Revision-Match in den Flash.
-        """
+        """ Erhöht rev_exhaust -> ESP schreibt erst bei Match in den Flash. """
         current = self.get_latest_device_data(mac)
         
-        # Revision hochzählen (Das Gesetz)
         last_rev = int(current.get("rev_exhaust", 0))
         new_rev = last_rev + 1
         
-        # Payload nach Target-Prinzip bauen
         payload = {
             "exhaust_fan_min": int(kwargs.get("min", current.get("exhaust_fan_min", 20))),
             "exhaust_fan_pct": int(kwargs.get("max", current.get("exhaust_fan_pct", 65))),
@@ -147,20 +146,8 @@ class OverlayCommandEngine:
         return new_rev 
 
     # =========================================================================
-    # UTILS & HELPERS
+    # GROW CONTROLLER & LIGHTS
     # =========================================================================
-
-    def get_latest_device_data(self, mac):
-        """Single Source of Truth aus dem BUFFER"""
-        from dashboard_gui.data_buffer import BUFFER
-        for frame in BUFFER.get():
-            if frame.get("device_id") == mac:
-                # Wir geben den webserver-Teil zurück, falls vorhanden
-                return frame.get("webserver", {})
-        return {}
-
-    def get_buffer_data(self, mac):
-        return self.get_latest_device_data(mac)
 
     def send_grow_controller_command(self, mac, **kwargs):
         current = self.get_latest_device_data(mac)
@@ -200,13 +187,25 @@ class OverlayCommandEngine:
         
         WEB_CLIENT.send_control(mac, payload)
         return new_rev
-    
-    def _force_resync(self, handshake_func):
-        mac = GLOBAL_STATE.get_active_device_id()
-        if not mac:
-            return
-    
-        self._my_handshake_id = int(time.time())
-        handshake_func(mac, self._my_handshake_id)
-    
-        self._send_current_state()
+
+    # =========================================================================
+    # UTILS (OPTIMIERT: PIPELINE-BREMSE ENTFERNT)
+    # =========================================================================
+
+    def get_latest_device_data(self, mac):
+        """ 
+        Single Source of Truth aus dem BUFFER. 
+        OPTIMIERT: Holt den Frame rückwärts (aktuellster zuerst) ohne tiefen Overhead.
+        """
+        try:
+            from dashboard_gui.data_buffer import BUFFER
+            # Umgekehrtes Suchen spart das komplette Iterieren durch alte Frames
+            for frame in reversed(BUFFER.get()):
+                if frame.get("device_id") == mac:
+                    return frame.get("webserver", {})
+        except Exception as e:
+            print(f"[Engine] Buffer Read Error: {e}")
+        return {}
+
+    def get_buffer_data(self, mac):
+        return self.get_latest_device_data(mac)
