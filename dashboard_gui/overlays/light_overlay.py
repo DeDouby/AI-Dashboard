@@ -38,16 +38,17 @@ class LightOverlay(FloatLayout):
         self.engine = BaseOverlayEngine()
         
         # Hintergrund
-        bg = Button(background_color=(0, 0, 0, 0.25))
-        bg.bind(on_release=lambda *_: self.close())
-        self.add_widget(bg)
+        # Hintergrund mit smarter Schließ-Logik bei Missclicks
+        self.bg_btn = Button(background_color=(0, 0, 0, 0.25))
+        self.bg_btn.bind(on_release=self._on_background_click)
+        self.add_widget(self.bg_btn)
 
         # Panel (Abmessungen exakt beibehalten)
         self.panel = BoxLayout(
             orientation="vertical", 
             spacing=dp_scaled(7),
             size_hint=(None, None), 
-            size=(dp_scaled(440), dp_scaled(500)), 
+            size=(dp_scaled(800), dp_scaled(500)), 
             padding=[dp_scaled(25), dp_scaled(15), dp_scaled(25), dp_scaled(25)],
             pos_hint={"right": 0.98, "top": 0.98}
         )
@@ -80,7 +81,7 @@ class LightOverlay(FloatLayout):
         title_row = BoxLayout(size_hint_y=None, height=dp_scaled(40), spacing=dp_scaled(5))
         
         self.lbl_title = Label(text="LIGHT CONTROL PRO", bold=True, color=(0, 1, 0, 1),
-                               font_size=sp_scaled(18), halign="left", valign="middle")
+                               font_size=sp_scaled(20), halign="left", valign="middle")
         self.lbl_title.bind(size=self.lbl_title.setter('text_size'))
         
         self.sync_icon = Button(text="[font=FA]\uf021[/font]", markup=True, font_size=sp_scaled(30),
@@ -92,42 +93,78 @@ class LightOverlay(FloatLayout):
         self.panel.add_widget(title_row)
 
         # === STATUS BEREICH (nur aktueller Wert + Status + Restzeit) ===
-        status_box = BoxLayout(size_hint_y=None, height=dp_scaled(50), spacing=dp_scaled(15))
+# === NEUER STATUS BEREICH (Layout wie Exhaust) ===
+        value_row = BoxLayout(
+            orientation="horizontal",
+            size_hint_y=None,
+            height=dp_scaled(42),
+            spacing=dp_scaled(10)
+        )
         
-        self.lbl_val = Label(text="0%", font_size=sp_scaled(39), bold=True, 
-                            size_hint_x=None, width=dp_scaled(115), halign='center')
+        self.lbl_val = Label(
+            text="0%", 
+            font_size=sp_scaled(36), 
+            bold=True, 
+            size_hint_x=0.52, 
+            halign='center',
+            valign='middle'
+        )
+        self.lbl_val.bind(size=self.lbl_val.setter('text_size'))
         
-        status_right = BoxLayout(orientation='vertical', size_hint_x=1, spacing=dp_scaled(1))
-        self.lbl_status_text = Label(text="STATUS: INIT", font_size=sp_scaled(15.5), bold=True, color=(0, 1, 0, 0.85))
-        self.lbl_remaining = Label(text="RESTZEIT: --", font_size=sp_scaled(16.5), color=(1, 1, 0, 1), bold=True)
+        status_right = BoxLayout(
+            orientation='vertical', 
+            size_hint_x=0.48, 
+            spacing=dp_scaled(1)
+        )
+        self.lbl_status_text = Label(
+            text="STATUS: INIT", 
+            font_size=sp_scaled(20), 
+            bold=True, 
+            color=(0, 1, 0, 0.85),
+            halign='right'
+        )
+        self.lbl_remaining = Label(
+            text="RESTZEIT: --", 
+            font_size=sp_scaled(20), 
+            color=(1, 1, 0, 1), 
+            bold=True,
+            halign='right'
+        )
+        self.lbl_status_text.bind(size=self.lbl_status_text.setter('text_size'))
+        self.lbl_remaining.bind(size=self.lbl_remaining.setter('text_size'))
         
         status_right.add_widget(self.lbl_status_text)
         status_right.add_widget(self.lbl_remaining)
         
-        status_box.add_widget(self.lbl_val)
-        status_box.add_widget(status_right)
-        self.panel.add_widget(status_box)
+        value_row.add_widget(self.lbl_val)
+        value_row.add_widget(status_right)
+        
+        self.panel.add_widget(value_row)
 
         # === INTENSITÄT SLIDER MIT BESCHRIFTUNG (SOLL-WERT DARÜBER) ===
         intensity_header = BoxLayout(
             size_hint_y=None,
             height=dp_scaled(24),
             spacing=dp_scaled(4)
+        
         )
         
         self.lbl_intensity = Label(
             text="INTENSITÄT",
-            font_size=sp_scaled(17),
+            font_size=sp_scaled(20),
             color=(1, 1, 1, 0.9),
             bold=True,
             size_hint_x=None,
-            width=dp_scaled(120)
+            width=dp_scaled(120),
+            halign='right',
+            valign='middle'           
+        
         )
         
         # TARGET %
         self.lbl_slider_target = Label(
             text="0%",
-            font_size=sp_scaled(21),
+            font_size=sp_scaled(26),
             bold=True,
             color=(0.0, 0.75, 1, 1),
             size_hint_x=None,
@@ -142,7 +179,7 @@ class LightOverlay(FloatLayout):
         # >>> NEU: LIGHT STATE
         self.lbl_light_state = Label(
             text="DAY",
-            font_size=sp_scaled(14),
+            font_size=sp_scaled(20),
             bold=True,
             color=(0, 1, 0, 0.95),
             size_hint_x=1,
@@ -169,21 +206,21 @@ class LightOverlay(FloatLayout):
         # === Rest bleibt gleich (Sunrise/Sunset, Start, Dauer...) ===
 
         # Sunrise/Sunset
-        self.lbl_sunrise_sunset = Label(text="RAMPEN: --", markup=True, font_size=sp_scaled(18), color=(1, 0.8, 0.2, 0.8), size_hint_y=None, height=dp_scaled(15))
+        self.lbl_sunrise_sunset = Label(text="RAMPEN: --", markup=True, font_size=sp_scaled(20), color=(1, 0.8, 0.2, 0.8), size_hint_y=None, height=dp_scaled(15))
         self.panel.add_widget(self.lbl_sunrise_sunset)
         self.slider_sunrise_sunset = UnifiedSlider(min=1, max=96, mode='range', fill_entire_track=True)        
         self.slider_sunrise_sunset.bind(min_value=self._on_sunrise_sunset_change, max_value=self._on_sunrise_sunset_change, on_touch_down=self._touch_down, on_touch_up=self._touch_up)
         self.panel.add_widget(self.slider_sunrise_sunset)
 
         # Startzeit
-        self.lbl_start = Label(text="START: --", font_size=sp_scaled(18), size_hint_y=None, height=dp_scaled(15))
+        self.lbl_start = Label(text="START: --", font_size=sp_scaled(20), size_hint_y=None, height=dp_scaled(15))
         self.panel.add_widget(self.lbl_start)
         self.slider_start = UnifiedSlider(min=0, max=95, mode='single', size_hint_y=None, height=dp_scaled(38))
         self.slider_start.bind(value=self._on_start_change, on_touch_down=self._touch_down, on_touch_up=self._touch_up)
         self.panel.add_widget(self.slider_start)
 
         # Dauer
-        self.lbl_dur = Label(text="DAUER: --", font_size=sp_scaled(18), size_hint_y=None, height=dp_scaled(15))
+        self.lbl_dur = Label(text="DAUER: --", font_size=sp_scaled(20), size_hint_y=None, height=dp_scaled(15))
         self.panel.add_widget(self.lbl_dur)
         self.slider_dur = UnifiedSlider(min=1, max=96, mode='single', size_hint_y=None, height=dp_scaled(38))
         self.slider_dur.bind(value=self._on_dur_change, on_touch_down=self._touch_down, on_touch_up=self._touch_up)
@@ -236,7 +273,7 @@ class LightOverlay(FloatLayout):
             background_down="",
             background_color=(0.15, 0.15, 0.15, 1),
             color=(1, 1, 1, 1),  # gleiche Basis wie Exhaust (lesbar default)
-            font_size=sp_scaled(18)
+            font_size=sp_scaled(20)
         )
     def _init_values(self, *_):
         mac = GLOBAL_STATE.get_active_device_id()
@@ -697,3 +734,24 @@ class LightOverlay(FloatLayout):
         if self._update_event: self._update_event.cancel()
         if self.parent: self.parent.remove_widget(self)
         GLOBAL_STATE.ui_handler.active_light_overlay = None
+
+    def _on_background_click(self, instance):
+        """
+        Sorgt dafür, dass im ungelockten Zustand Missclicks neben den Slider 
+        nicht das Overlay schließen.
+        """
+        # Wenn gelockt, verhält es sich wie vorher (schließt sofort)
+        if self._locked:
+            self.close()
+            return
+    
+        # Wenn entsperrt, prüfen wir, wo das letzte Touch-Event stattfand.
+        # Da Kivy's Button on_release kein Touch-Objekt mitgibt, holen wir 
+        # uns den aktuellen Zustand der Window-Maus/Touch-Position.
+        from kivy.core.window import Window
+        # Window.mouse_pos liefert (x, y)
+        touch_pos = Window.mouse_pos
+    
+        # Schließen NUR, wenn der Klick NICHT im Panel gelandet ist
+        if not self.panel.collide_point(*touch_pos):
+            self.close()

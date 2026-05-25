@@ -49,16 +49,17 @@ class CirculationFanOverlay(FloatLayout):
         self.is_circulation = True
         self._my_handshake_id = 0
         # Hintergrund
-        bg = Button(background_color=(0, 0, 0, 0.25))
-        bg.bind(on_release=lambda *_: self.close())
-        self.add_widget(bg)
+        # Hintergrund mit smarter Schließ-Logik bei Missclicks
+        self.bg_btn = Button(background_color=(0, 0, 0, 0.25))
+        self.bg_btn.bind(on_release=self._on_background_click)
+        self.add_widget(self.bg_btn)
 
         # Panel
         self.panel = BoxLayout(
             orientation="vertical", 
             spacing=dp_scaled(10),
             size_hint=(None, None), 
-            size=(dp_scaled(420), dp_scaled(440)),
+            size=(dp_scaled(800), dp_scaled(500)),
             padding=[dp_scaled(25), dp_scaled(15), dp_scaled(25), dp_scaled(25)], 
             pos_hint={"right": 0.98, "top": 0.98}
         )
@@ -74,7 +75,7 @@ class CirculationFanOverlay(FloatLayout):
         # Titel + Sync Icon
         title_row = BoxLayout(size_hint_y=None, height=dp_scaled(40), spacing=dp_scaled(5))
         self.lbl_title = Label(text="CIRCULATION FAN CONTROL", bold=True, color=(0, 1, 0, 1),
-                               font_size=sp_scaled(18), halign="left", valign="middle")
+                               font_size=sp_scaled(20), halign="left", valign="middle")
         self.lbl_title.bind(size=self.lbl_title.setter('text_size'))
         
         self.sync_icon = Button(text="[font=FA]\uf021[/font]", markup=True,
@@ -94,8 +95,8 @@ class CirculationFanOverlay(FloatLayout):
         self.panel.add_widget(self.lbl_val)
 
         info_row = BoxLayout(size_hint_y=None, height=dp_scaled(25))
-        self.lbl_rpm = Label(text="RPM: 0", font_size=sp_scaled(18), color=(0.7, 0.7, 1, 0.8))
-        self.lbl_live_speed = Label(text="LIVE: 0%", font_size=sp_scaled(18), bold=True, color=(0, 1, 1, 0.8))
+        self.lbl_rpm = Label(text="RPM: 0", font_size=sp_scaled(26), color=(0.7, 0.7, 1, 0.8))
+        self.lbl_live_speed = Label(text="LIVE: 0%", font_size=sp_scaled(26), bold=True, color=(0, 1, 1, 0.8))
         info_row.add_widget(self.lbl_rpm)
         info_row.add_widget(self.lbl_live_speed)
         self.panel.add_widget(info_row)
@@ -103,7 +104,7 @@ class CirculationFanOverlay(FloatLayout):
         self.panel.add_widget(Widget(size_hint_y=None, height=dp_scaled(15)))
 
         self.panel.add_widget(Label(text="SPEED RANGE (MIN - MAX)", 
-                                  font_size=sp_scaled(18), color=(0,1,0,0.5), 
+                                  font_size=sp_scaled(20), color=(0,1,0,0.5), 
                                   size_hint_y=None, height=dp_scaled(15)))
         
         self.range_slider = UnifiedSlider(min=0, max=100, mode='range', 
@@ -339,7 +340,7 @@ class CirculationFanOverlay(FloatLayout):
             background_down="",
             background_color=(0.15, 0.15, 0.15, 1),
             color=(1, 1, 1, 1),  # Default lesbar wie Exhaust
-            font_size=sp_scaled(18)
+            font_size=sp_scaled(20)
         )
 
     def _apply_button_styles(self, mode):
@@ -410,3 +411,24 @@ class CirculationFanOverlay(FloatLayout):
         if self._update_event: self._update_event.cancel()
         if self.parent: self.parent.remove_widget(self)
         GLOBAL_STATE.ui_handler.active_circulation_fan_overlay = None
+
+    def _on_background_click(self, instance):
+        """
+        Sorgt dafür, dass im ungelockten Zustand Missclicks neben den Slider 
+        nicht das Overlay schließen.
+        """
+        # Wenn gelockt, verhält es sich wie vorher (schließt sofort)
+        if self._locked:
+            self.close()
+            return
+    
+        # Wenn entsperrt, prüfen wir, wo das letzte Touch-Event stattfand.
+        # Da Kivy's Button on_release kein Touch-Objekt mitgibt, holen wir 
+        # uns den aktuellen Zustand der Window-Maus/Touch-Position.
+        from kivy.core.window import Window
+        # Window.mouse_pos liefert (x, y)
+        touch_pos = Window.mouse_pos
+    
+        # Schließen NUR, wenn der Klick NICHT im Panel gelandet ist
+        if not self.panel.collide_point(*touch_pos):
+            self.close()
