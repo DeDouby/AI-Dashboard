@@ -1,6 +1,6 @@
 [
   {
-    "timestamp": 1779677380.201756,
+    "timestamp": 1779678598.400577,
     "device_id": "E697B52A-2E7F-D41E-BC4D-2D027CB38D0B",
     "name": "Real_Grow!",
     "adv": {
@@ -140,22 +140,22 @@
       "raw": null,
       "internal": {
         "temperature": {
-          "value": 20.53,
+          "value": 20.49,
           "unit": "°C"
         },
         "humidity": {
-          "value": 58.3,
+          "value": 58.26,
           "unit": "%"
         }
       },
       "external": {
         "present": true,
         "temperature": {
-          "value": 20.38,
+          "value": 20.37,
           "unit": "°C"
         },
         "humidity": {
-          "value": 58.05,
+          "value": 57.9,
           "unit": "%"
         }
       },
@@ -166,44 +166,44 @@
           "unit": "°C"
         },
         "vpd_leaf": {
-          "value": 1.873,
+          "value": 1.878,
           "unit": "kPa"
         }
       },
       "vpd_internal": {
-        "value": 0.918,
+        "value": 0.917,
         "unit": "kPa"
       },
       "vpd_external": {
-        "value": 0.915,
+        "value": 0.918,
         "unit": "kPa"
       },
-      "battery_voltage": 7.461,
+      "battery_voltage": 7.608,
       "dew_point_internal": {
-        "value": 12.06,
+        "value": 12.01,
         "unit": "°C"
       },
       "dew_point_external": {
-        "value": 11.85,
+        "value": 11.8,
         "unit": "°C"
       },
       "coord": {
         "internal": {
-          "x": 58.3,
-          "y": 19.03
+          "x": 58.26,
+          "y": 18.99
         },
         "external": {
-          "x": 58.05,
-          "y": 18.88
+          "x": 57.9,
+          "y": 18.87
         }
       },
-      "timestamp": 1779677379.795598,
+      "timestamp": 1779678597.4239402,
       "circulation_fan": {
-        "circulation_fan_rpm": 1439,
+        "circulation_fan_rpm": 1405,
         "unit": "RPM"
       },
       "exhaust_fan": {
-        "exhaust_fan_rpm": 455,
+        "exhaust_fan_rpm": 483,
         "unit": "RPM"
       },
       "light_pct": 0,
@@ -214,59 +214,59 @@
         }
       },
       "rtc_found": true,
-      "rtc_time": "04:49",
-      "temp_in": 20.53,
-      "temp_ext": 20.38,
-      "humid_ext": 58.05,
-      "humid_in": 58.3,
+      "rtc_time": "05:09",
+      "temp_in": 20.49,
+      "temp_ext": 20.37,
+      "humid_ext": 57.9,
+      "humid_in": 58.26,
       "leaf_temp": 25.5,
-      "vbat": 7.461,
+      "vbat": 7.608,
       "rev": 0,
-      "exhaust_fan_rpm": 455,
-      "exhaust_fan_pct": 91,
+      "exhaust_fan_rpm": 483,
+      "exhaust_fan_pct": 82,
       "exhaust_fan_min": 0,
-      "exhaust_fan_speed_now": 14,
+      "exhaust_fan_speed_now": 15,
       "exhaust_fan_mode": "auto",
-      "target_temp_min": 19.8,
-      "target_temp_max": 27.3,
-      "target_humidity_min": 44,
+      "target_temp_min": 20.3,
+      "target_temp_max": 24.5,
+      "target_humidity_min": 45,
       "target_humidity_max": 56,
       "target_vpd_min": 1,
       "target_vpd_max": 1.6,
-      "rev_exhaust": 400,
-      "rev_init_exhaust": 1779677272,
+      "rev_exhaust": 425,
+      "rev_init_exhaust": 1779678580,
       "plant_phase": 2,
       "exhaust_fan_chaos_active": true,
       "exhaust_fan_state_reason": "using_refined_air",
-      "circulation_fan_rpm": 1439,
+      "circulation_fan_rpm": 1405,
       "circulation_fan_pct": 77,
-      "circulation_fan_speed_now": 63,
+      "circulation_fan_speed_now": 50,
       "circulation_fan_min": 18,
       "circulation_fan_mode": "nat",
       "rev_circfan": 348,
-      "rev_init_circfan": 1779677320,
+      "rev_init_circfan": 1779678144,
       "rev_plant_planner": 41,
-      "light_target": 66,
+      "light_target": 91,
       "l_start_h": 11,
       "l_start_m": 0,
       "l_dur": 720,
       "l_sunrise": 90,
-      "l_sunset": 90,
+      "l_sunset": 270,
       "light_climate_override": true,
-      "light_remaining": 370,
-      "rev_light": 22,
-      "rev_init_light": 1779677313,
+      "light_remaining": 350,
+      "rev_light": 27,
+      "rev_init_light": 1779677737,
       "light_state_reason": "NIGHT",
       "dev_name": "LGS_Grow_Master",
       "log_level": 2,
-      "uptime_esp_s": 17671,
+      "uptime_esp_s": 18888,
       "fw_ver": "v2.5.6-rc",
       "ip": "192.168.2.20",
       "ssid": "Cudy-Indoor",
-      "rssi": -46,
-      "free_heap": 170208,
-      "max_alloc": 126964,
-      "heap_usage": 161476,
+      "rssi": -45,
+      "free_heap": 169012,
+      "max_alloc": 129012,
+      "heap_usage": 162672,
       "boot_cause": "Power Cut / Hard Reset",
       "rev_grow": 0,
       "rev_init_grow": 0,
@@ -275,39 +275,39 @@
         "sps": {
           "online": true,
           "temperature": {
-            "value": 21.28,
+            "value": 21.23,
             "unit": "°C"
           },
           "humidity": {
-            "value": 52.1,
+            "value": 52.25,
             "unit": "%"
           },
           "vpd": {
-            "value": 1.212,
+            "value": 1.204,
             "unit": "kPa"
           },
           "coord": {
-            "x": 52.1,
-            "y": 19.78
+            "x": 52.25,
+            "y": 19.73
           }
         },
         "tb2": {
           "online": true,
           "temperature": {
-            "value": 20.3125,
+            "value": 20.25,
             "unit": "°C"
           },
           "humidity": {
-            "value": 57.375,
+            "value": 57.25,
             "unit": "%"
           },
           "vpd": {
-            "value": 1.016,
+            "value": 1.015,
             "unit": "kPa"
           },
           "coord": {
-            "x": 57.375,
-            "y": 18.8125
+            "x": 57.25,
+            "y": 18.75
           }
         }
       },
@@ -344,13 +344,13 @@
     "status": "active",
     "health": {
       "uptime": {
-        "value": 180.246187210083,
+        "value": 480.5577301979065,
         "unit": "s"
       },
       "battery": {
         "value": null,
         "unit": "V",
-        "voltage": 7.461
+        "voltage": 7.608
       },
       "signal": {
         "rssi": -45,
@@ -361,7 +361,7 @@
     "web_alive": true
   },
   {
-    "timestamp": 1779677380.201756,
+    "timestamp": 1779678598.400577,
     "device_id": "C898B4F2-B452-7502-1A67-0536E77D49EA",
     "name": "sps",
     "adv": {
@@ -563,7 +563,7 @@
     "status": "offline",
     "health": {
       "uptime": {
-        "value": 180.246187210083,
+        "value": 480.5577301979065,
         "unit": "s"
       },
       "battery": {
@@ -580,7 +580,7 @@
     "web_alive": false
   },
   {
-    "timestamp": 1779677380.201756,
+    "timestamp": 1779678598.400577,
     "device_id": "FF-FF-A1-00-00-01",
     "name": "LGS_NODE_17",
     "adv": {
@@ -782,7 +782,7 @@
     "status": "offline",
     "health": {
       "uptime": {
-        "value": 180.246187210083,
+        "value": 480.5577301979065,
         "unit": "s"
       },
       "battery": {
@@ -799,7 +799,7 @@
     "web_alive": false
   },
   {
-    "timestamp": 1779677380.201756,
+    "timestamp": 1779678598.400577,
     "device_id": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
     "name": "ThermoBeacon2",
     "adv": {
@@ -1001,7 +1001,7 @@
     "status": "offline",
     "health": {
       "uptime": {
-        "value": 180.246187210083,
+        "value": 480.5577301979065,
         "unit": "s"
       },
       "battery": {
@@ -1018,7 +1018,7 @@
     "web_alive": false
   },
   {
-    "timestamp": 1779677380.201756,
+    "timestamp": 1779678598.400577,
     "device_id": "827482CC-A977-43D7-835E-8E8B6978E66A",
     "name": "Grow_Test",
     "adv": {
@@ -1220,7 +1220,7 @@
     "status": "offline",
     "health": {
       "uptime": {
-        "value": 180.246187210083,
+        "value": 480.5577301979065,
         "unit": "s"
       },
       "battery": {
@@ -1237,7 +1237,7 @@
     "web_alive": false
   },
   {
-    "timestamp": 1779677380.201756,
+    "timestamp": 1779678598.400577,
     "device_id": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
     "name": "TP351S (987A)",
     "adv": {
@@ -1439,7 +1439,7 @@
     "status": "offline",
     "health": {
       "uptime": {
-        "value": 180.246187210083,
+        "value": 480.5577301979065,
         "unit": "s"
       },
       "battery": {

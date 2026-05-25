@@ -141,7 +141,7 @@ class ExhaustFanOverlay(FloatLayout):
         self.panel.add_widget(self.range_slider)
 
         self.lbl_temp = self._add_slider_label("TEMP TARGET", "22° - 28°")
-        self.temp_slider = UnifiedSlider(range_min=15, range_max=35, min=22, max=28, mode='range', 
+        self.temp_slider = UnifiedSlider(range_min=15, range_max=30, min=22, max=28, mode='range', 
                                        size_hint_y=None, height=dp_scaled(35))
         self.temp_slider.bind(min_value=self._on_env_slider_change, max_value=self._on_env_slider_change,
                               on_touch_down=self._touch_down, on_touch_up=self._touch_up)
