@@ -18,6 +18,11 @@ from dashboard_gui.overlays.unified_slider import UnifiedSlider
 from dashboard_gui.overlays.lock_overlay import LockOverlay
 from dashboard_gui.overlays.base_overlay import BaseOverlayEngine
 from kivy.uix.widget import Widget
+from kivy.uix.image import Image
+
+
+ASSET_ROOT = os.path.join("dashboard_gui", "assets")
+LIGHT_PIC_PATH = os.path.join(ASSET_ROOT, "hardware_pics", "electrogrow.png")
 
 class LightOverlay(FloatLayout):
     def __init__(self, parent_header, **kwargs):
@@ -50,7 +55,7 @@ class LightOverlay(FloatLayout):
             size_hint=(None, None), 
             size=(dp_scaled(800), dp_scaled(500)), 
             padding=[dp_scaled(25), dp_scaled(15), dp_scaled(25), dp_scaled(25)],
-            pos_hint={"right": 0.98, "top": 0.98}
+            pos_hint={"right": 0.98, "y": 0.01} 
         )
 
         # Leinwand für Hintergrund-Styling und Tageskurve
@@ -58,8 +63,11 @@ class LightOverlay(FloatLayout):
             Color(0.05, 0.05, 0.05, 0.85) # Tieferes, edleres Anthrazit
             self.bg_rect = RoundedRectangle(radius=[dp_scaled(20)])
             Color(0, 1, 0, 0.25)
-            self.outline = Line(width=1.2)
-            
+            self.outline = Line(width=2.2)
+            Color(0.2, 0.8, 0.2, 0.4) # Grünlicher Ton 
+            self.value_glow = Line(width=5)
+            Color(0.2, 0.8, 0.2, 0.8)
+            self.value_border = Line(width=3.3)
             # --- EDLER BACKGROUND GRAPH (Tageskurve) ---
             from kivy.graphics import Mesh
             Color(1, 0.72, 0.05, 0.15) # Schön sichtbares, dezentes Hintergrund-Gold
@@ -78,7 +86,7 @@ class LightOverlay(FloatLayout):
 
         # Header
 
-        title_row = BoxLayout(size_hint_y=None, height=dp_scaled(40), spacing=dp_scaled(5))
+        title_row = BoxLayout(size_hint_y=None, height=dp_scaled(28), spacing=dp_scaled(0))
         
         self.lbl_title = Label(text="LIGHT CONTROL PRO", bold=True, color=(0, 1, 0, 1),
                                font_size=sp_scaled(20), halign="left", valign="middle")
@@ -94,107 +102,65 @@ class LightOverlay(FloatLayout):
 
         # === STATUS BEREICH (nur aktueller Wert + Status + Restzeit) ===
 # === NEUER STATUS BEREICH (Layout wie Exhaust) ===
-        value_row = BoxLayout(
-            orientation="horizontal",
-            size_hint_y=None,
-            height=dp_scaled(42),
-            spacing=dp_scaled(10)
-        )
+# --- FIX: EINHEITLICHES KOMPAKT-LAYOUT (BILD + STATUS) ---
+        top_container = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp_scaled(68), spacing=dp_scaled(2))
         
-        self.lbl_val = Label(
-            text="0%", 
-            font_size=sp_scaled(36), 
-            bold=True, 
-            size_hint_x=0.52, 
-            halign='center',
-            valign='middle'
-        )
+        # 1. Das Bild
+        img_light = Image(source=LIGHT_PIC_PATH, size_hint=(None, 1), width=dp_scaled(180))
+        top_container.add_widget(img_light)
+        
+        # 2. Hauptwert + Zielwert links (horizontal nebeneinander)
+        values_left = BoxLayout(orientation='horizontal', size_hint_x=0.4, spacing=dp_scaled(5))
+        self.lbl_val = Label(text="0%", font_size=sp_scaled(36), bold=True, halign='center', valign='middle')
         self.lbl_val.bind(size=self.lbl_val.setter('text_size'))
+        self.lbl_slider_target = Label(text="0%", font_size=sp_scaled(36), bold=True, color=(0.0, 0.75, 1, 1), halign='center', valign='middle')
+        self.lbl_slider_target.bind(size=self.lbl_slider_target.setter('text_size'))
+        values_left.add_widget(self.lbl_val)
+        values_left.add_widget(self.lbl_slider_target)
+        top_container.add_widget(values_left)
         
-        status_right = BoxLayout(
-            orientation='vertical', 
-            size_hint_x=0.48, 
-            spacing=dp_scaled(1)
-        )
-        self.lbl_status_text = Label(
-            text="STATUS: INIT", 
-            font_size=sp_scaled(20), 
-            bold=True, 
-            color=(0, 1, 0, 0.85),
-            halign='right'
-        )
-        self.lbl_remaining = Label(
-            text="RESTZEIT: --", 
-            font_size=sp_scaled(20), 
-            color=(1, 1, 0, 1), 
-            bold=True,
-            halign='right'
-        )
+        # 3. Status rechts
+        status_right = BoxLayout(orientation='vertical', size_hint_x=0.6, spacing=dp_scaled(1))
+        self.lbl_status_text = Label(text="STATUS: INIT", font_size=sp_scaled(20), bold=True, color=(0, 1, 0, 0.85), halign='center')
+        self.lbl_remaining = Label(text="RESTZEIT: --", font_size=sp_scaled(20), color=(1, 1, 0, 1), bold=True, halign='center')
         self.lbl_status_text.bind(size=self.lbl_status_text.setter('text_size'))
         self.lbl_remaining.bind(size=self.lbl_remaining.setter('text_size'))
-        
         status_right.add_widget(self.lbl_status_text)
         status_right.add_widget(self.lbl_remaining)
+        top_container.add_widget(status_right)
         
-        value_row.add_widget(self.lbl_val)
-        value_row.add_widget(status_right)
-        
-        self.panel.add_widget(value_row)
+        self.panel.add_widget(top_container)
 
-        # === INTENSITÄT SLIDER MIT BESCHRIFTUNG (SOLL-WERT DARÜBER) ===
-        intensity_header = BoxLayout(
-            size_hint_y=None,
-            height=dp_scaled(24),
-            spacing=dp_scaled(4)
-        
-        )
-        
+        # === INTENSITÄT LABEL (MITTIG ÜBER DEM SLIDER) ===
+        intensity_label_row = BoxLayout(size_hint_y=None, height=dp_scaled(15), spacing=dp_scaled(4))
         self.lbl_intensity = Label(
-            text="INTENSITÄT",
+            text="INTENSITY",
             font_size=sp_scaled(20),
             color=(1, 1, 1, 0.9),
             bold=True,
-            size_hint_x=None,
-            width=dp_scaled(120),
-            halign='right',
-            valign='middle'           
-        
-        )
-        
-        # TARGET %
-        self.lbl_slider_target = Label(
-            text="0%",
-            font_size=sp_scaled(26),
-            bold=True,
-            color=(0.0, 0.75, 1, 1),
-            size_hint_x=None,
-            width=dp_scaled(72),
             halign='right',
             valign='middle'
         )
-        self.lbl_slider_target.bind(
-            size=self.lbl_slider_target.setter('text_size')
+        self.lbl_intensity.bind(
+            size=self.lbl_intensity.setter('text_size')
         )
         
-        # >>> NEU: LIGHT STATE
+        # LIGHT STATE LABEL
         self.lbl_light_state = Label(
             text="DAY",
             font_size=sp_scaled(20),
             bold=True,
             color=(0, 1, 0, 0.95),
-            size_hint_x=1,
-            halign='right',
+            halign='center',
             valign='middle'
         )
         self.lbl_light_state.bind(
             size=self.lbl_light_state.setter('text_size')
         )
         
-        intensity_header.add_widget(self.lbl_intensity)
-        intensity_header.add_widget(self.lbl_slider_target)
-        intensity_header.add_widget(self.lbl_light_state)
-        
-        self.panel.add_widget(intensity_header)
+        intensity_label_row.add_widget(self.lbl_intensity)
+        intensity_label_row.add_widget(self.lbl_light_state)
+        self.panel.add_widget(intensity_label_row)
 
         # Haupt-Slider
         self.slider = UnifiedSlider(min=0, max=100, mode='single', size_hint_y=None, height=dp_scaled(38))

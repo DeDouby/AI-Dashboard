@@ -25,7 +25,7 @@ class DebugScreen(Screen):
         # Header
         self.header = HeaderBar()
         self.header.lbl_title.text = "Debug Console"
-        self.header.enable_back("dashboard")
+        self.header.update_back_button("about")
         root.add_widget(self.header)
         GLOBAL_STATE.ui_handler.attach_screen("debug", self)
 

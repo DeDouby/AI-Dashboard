@@ -83,6 +83,7 @@ class WindowPicker(FloatLayout):
         entries += [
             ("menu.camera", lambda: setattr(sm, "current", "cam_viewer")),
             ("menu.grow_controller", lambda: setattr(sm, "current", "grow_controller")),
+            ("menu.grow_overview", lambda: setattr(sm, "current", "grow_overview")), # NEU
             ("menu.plant_planner", lambda: setattr(sm, "current", "plant_planner")),
             ("menu.csv",    lambda: setattr(sm, "current", "csv_viewer")),  
             ("menu.devices", lambda: setattr(sm, "current", "device_picker")),
@@ -106,7 +107,7 @@ class WindowPicker(FloatLayout):
             "menu.about":               "\uf05a",   # fa-info-circle
             "menu.grow_controller":          "\uf015", # fa-home / grow room symbol
             "menu.plant_planner":       "\uf073",  # fa-calendar
-
+            "menu.grow_overview":   "\uf1bb", # Beispiel Icon (fa-leaf)
         }
         
         for label, cb in entries:

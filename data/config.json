@@ -61,7 +61,7 @@
   "refresh_interval": 0.1,
   "stale_timeout": 17.0,
   "ui_refresh_interval": 1.0,
-  "tile_graph_window": 1110,
+  "tile_graph_window": 260,
   "temperature_unit": "C",
   "temperature_offset": 0.0,
   "humidity_offset": 0.0,
@@ -70,5 +70,5 @@
   "theme": "tiles",
   "lgs_mesh_channel_send": 17,
   "lgs_mesh_channel_recv": 17,
-  "language": "en"
+  "language": "de"
 }

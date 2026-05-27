@@ -10,9 +10,9 @@ class UIManager:
             "about": None, "settings": None, "vpd_scatter": None,
             "debug": None, "csv_viewer": None, "cam_viewer": None,
             "device_picker": None, "sensor_mixed_mode": None,
-            "grow_controller": None, "plant_planner": None
+            "grow_controller": None, "plant_planner": None,
+            "grow_overview": None
         }
-
     def attach_screen(self, name, ref):
         """Registriert einen Screen im Manager."""
         if name in self.screens:

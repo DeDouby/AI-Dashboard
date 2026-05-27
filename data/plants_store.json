@@ -1,16 +1,16 @@
 {
   "E697B52A-2E7F-D41E-BC4D-2D027CB38D0B": {
     "plant_planner": {
-      "rev_plant_planner": 41,
-      "rev_init_plant_planner": 1779661003,
+      "rev_plant_planner": 45,
+      "rev_init_plant_planner": 1779721543,
       "plants": [
         {
           "name": "Amnesia",
-          "strain": "",
-          "breeder": "",
-          "phenotype": "",
-          "pot_size": "",
-          "medium": "",
+          "strain": "Widow",
+          "breeder": "Spanish Seeds",
+          "phenotype": "fem",
+          "pot_size": "14l ",
+          "medium": "BioBizz LighMix",
           "light": "",
           "location": "",
           "notes": "",

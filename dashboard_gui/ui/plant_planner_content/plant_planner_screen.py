@@ -353,35 +353,35 @@ class PlantPlannerScreen(Screen):
     # =============================================================================
     # ENTER
     # =============================================================================
-
     def on_enter(self):
+        """Wird aufgerufen, sobald der Screen sichtbar wird"""
+        # Kleinen Delay einbauen, damit der Screen-Übergang flüssig bleibt
+        Clock.schedule_once(self._delayed_enter, 0.15)
+    
+    
+    def _delayed_enter(self, dt):
+        """Hier kommen alle teuren Operationen rein"""
         Clock.schedule_once(lambda *_: self._force_resync(), 0.3)
-        Clock.schedule_once(lambda *_: self._force_reload_plants(), 0.7)  # neu
-
-    # =============================================================================
-    # BG
-    # =============================================================================
-
-
-
-    # =============================================================================
-    # HANDSHAKE
-    # =============================================================================
-
+        Clock.schedule_once(lambda *_: self._force_reload_plants(), 0.8)   # etwas mehr Delay
+        
+        # Optional: Status anzeigen
+        # self.show_loading_overlay()   # z.B. "Daten werden synchronisiert..."
+    
+    
     def _force_resync(self):
-
+        """Handshake mit dem Gerät"""
         mac = GLOBAL_STATE.get_active_device_id()
-
         if not mac:
+            print("[PlantPlanner] Kein aktives Gerät für Resync")
             return
-
+    
         self._my_init_rev = int(time.time())
-
+    
         GLOBAL_STATE.overlay_engine.send_plant_planner_handshake(
             mac,
             self._my_init_rev
         )
-
+        print(f"[PlantPlanner] Handshake gesendet (rev={self._my_init_rev})")
     # =============================================================================
     # PUSH
     # =============================================================================

@@ -10,6 +10,7 @@ from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.graphics import Color, RoundedRectangle, Line
 from kivy.clock import Clock
+from kivy.uix.image import Image
 import config 
 import time 
 import json 
@@ -21,7 +22,8 @@ from dashboard_gui.overlays.lock_overlay import LockOverlay
 from dashboard_gui.overlays.base_overlay import BaseOverlayEngine
 from kivy.uix.widget import Widget
 
-
+ASSET_ROOT = os.path.join("dashboard_gui", "assets") 
+CIRC_PIC_PATH = os.path.join(ASSET_ROOT, "hardware_pics", "mars_gaming.png")
 class CirculationFanOverlay(FloatLayout):
     def __init__(self, parent_header, **kwargs):
         super().__init__(**kwargs)
@@ -32,7 +34,7 @@ class CirculationFanOverlay(FloatLayout):
         self._init_done = False
         self.sync_path = os.path.join(config.DATA, "settings_sync.json")
         
-        # === NEU: GUTER AUTO-RETRY MECHANISMUS ===
+        # === AUTO-RETRY MECHANISMUS ===
         self._last_sent_rev = 0
         self._last_send_time = 0
         self._retry_count = 0
@@ -45,11 +47,10 @@ class CirculationFanOverlay(FloatLayout):
         self._ui_lock = False
         
         self._target_state = {"min": 20, "max": 65, "mode": "nat"}
-        # Nach den anderen self._xxx Variablen
         self.is_circulation = True
         self._my_handshake_id = 0
+        
         # Hintergrund
-        # Hintergrund mit smarter Schließ-Logik bei Missclicks
         self.bg_btn = Button(background_color=(0, 0, 0, 0.25))
         self.bg_btn.bind(on_release=self._on_background_click)
         self.add_widget(self.bg_btn)
@@ -59,20 +60,27 @@ class CirculationFanOverlay(FloatLayout):
             orientation="vertical", 
             spacing=dp_scaled(10),
             size_hint=(None, None), 
-            size=(dp_scaled(800), dp_scaled(500)),
+            size=(dp_scaled(800), dp_scaled(500)), # <--- HÖHE BLEIBT 500
             padding=[dp_scaled(25), dp_scaled(15), dp_scaled(25), dp_scaled(25)], 
-            pos_hint={"right": 0.98, "top": 0.98}
+            # 'right': 0.98 hält es rechts.
+            # 'y': 0.02 platziert es knapp über dem unteren Bildschirmrand,
+            # wodurch es automatisch unter dem 45dp hohen Header rutscht.
+            pos_hint={"right": 0.98, "y": 0.01} 
         )
 
         with self.panel.canvas.before:
             Color(0, 0, 0, 0.75)
             self.bg_rect = RoundedRectangle(radius=[dp_scaled(20)])
             Color(0, 1, 0, 0.3)
-            self.outline = Line(width=1.2)
+            self.outline = Line(width=2.2)
+            Color(0.2, 0.8, 0.2, 0.4) # Grünlicher Ton 
+            self.value_glow = Line(width=5)
+            Color(0.2, 0.8, 0.2, 0.8)
+            self.value_border = Line(width=3.3)
 
         self.panel.bind(pos=self._u, size=self._u)
 
-        # Titel + Sync Icon
+        # 1. Titel + Sync Icon (Header)
         title_row = BoxLayout(size_hint_y=None, height=dp_scaled(40), spacing=dp_scaled(5))
         self.lbl_title = Label(text="CIRCULATION FAN CONTROL", bold=True, color=(0, 1, 0, 1),
                                font_size=sp_scaled(20), halign="left", valign="middle")
@@ -88,34 +96,45 @@ class CirculationFanOverlay(FloatLayout):
         title_row.add_widget(self.sync_icon)
         self.panel.add_widget(title_row)
 
-        self.panel.add_widget(Widget(size_hint_y=None, height=dp_scaled(5)))
+        # 2. KOMPAKTES BILD & DATEN LAYOUT
+        top_container = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp_scaled(180), spacing=dp_scaled(10))
+        
+        img_circ = Image(source=CIRC_PIC_PATH, 
+                         size_hint=(None, 1), width=dp_scaled(180))
+        top_container.add_widget(img_circ)
+        
+        mid_col = BoxLayout(orientation="vertical")
+        self.lbl_val = Label(text="0% - 0%", font_size=sp_scaled(36), bold=True, halign="left", valign="middle")
+        self.lbl_val.bind(size=self.lbl_val.setter('text_size'))
+        self.lbl_reason = Label(text="", font_size=sp_scaled(20), halign="left", valign="middle")
+        mid_col.add_widget(self.lbl_val)
+        mid_col.add_widget(self.lbl_reason)
+        top_container.add_widget(mid_col)
+        
+        right_col = BoxLayout(orientation="vertical")
+        self.lbl_rpm = Label(text="RPM: 0", font_size=sp_scaled(22), color=(0.7, 0.7, 1, 0.8), halign="center", valign="middle")
+        self.lbl_rpm.bind(size=self.lbl_rpm.setter('text_size'))
+        self.lbl_live_speed = Label(text="LIVE: 0%", font_size=sp_scaled(22), bold=True, color=(0, 1, 1, 0.8), halign="center", valign="middle")
+        self.lbl_live_speed.bind(size=self.lbl_live_speed.setter('text_size'))
+        right_col.add_widget(self.lbl_rpm)
+        right_col.add_widget(self.lbl_live_speed)
+        top_container.add_widget(right_col)
+        
+        self.panel.add_widget(top_container)
 
-        self.lbl_val = Label(text="0% - 0%", font_size=sp_scaled(36), bold=True, 
-                             size_hint_y=None, height=dp_scaled(50))
-        self.panel.add_widget(self.lbl_val)
-
-        info_row = BoxLayout(size_hint_y=None, height=dp_scaled(25))
-        self.lbl_rpm = Label(text="RPM: 0", font_size=sp_scaled(26), color=(0.7, 0.7, 1, 0.8))
-        self.lbl_live_speed = Label(text="LIVE: 0%", font_size=sp_scaled(26), bold=True, color=(0, 1, 1, 0.8))
-        info_row.add_widget(self.lbl_rpm)
-        info_row.add_widget(self.lbl_live_speed)
-        self.panel.add_widget(info_row)
-
-        self.panel.add_widget(Widget(size_hint_y=None, height=dp_scaled(15)))
-
-        self.panel.add_widget(Label(text="SPEED RANGE (MIN - MAX)", 
-                                  font_size=sp_scaled(20), color=(0,1,0,0.5), 
+        # 3. Slider Bereich
+        self.panel.add_widget(Widget(size_hint_y=None, height=dp_scaled(10)))
+        self.panel.add_widget(Label(text="SPEED RANGE (MIN - MAX)", font_size=sp_scaled(20), color=(0,1,0,0.5), 
                                   size_hint_y=None, height=dp_scaled(15)))
         
-        self.range_slider = UnifiedSlider(min=0, max=100, mode='range', 
-                                        size_hint_y=None, height=dp_scaled(50))
+        self.range_slider = UnifiedSlider(min=0, max=100, mode='range', size_hint_y=None, height=dp_scaled(50))
         self.range_slider.bind(min_value=self._on_slider_change, max_value=self._on_slider_change,
                              on_touch_down=self._touch_down, on_touch_up=self._touch_up)
         self.panel.add_widget(self.range_slider)
 
         self.panel.add_widget(Widget())
 
-        # Modi Buttons
+        # 4. Buttons
         btn_row = BoxLayout(size_hint_y=None, height=dp_scaled(40), spacing=dp_scaled(10))
         self.btn_man = self._create_styled_btn("MANUAL")
         self.btn_nat = self._create_styled_btn("NATURAL")
@@ -130,7 +149,6 @@ class CirculationFanOverlay(FloatLayout):
         self.btn_chao.bind(on_release=lambda *_: self._set_mode("chao"))
 
         Clock.schedule_once(self._init_values, 0)
-        
         self.lock_overlay = LockOverlay(parent=self, panel=self.panel, unlock_callback=self._on_unlock)
         Clock.schedule_once(lambda dt: self.lock_overlay.create(), 0.4)
         

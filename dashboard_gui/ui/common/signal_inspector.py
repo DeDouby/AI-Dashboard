@@ -74,7 +74,7 @@ class SignalInspector(FloatLayout):
         self.panel = FloatLayout(
             size_hint=(None, None),
             size=(dp_scaled(320), dp_scaled(260)), 
-            pos_hint={"right": 0.98, "top": 0.98}
+            pos_hint={"right": 0.98, "top": 0.94}
         )
 
         with self.panel.canvas.before:

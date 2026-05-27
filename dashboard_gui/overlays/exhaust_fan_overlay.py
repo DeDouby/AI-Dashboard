@@ -1,16 +1,10 @@
-###############################################################################
-# !!! ABSOLUTES GESETZ: DAS TARGET-REVISION-PRINZIP !!!
-# -----------------------------------------------------------------------------
-# 1. KEINE DIREKTEN SCHALTVORGÄNGE...
-###############################################################################
-
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.graphics import Color, RoundedRectangle, Line
 from kivy.clock import Clock
-import config 
+# import config  <-- Vermutlich hier definiert: ASSET_ROOT
 import time 
 import json 
 import os
@@ -20,6 +14,14 @@ from dashboard_gui.overlays.unified_slider import UnifiedSlider
 from dashboard_gui.overlays.lock_overlay import LockOverlay
 from dashboard_gui.overlays.base_overlay import BaseOverlayEngine
 from kivy.uix.widget import Widget
+from kivy.uix.image import Image  # <-- WICHTIGER IMPORT!
+
+# --- ASSET PFAD KONFIGURATION (Beispielhaft, anpassen falls nötig) ---
+# Da 'config' im Snippet auskommentiert ist, definieren wir es hier lokal.
+# In deinem echten Code sollte das aus der 'config.py' kommen.
+ASSET_ROOT = os.path.join("dashboard_gui", "assets") 
+FAN_PIC_PATH = os.path.join(ASSET_ROOT, "hardware_pics", "vivosun_t6.png")
+# -------------------------------------------------------------------
 
 
 class ExhaustFanOverlay(FloatLayout):
@@ -40,7 +42,7 @@ class ExhaustFanOverlay(FloatLayout):
         self._max_retries = 5
 
         self._ui_lock = False
-        self.sync_path = os.path.join(config.DATA, "settings_sync.json")
+        # self.sync_path = os.path.join(config.DATA, "settings_sync.json") # config auskommentiert
         self._pending_updates = {}
         self.engine = BaseOverlayEngine()
         # Nach den anderen self._xxx Variablen
@@ -58,7 +60,7 @@ class ExhaustFanOverlay(FloatLayout):
             size_hint=(None, None), 
             size=(dp_scaled(800), dp_scaled(500)),
             padding=[dp_scaled(25), dp_scaled(15), dp_scaled(25), dp_scaled(25)],
-            pos_hint={"right": 0.98, "top": 0.98}
+            pos_hint={"right": 0.98, "y": 0.01} 
         )
 
         # Suche diesen Block in deiner __init__:
@@ -67,7 +69,15 @@ class ExhaustFanOverlay(FloatLayout):
             self.bg_rect = RoundedRectangle(radius=[dp_scaled(20)])
             # ÄNDERE DAS HIER:
             self.outline_color = Color(0, 1, 0, 0.3)  # <-- Referenz speichern!
-            self.outline = Line(width=1.2)
+
+            Color(0.05, 0.05, 0.05, 0.85) # Tieferes, edleres Anthrazit
+            self.bg_rect = RoundedRectangle(radius=[dp_scaled(20)])
+            Color(0, 1, 0, 0.25)
+            self.outline = Line(width=2.2)
+            Color(0.2, 0.8, 0.2, 0.4) # Grünlicher Ton 
+            self.value_glow = Line(width=5)
+            Color(0.2, 0.8, 0.2, 0.8)
+            self.value_border = Line(width=3.3)
 
         self.panel.bind(pos=self._u, size=self._u)
 
@@ -87,51 +97,38 @@ class ExhaustFanOverlay(FloatLayout):
         title_row.add_widget(self.sync_icon)
         self.panel.add_widget(title_row)
 
-        # Wert-Anzeigen
-        # ==========================================================
-        # HAUPTWERT + STATUS
-        # ==========================================================
-        value_row = BoxLayout(
-            orientation="horizontal",
-            size_hint_y=None,
-            height=dp_scaled(42),
-            spacing=dp_scaled(10)
-        )
+        # ===================================================================
+        # NEU: BILD + DATEN ZEILE (Vivosun + RPM + Live)
+        # ===================================================================
+        # Wir erstellen eine horizontale Box für das Bild links und die Daten rechts
+# --- KOMPAKTES LAYOUT ---
+        top_container = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp_scaled(80), spacing=dp_scaled(10))
         
-        # LINKS: SPEED RANGE
-        self.lbl_val = Label(
-            text="0% - 0%",
-            font_size=sp_scaled(30),
-            bold=True,
-            halign="center",
-            valign="middle",
-            size_hint_x=0.52
-        )
-        self.lbl_val.bind(size=self.lbl_val.setter("text_size"))
+        # 1. Bild links
+        img_fan = Image(source=FAN_PIC_PATH, size_hint=(None, 1), width=dp_scaled(180))
+        top_container.add_widget(img_fan)
         
-        # RECHTS: LIVE STATUS
-        self.lbl_reason = Label(
-            text="AUTO IDLE",
-            font_size=sp_scaled(20),
-            bold=True,
-            halign="right",
-            valign="middle",
-            color=(0, 1, 1, 0.9),
-            size_hint_x=0.48
-        )
-        self.lbl_reason.bind(size=self.lbl_reason.setter("text_size"))
+        # 2. Mitte: Speed-Bereich & Live-Status
+        mid_col = BoxLayout(orientation="vertical")
+        self.lbl_val = Label(text="0% - 0%", font_size=sp_scaled(30), bold=True, halign="left", valign="middle")
+        self.lbl_val.bind(size=self.lbl_val.setter('text_size'))
+        self.lbl_reason = Label(text="AUTO IDLE", font_size=sp_scaled(20), bold=True, color=(0, 1, 1, 0.9), halign="left", valign="middle")
+        self.lbl_reason.bind(size=self.lbl_reason.setter('text_size'))
+        mid_col.add_widget(self.lbl_val)
+        mid_col.add_widget(self.lbl_reason)
+        top_container.add_widget(mid_col)
         
-        value_row.add_widget(self.lbl_val)
-        value_row.add_widget(self.lbl_reason)
+        # 3. Rechts: RPM & Live-Speed
+        right_col = BoxLayout(orientation="vertical")
+        self.lbl_rpm = Label(text="RPM: 0", font_size=sp_scaled(22), color=(0.7, 0.7, 1, 0.8), halign="center", valign="middle")
+        self.lbl_rpm.bind(size=self.lbl_rpm.setter('text_size'))
+        self.lbl_live_speed = Label(text="LIVE: 0%", font_size=sp_scaled(22), bold=True, color=(0, 1, 1, 0.8), halign="center", valign="middle")
+        self.lbl_live_speed.bind(size=self.lbl_live_speed.setter('text_size'))
+        right_col.add_widget(self.lbl_rpm)
+        right_col.add_widget(self.lbl_live_speed)
+        top_container.add_widget(right_col)
         
-        self.panel.add_widget(value_row)
-
-        info_row = BoxLayout(size_hint_y=None, height=dp_scaled(30))
-        self.lbl_rpm = Label(text="RPM: 0", font_size=sp_scaled(26), color=(0.7, 0.7, 1, 0.8))
-        self.lbl_live_speed = Label(text="LIVE: 0%", font_size=sp_scaled(26), bold=True, color=(0, 1, 1, 0.8))
-        info_row.add_widget(self.lbl_rpm)
-        info_row.add_widget(self.lbl_live_speed)
-        self.panel.add_widget(info_row)
+        self.panel.add_widget(top_container)
 
         # Sliders
         self._add_slider_label("FAN SPEED RANGE")
