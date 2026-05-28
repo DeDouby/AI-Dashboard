@@ -298,44 +298,71 @@ void light_update() {
             // =====================================================
         
             if (light_climate_override) {
-
+            
                 bool temp_valid =
                     is_sensor_value_valid(light_current_temp);
-
+            
                 bool hum_valid =
                     is_sensor_value_valid(light_current_humidity);
-
+            
                 if (temp_valid && hum_valid) {
-
-                    float brightness_factor = 1.0f;
-
+            
+                    float climate_limit = 1.0f;
+            
+                    // ========================================
                     // TEMP HIGH
+                    // ========================================
+            
                     if (light_current_temp > target_temp_max) {
-                        brightness_factor *= 0.8f;
+            
+                        climate_limit =
+                            min(climate_limit, 0.85f);
                     }
-
-                    // TEMP LOW
-                    else if (light_current_temp < target_temp_min) {
-                        brightness_factor *= 1.2f;
-                    }
-
-                    // HUM HIGH
-                    if (light_current_humidity > (float)target_humidity_max) {
-                        brightness_factor *= 1.2f;
-                    }
-
+            
+                    // ========================================
                     // HUM LOW
-                    else if (light_current_humidity < (float)target_humidity_min) {
-                        brightness_factor *= 0.8f;
+                    // ========================================
+            
+                    if (light_current_humidity <
+                        (float)target_humidity_min) {
+            
+                        climate_limit =
+                            min(climate_limit, 0.90f);
                     }
-
+            
+                    // ========================================
+                    // HUM HIGH
+                    // ========================================
+            
+                    if (light_current_humidity >
+                        (float)target_humidity_max) {
+            
+                        climate_limit =
+                            min(climate_limit, 0.95f);
+                    }
+            
+                    // ========================================
+                    // HARD LIMIT
+                    // ========================================
+            
+                    climate_limit =
+                        constrain(
+                            climate_limit,
+                            0.75f,
+                            1.0f
+                        );
+            
+                    // ========================================
+                    // APPLY ONCE
+                    // ========================================
+            
                     effective_brightness =
                         (int)(
                             (float)effective_brightness *
-                            brightness_factor +
+                            climate_limit +
                             0.5f
                         );
-
+            
                     effective_brightness =
                         constrain(
                             effective_brightness,

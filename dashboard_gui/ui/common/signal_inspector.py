@@ -226,6 +226,7 @@ class SignalInspector(FloatLayout):
             f"Seen     : {last_seen}\n"
         )
         self.raw_lbl.text = f"[color=4488FF]RAW:[/color] {short_raw}"
+
     def close(self):
         if self._update_event:
             self._update_event.cancel()

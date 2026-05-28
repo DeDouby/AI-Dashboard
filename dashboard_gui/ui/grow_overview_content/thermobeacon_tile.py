@@ -1,5 +1,4 @@
 import os
-from kivy.app import App
 from kivy.graphics import Color, RoundedRectangle, Line
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.image import Image
@@ -10,11 +9,16 @@ from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.formatters import UIFormatter
 
 ASSET_ROOT = os.path.join("dashboard_gui", "assets")
-SHT31_PIC = os.path.join(ASSET_ROOT, "hardware_pics", "sht31.png")
+THERMOBEACON_PIC = os.path.join(
+    ASSET_ROOT,
+    "hardware_pics",
+    "thermobeacon.png"
+)
 
 
 
-class SensorExternalSHT31Tile(BoxLayout):
+
+class SensorBLEThermoBeaconTile(BoxLayout):
     def __init__(self, **kw):
         super().__init__(orientation="vertical", **kw)
         self.val_box_w = dp_scaled(200)
@@ -24,16 +28,18 @@ class SensorExternalSHT31Tile(BoxLayout):
         self.spacing = dp_scaled(6)
 
         self.title_label = Label(
-            text="External: SHT31",
+            text="Bluetooth: ThermoBeacon",
             font_size=sp_scaled(20),
             bold=True,
             halign="left",
             valign="middle",
             size_hint=(1, None),
-            height=dp_scaled(32),
+            height=dp_scaled(50),
             color=(1, 1, 1, 1)
         )
-        self.title_label.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
+        self.title_label.bind(
+            size=lambda inst, *_: setattr(inst, "text_size", inst.size)
+        )
 
         self.content_container = BoxLayout(
             orientation="horizontal",
@@ -44,7 +50,7 @@ class SensorExternalSHT31Tile(BoxLayout):
 
         # IMAGE
         self.sensor_image = Image(
-            source=SHT31_PIC,
+            source=THERMOBEACON_PIC,
             height=dp_scaled(120),
             allow_stretch=True,
             keep_ratio=True
@@ -56,20 +62,27 @@ class SensorExternalSHT31Tile(BoxLayout):
             orientation="vertical",
             size_hint=(1, None), # <--- ÄNDERE ZU 1 (statt None)
             # Entferne width=VALUE_BOX_WIDTH komplett!
-            height=dp_scaled(140),
+            height=dp_scaled(160),
             padding=[dp_scaled(10), dp_scaled(5)],
             spacing=dp_scaled(2)
         )
 
         with self.value_box.canvas.before:
             Color(0, 0, 0, 0.62)
-            self.value_bg = RoundedRectangle(radius=[dp_scaled(14)])
-            Color(0.2, 0.8, 0.2, 0.4) # Grünlicher Ton für Sensoren
+            self.value_bg = RoundedRectangle(
+                radius=[dp_scaled(14)]
+            )
+
+            Color(0.2, 0.8, 0.2, 0.4)
             self.value_glow = Line(width=5)
+
             Color(0.2, 0.8, 0.2, 0.8)
             self.value_border = Line(width=1.3)
 
-        self.value_box.bind(pos=self._update_canvas, size=self._update_canvas)
+        self.value_box.bind(
+            pos=self._update_canvas,
+            size=self._update_canvas
+        )
 
         # LABELS
         self.lbl_temp = Label(
@@ -77,23 +90,30 @@ class SensorExternalSHT31Tile(BoxLayout):
             markup=True,
             font_size=sp_scaled(20)
         )
-        
+
         self.lbl_hum = Label(
             text="--",
             markup=True,
             font_size=sp_scaled(20)
         )
-        
+
         self.lbl_vpd = Label(
             text="--",
             markup=True,
             font_size=sp_scaled(20)
         )
 
-        for lbl in (self.title_label, self.lbl_temp, self.lbl_hum, self.lbl_vpd):
+        for lbl in (
+            self.title_label,
+            self.lbl_temp,
+            self.lbl_hum,
+            self.lbl_vpd
+        ):
             lbl.halign = "left"
             lbl.valign = "middle"
-            lbl.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
+            lbl.bind(
+                size=lambda inst, *_: setattr(inst, "text_size", inst.size)
+            )
             self.value_box.add_widget(lbl)
 
         self.content_container.add_widget(self.value_box)
@@ -102,53 +122,71 @@ class SensorExternalSHT31Tile(BoxLayout):
     def _update_canvas(self, obj, *args):
         self.value_bg.pos = obj.pos
         self.value_bg.size = obj.size
-        rect = (obj.x, obj.y, obj.width, obj.height, dp_scaled(14))
+
+        rect = (
+            obj.x,
+            obj.y,
+            obj.width,
+            obj.height,
+            dp_scaled(14)
+        )
+
         self.value_glow.rounded_rectangle = rect
         self.value_border.rounded_rectangle = rect
-    
-    def update_values(self, data, prefix=""):
-        external = data.get("external", {})
-    
-        temp_data = external.get("temperature", {})
-        hum_data  = external.get("humidity", {})
-        vpd_data  = data.get("vpd_external", {})
-    
+
+    def update_values(self, data, prefix=""):        # Wir greifen nun auf das 'external' Objekt zu
+        ble = data.get("ble_sensors", {})
+        tb2 = ble.get("tb2", {})
+
+        temp_data = tb2.get("temperature", {})
+        hum_data = tb2.get("humidity", {})
+        vpd_data = tb2.get("vpd", {})
+
         temp_val = temp_data.get("value")
-        hum_val  = hum_data.get("value")
-        vpd_val  = vpd_data.get("value") if isinstance(vpd_data, dict) else vpd_data
-    
+        hum_val = hum_data.get("value")
+        vpd_val = vpd_data.get("value")
+
         temp_unit = temp_data.get("unit", "°C")
-        hum_unit  = hum_data.get("unit", "%")
-        vpd_unit  = vpd_data.get("unit", "kPa") if isinstance(vpd_data, dict) else "kPa"
-    
-        # 🔥 FIX 1: Wenn ein Prefix existiert, hängen wir einen Unterstrich an
+        hum_unit = hum_data.get("unit", "%")
+        vpd_unit = vpd_data.get("unit", "kPa")
+
+# 1. Das dynamische Key-Prefix mit Unterstrich vorbereiten
         key_prefix = f"{prefix}_" if prefix else ""
         
-        # 🔥 FIX 2: Das Prefix mit den exakten Pipeline-Endungen kombinieren ("temp_ex", "hum_ex", "vpd_ex")
-        trend_temp = GLOBAL_STATE.get_trend_icon(f"{key_prefix}temp_ex")
-        trend_hum  = GLOBAL_STATE.get_trend_icon(f"{key_prefix}hum_ex")
-        trend_vpd  = GLOBAL_STATE.get_trend_icon(f"{key_prefix}vpd_ex")
-    
+        # 2. Prefix mit den exakten TB2-Endungen verknüpfen
+        trend_temp = GLOBAL_STATE.get_trend_icon(f"{key_prefix}ble_temp_tb2")
+        trend_hum  = GLOBAL_STATE.get_trend_icon(f"{key_prefix}ble_hum_tb2")
+        trend_vpd  = GLOBAL_STATE.get_trend_icon(f"{key_prefix}ble_vpd_tb2")
+
         self.lbl_temp.text = UIFormatter.format_sensor_label(
             name="Temp",
             value=temp_val if temp_val is not None else "--",
             unit=temp_unit,
             trend=trend_temp,
-            sz_val=20, sz_name=12, sz_trend=16, sz_unit=12
+            sz_val=20,
+            sz_name=12,
+            sz_trend=16,
+            sz_unit=12
         )
-    
+
         self.lbl_hum.text = UIFormatter.format_sensor_label(
             name="Hum",
             value=hum_val if hum_val is not None else "--",
             unit=hum_unit,
             trend=trend_hum,
-            sz_val=20, sz_name=12, sz_trend=16, sz_unit=12
+            sz_val=20,
+            sz_name=12,
+            sz_trend=16,
+            sz_unit=12
         )
-    
+
         self.lbl_vpd.text = UIFormatter.format_sensor_label(
             name="VPD",
             value=vpd_val if vpd_val is not None else "--",
             unit=vpd_unit,
             trend=trend_vpd,
-            sz_val=20, sz_name=12, sz_trend=16, sz_unit=12
+            sz_val=20,
+            sz_name=12,
+            sz_trend=16,
+            sz_unit=12
         )

@@ -44,6 +44,20 @@ def compute_ui_scale():
 # 🔥 GLOBAL SCALE (wird einmalig beim App-Start berechnet)
 UI_SCALE = compute_ui_scale()
 
+
+
+def get_effective_width():
+    # Wir nehmen die Breite, skalieren sie aber runter, 
+    # damit sie immer in den logischen Nokia-Bereich (720px Basis) passt.
+    # Da das Huawei 2160 meldet, aber wie 720 funktionieren soll, 
+    # teilen wir durch einen Faktor (hier ~2.0 bis 3.0).
+    w, h = Window.size
+    short_side = min(w, h)
+    
+    # Auf Huawei (2160x1080) wird short_side 1080 sein.
+    # Auf Nokia (1545x720) wird short_side 720 sein.
+    # Wir wollen den Nokia-Wert als "1.0" Referenz.
+    return short_side / 1.5 if short_side > 900 else short_side
 # -------------------------------------------------------
 # 📏 SCALED HELPERS (einzige Quelle!)
 # -------------------------------------------------------

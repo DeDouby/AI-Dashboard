@@ -375,7 +375,20 @@ void exhaust_fan_update() {
     }
 
     // Finale Begrenzung auf User-Settings
-    final_pct = constrain(final_pct, (float)exhaust_fan_min, (float)exhaust_fan_pct);
+    int real_min =
+        min(exhaust_fan_min,
+            exhaust_fan_pct);
+    
+    int real_max =
+        max(exhaust_fan_min,
+            exhaust_fan_pct);
+    
+    final_pct =
+        constrain(
+            final_pct,
+            (float)real_min,
+            (float)real_max
+        );
     current_exhaust_fan_speed = (int)(final_pct + 0.5f);
     
     ledcWrite(_exhaust_fan_pin, map(current_exhaust_fan_speed, 0, 100, 0, 255));

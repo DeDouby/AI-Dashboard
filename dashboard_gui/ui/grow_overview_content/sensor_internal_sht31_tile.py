@@ -1,4 +1,5 @@
 import os
+from sys import prefix
 from kivy.app import App
 from kivy.graphics import Color, RoundedRectangle, Line
 from kivy.uix.boxlayout import BoxLayout
@@ -11,11 +12,13 @@ from dashboard_gui.ui.formatters import UIFormatter
 ASSET_ROOT = os.path.join("dashboard_gui", "assets")
 SHT31_PIC = os.path.join(ASSET_ROOT, "hardware_pics", "sht31.png")
 # VALUE BOX SIZE
-VALUE_BOX_WIDTH = dp_scaled(180)
-VALUE_BOX_HEIGHT = dp_scaled(140)
+
 class SensorInternalSHT31Tile(BoxLayout):
     def __init__(self, **kw):
         super().__init__(orientation="vertical", **kw)
+        self.val_box_w = dp_scaled(200)
+        self.val_box_h = dp_scaled(140)
+
         self.padding = dp_scaled(10)
         self.spacing = dp_scaled(6)
 
@@ -34,24 +37,25 @@ class SensorInternalSHT31Tile(BoxLayout):
         self.content_container = BoxLayout(
             orientation="horizontal",
             size_hint=(1, None),
-            height=max(dp_scaled(100), VALUE_BOX_HEIGHT),
+            height=max(dp_scaled(100), self.val_box_h),
             spacing=dp_scaled(10)
         )
 
         # IMAGE
         self.sensor_image = Image(
             source=SHT31_PIC,
-            size_hint=(None, 1),
-            width=dp_scaled(120)
+            height=dp_scaled(120),
+            allow_stretch=True,
+            keep_ratio=True
         )
         self.content_container.add_widget(self.sensor_image)
 
         # VALUE BOX
         self.value_box = BoxLayout(
             orientation="vertical",
-            size_hint=(None, None),
-            width=VALUE_BOX_WIDTH,
-            height=VALUE_BOX_HEIGHT,
+            size_hint=(1, None), # <--- ÄNDERE ZU 1 (statt None)
+            # Entferne width=VALUE_BOX_WIDTH komplett!
+            height=dp_scaled(140),
             padding=[dp_scaled(10), dp_scaled(5)],
             spacing=dp_scaled(2)
         )
@@ -101,7 +105,7 @@ class SensorInternalSHT31Tile(BoxLayout):
         self.value_glow.rounded_rectangle = rect
         self.value_border.rounded_rectangle = rect
 
-    def update_values(self, data):
+    def update_values(self, data, prefix=""):
         internal = data.get("internal", {})
     
         temp_data = internal.get("temperature", {})
@@ -116,9 +120,13 @@ class SensorInternalSHT31Tile(BoxLayout):
         hum_unit  = hum_data.get("unit", "")
         vpd_unit  = vpd_data.get("unit", "")
     
-        trend_temp = GLOBAL_STATE.get_trend_icon("temp_in")
-        trend_hum  = GLOBAL_STATE.get_trend_icon("hum_in")
-        trend_vpd  = GLOBAL_STATE.get_trend_icon("vpd_in")
+        # 🔥 FIX: Wenn ein Prefix existiert, hängen wir einen Unterstrich an, 
+        # damit es exakt dem Key in der GraphEngine entspricht ("device_channel_temp_in")
+        key_prefix = f"{prefix}_" if prefix else ""
+        
+        trend_temp = GLOBAL_STATE.get_trend_icon(f"{key_prefix}temp_in")
+        trend_hum  = GLOBAL_STATE.get_trend_icon(f"{key_prefix}hum_in")
+        trend_vpd  = GLOBAL_STATE.get_trend_icon(f"{key_prefix}vpd_in")
     
         self.lbl_temp.text = UIFormatter.format_sensor_label(
             name="Temp",

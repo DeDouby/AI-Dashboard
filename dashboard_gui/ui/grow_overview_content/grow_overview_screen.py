@@ -17,7 +17,9 @@ from dashboard_gui.ui.grow_overview_content.esp32_tile import ESP32Tile
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.grow_overview_content.sensor_internal_sht31_tile import SensorInternalSHT31Tile
 from dashboard_gui.ui.grow_overview_content.sensor_external_sht31_tile import SensorExternalSHT31Tile
-
+from dashboard_gui.ui.grow_overview_content.thermobeacon_tile import SensorBLEThermoBeaconTile
+from dashboard_gui.ui.grow_overview_content.inkbird_tile import SensorBLEInkbirdTile
+from dashboard_gui.ui.grow_overview_content.mlx90614_tile import SensorExternalMLX90614Tile  # ← NEU
 ASSET_ROOT = os.path.join("dashboard_gui", "assets")
 
 
@@ -59,14 +61,14 @@ class GrowOverviewScreen(Screen):
         # BoxLayout so unlimited items can be added.
         from kivy.uix.scrollview import ScrollView
 
-        self.content = BoxLayout(orientation="horizontal", spacing=dp_scaled(8), padding=dp_scaled(8))
+        self.content = BoxLayout(orientation="horizontal", spacing=dp_scaled(2), padding=dp_scaled(2))
 
         # helper to create a column with header and scroll container
         def make_column(header_text):
             col = BoxLayout(orientation="vertical")
             hdr = Label(
                 text=header_text,
-                font_size=sp_scaled(16),
+                font_size=sp_scaled(18),
                 bold=True,
                 color=(1, 1, 1, 1),
                 size_hint=(1, None),
@@ -111,8 +113,24 @@ class GrowOverviewScreen(Screen):
         self.sht31_external_tile.height = dp_scaled(180)
         self.sht31_external_tile.size_hint_x = 1        
         
-        # Standardize tiles to have fixed height so vertical stacking works.
-        # Use larger heights for actuator tiles that now include a title inside
+        self.thermobeacon_tile = SensorBLEThermoBeaconTile()
+        self.thermobeacon_tile.size_hint_y = None
+        self.thermobeacon_tile.height = dp_scaled(180)
+        self.thermobeacon_tile.size_hint_x = 1        
+
+        self.inkbird_tile = SensorBLEInkbirdTile()
+        self.inkbird_tile.size_hint_y = None
+        self.inkbird_tile.height = dp_scaled(180)
+        self.inkbird_tile.size_hint_x = 1
+
+        self.mlx90614_tile = SensorExternalMLX90614Tile()          # ← NEU
+
+        # Size settings
+        for tile in (self.sht31_internal_tile, self.sht31_external_tile, 
+                     self.thermobeacon_tile, self.inkbird_tile, self.mlx90614_tile):
+            tile.size_hint_y = None
+            tile.height = dp_scaled(180)
+            tile.size_hint_x = 1
         # their value box.
         self.exhaust_tile.size_hint_y = None
         self.exhaust_tile.height = dp_scaled(180)
@@ -137,7 +155,7 @@ class GrowOverviewScreen(Screen):
             esp_height = dp_scaled(520)
 
         self.esp32_tile.size_hint_y = None
-        self.esp32_tile.height = esp_height
+        self.esp32_tile.height = dp_scaled(1100)
         self.esp32_tile.size_hint_x = 1
 
         # Place tiles into appropriate columns
@@ -147,7 +165,10 @@ class GrowOverviewScreen(Screen):
         # Column 2: sensors (currently empty by default)
         col2_inner.add_widget(self.sht31_internal_tile) # <--- DAS HAT GEFEHLT!
         col2_inner.add_widget(self.sht31_external_tile) # <--- DAS HAT GEFEHLT!
-        
+        col2_inner.add_widget(self.thermobeacon_tile)
+        col2_inner.add_widget(self.inkbird_tile)
+        col2_inner.add_widget(self.mlx90614_tile)          # ← NEU HIER
+
         # Column 3: actuators
         col3_inner.add_widget(self.light_tile)
         col3_inner.add_widget(self.circ_tile)
@@ -162,6 +183,7 @@ class GrowOverviewScreen(Screen):
         self.add_widget(root)
 
     # ---------------- UPDATE ----------------
+    # ---------------- UPDATE ----------------
     def update_from_global(self, d):
         self.header.update_from_global(d)
 
@@ -169,9 +191,24 @@ class GrowOverviewScreen(Screen):
         server_data = GLOBAL_STATE.overlay_engine.get_buffer_data(mac)
 
         if server_data:
+            # 1. Aktivierten Channel aus dem Global State holen
+            active_channel = GLOBAL_STATE.get_active_channel() # z.B. "ch1"
+            
+            # 2. Das exakte Prefix bauen, das auch das DashboardMainPanel nutzt
+            # Format: "MAC_CHANNEL" (z.B. "aa:bb:cc:dd:ee:ff_ch1")
+            prefix_string = f"{mac}_{active_channel}"
+
+            # 3. Aktuatoren updaten
             self.exhaust_tile.update_values(server_data)
             self.circ_tile.update_values(server_data)
             self.light_tile.update_values(server_data)
             self.esp32_tile.update_values(server_data)
-            self.sht31_internal_tile.update_values(server_data)
-            self.sht31_external_tile.update_values(server_data)
+            
+            # 4. Sensor-Tiles MIT dem korrekten Prefix versorgen, damit die Trends matchen!
+            self.sht31_internal_tile.update_values(server_data, prefix=prefix_string)
+            self.sht31_external_tile.update_values(server_data, prefix=prefix_string)
+            
+            # Falls deine BLE-Tiles (Thermobeacon/Inkbird) intern auch Trends nutzen:
+            self.thermobeacon_tile.update_values(server_data, prefix=prefix_string)
+            self.inkbird_tile.update_values(server_data, prefix=prefix_string)
+            self.mlx90614_tile.update_values(server_data, prefix=prefix_string)   # ← NEU

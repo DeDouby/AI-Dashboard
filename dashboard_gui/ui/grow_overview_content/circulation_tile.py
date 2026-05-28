@@ -11,14 +11,16 @@ from dashboard_gui.overlays.circulation_fan_overlay import CirculationFanOverlay
 
 ASSET_ROOT = os.path.join("dashboard_gui", "assets")
 CIRC_PIC = os.path.join(ASSET_ROOT, "hardware_pics", "mars_gaming.png")
-VALUE_BOX_WIDTH = dp_scaled(200)
-VALUE_BOX_HEIGHT = dp_scaled(140)
+
 class CirculationTile(BoxLayout):
 
     def __init__(self, **kw):
         super().__init__(orientation="vertical", **kw)
-        self.padding = dp_scaled(12)
-        self.spacing = dp_scaled(8)
+        self.val_box_w = dp_scaled(200)
+        self.val_box_h = dp_scaled(140)
+
+        self.padding = dp_scaled(10)
+        self.spacing = dp_scaled(6)
         self.title_label = Label(
             text="Mars Gaming PWMX",
             font_size=sp_scaled(18),
@@ -26,7 +28,7 @@ class CirculationTile(BoxLayout):
             halign="left",
             valign="middle",
             size_hint=(1, None),
-            height=dp_scaled(32),
+            height=dp_scaled(35),
             color=(1, 1, 1, 1)
         )
         self.title_label.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
@@ -34,24 +36,27 @@ class CirculationTile(BoxLayout):
         self.content_container = BoxLayout(
             orientation="horizontal",
             size_hint=(1, None),
-            height=max(dp_scaled(100), VALUE_BOX_HEIGHT),
-            spacing=dp_scaled(2)
+            height=max(dp_scaled(100), self.val_box_h),
+            spacing=dp_scaled(0)
         )
+
 
         # ---------------- IMAGE ----------------
         self.fan_image = Image(
             source=CIRC_PIC,
-            size_hint=(None, 1),
-            width=dp_scaled(160)
+            size_hint=(1, None),
+            height=dp_scaled(120),
+            allow_stretch=True,
+            keep_ratio=True
         )
         self.content_container.add_widget(self.fan_image)
 
         # ---------------- VALUE BOX ----------------
         self.value_box = BoxLayout(
             orientation="vertical",
-            size_hint=(None, None),
-            width=VALUE_BOX_WIDTH,
-            height=VALUE_BOX_HEIGHT,
+            size_hint=(1, None), # <--- ÄNDERE ZU 1 (statt None)
+            # Entferne width=VALUE_BOX_WIDTH komplett!
+            height=dp_scaled(140),
             padding=[dp_scaled(10), dp_scaled(5)],
             spacing=dp_scaled(2)
         )
@@ -75,9 +80,9 @@ class CirculationTile(BoxLayout):
         )
         
         # ---------------- LABELS ----------------
-        self.lbl_rpm = Label(text="RPM: 0", font_size=sp_scaled(20), halign="left", valign="middle")
-        self.lbl_live_speed = Label(text="LIVE: 0%", font_size=sp_scaled(20), halign="left", valign="middle")
-        self.lbl_status = Label(text="IDLE", font_size=sp_scaled(20), halign="left", valign="middle")
+        self.lbl_rpm = Label(text="RPM: 0", font_size=sp_scaled(18), halign="left", valign="middle")
+        self.lbl_live_speed = Label(text="LIVE: 0%", font_size=sp_scaled(18), halign="left", valign="middle")
+        self.lbl_status = Label(text="IDLE", font_size=sp_scaled(18), halign="left", valign="middle")
 
         self.value_box.add_widget(self.title_label)
         for lbl in (self.lbl_rpm, self.lbl_live_speed, self.lbl_status):
@@ -107,7 +112,7 @@ class CirculationTile(BoxLayout):
 
         self.lbl_rpm.text = f"RPM: {rpm}"
         self.lbl_live_speed.text = f"LIVE: {speed}%"
-        self.lbl_status.text = "ACTIVE" if speed > 0 else "IDLE"
+        self.lbl_status.text = "ACTIVE" if speed > 0 else "OFFLINE"
 
     # ---------------- TOUCH ----------------
     def on_touch_down(self, touch):
