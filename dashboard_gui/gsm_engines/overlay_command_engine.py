@@ -106,7 +106,16 @@ class OverlayCommandEngine:
             "exhaust_fan_pct": int(kwargs.get("max", current.get("exhaust_fan_pct", 65))),
             "exhaust_fan_mode": kwargs.get("mode", current.get("exhaust_fan_mode", "auto")),
             "exhaust_fan_chaos": bool(kwargs.get("chaos", current.get("exhaust_fan_chaos_active", False))),
-
+            "exhaust_fan_night_reduction":
+                bool(
+                    kwargs.get(
+                        "night_reduction",
+                        current.get(
+                            "exhaust_fan_night_reduction",
+                            True
+                        )
+                    )
+                ),
             "target_temp_min": round(float(kwargs.get("t_min", current.get("target_temp_min", 22.0))), 1),
             "target_temp_max": round(float(kwargs.get("t_max", current.get("target_temp_max", 28.0))), 1),
             "target_humidity_min": int(kwargs.get("h_min", current.get("target_humidity_min", 40))),

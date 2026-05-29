@@ -34,7 +34,7 @@ class ExhaustFanOverlay(FloatLayout):
         self._locked = True
         self._target_mode = "auto"
         self._chaos_enabled = False
-
+        self._night_reduction_enabled = True
         # === AUTO-RETRY VARIABLEN ===
         self._last_sent_rev = 0
         self._last_send_time = 0
@@ -170,14 +170,17 @@ class ExhaustFanOverlay(FloatLayout):
         self.btn_man = self._create_styled_btn("MANUAL")
         self.btn_auto = self._create_styled_btn("AUTOMATIC")
         self.btn_chao = self._create_styled_btn("CHAOTIC")
-        
+        self.btn_night =self._create_styled_btn("NIGHT")
         self.btn_man.bind(on_release=lambda *_: self._set_mode("man"))
         self.btn_auto.bind(on_release=lambda *_: self._set_mode("auto"))
         self.btn_chao.bind(on_release=lambda *_: self._set_mode("chao"))
+        self.btn_night.bind(on_release=lambda *_: self._set_mode("night"))
         
         btn_row.add_widget(self.btn_man)
         btn_row.add_widget(self.btn_auto)
         btn_row.add_widget(self.btn_chao)
+        btn_row.add_widget(self.btn_night)
+
         self.panel.add_widget(btn_row)
         
         self._phase_map = {
@@ -219,8 +222,8 @@ class ExhaustFanOverlay(FloatLayout):
             vpd_min=round(self.vpd_slider.min_value / 10.0, 1),
             vpd_max=round(self.vpd_slider.max_value / 10.0, 1),
             mode=mode,
-            chaos=self._chaos_enabled
-        )
+            chaos=self._chaos_enabled,
+            night_reduction=self._night_reduction_enabled)
 
         if new_rev:
             self.engine.mark_sent(new_rev)
@@ -277,7 +280,7 @@ class ExhaustFanOverlay(FloatLayout):
         # KRITISCHER FIX:
         # Snapshot muss den lokalen Send-State synchronisieren
         self._chaos_enabled = s_chaos
-        
+        self._night_reduction_enabled = bool(data.get( "exhaust_fan_night_reduction",True))
         # Hauptmodus synchronisieren
         self._target_mode = s_mode
         
@@ -327,11 +330,12 @@ class ExhaustFanOverlay(FloatLayout):
         # CHAOS = TOGGLE
         if mode == "chao":
             self._chaos_enabled = not self._chaos_enabled
-    
+        if mode == "night":
+            self._night_reduction_enabled = not self._night_reduction_enabled
         # NUR echte Hauptmodi setzen
         elif mode in ("auto", "man"):
             self._target_mode = mode
-    
+
         self._last_user_action = time.time()
         self._user_active = True
     
@@ -353,7 +357,7 @@ class ExhaustFanOverlay(FloatLayout):
     
         # CHAOS
         self.btn_chao.background_color = (1, 0.5, 0, 0.85) if chaos_active else base
-    
+        self.btn_night.background_color = (0.4, 0.4, 1, 0.85) if self._night_reduction_enabled else base
         # 🔥 TEXT KONTRAST FIX (WICHTIG!)
         def fix(btn, active):
             btn.color = (0, 0, 0, 1) if active else (1, 1, 1, 1)
@@ -361,6 +365,7 @@ class ExhaustFanOverlay(FloatLayout):
         fix(self.btn_man, mode == "man")
         fix(self.btn_auto, mode == "auto")
         fix(self.btn_chao, chaos_active)
+        fix(self.btn_night, self._night_reduction_enabled)
 
     def _on_slider_change(self, *args):
         if not self._init_done or self._ui_lock or self._locked: 

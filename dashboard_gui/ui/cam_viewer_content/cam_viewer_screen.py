@@ -16,10 +16,16 @@ class CamViewerScreen(Screen):
     """
 
     def __init__(self, **kw):
+        name = "cam_viewer"
+
         super().__init__(**kw)
+        from dashboard_gui.global_state_manager import GLOBAL_STATE
         GLOBAL_STATE.ui_handler.attach_screen("cam_viewer", self)
         root = BoxLayout(orientation="vertical")
+        
 
+        
+        
         # HEADER
         self.header = HeaderBar()
         self.header.lbl_title.text = "Camera"

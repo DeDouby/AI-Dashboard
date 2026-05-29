@@ -1,3 +1,4 @@
+//exhaust_fan.cpp
 // !!! ABSOLUTES GESETZ: DAS TARGET-REVISION-PRINZIP (v2.0) !!!
 // -------------------------------------------------------------------------
 // 1. HARDWARE FOLGT TARGET: Loop reagiert nur auf target_val vs effective_val.
@@ -77,7 +78,7 @@ static String exhaust_fan_state_reason = "day_auto";
 static bool vpd_control_enabled = true; // für zukünftige UI-Steuerung
 // Ganz oben bei den anderen globalen Variablen einfügen:
 bool exhaust_fan_chaos_active = false;
-
+bool exhaust_fan_night_reduction = true;
 // In der ISR: Wir bleiben bei den Zeitabständen, machen sie aber präziser
 void IRAM_ATTR count_exhaust_fan_pulse() {
     uint32_t now = micros();
@@ -104,6 +105,10 @@ void exhaust_fan_save_state() {
     exhaust_fanPrefs.putFloat("vpd_min", target_vpd_min);
     exhaust_fanPrefs.putFloat("vpd_max", target_vpd_max);
     exhaust_fanPrefs.putBool("chao_active", exhaust_fan_chaos_active);
+    exhaust_fanPrefs.putBool(
+        "night_red",
+        exhaust_fan_night_reduction
+    );    
 }
 void reset_exhaust_logic() {
     // Trends
@@ -156,7 +161,13 @@ void exhaust_fan_init(uint8_t pin, uint8_t tacho_pin) {
     exhaust_fan_rev = millis();
     // Handshake Initialisierung
     exhaust_fan_init_rev = millis() + 1;
+    exhaust_fan_night_reduction =
+        exhaust_fanPrefs.getBool(
+            "night_red",
+            true
+        );    
 }
+
 void exhaust_fan_set_speed(int percent) {
     exhaust_fan_pct = constrain(percent, 0, 100);
     exhaust_fan_save_state();
@@ -279,9 +290,20 @@ void exhaust_fan_update() {
     // 3. BASIS-REGELUNG (TEMP, HUM & VPD) WITH SENSOR FAILSAFE
     // ============================================================
     if (is_manual) {
+    
         final_pct = (float)exhaust_fan_pct;
-        exhaust_fan_state_reason = "manual";
-    } 
+    
+        if (
+            exhaust_fan_night_reduction &&
+            phase == NIGHT_RECOVERY
+        ) {
+            final_pct *= 0.5f;
+            exhaust_fan_state_reason = "night_manual";
+        }
+        else {
+            exhaust_fan_state_reason = "manual";
+        }
+    }
     else {
         bool sensors_valid = (in_temp > -200.0f && in_hum > -200.0f);
 
@@ -297,7 +319,16 @@ void exhaust_fan_update() {
             // C: VPD-Stress → NUR bei Licht!
             float vpd_f = 0.0f;
             bool vpd_active = false;
-
+            bool temp_high = in_temp > target_temp_max;
+            bool temp_low  = in_temp < target_temp_min;
+            
+            bool hum_high = in_hum > target_humidity_max;
+            bool hum_low  = in_hum < target_humidity_min;
+            
+            float current_vpd = calculate_current_vpd(in_temp, in_hum);
+            
+            bool vpd_high = current_vpd > target_vpd_max;
+            bool vpd_low  = current_vpd < target_vpd_min;
             // VPD nur aktiv während Lichtphase (inkl. Rampen)
             if (phase == DAY_TRANSPIRE || 
                 phase == MORNING_WAKEUP || 
@@ -318,9 +349,15 @@ void exhaust_fan_update() {
 
             // === Phasen-Anpassung ===
             if (phase == NIGHT_RECOVERY) {
-                mix_factor *= 0.5f;           // Nachtreduktion (nur Temp + Hum)
-                exhaust_fan_state_reason = "night_auto";
-            } 
+            
+                if (exhaust_fan_night_reduction) {
+                    mix_factor *= 0.5f;
+                    exhaust_fan_state_reason = "night_auto";
+                }
+                else {
+                    exhaust_fan_state_reason = "night_full";
+                }
+            }
             else if (phase == EVENING_TRANSITION) {
                 mix_factor *= 0.75f;
                 exhaust_fan_state_reason = vpd_active && vpd_f > 0.1f ? "vpd_sunset" : "sunset_ramp";
@@ -330,10 +367,57 @@ void exhaust_fan_update() {
                 exhaust_fan_state_reason = vpd_active && vpd_f > 0.1f ? "vpd_sunrise" : "sunrise_ramp";
             } 
             else { // DAY_TRANSPIRE
-                exhaust_fan_state_reason = (vpd_f > 0.15f) ? "vpd_day" : 
-                                          (t_f > h_f ? "temp_day" : "hum_day");
+            
+                float dominant = max({t_f, h_f, vpd_f});
+            
+                // Alles stabil
+                if (dominant <= 0.01f) {
+            
+                    exhaust_fan_state_reason = "idle_balanced";
+                }
+            
+                // ===== VPD DOMINANT =====
+                else if (vpd_f >= t_f && vpd_f >= h_f) {
+            
+                    if (vpd_high) {
+                        exhaust_fan_state_reason = "vpd_high";
+                    }
+                    else if (vpd_low) {
+                        exhaust_fan_state_reason = "vpd_low";
+                    }
+                    else {
+                        exhaust_fan_state_reason = "vpd_balanced";
+                    }
+                }
+            
+                // ===== TEMP DOMINANT =====
+                else if (t_f >= h_f) {
+            
+                    if (temp_high) {
+                        exhaust_fan_state_reason = "temp_high";
+                    }
+                    else if (temp_low) {
+                        exhaust_fan_state_reason = "temp_low";
+                    }
+                    else {
+                        exhaust_fan_state_reason = "temp_balanced";
+                    }
+                }
+            
+                // ===== HUM DOMINANT =====
+                else {
+            
+                    if (hum_high) {
+                        exhaust_fan_state_reason = "hum_high";
+                    }
+                    else if (hum_low) {
+                        exhaust_fan_state_reason = "hum_low";
+                    }
+                    else {
+                        exhaust_fan_state_reason = "hum_balanced";
+                    }
+                }
             }
-
             int fan_range = exhaust_fan_pct - exhaust_fan_min;
             final_pct = (float)exhaust_fan_min + (fan_range * mix_factor);
         } 
@@ -415,7 +499,12 @@ void exhaust_fan_process_json(JsonObject doc) {
                 // Da wir das Chaos-Flag im UI toggeln wollen, speichern wir es mit
                 flash_changed = true; 
             }
-
+            if (doc.containsKey("exhaust_fan_night_reduction")) {
+                exhaust_fan_night_reduction =
+                    doc["exhaust_fan_night_reduction"];
+            
+                flash_changed = true;
+            }
             // --- FAN SPEED & MIN ---
             if (doc.containsKey("exhaust_fan_pct")) {
                 exhaust_fan_pct = constrain((int)doc["exhaust_fan_pct"], 0, 100);
@@ -482,4 +571,6 @@ void exhaust_fan_get_status(JsonObject doc) {
     doc["plant_phase"] = (int)current_phase;
     doc["exhaust_fan_chaos_active"] = exhaust_fan_chaos_active;
     doc["exhaust_fan_state_reason"] = exhaust_fan_state_reason;
+    doc["exhaust_fan_night_reduction"] =
+        exhaust_fan_night_reduction;
 }

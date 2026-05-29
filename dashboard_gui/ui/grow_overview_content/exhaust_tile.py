@@ -125,10 +125,19 @@ class ExhaustTile(BoxLayout):
             valign="middle"
         )
 
+        self.lbl_mode = Label(
+            text="MODE: IDLE",
+            font_size=sp_scaled(18),
+            halign="left",
+            valign="middle",
+            color=(0.9, 0.9, 0.9, 1)
+        )
+
         for lbl in (self.lbl_rpm, self.lbl_live_speed, self.lbl_reason):
             lbl.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
             self.labels_column.add_widget(lbl)
-
+        self.lbl_mode.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
+        self.labels_column.add_widget(self.lbl_mode)
         # ================= BUILD =================
         self.columns_box.add_widget(self.labels_column)
         self.columns_box.add_widget(self.image_column)
@@ -197,9 +206,32 @@ class ExhaustTile(BoxLayout):
     
         self.lbl_rpm.text = f"RPM: {rpm}"
         self.lbl_live_speed.text = f"LIVE: {speed}%"
+        # === FIX FÜR STATUS LABEL ===
         self.lbl_reason.text = f"STATUS: {reason}"
-    
+        # Wenn der Grund sehr lang ist, Schriftgröße verringern
+        if len(reason) > 10:  # Richtwert, ggf. anpassen
+            self.lbl_reason.font_size = sp_scaled(13)
+        else:
+            self.lbl_reason.font_size = sp_scaled(18)
+        chaos = bool(data.get("exhaust_fan_chaos_active", False))
+        night = bool(data.get("exhaust_fan_night_reduction", False))
+        reason = str(data.get("exhaust_fan_state_reason", "")).lower()
+        
+        if chaos:
+            mode = "CHAOS"
+        elif night:
+            mode = "NIGHT"
+        elif reason.startswith("hum"):
+            mode = "HUMIDITY"
+        elif reason.startswith("temp"):
+            mode = "TEMP"
+        else:
+            mode = "NATURAL"
+        
+        self.lbl_mode.text = f"MODE: {mode}"    
         self._update_box_color(rpm)
+
+
     def on_touch_down(self, touch):
         if not self.collide_point(*touch.pos):
             return super().on_touch_down(touch)

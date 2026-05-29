@@ -71,60 +71,35 @@ class DashboardApp(App):
         I18N.init()
         init_buffer()
 
-        sm = ScreenManager(transition=FadeTransition())
+        self.sm = ScreenManager(transition=FadeTransition())
+        GLOBAL_STATE.bind_screen_manager(self.sm)
 
-        # === Nur essenzielle Screens sofort laden ===
-        sm.add_widget(DashboardScreen(name="dashboard"))
-        sm.add_widget(SetupScreen(name="setup"))
-        sm.add_widget(DebugScreen(name="debug"))
-        sm.add_widget(GrowOverviewScreen(name="grow_overview"))
-        # Rest lazy laden
-        self.screen_manager = sm
-        GLOBAL_STATE.bind_screen_manager(sm)
+        # Alle Screens sofort hinzufügen
+        screens = [
+            GrowOverviewScreen(name="grow_overview"),
+            CamViewerScreen(name="cam_viewer"),
+            DashboardScreen(name="dashboard"),
+            SetupScreen(name="setup"),
+            AboutScreen(name="about"),
+            SettingsScreen(name="settings"),
+            FullScreenView(name="fullscreen"),
+            DevicePickerScreen(name="device_picker"),
+            CSVViewerScreen(name="csv_viewer"),
+            VPDScatterScreen(name="vpd_scatter"),
+            SensorMixedModeScreen(name="sensor_mixed_mode"),
+            GrowControllerScreen(name="grow_controller"),
+            PlantPlannerScreen(name="plant_planner"),
+            DebugScreen(name="debug")
+        ]
 
-        return sm
+        for screen in screens:
+            self.sm.add_widget(screen)
 
-    # Core starten nach UI-Init
+        return self.sm
+
     def on_start(self):
         core.start()
-        Clock.schedule_once(self._lazy_load_screens, 0.8)
-
-    def _lazy_load_screens(self, dt):
-        """Schwere Screens erst nach dem ersten Frame laden"""
-        print("[LAZY] Lade zusätzliche Screens...")
-
-        screens_to_load = {
-            "fullscreen": "dashboard_gui.ui.fullscreen_content.fullscreen_view:FullScreenView",
-            "device_picker": "dashboard_gui.ui.device_picker_content.device_picker:DevicePickerScreen",
-            "csv_viewer": "dashboard_gui.ui.csv_viewer_content.csv_viewer_screen:CSVViewerScreen",
-            "settings": "dashboard_gui.settings_screen:SettingsScreen",
-            "cam_viewer": "dashboard_gui.ui.cam_viewer_content.cam_viewer_screen:CamViewerScreen",
-            "about": "dashboard_gui.ui.about_content.about_screen:AboutScreen",
-            "vpd_scatter": "dashboard_gui.ui.vpd_scatter_screen_content.vpd_scatter_screen:VPDScatterScreen",
-            "sensor_mixed_mode": "dashboard_gui.ui.sensor_mixed_mode_content.sensor_mixed_mode_screen:SensorMixedModeScreen",
-            "grow_controller": "dashboard_gui.ui.grow_controller_content.grow_controller_screen:GrowControllerScreen",
-            "plant_planner": "dashboard_gui.ui.plant_planner_content.plant_planner_screen:PlantPlannerScreen",
-        }
-
-        for name, import_path in screens_to_load.items():
-            try:
-                module_path, class_name = import_path.split(':')
-                module = __import__(module_path, fromlist=[class_name])
-                ScreenClass = getattr(module, class_name)
-                
-                screen = ScreenClass(name=name)
-                self.screen_manager.add_widget(screen)
-                print(f"[LAZY] ✓ {name} geladen")
-            except Exception as e:
-                print(f"[LAZY] ✗ Fehler beim Laden von {name}: {e}")
-
-    def on_stop(self):
-        core.stop()        
-    # Core sauber stoppen
-    def on_stop(self):
-        core.stop()
-
-
+        # Kein Clock.schedule_once mehr für Screens nötig
 
     def on_pause(self):
         # nichts tun, nur resident bleiben

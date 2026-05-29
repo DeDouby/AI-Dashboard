@@ -61,7 +61,7 @@
   "refresh_interval": 0.1,
   "stale_timeout": 17.0,
   "ui_refresh_interval": 1.0,
-  "tile_graph_window": 260,
+  "tile_graph_window": 230,
   "temperature_unit": "C",
   "temperature_offset": 0.0,
   "humidity_offset": 0.0,

@@ -3,7 +3,7 @@ from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.image import Image
 from kivy.uix.label import Label
 from kivy.graphics import Color, RoundedRectangle, Line
-
+from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.scaling_utils import sp_scaled, dp_scaled
 
 ASSET_ROOT = os.path.join("dashboard_gui", "assets")
@@ -28,7 +28,7 @@ class ESP32Tile(BoxLayout):
 
         # ---------------- TOP BOX (wichtigste Infos) ----------------
         self.main_box = self._create_value_box(
-            height=dp_scaled(750),
+            height=dp_scaled(700),
             title="ESP32 Controller"
         )
         
@@ -37,7 +37,7 @@ class ESP32Tile(BoxLayout):
         self.device_image = Image(
             source=ESP32_PIC,
             size_hint=(1, None),
-            height=dp_scaled(350),
+            height=dp_scaled(280),
             allow_stretch=True,
             keep_ratio=True
         )
@@ -115,7 +115,7 @@ class ESP32Tile(BoxLayout):
     def _add_label(self, parent, key, title):
         lbl = Label(
             text=f"{title}: -",
-            font_size=sp_scaled(17.5),
+            font_size=sp_scaled(18),
             halign="left",
             valign="middle",
             size_hint=(1, None),
@@ -248,16 +248,26 @@ class ESP32Tile(BoxLayout):
 
 
     def on_touch_down(self, touch):
-        # 1. Collision check: Nur reagieren, wenn innerhalb des Tiles geklickt wurde
         if self.collide_point(*touch.pos):
-            from dashboard_gui.ui.common.signal_inspector import SignalInspector
+    
             from kivy.app import App
-            
+            from dashboard_gui.global_state_manager import GLOBAL_STATE
+    
             app = App.get_running_app()
-            inspector = SignalInspector(parent_header=self)
-            screen = app.root.current_screen
-            screen.add_widget(inspector)
-            
-            return True  # Event wurde verarbeitet
-            
+            ui = GLOBAL_STATE.ui_handler
+    
+            current_screen = app.root.current_screen
+    
+            if not hasattr(current_screen, "header"):
+                return super().on_touch_down(touch)
+    
+            header = current_screen.header
+    
+            if ui.active_inspector:
+                ui.close_signal_inspector()
+            else:
+                ui.open_signal_inspector(parent_header=header)
+    
+            return True
+    
         return super().on_touch_down(touch)

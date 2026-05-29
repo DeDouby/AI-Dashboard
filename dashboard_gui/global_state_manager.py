@@ -31,6 +31,8 @@ def _extract_mac(dev):
 class GlobalStateManager:
     def __init__(self):
         # Run-State
+        self.dashboard_ref = None
+    
         self.running = True
         # in __init__
         self._flow_hold = False

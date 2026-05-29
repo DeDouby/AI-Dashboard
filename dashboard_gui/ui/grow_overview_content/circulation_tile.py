@@ -188,7 +188,7 @@ class CirculationTile(BoxLayout):
         self.value_glow.rounded_rectangle = rect
         self.value_border.rounded_rectangle = rect
 
-    # ---------------- DATA UPDATE ----------------
+     # ---------------- DATA UPDATE ----------------
     def update_values(self, data):
         rpm = int(data.get('circulation_fan_rpm', 0))
         speed = int(data.get('circulation_fan_speed_now', 0))
@@ -198,7 +198,16 @@ class CirculationTile(BoxLayout):
     
         self.lbl_rpm.text = f"RPM: {rpm}"
         self.lbl_live_speed.text = f"LIVE: {speed}%"
-        self.lbl_status.text = "ACTIVE" if speed > 0 else "OFFLINE"
+    
+        mode = data.get('circulation_fan_mode', 'manual')
+        mode_map = {
+            "chao": "CHAOS",
+            "man": "MANUAL",
+            "nat": "NATURAL",
+            "natural": "NATURAL"
+        }
+    
+        self.lbl_status.text = mode_map.get(mode, "UNKNOWN")
     
         self._update_box_color(rpm)
     # ---------------- TOUCH ----------------

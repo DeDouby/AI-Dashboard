@@ -1,10 +1,11 @@
+#cam_viewer_panel.py
 import os, json
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
 from kivy.uix.button import Button
 from kivy.uix.scrollview import ScrollView
-
+from kivy.app import App
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.ui.cam_viewer_content.cam_player_widget import CamPlayerWidget
 from dashboard_gui.global_state_manager import GLOBAL_STATE
@@ -109,7 +110,13 @@ class CamViewerPanel(BoxLayout):
 
     # -----------------------------------------------------
     def start(self):
-        self._save()
+        
+        # Angenommen, dein ScreenManager ist im Root-Widget der App
+# ... innerhalb von start() ...
+        app = App.get_running_app()
+        if app.root:
+            app.root.current = "dashboard"    
+            self._save()
     
         ip = self.inp_ip.text.strip()
         u  = self.inp_user.text.strip()

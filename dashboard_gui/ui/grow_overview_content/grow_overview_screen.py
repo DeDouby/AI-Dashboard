@@ -21,6 +21,9 @@ from dashboard_gui.ui.grow_overview_content.thermobeacon_tile import SensorBLETh
 from dashboard_gui.ui.grow_overview_content.inkbird_tile import SensorBLEInkbirdTile
 from dashboard_gui.ui.grow_overview_content.mlx90614_tile import SensorExternalMLX90614Tile  # ← NEU
 from dashboard_gui.ui.grow_overview_content.rtc_tile import RTCTile
+from dashboard_gui.ui.grow_overview_content.humidifier_tile import HumidifierTile
+from dashboard_gui.ui.grow_overview_content.scd41_tile import SensorSCD41Tile
+from dashboard_gui.ui.grow_overview_content.tapo_tile import TapoTile
 ASSET_ROOT = os.path.join("dashboard_gui", "assets")
 
 
@@ -69,11 +72,11 @@ class GrowOverviewScreen(Screen):
             col = BoxLayout(orientation="vertical")
             hdr = Label(
                 text=header_text,
-                font_size=sp_scaled(20),
+                font_size=sp_scaled(14),
                 bold=True,
                 color=(1, 1, 1, 1),
                 size_hint=(1, None),
-                height=dp_scaled(48),
+                height=dp_scaled(16),
                 halign="left",
                 valign="middle"
             )
@@ -89,9 +92,9 @@ class GrowOverviewScreen(Screen):
             return col, inner
 
         # Create three columns
-        col1, col1_inner = make_column("GrowMaster S3 Panel")
-        col2, col2_inner = make_column("Sensoren")
-        col3, col3_inner = make_column("Aktuatoren")
+        col1, col1_inner = make_column("System Core")
+        col2, col2_inner = make_column("Sensor Hub")
+        col3, col3_inner = make_column("Actuators")
 
         # keep references so other code can add widgets dynamically
         self.col1_inner = col1_inner
@@ -104,15 +107,16 @@ class GrowOverviewScreen(Screen):
         self.circ_tile = CirculationTile()
         self.light_tile = LightTile()
         self.esp32_tile = ESP32Tile()
-        
         self.rtc_tile = RTCTile()
-        
+        self.tapo_tile = TapoTile()
+        self.humidifier_tile = HumidifierTile()
+
         self.sht31_internal_tile = SensorInternalSHT31Tile()
         self.sht31_external_tile = SensorExternalSHT31Tile()
         self.thermobeacon_tile = SensorBLEThermoBeaconTile()
         self.inkbird_tile = SensorBLEInkbirdTile()
         self.mlx90614_tile = SensorExternalMLX90614Tile()
-
+        self.scd41_tile = SensorSCD41Tile()
         # ---------------- SENSOR SIZE SETTINGS ----------------
         self.sht31_internal_tile.size_hint_y = None
         self.sht31_internal_tile.height = dp_scaled(160)
@@ -134,12 +138,18 @@ class GrowOverviewScreen(Screen):
         self.mlx90614_tile.height = dp_scaled(160)
         self.mlx90614_tile.size_hint_x = 1
 
-        # Size settings
+        self.scd41_tile.size_hint_y = None
+        self.scd41_tile.height = dp_scaled(160)
+        self.scd41_tile.size_hint_x = 1
 
         # their value box.
         self.exhaust_tile.size_hint_y = None
         self.exhaust_tile.height = dp_scaled(180)
         self.exhaust_tile.size_hint_x = 1
+
+        self.humidifier_tile.size_hint_y = None
+        self.humidifier_tile.height = dp_scaled(180)
+        self.humidifier_tile.size_hint_x = 1
 
         self.circ_tile.size_hint_y = None
         self.circ_tile.height = dp_scaled(180)
@@ -152,24 +162,20 @@ class GrowOverviewScreen(Screen):
         self.rtc_tile.size_hint_y = None
         self.rtc_tile.height = dp_scaled(160)
         self.rtc_tile.size_hint_x = 1
-        # ESP32 tile is larger (contains image + value box) so use its
-        # internal content height to avoid cropping inside the ScrollView.
-        try:
-            esp_inner_h = getattr(self.esp32_tile, 'content_container').height
-            esp_padding = getattr(self.esp32_tile, 'padding') or 0
-            esp_height = esp_inner_h + (esp_padding * 2)
-        except Exception:
-            esp_height = dp_scaled(520)
-
+        
+        self.tapo_tile.size_hint_y = None
+        self.tapo_tile.height = dp_scaled(160)
+        self.tapo_tile.size_hint_x = 1
+        
         self.esp32_tile.size_hint_y = None
-        self.esp32_tile.height = dp_scaled(800)
+        self.esp32_tile.height = dp_scaled(720)
         self.esp32_tile.size_hint_x = 1
 
         # Place tiles into appropriate columns
         # Column 1: main panel / device overview
         col1_inner.add_widget(self.esp32_tile)
         col1_inner.add_widget(self.rtc_tile)
-
+        col1_inner.add_widget(self.tapo_tile)
 
         # Column 2: sensors (currently empty by default)
         col2_inner.add_widget(self.sht31_internal_tile) # <--- DAS HAT GEFEHLT!
@@ -177,12 +183,12 @@ class GrowOverviewScreen(Screen):
         col2_inner.add_widget(self.thermobeacon_tile)
         col2_inner.add_widget(self.inkbird_tile)
         col2_inner.add_widget(self.mlx90614_tile)          # ← NEU HIER
-
+        col2_inner.add_widget(self.scd41_tile)            # ← NEU HIER
         # Column 3: actuators
         col3_inner.add_widget(self.light_tile)
         col3_inner.add_widget(self.circ_tile)
         col3_inner.add_widget(self.exhaust_tile)
-
+        col3_inner.add_widget(self.humidifier_tile)
         # Add columns to content
         self.content.add_widget(col1)
         self.content.add_widget(col2)
@@ -212,6 +218,7 @@ class GrowOverviewScreen(Screen):
             self.circ_tile.update_values(server_data)
             self.light_tile.update_values(server_data)
             self.esp32_tile.update_values(server_data)
+            self.humidifier_tile.update_values(server_data)
             
             # 4. Sensor-Tiles MIT dem korrekten Prefix versorgen, damit die Trends matchen!
             self.sht31_internal_tile.update_values(server_data, prefix=prefix_string)
@@ -222,3 +229,5 @@ class GrowOverviewScreen(Screen):
             self.inkbird_tile.update_values(server_data, prefix=prefix_string)
             self.mlx90614_tile.update_values(server_data, prefix=prefix_string)   # ← NEU
             self.rtc_tile.update_values(server_data)
+            self.scd41_tile.update_values(server_data, prefix=prefix_string)     # ← NEU
+            self.tapo_tile.update_values(server_data)
