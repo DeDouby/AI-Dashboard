@@ -20,6 +20,7 @@ from dashboard_gui.ui.grow_overview_content.sensor_external_sht31_tile import Se
 from dashboard_gui.ui.grow_overview_content.thermobeacon_tile import SensorBLEThermoBeaconTile
 from dashboard_gui.ui.grow_overview_content.inkbird_tile import SensorBLEInkbirdTile
 from dashboard_gui.ui.grow_overview_content.mlx90614_tile import SensorExternalMLX90614Tile  # ← NEU
+from dashboard_gui.ui.grow_overview_content.rtc_tile import RTCTile
 ASSET_ROOT = os.path.join("dashboard_gui", "assets")
 
 
@@ -68,7 +69,7 @@ class GrowOverviewScreen(Screen):
             col = BoxLayout(orientation="vertical")
             hdr = Label(
                 text=header_text,
-                font_size=sp_scaled(18),
+                font_size=sp_scaled(20),
                 bold=True,
                 color=(1, 1, 1, 1),
                 size_hint=(1, None),
@@ -98,39 +99,43 @@ class GrowOverviewScreen(Screen):
         self.col3_inner = col3_inner
 
         # ---------------- TILES ----------------
+        # ---------------- TILES ----------------
         self.exhaust_tile = ExhaustTile()
         self.circ_tile = CirculationTile()
         self.light_tile = LightTile()
         self.esp32_tile = ESP32Tile()
-
+        
+        self.rtc_tile = RTCTile()
+        
         self.sht31_internal_tile = SensorInternalSHT31Tile()
+        self.sht31_external_tile = SensorExternalSHT31Tile()
+        self.thermobeacon_tile = SensorBLEThermoBeaconTile()
+        self.inkbird_tile = SensorBLEInkbirdTile()
+        self.mlx90614_tile = SensorExternalMLX90614Tile()
+
+        # ---------------- SENSOR SIZE SETTINGS ----------------
         self.sht31_internal_tile.size_hint_y = None
-        self.sht31_internal_tile.height = dp_scaled(180)
+        self.sht31_internal_tile.height = dp_scaled(160)
         self.sht31_internal_tile.size_hint_x = 1
         
-        self.sht31_external_tile = SensorExternalSHT31Tile()
         self.sht31_external_tile.size_hint_y = None
-        self.sht31_external_tile.height = dp_scaled(180)
-        self.sht31_external_tile.size_hint_x = 1        
+        self.sht31_external_tile.height = dp_scaled(160)
+        self.sht31_external_tile.size_hint_x = 1
         
-        self.thermobeacon_tile = SensorBLEThermoBeaconTile()
         self.thermobeacon_tile.size_hint_y = None
         self.thermobeacon_tile.height = dp_scaled(180)
-        self.thermobeacon_tile.size_hint_x = 1        
-
-        self.inkbird_tile = SensorBLEInkbirdTile()
+        self.thermobeacon_tile.size_hint_x = 1
+        
         self.inkbird_tile.size_hint_y = None
         self.inkbird_tile.height = dp_scaled(180)
         self.inkbird_tile.size_hint_x = 1
-
-        self.mlx90614_tile = SensorExternalMLX90614Tile()          # ← NEU
+        
+        self.mlx90614_tile.size_hint_y = None
+        self.mlx90614_tile.height = dp_scaled(160)
+        self.mlx90614_tile.size_hint_x = 1
 
         # Size settings
-        for tile in (self.sht31_internal_tile, self.sht31_external_tile, 
-                     self.thermobeacon_tile, self.inkbird_tile, self.mlx90614_tile):
-            tile.size_hint_y = None
-            tile.height = dp_scaled(180)
-            tile.size_hint_x = 1
+
         # their value box.
         self.exhaust_tile.size_hint_y = None
         self.exhaust_tile.height = dp_scaled(180)
@@ -141,10 +146,12 @@ class GrowOverviewScreen(Screen):
         self.circ_tile.size_hint_x = 1
 
         self.light_tile.size_hint_y = None
-        self.light_tile.height = dp_scaled(220)
+        self.light_tile.height = dp_scaled(200)
         self.light_tile.size_hint_x = 1
 
-
+        self.rtc_tile.size_hint_y = None
+        self.rtc_tile.height = dp_scaled(160)
+        self.rtc_tile.size_hint_x = 1
         # ESP32 tile is larger (contains image + value box) so use its
         # internal content height to avoid cropping inside the ScrollView.
         try:
@@ -155,12 +162,14 @@ class GrowOverviewScreen(Screen):
             esp_height = dp_scaled(520)
 
         self.esp32_tile.size_hint_y = None
-        self.esp32_tile.height = dp_scaled(1100)
+        self.esp32_tile.height = dp_scaled(800)
         self.esp32_tile.size_hint_x = 1
 
         # Place tiles into appropriate columns
         # Column 1: main panel / device overview
         col1_inner.add_widget(self.esp32_tile)
+        col1_inner.add_widget(self.rtc_tile)
+
 
         # Column 2: sensors (currently empty by default)
         col2_inner.add_widget(self.sht31_internal_tile) # <--- DAS HAT GEFEHLT!
@@ -212,3 +221,4 @@ class GrowOverviewScreen(Screen):
             self.thermobeacon_tile.update_values(server_data, prefix=prefix_string)
             self.inkbird_tile.update_values(server_data, prefix=prefix_string)
             self.mlx90614_tile.update_values(server_data, prefix=prefix_string)   # ← NEU
+            self.rtc_tile.update_values(server_data)

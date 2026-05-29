@@ -1,6 +1,4 @@
 import os
-
-from kivy.app import App
 from kivy.graphics import Color, RoundedRectangle, Line
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.image import Image
@@ -13,18 +11,18 @@ from dashboard_gui.ui.formatters import UIFormatter
 ASSET_ROOT = os.path.join("dashboard_gui", "assets")
 MLX90614_PIC = os.path.join(ASSET_ROOT, "hardware_pics", "mlx90614.png")
 
-# VALUE BOX SIZE
-
 
 class SensorExternalMLX90614Tile(BoxLayout):
     def __init__(self, **kw):
-        super().__init__(orientation="vertical", **kw)
-        self.val_box_w = dp_scaled(200)
-        self.val_box_h = dp_scaled(140)
-
+        super().__init__(
+            orientation="vertical",
+            size_hint=(1, 1),
+            **kw
+        )
         self.padding = dp_scaled(10)
         self.spacing = dp_scaled(6)
 
+        # ================= TITLE =================
         self.title_label = Label(
             text="Leaf Temp: MLX90614",
             font_size=sp_scaled(20),
@@ -32,78 +30,120 @@ class SensorExternalMLX90614Tile(BoxLayout):
             halign="left",
             valign="middle",
             size_hint=(1, None),
-            height=dp_scaled(50),
+            height=dp_scaled(25),
             color=(1, 1, 1, 1)
         )
         self.title_label.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
 
+        # ================= MAIN =================
         self.content_container = BoxLayout(
             orientation="horizontal",
-            size_hint=(1, None),
-            height=max(dp_scaled(100), self.val_box_h),
+            size_hint=(1, 1),
             spacing=dp_scaled(2)
         )
 
-        # IMAGE
-        self.sensor_image = Image(
-            source=MLX90614_PIC,
-            height=dp_scaled(120),
-            allow_stretch=True,
-            keep_ratio=True
-        )
-        self.content_container.add_widget(self.sensor_image)
-
-        # VALUE BOX
+        # ================= VALUE BOX =================
         self.value_box = BoxLayout(
             orientation="vertical",
-            size_hint=(1, None), # <--- ÄNDERE ZU 1 (statt None)
-            # Entferne width=VALUE_BOX_WIDTH komplett!
-            height=dp_scaled(140),
-            padding=[dp_scaled(10), dp_scaled(5)],
-            spacing=dp_scaled(2)
+            size_hint=(1, 1),
+            padding=[dp_scaled(12), dp_scaled(10)],
+            spacing=dp_scaled(6)
         )
 
+        # ================= COLUMNS =================
+        self.columns_box = BoxLayout(
+            orientation="horizontal",
+            size_hint=(1, 1),
+            spacing=dp_scaled(10)
+        )
+        self.labels_column = BoxLayout(
+            orientation="vertical",
+            size_hint=(0.5, 1),
+            spacing=dp_scaled(2)
+        )
+        self.image_column = BoxLayout(
+            orientation="vertical",
+            size_hint=(0.5, 1)
+        )
 
+        # ================= IMAGE =================
+        self.sensor_image = Image(
+            source=MLX90614_PIC,
+            size_hint=(1, 1),
+            fit_mode="contain"
+        )
+        self.image_column.add_widget(self.sensor_image)
+
+        # ================= CANVAS (GREEN SENSOR STYLE) =================
         with self.value_box.canvas.before:
             Color(0, 0, 0, 0.62)
             self.value_bg = RoundedRectangle(radius=[dp_scaled(14)])
-            Color(0.2, 0.8, 0.2, 0.4)   # Grünlicher Sensor-Ton
+            self.glow_color = Color(0.2, 0.8, 0.2, 0.35)
             self.value_glow = Line(width=5)
-            Color(0.2, 0.8, 0.2, 0.8)
+            self.border_color = Color(0.2, 0.8, 0.2, 0.85)
             self.value_border = Line(width=1.3)
 
-        self.value_box.bind(pos=self._update_canvas, size=self._update_canvas)
+        self.value_box.bind(
+            pos=self._update_value_box_canvas,
+            size=self._update_value_box_canvas
+        )
 
-        # LABELS
+        # ================= LABELS =================
         self.lbl_leaf_temp = Label(
             text="--",
             markup=True,
-            font_size=sp_scaled(20)
+            font_size=sp_scaled(20),
+            halign="left",
+            valign="middle"
         )
-        
         self.lbl_vpd_leaf = Label(
             text="--",
             markup=True,
-            font_size=sp_scaled(20)
+            font_size=sp_scaled(20),
+            halign="left",
+            valign="middle"
         )
 
-        for lbl in (self.title_label, self.lbl_leaf_temp, self.lbl_vpd_leaf):
-            lbl.halign = "left"
-            lbl.valign = "middle"
+        for lbl in (self.lbl_leaf_temp, self.lbl_vpd_leaf):
             lbl.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
-            self.value_box.add_widget(lbl)
+            self.labels_column.add_widget(lbl)
 
+        # ================= BUILD =================
+        self.columns_box.add_widget(self.labels_column)
+        self.columns_box.add_widget(self.image_column)
+        self.value_box.add_widget(self.title_label)
+        self.value_box.add_widget(self.columns_box)
         self.content_container.add_widget(self.value_box)
         self.add_widget(self.content_container)
 
-    def _update_canvas(self, obj, *args):
-        self.value_bg.pos = obj.pos
-        self.value_bg.size = obj.size
-        rect = (obj.x, obj.y, obj.width, obj.height, dp_scaled(14))
+    def _update_value_box_canvas(self, obj, *args):
+        x, y = obj.pos
+        w, h = obj.size
+        r = dp_scaled(14)
+
+        self.value_bg.pos = (x, y)
+        self.value_bg.size = (w, h)
+
+        rect = (x, y, w, h, r)
         self.value_glow.rounded_rectangle = rect
         self.value_border.rounded_rectangle = rect
-    
+
+    def _update_box_color(self, is_ok):
+        """Schaltet die UI-Glow und Border-Farbe basierend auf dem Zustand um."""
+        if is_ok:
+            # HIER DEINE STANDARD-FARBE FÜR "ALLES OK" EINTRAGEN
+            self.glow_color.rgba = (0.2, 0.8, 0.2, 0.35)    # RGBA für das Leuchten
+            self.border_color.rgba = (0.2, 0.8, 0.2, 0.85)  # RGBA für den Rahmen
+        else:
+            # ALARM-ROT (Bleibt für alle Kacheln gleich)
+            self.glow_color.rgba = (1.0, 0.3, 0.2, 0.35)
+            self.border_color.rgba = (1.0, 0.3, 0.2, 0.85)
+
     def update_values(self, data, prefix=""):
+        if not data:
+            self._update_box_color(False)
+            return
+
         external2 = data.get("external2", {})
     
         leaf_temp_data = external2.get("leaf_temp", {})
@@ -136,3 +176,5 @@ class SensorExternalMLX90614Tile(BoxLayout):
             trend=trend_vpd,
             sz_val=20, sz_name=12, sz_trend=16, sz_unit=12
         )
+        has_valid_values = (leaf_temp_val is not None) and (vpd_leaf_val is not None)
+        self._update_box_color(has_valid_values)

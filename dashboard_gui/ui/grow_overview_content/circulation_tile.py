@@ -8,91 +8,174 @@ from kivy.graphics import Color, RoundedRectangle, Line
 from dashboard_gui.ui.scaling_utils import sp_scaled, dp_scaled
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.overlays.circulation_fan_overlay import CirculationFanOverlay
-
+from dashboard_gui.ui.grow_overview_content.segmented_progress_bar import SegmentedProgressBar
 ASSET_ROOT = os.path.join("dashboard_gui", "assets")
 CIRC_PIC = os.path.join(ASSET_ROOT, "hardware_pics", "mars_gaming.png")
 
 class CirculationTile(BoxLayout):
 
     def __init__(self, **kw):
-        super().__init__(orientation="vertical", **kw)
+        super().__init__(
+            orientation="vertical",
+            size_hint=(1, 1),
+            **kw
+        )
+
         self.val_box_w = dp_scaled(200)
         self.val_box_h = dp_scaled(140)
 
         self.padding = dp_scaled(10)
         self.spacing = dp_scaled(6)
+
+        # ================= TITLE =================
         self.title_label = Label(
             text="Mars Gaming PWMX",
-            font_size=sp_scaled(18),
+            font_size=sp_scaled(20),
             bold=True,
             halign="left",
             valign="middle",
             size_hint=(1, None),
-            height=dp_scaled(35),
+            height=dp_scaled(25),
             color=(1, 1, 1, 1)
         )
         self.title_label.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
-        # Container für Bild und Wertebox (Horizontal)
+
+        # ================= MAIN BOX =================
         self.content_container = BoxLayout(
             orientation="horizontal",
-            size_hint=(1, None),
-            height=max(dp_scaled(100), self.val_box_h),
-            spacing=dp_scaled(0)
-        )
-
-
-        # ---------------- IMAGE ----------------
-        self.fan_image = Image(
-            source=CIRC_PIC,
-            size_hint=(1, None),
-            height=dp_scaled(120),
-            allow_stretch=True,
-            keep_ratio=True
-        )
-        self.content_container.add_widget(self.fan_image)
-
-        # ---------------- VALUE BOX ----------------
-        self.value_box = BoxLayout(
-            orientation="vertical",
-            size_hint=(1, None), # <--- ÄNDERE ZU 1 (statt None)
-            # Entferne width=VALUE_BOX_WIDTH komplett!
-            height=dp_scaled(140),
-            padding=[dp_scaled(10), dp_scaled(5)],
+            size_hint=(1, 1),
             spacing=dp_scaled(2)
         )
 
+        # ================= VALUE BOX =================
+        self.value_box = BoxLayout(
+            orientation="vertical",
+            size_hint=(1, 1),
+            padding=[dp_scaled(12), dp_scaled(10)],
+            spacing=dp_scaled(6)
+        )
+
+        # ================= COLUMNS =================
+        self.columns_box = BoxLayout(
+            orientation="horizontal",
+            size_hint=(1, 1),
+            spacing=dp_scaled(10)
+        )
+
+        self.labels_column = BoxLayout(
+            orientation="vertical",
+            size_hint=(0.5, 1),
+            spacing=dp_scaled(2)
+        )
+
+        self.image_column = BoxLayout(
+            orientation="vertical",
+            size_hint=(0.5, 1)
+        )
+
+        # ================= IMAGE =================
+        self.fan_image = Image(
+            source=CIRC_PIC,
+            size_hint=(1, 1),
+            fit_mode="contain"
+        )
+        self.image_column.add_widget(self.fan_image)
+
+        # ================= PROGRESS BAR =================
+        self.prog_bar = SegmentedProgressBar()
+        self.prog_bar.size_hint = (1, None)
+        self.prog_bar.height = dp_scaled(18)
+
+        # ================= CANVAS (LIGHT STYLE) =================
         with self.value_box.canvas.before:
             Color(0, 0, 0, 0.62)
-            self.value_bg = RoundedRectangle(
-                pos=self.value_box.pos,
-                size=self.value_box.size,
-                radius=[dp_scaled(14)]
-            )
-            Color(0.1, 0.45, 0.9, 0.35)
+            self.value_bg = RoundedRectangle(radius=[dp_scaled(14)])
+
+            self.glow_color = Color(0.1, 0.45, 0.9, 0.35)
             self.value_glow = Line(width=5)
-            
-            Color(0.1, 0.45, 0.9, 0.85)
+
+            self.border_color = Color(0.1, 0.45, 0.9, 0.85)
             self.value_border = Line(width=1.3)
-        
+
         self.value_box.bind(
             pos=self._update_value_box_canvas,
             size=self._update_value_box_canvas
         )
-        
-        # ---------------- LABELS ----------------
-        self.lbl_rpm = Label(text="RPM: 0", font_size=sp_scaled(18), halign="left", valign="middle")
-        self.lbl_live_speed = Label(text="LIVE: 0%", font_size=sp_scaled(18), halign="left", valign="middle")
-        self.lbl_status = Label(text="IDLE", font_size=sp_scaled(18), halign="left", valign="middle")
 
-        self.value_box.add_widget(self.title_label)
+        # ================= LABELS =================
+        self.lbl_rpm = Label(
+            text="RPM: 0",
+            font_size=sp_scaled(20),
+            halign="left",
+            valign="middle"
+        )
+
+        self.lbl_live_speed = Label(
+            text="LIVE: 0%",
+            font_size=sp_scaled(18),
+            halign="left",
+            valign="middle"
+        )
+
+        self.lbl_status = Label(
+            text="STATUS: OFFLINE",
+            font_size=sp_scaled(18),
+            halign="left",
+            valign="middle"
+        )
+
         for lbl in (self.lbl_rpm, self.lbl_live_speed, self.lbl_status):
             lbl.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
-            self.value_box.add_widget(lbl)
+            self.labels_column.add_widget(lbl)
 
-        # Container zusammenbauen
+        # ================= BUILD =================
+        self.columns_box.add_widget(self.labels_column)
+        self.columns_box.add_widget(self.image_column)
+
+        self.value_box.add_widget(self.title_label)
+        self.value_box.add_widget(self.columns_box)
+        self.value_box.add_widget(self.prog_bar)
+
         self.content_container.add_widget(self.value_box)
         self.add_widget(self.content_container)
 
+    def _update_box_color(self, rpm):
+        """
+        Gleiche Farblogik wie Header-Icon.
+        Aktualisiert Glow + Border der ValueBox.
+        """
+    
+        if rpm <= 0:
+            color = (1.0, 0.2, 0.2)      # Rot
+    
+        elif rpm < 400:
+            color = (0.0, 0.7, 1.0)      # Hellblau
+    
+        elif rpm < 800:
+            color = (0.0, 1.0, 0.5)      # Türkis
+    
+        elif rpm < 1200:
+            color = (0.0, 1.0, 0.0)      # Grün
+    
+        elif rpm < 1600:
+            color = (1.0, 1.0, 0.0)      # Gelb
+    
+        else:
+            color = (1.0, 0.5, 0.0)      # Orange
+    
+        self.glow_color.rgba = (
+            color[0],
+            color[1],
+            color[2],
+            0.35
+        )
+    
+        self.border_color.rgba = (
+            color[0],
+            color[1],
+            color[2],
+            0.85
+        )
     # ---------------- CANVAS UPDATE ----------------
     def _update_value_box_canvas(self, obj, *args):
         x, y = obj.pos
@@ -109,11 +192,15 @@ class CirculationTile(BoxLayout):
     def update_values(self, data):
         rpm = int(data.get('circulation_fan_rpm', 0))
         speed = int(data.get('circulation_fan_speed_now', 0))
-
+    
+        self.prog_bar.value = speed
+        self.prog_bar.max = 100
+    
         self.lbl_rpm.text = f"RPM: {rpm}"
         self.lbl_live_speed.text = f"LIVE: {speed}%"
         self.lbl_status.text = "ACTIVE" if speed > 0 else "OFFLINE"
-
+    
+        self._update_box_color(rpm)
     # ---------------- TOUCH ----------------
     def on_touch_down(self, touch):
         if not self.collide_point(*touch.pos):

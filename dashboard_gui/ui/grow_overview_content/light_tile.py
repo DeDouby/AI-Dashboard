@@ -1,3 +1,4 @@
+# LightTile: Zeigt den Status der Beleuchtung an, inklusive aktueller Helligkeit, Zielhelligkeit, verbleibender Zeit und Phase des Tages.
 import os
 import time
 from kivy.uix.boxlayout import BoxLayout
@@ -10,6 +11,7 @@ from dashboard_gui.ui.scaling_utils import sp_scaled, dp_scaled
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.overlays.light_overlay import LightOverlay
 from dashboard_gui.overlays.base_overlay import BaseOverlayEngine
+from dashboard_gui.ui.grow_overview_content.segmented_progress_bar import SegmentedProgressBar
 
 ASSET_ROOT = os.path.join("dashboard_gui", "assets")
 LIGHT_PIC = os.path.join(ASSET_ROOT, "hardware_pics", "electrogrow.png")
@@ -28,14 +30,16 @@ class LightTile(BoxLayout):
 
         self.padding = dp_scaled(10)
         self.spacing = dp_scaled(6)
+
+        # Titel oben drüber über die ganze Breite
         self.title_label = Label(
             text="ElectroGrow 720W",
-            font_size=sp_scaled(18),
+            font_size=sp_scaled(20),
             bold=True,
             halign="left",
             valign="middle",
             size_hint=(1, None),
-            height=dp_scaled(35),
+            height=dp_scaled(25),
             color=(1, 1, 1, 1)
         )
         self.title_label.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
@@ -49,63 +53,108 @@ class LightTile(BoxLayout):
         # Main Container
         self.content_container = BoxLayout(
             orientation="horizontal",
-            size_hint=(1, None),
-            height=max(dp_scaled(100), self.val_box_h),
+            size_hint=(1, 1),
             spacing=dp_scaled(2)
         )
 
-        # Image
-        self.light_image = Image(
-            source=LIGHT_PIC,
-            size_hint=(1, None),
-            height=dp_scaled(120),
-            allow_stretch=True,
-            keep_ratio=True
-        )
-        self.content_container.add_widget(self.light_image)
-
-        # Value Box
+        # Value Box (Hintergrund und Rahmen)
         self.value_box = BoxLayout(
             orientation="vertical",
-            size_hint=(1, None), # <--- ÄNDERE ZU 1 (statt None)
-            # Entferne width=VALUE_BOX_WIDTH komplett!
-            height=dp_scaled(150),
-            padding=[dp_scaled(10), dp_scaled(5)],
+            size_hint=(1, 1), 
+            padding=[dp_scaled(12), dp_scaled(10)],
+            spacing=dp_scaled(6)
+        )
+        
+# Horizontale Box für die Aufteilung: Links Labels, Rechts Bild
+        self.columns_box = BoxLayout(
+            orientation="horizontal",
+            size_hint=(1, 1),
+            spacing=dp_scaled(10)
+        )
+
+        # Linke Spalte für die Werte (auf 50% verkleinert, reicht für die Texte völlig)
+        self.labels_column = BoxLayout(
+            orientation="vertical",
+            size_hint=(0.5, 1),
             spacing=dp_scaled(2)
         )
 
+        # Rechte Spalte für das Hardware-Bild (auf 50% verbreitert für maximale Größe)
+        self.image_column = BoxLayout(
+            orientation="vertical",
+            size_hint=(0.5, 1)
+        )
+        
+        self.prog_bar = SegmentedProgressBar()
+        self.prog_bar.size_hint = (1, None)
+        self.prog_bar.height = dp_scaled(18)                
+        
+        # Bild füllt nun die vergrößerte 50%-Spalte komplett aus
+        self.light_image = Image(
+            source=LIGHT_PIC,
+            size_hint=(1, 1),
+            fit_mode="contain"  # Skaliert das Bild perfekt auf die neue Maximalgröße
+        )
+        self.image_column.add_widget(self.light_image)
+        
         with self.value_box.canvas.before:
             Color(0, 0, 0, 0.62)
             self.value_bg = RoundedRectangle(radius=[dp_scaled(14)])
-            Color(0.1, 0.45, 0.9, 0.35)
+        
+            self.glow_color = Color(1.0, 0.72, 0.15, 0.35)
             self.value_glow = Line(width=5)
-            Color(0.1, 0.45, 0.9, 0.85)
+        
+            self.border_color = Color(1.0, 0.72, 0.15, 0.85)
             self.value_border = Line(width=1.3)
 
         self.value_box.bind(pos=self._update_value_box_canvas, size=self._update_value_box_canvas)
 
-        # Labels
-        self.lbl_current = Label(text="LIVE: --%", font_size=sp_scaled(18), bold=True,
+        # Labels initialisieren
+        self.lbl_current = Label(text="LIVE: --%", font_size=sp_scaled(20), bold=True,
                                  halign="left", valign="middle", color=(1, 1, 1, 1))
         self.lbl_target = Label(text="TARGET: --%", font_size=sp_scaled(18),
                                 halign="left", valign="middle")
         self.lbl_remaining = Label(text="REST: --:--", font_size=sp_scaled(18),
                                    halign="left", valign="middle")
-        self.lbl_status = Label(text="STATUS: INIT", font_size=sp_scaled(18),
+        self.lbl_status = Label(text="STATUS: INIT", font_size=sp_scaled(16),
                                 halign="left", valign="middle", markup=True)
-        self.lbl_phase = Label(text="PHASE: --", font_size=sp_scaled(18),
+        self.lbl_phase = Label(text="PHASE: --", font_size=sp_scaled(14),
                                halign="left", valign="middle", color=(1, 1, 1, 1))
 
-        self.lbl_phase.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
-
-        self.value_box.add_widget(self.title_label)
-        self.value_box.add_widget(self.lbl_phase)
-        for lbl in (self.lbl_current, self.lbl_target, self.lbl_remaining, self.lbl_status):
+        # Labels in die linke Spalte packen
+        for lbl in (self.lbl_current, self.lbl_target, self.lbl_remaining, self.lbl_status, self.lbl_phase):
             lbl.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
-            self.value_box.add_widget(lbl)
+            self.labels_column.add_widget(lbl)
+
+        # Spalten in die übergeordnete horizontale Box einfügen
+        self.columns_box.add_widget(self.labels_column)
+        self.columns_box.add_widget(self.image_column)
+
+        # Zusammenbau der Value Box von oben nach unten
+        self.value_box.add_widget(self.title_label)    # 1. Titel
+        self.value_box.add_widget(self.columns_box)    # 2. Spalten (Werte & Bild)
+        self.value_box.add_widget(self.prog_bar)       # 3. Progressbar unten
 
         self.content_container.add_widget(self.value_box)
         self.add_widget(self.content_container)
+
+ 
+    def _update_box_color(self, brightness):
+        if brightness is None or brightness < 0:
+            rgb = (0.5, 0.5, 0.5)
+        elif brightness <= 0:
+            rgb = (0.2, 0.2, 0.2)
+        elif brightness < 20:
+            rgb = (0.6, 0.5, 0.0)
+        elif brightness < 50:
+            rgb = (0.8, 0.8, 0.0)
+        elif brightness < 80:
+            rgb = (1.0, 1.0, 0.0)
+        else:
+            rgb = (1.0, 1.0, 0.6)
+    
+        self.glow_color.rgba = (*rgb, 0.35)
+        self.border_color.rgba = (*rgb, 0.85)
 
     def _update_value_box_canvas(self, obj, *args):
         x, y = obj.pos
@@ -118,20 +167,23 @@ class LightTile(BoxLayout):
         self.value_border.rounded_rectangle = rect
 
     # ==================== UPDATE ====================
-    def update_values(self, data):          # ← wie beim ExhaustTile: "data"
+    def update_values(self, data):
         if not data:
             return
 
         target = int(data.get('light_target', 0))
         current_hw = int(data.get('light_pct', 0))
+        self.prog_bar.value = current_hw
+        self.prog_bar.max = 100
+        self._update_box_color(current_hw)
         mode = data.get('light_mode', 'man')
 
         self.lbl_current.text = f"LIVE: {current_hw}%"
         self.lbl_target.text = f"TARGET: {target}%"
         self.lbl_remaining.text = self._calculate_remaining_time(data)
 
-        self._update_phase(data)        # ← plant_phase wird hier verwendet
-        # Status
+        self._update_phase(data)
+        
         server_init = int(data.get('rev_init_light', 0))
         server_rev = int(data.get('rev_light', 0))
 
@@ -155,35 +207,34 @@ class LightTile(BoxLayout):
         else:
             self.lbl_status.text = "STATUS: [color=ff8000]PEND[/color]"
 
-    # ==================== PHASE (wie reason beim Exhaust) ====================
-    # ==================== PHASE BERECHNUNG (da Server None liefert) ====================
-    # ==================== PHASE (mit plant_phase) ====================
+    # ==================== PHASE ====================
     def _update_phase(self, data):
-        plant_phase = data.get('plant_phase')
-        
-        print(f"[DEBUG LightTile] plant_phase = {plant_phase} (Typ: {type(plant_phase)})")
-
-        # Mapping von plant_phase → Anzeige
-        if plant_phase == 0:
-            self.lbl_phase.text = "PHASE: NIGHT"
-            self.lbl_phase.color = (0.45, 0.65, 1.0, 1)
-            
-        elif plant_phase == 1:
-            self.lbl_phase.text = "PHASE: SUNRISE"
-            self.lbl_phase.color = (1.0, 0.72, 0.15, 1)
-            
-        elif plant_phase == 2:
-            self.lbl_phase.text = "PHASE: DAY"
-            self.lbl_phase.color = (0.0, 1.0, 0.35, 1)
-            
-        elif plant_phase == 3:
-            self.lbl_phase.text = "PHASE: SUNSET"
-            self.lbl_phase.color = (1.0, 0.45, 0.1, 1)
-            
+        phase = str(data.get("light_phase", "DAY")).upper()
+        climate_override = bool(data.get("light_climate_override", False))
+        state_reason = str(data.get("light_state_reason", "")).upper().strip()
+    
+        if phase == "MORNING":
+            text = "SUNRISE"
+            color = (1.0, 0.72, 0.15, 1)
+        elif phase == "EVENING":
+            text = "SUNSET"
+            color = (1.0, 0.45, 0.1, 1)
+        elif phase == "NIGHT":
+            text = "NIGHT"
+            color = (0.45, 0.65, 1.0, 1)
         else:
-            # Fallback
-            self.lbl_phase.text = f"PHASE: {plant_phase}"
-            self.lbl_phase.color = (1, 1, 1, 1)
+            text = "DAY"
+            color = (0.0, 1.0, 0.35, 1)
+    
+        if climate_override:
+            text += " | CLIM"
+    
+        ignored = {"", "MANUAL", "NORMAL", "DAY", "TIMER"}
+        if state_reason not in ignored:
+            text += f" | {state_reason}"
+    
+        self.lbl_phase.text = f"PHASE: {text}"
+        self.lbl_phase.color = color
 
     # ==================== TIME ====================
     def _calculate_remaining_time(self, data):

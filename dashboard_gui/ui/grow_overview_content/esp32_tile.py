@@ -11,45 +11,36 @@ ESP32_PIC = os.path.join(ASSET_ROOT, "hardware_pics", "esp32_board.png")
 
 VALUE_BOX_WIDTH = dp_scaled(220)
 
-TOP_BOX_HEIGHT = dp_scaled(180)
-BOTTOM_BOX_HEIGHT = dp_scaled(310)
+
 class ESP32Tile(BoxLayout):
 
     def __init__(self, **kwargs):
         super().__init__(orientation="vertical", spacing=dp_scaled(12), padding=dp_scaled(10), **kwargs)
         # ==================== BOX SIZES ====================
 
-        self.top_box_height = dp_scaled(180)
-        self.top_box_width = dp_scaled(650)
-
-        self.bottom_box_height = dp_scaled(310)
-        self.bottom_box_width = dp_scaled(650)
         # ==================== MAIN CONTAINER ====================
         self.content_container = BoxLayout(
             orientation="vertical",
-            size_hint=(1, None),
+            size_hint=(1, 1),
             spacing=dp_scaled(15),
-            height=dp_scaled(1300)
+            height=dp_scaled(100)
         )
 
         # ---------------- TOP BOX (wichtigste Infos) ----------------
-        self.top_box = self._create_value_box(height=dp_scaled(180), title="System Status")
-        self.content_container.add_widget(self.top_box)
-
-        # ---------------- IMAGE ----------------
+        self.main_box = self._create_value_box(
+            height=dp_scaled(750),
+            title="ESP32 Controller"
+        )
+        
+        self.content_container.add_widget(self.main_box)
+        
         self.device_image = Image(
             source=ESP32_PIC,
             size_hint=(1, None),
-            height=dp_scaled(520),
+            height=dp_scaled(350),
             allow_stretch=True,
             keep_ratio=True
         )
-        self.content_container.add_widget(self.device_image)
-
-        # ---------------- BOTTOM BOX (alle anderen Infos) ----------------
-        self.bottom_box = self._create_value_box(height=dp_scaled(310), title="Details")
-        self.content_container.add_widget(self.bottom_box)
-
         self.add_widget(self.content_container)
 
         # Labels verwalten
@@ -69,7 +60,7 @@ class ESP32Tile(BoxLayout):
         if title:
             title_label = Label(
                 text=title,
-                font_size=sp_scaled(18),
+                font_size=sp_scaled(20),
                 bold=True,
                 color=(0.2, 1, 0.8, 1),
                 size_hint_y=None,
@@ -83,10 +74,11 @@ class ESP32Tile(BoxLayout):
             Color(0, 0, 0, 0.7)
             box.bg = RoundedRectangle(pos=box.pos, size=box.size, radius=[dp_scaled(16)])
 
-            Color(0.2, 1, 0.8, 0.18)
+            # Dein Standard-Blau als Basis
+            box.glow_color = Color(0.1, 0.45, 0.9, 0.35)
             box.glow = Line(width=6, rounded_rectangle=(0, 0, 0, 0, dp_scaled(16)))
 
-            Color(0.2, 1, 0.8, 0.75)
+            box.border_color = Color(0.1, 0.45, 0.9, 0.85)
             box.border = Line(width=1.5, rounded_rectangle=(0, 0, 0, 0, dp_scaled(16)))
 
         box.bind(pos=self._update_canvas, size=self._update_canvas)
@@ -100,24 +92,25 @@ class ESP32Tile(BoxLayout):
             ("ip", "IP Address"),
             ("rssi", "Signal Strength"),
         ]
-
+        
         for key, title in top_items:
-            self._add_label(self.top_box, key, title)
-
-        # === BOTTOM BOX - DETAILINFOS ===
+            self._add_label(self.main_box, key, title)
+        
+        # Bild genau zwischen beiden Bereichen
+        self.main_box.add_widget(self.device_image)
+        
         bottom_items = [
             ("uptime", "Uptime"),
             ("fw_ver", "Firmware"),
             ("rev_grow", "Revision"),
             ("boot_cause", "Boot Cause"),
             ("wifi_mode", "WiFi Mode"),
-            ("rtc_found", "RTC"),
             ("free_heap", "Free Heap"),
             ("max_alloc", "Max Alloc"),
         ]
-
+        
         for key, title in bottom_items:
-            self._add_label(self.bottom_box, key, title)
+            self._add_label(self.main_box, key, title)
 
     def _add_label(self, parent, key, title):
         lbl = Label(
@@ -132,6 +125,20 @@ class ESP32Tile(BoxLayout):
 
         self.labels[key] = lbl
         parent.add_widget(lbl)
+
+    def _update_box_color(self, box, is_ok):
+        """Schaltet die Canvas-Farben der übergebenen Box um."""
+        if not hasattr(box, 'glow_color') or not hasattr(box, 'border_color'):
+            return
+            
+        if is_ok:
+            # Dein Standard-Blau
+            box.glow_color.rgba = (0.1, 0.45, 0.9, 0.35)
+            box.border_color.rgba = (0.1, 0.45, 0.9, 0.85)
+        else:
+            # Alarm-Rot bei Offline / Fehler
+            box.glow_color.rgba = (1.0, 0.3, 0.2, 0.35)
+            box.border_color.rgba = (1.0, 0.3, 0.2, 0.85)
 
     # ==================== CANVAS UPDATE ====================
     def _update_canvas(self, obj, *args):
@@ -151,7 +158,9 @@ class ESP32Tile(BoxLayout):
 
     # ==================== DATA UPDATE ====================
     def update_values(self, data):
+        # Fallback: Wenn überhaupt keine Daten kommen, Kachel rot färben
         if not data:
+            self._update_box_color(self.main_box, False)
             return
 
         web = data.get("webserver", data)
@@ -164,10 +173,18 @@ class ESP32Tile(BoxLayout):
             if color:
                 lbl.color = color
 
+        # Variable zur Statusverfolgung
+        status_ok = False
+
         # ==================== TOP BOX ====================
         if "status" in web:
             status = str(web["status"]).upper()
-            color = (0.2, 1, 0.2, 1) if status in ("ACTIVE", "OK") else (1, 0.7, 0.2, 1)
+            if status in ("ACTIVE", "OK"):
+                color = (0.2, 1, 0.2, 1)
+                status_ok = True
+            else:
+                color = (1, 0.7, 0.2, 1)
+                status_ok = False
             set_label("status", f"System Status: {status}", color)
 
         if "ssid" in web:
@@ -215,12 +232,6 @@ class ESP32Tile(BoxLayout):
             mode = "AP Mode" if web["wifi_mode"] == 0 else "Router Mode"
             set_label("wifi_mode", f"WiFi Mode: {mode}")
 
-        if "rtc_found" in web:
-            found = web["rtc_found"]
-            text = "RTC: OK" if found else "RTC: NOT FOUND"
-            color = (0.2, 1, 0.2, 1) if found else (1, 0.3, 0.2, 1)
-            set_label("rtc_found", text, color)
-
         if "free_heap" in web:
             try:
                 heap = int(web["free_heap"])
@@ -232,6 +243,9 @@ class ESP32Tile(BoxLayout):
         if "max_alloc" in web:
             set_label("max_alloc", f"Max Alloc: {int(web['max_alloc']):,}".replace(",", "."))
 
+        # Hier wird die Rahmenfarbe final basierend auf dem Status geschaltet
+        self._update_box_color(self.main_box, status_ok)
+
 
     def on_touch_down(self, touch):
         # 1. Collision check: Nur reagieren, wenn innerhalb des Tiles geklickt wurde
@@ -239,16 +253,8 @@ class ESP32Tile(BoxLayout):
             from dashboard_gui.ui.common.signal_inspector import SignalInspector
             from kivy.app import App
             
-            # 2. Prüfen, ob bereits ein Inspector offen ist (analog zu deinem Header-Pattern)
-            # Falls du eine globale Instanz-Verwaltung hast, nutze diese hier.
-            # Andernfalls: Schließe einen existierenden, falls die Referenz in der App liegt
             app = App.get_running_app()
-            
-            # Öffne den Inspector
-            # Übergib 'self' als parent_header, damit er auf die Daten zugreifen kann
             inspector = SignalInspector(parent_header=self)
-            
-            # Zum aktuellen Screen hinzufügen
             screen = app.root.current_screen
             screen.add_widget(inspector)
             

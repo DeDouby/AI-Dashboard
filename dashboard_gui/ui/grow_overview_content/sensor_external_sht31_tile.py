@@ -4,7 +4,6 @@ from kivy.graphics import Color, RoundedRectangle, Line
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.image import Image
 from kivy.uix.label import Label
-
 from dashboard_gui.ui.scaling_utils import sp_scaled, dp_scaled
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.formatters import UIFormatter
@@ -13,16 +12,17 @@ ASSET_ROOT = os.path.join("dashboard_gui", "assets")
 SHT31_PIC = os.path.join(ASSET_ROOT, "hardware_pics", "sht31.png")
 
 
-
 class SensorExternalSHT31Tile(BoxLayout):
     def __init__(self, **kw):
-        super().__init__(orientation="vertical", **kw)
-        self.val_box_w = dp_scaled(200)
-        self.val_box_h = dp_scaled(140)
-
+        super().__init__(
+            orientation="vertical",
+            size_hint=(1, 1),
+            **kw
+        )
         self.padding = dp_scaled(10)
         self.spacing = dp_scaled(6)
 
+        # ================= TITLE =================
         self.title_label = Label(
             text="External: SHT31",
             font_size=sp_scaled(20),
@@ -30,105 +30,149 @@ class SensorExternalSHT31Tile(BoxLayout):
             halign="left",
             valign="middle",
             size_hint=(1, None),
-            height=dp_scaled(32),
+            height=dp_scaled(25),
             color=(1, 1, 1, 1)
         )
         self.title_label.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
 
+        # ================= MAIN =================
         self.content_container = BoxLayout(
             orientation="horizontal",
-            size_hint=(1, None),
-            height=max(dp_scaled(100), self.val_box_h),
-            spacing=dp_scaled(10)
-        )
-
-        # IMAGE
-        self.sensor_image = Image(
-            source=SHT31_PIC,
-            height=dp_scaled(120),
-            allow_stretch=True,
-            keep_ratio=True
-        )
-        self.content_container.add_widget(self.sensor_image)
-
-        # VALUE BOX
-        self.value_box = BoxLayout(
-            orientation="vertical",
-            size_hint=(1, None), # <--- ÄNDERE ZU 1 (statt None)
-            # Entferne width=VALUE_BOX_WIDTH komplett!
-            height=dp_scaled(140),
-            padding=[dp_scaled(10), dp_scaled(5)],
+            size_hint=(1, 1),
             spacing=dp_scaled(2)
         )
 
+        # ================= VALUE BOX =================
+        self.value_box = BoxLayout(
+            orientation="vertical",
+            size_hint=(1, 1),
+            padding=[dp_scaled(12), dp_scaled(10)],
+            spacing=dp_scaled(6)
+        )
+
+        # ================= COLUMNS =================
+        self.columns_box = BoxLayout(
+            orientation="horizontal",
+            size_hint=(1, 1),
+            spacing=dp_scaled(10)
+        )
+        self.labels_column = BoxLayout(
+            orientation="vertical",
+            size_hint=(0.5, 1),
+            spacing=dp_scaled(2)
+        )
+        self.image_column = BoxLayout(
+            orientation="vertical",
+            size_hint=(0.5, 1)
+        )
+
+        # ================= IMAGE =================
+        self.sensor_image = Image(
+            source=SHT31_PIC,
+            size_hint=(1, 1),
+            fit_mode="contain"
+        )
+        self.image_column.add_widget(self.sensor_image)
+
+        # ================= CANVAS =================
         with self.value_box.canvas.before:
             Color(0, 0, 0, 0.62)
             self.value_bg = RoundedRectangle(radius=[dp_scaled(14)])
-            Color(0.2, 0.8, 0.2, 0.4) # Grünlicher Ton für Sensoren
+            
+            # Startzustand ist dein Grün
+            self.glow_color = Color(0.2, 0.8, 0.2, 0.35)
             self.value_glow = Line(width=5)
-            Color(0.2, 0.8, 0.2, 0.8)
+            self.border_color = Color(0.2, 0.8, 0.2, 0.85)
             self.value_border = Line(width=1.3)
 
-        self.value_box.bind(pos=self._update_canvas, size=self._update_canvas)
+        self.value_box.bind(
+            pos=self._update_value_box_canvas,
+            size=self._update_value_box_canvas
+        )
 
-        # LABELS
+        # ================= LABELS (WICHTIG: markup=True!) =================
         self.lbl_temp = Label(
             text="--",
             markup=True,
-            font_size=sp_scaled(20)
+            font_size=sp_scaled(20),
+            halign="left",
+            valign="middle"
         )
-        
         self.lbl_hum = Label(
             text="--",
             markup=True,
-            font_size=sp_scaled(20)
+            font_size=sp_scaled(20),
+            halign="left",
+            valign="middle"
         )
-        
         self.lbl_vpd = Label(
             text="--",
             markup=True,
-            font_size=sp_scaled(20)
+            font_size=sp_scaled(20),
+            halign="left",
+            valign="middle"
         )
 
-        for lbl in (self.title_label, self.lbl_temp, self.lbl_hum, self.lbl_vpd):
-            lbl.halign = "left"
-            lbl.valign = "middle"
+        for lbl in (self.lbl_temp, self.lbl_hum, self.lbl_vpd):
             lbl.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
-            self.value_box.add_widget(lbl)
+            self.labels_column.add_widget(lbl)
 
+        # ================= BUILD =================
+        self.columns_box.add_widget(self.labels_column)
+        self.columns_box.add_widget(self.image_column)
+        self.value_box.add_widget(self.title_label)
+        self.value_box.add_widget(self.columns_box)
         self.content_container.add_widget(self.value_box)
         self.add_widget(self.content_container)
 
-    def _update_canvas(self, obj, *args):
-        self.value_bg.pos = obj.pos
-        self.value_bg.size = obj.size
-        rect = (obj.x, obj.y, obj.width, obj.height, dp_scaled(14))
+    def _update_box_color(self, has_values):
+        """Schaltet das UI-Glow und Border-Farbe basierend auf vorhandenen Werten um."""
+        if has_values:
+            # Dein Standard-Grün
+            self.glow_color.rgba = (0.2, 0.8, 0.2, 0.35)
+            self.border_color.rgba = (0.2, 0.8, 0.2, 0.85)
+        else:
+            # Alarm-Rot bei fehlenden Werten
+            self.glow_color.rgba = (1.0, 0.3, 0.2, 0.35)
+            self.border_color.rgba = (1.0, 0.3, 0.2, 0.85)
+
+    def _update_value_box_canvas(self, obj, *args):
+        x, y = obj.pos
+        w, h = obj.size
+        r = dp_scaled(14)
+
+        self.value_bg.pos = (x, y)
+        self.value_bg.size = (w, h)
+
+        rect = (x, y, w, h, r)
         self.value_glow.rounded_rectangle = rect
         self.value_border.rounded_rectangle = rect
-    
+
     def update_values(self, data, prefix=""):
+        if not data:
+            self._update_box_color(False)
+            return
+
         external = data.get("external", {})
-    
+
         temp_data = external.get("temperature", {})
-        hum_data  = external.get("humidity", {})
-        vpd_data  = data.get("vpd_external", {})
-    
+        hum_data = external.get("humidity", {})
+        vpd_data = data.get("vpd_external", {})
+
         temp_val = temp_data.get("value")
-        hum_val  = hum_data.get("value")
-        vpd_val  = vpd_data.get("value") if isinstance(vpd_data, dict) else vpd_data
-    
+        hum_val = hum_data.get("value")
+        vpd_val = vpd_data.get("value") if isinstance(vpd_data, dict) else vpd_data
+
         temp_unit = temp_data.get("unit", "°C")
-        hum_unit  = hum_data.get("unit", "%")
-        vpd_unit  = vpd_data.get("unit", "kPa") if isinstance(vpd_data, dict) else "kPa"
-    
-        # 🔥 FIX 1: Wenn ein Prefix existiert, hängen wir einen Unterstrich an
+        hum_unit = hum_data.get("unit", "%")
+        vpd_unit = vpd_data.get("unit", "kPa") if isinstance(vpd_data, dict) else "kPa"
+
         key_prefix = f"{prefix}_" if prefix else ""
-        
-        # 🔥 FIX 2: Das Prefix mit den exakten Pipeline-Endungen kombinieren ("temp_ex", "hum_ex", "vpd_ex")
+
         trend_temp = GLOBAL_STATE.get_trend_icon(f"{key_prefix}temp_ex")
-        trend_hum  = GLOBAL_STATE.get_trend_icon(f"{key_prefix}hum_ex")
-        trend_vpd  = GLOBAL_STATE.get_trend_icon(f"{key_prefix}vpd_ex")
-    
+        trend_hum = GLOBAL_STATE.get_trend_icon(f"{key_prefix}hum_ex")
+        trend_vpd = GLOBAL_STATE.get_trend_icon(f"{key_prefix}vpd_ex")
+
         self.lbl_temp.text = UIFormatter.format_sensor_label(
             name="Temp",
             value=temp_val if temp_val is not None else "--",
@@ -136,7 +180,7 @@ class SensorExternalSHT31Tile(BoxLayout):
             trend=trend_temp,
             sz_val=20, sz_name=12, sz_trend=16, sz_unit=12
         )
-    
+
         self.lbl_hum.text = UIFormatter.format_sensor_label(
             name="Hum",
             value=hum_val if hum_val is not None else "--",
@@ -144,7 +188,7 @@ class SensorExternalSHT31Tile(BoxLayout):
             trend=trend_hum,
             sz_val=20, sz_name=12, sz_trend=16, sz_unit=12
         )
-    
+
         self.lbl_vpd.text = UIFormatter.format_sensor_label(
             name="VPD",
             value=vpd_val if vpd_val is not None else "--",
@@ -152,3 +196,7 @@ class SensorExternalSHT31Tile(BoxLayout):
             trend=trend_vpd,
             sz_val=20, sz_name=12, sz_trend=16, sz_unit=12
         )
+
+        # Validierung: Wenn Temp ODER Hum None ist, gilt der Sensor als offline/fehlerhaft
+        has_valid_values = (temp_val is not None) and (hum_val is not None)
+        self._update_box_color(has_valid_values)
