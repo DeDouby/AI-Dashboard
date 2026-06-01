@@ -4,7 +4,10 @@ class UIManager:
         self.gsm = gsm  # Rückreferenz auf den Boss (GSM)
         self.broadcast_buttons = []# Alle Screen-Referenzen zentral hier
         self.active_inspector = None
-        
+        # -------------------------------------------------
+        # Navigation History
+        # -------------------------------------------------
+        self.navigation_stack = []        
         self.screens = {
             "dashboard": None, "fullscreen": None, "setup": None,
             "about": None, "settings": None, "vpd_scatter": None,
@@ -17,6 +20,43 @@ class UIManager:
         """Registriert einen Screen im Manager."""
         if name in self.screens:
             self.screens[name] = ref
+
+    # ---------------------------------------------------------
+    # Navigation Engine
+    # ---------------------------------------------------------
+    def goto(self, screen_name):
+        from kivy.app import App
+        app = App.get_running_app()
+        sm = app.root
+        current = sm.current
+    
+        # Wichtig: Nur pushen, wenn wir nicht bereits auf dem Ziel-Screen sind
+        # und nicht "im Kreis" navigieren
+        if current != screen_name:
+            self.navigation_stack.append(current)
+    
+        sm.current = screen_name
+        self._refresh_back_buttons()
+    def go_back(self):
+        from kivy.app import App
+
+        app = App.get_running_app()
+        sm = app.root
+
+        if self.navigation_stack:
+            sm.current = self.navigation_stack.pop()
+        else:
+            sm.current = "dashboard"
+
+        self._refresh_back_buttons()
+
+    def can_go_back(self):
+        return len(self.navigation_stack) > 0
+
+    def _refresh_back_buttons(self):
+        for screen in self.screens.values():
+            if screen and hasattr(screen, "header"):
+                screen.header.update_back_button()
 
     def update_leds(self, led_state):
         """Pusht den LED-Status an ALLE registrierten Screens."""

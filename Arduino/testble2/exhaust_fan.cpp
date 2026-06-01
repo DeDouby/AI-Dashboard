@@ -331,8 +331,8 @@ void exhaust_fan_update() {
             bool vpd_low  = current_vpd < target_vpd_min;
             // VPD nur aktiv während Lichtphase (inkl. Rampen)
             if (phase == DAY_TRANSPIRE || 
-                phase == MORNING_WAKEUP || 
-                phase == EVENING_TRANSITION) {
+                phase == SUNRISE_WAKEUP || 
+                phase == SUNSET_TRANSITION) {
                 
                 vpd_active = true;
                 float current_vpd = calculate_current_vpd(in_temp, in_hum);
@@ -352,17 +352,17 @@ void exhaust_fan_update() {
             
                 if (exhaust_fan_night_reduction) {
                     mix_factor *= 0.5f;
-                    exhaust_fan_state_reason = "night_auto";
+                    exhaust_fan_state_reason = "night_throttled";
                 }
                 else {
                     exhaust_fan_state_reason = "night_full";
                 }
             }
-            else if (phase == EVENING_TRANSITION) {
+            else if (phase == SUNSET_TRANSITION) {
                 mix_factor *= 0.75f;
                 exhaust_fan_state_reason = vpd_active && vpd_f > 0.1f ? "vpd_sunset" : "sunset_ramp";
             } 
-            else if (phase == MORNING_WAKEUP) {
+            else if (phase == SUNRISE_WAKEUP) {
                 mix_factor *= 1.1f;
                 exhaust_fan_state_reason = vpd_active && vpd_f > 0.1f ? "vpd_sunrise" : "sunrise_ramp";
             } 
@@ -442,7 +442,7 @@ void exhaust_fan_update() {
                 exhaust_fan_state_reason = "failsafe_unrefinable";
             } 
             else if (values_too_high && air_can_be_refined) {
-                exhaust_fan_state_reason = "using_refined_air";
+                exhaust_fan_state_reason = "refined_air";
             }
         }
     }

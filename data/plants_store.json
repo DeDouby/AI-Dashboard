@@ -1,8 +1,8 @@
 {
   "E697B52A-2E7F-D41E-BC4D-2D027CB38D0B": {
     "plant_planner": {
-      "rev_plant_planner": 45,
-      "rev_init_plant_planner": 1779721543,
+      "rev_plant_planner": 55,
+      "rev_init_plant_planner": 1780210293,
       "plants": [
         {
           "name": "Amnesia",
@@ -19,10 +19,10 @@
           "dry_weight": "",
           "favorite": false,
           "harvest_date": "",
-          "germination_start": "",
+          "germination_start": "2026-05-01",
           "seedling_start": "",
           "vegetative_start": "",
-          "flowering_start": "2026-04-01",
+          "flowering_start": "2026-03-31",
           "drying_start": "",
           "curing_start": ""
         }

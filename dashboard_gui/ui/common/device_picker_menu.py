@@ -81,10 +81,10 @@ class DevicePickerMenu(FloatLayout):
         
             b = Button(
                 text=f"[font=FA]\uf2c7[/font]  {label}",
-                font_size=sp_scaled(20),
+                font_size=sp_scaled(23),
                 markup=True,
                 size_hint_y=None,
-                height=dp_scaled(50),
+                height=dp_scaled(55),
         
                 background_color=(0.22, 0.25, 0.30, 0.55),
                 color=(0.95, 0.95, 0.98, 1),
@@ -133,7 +133,7 @@ class DevicePickerMenu(FloatLayout):
             font_size=sp_scaled(20),
             markup=True,
             size_hint_y=None,
-            height=dp_scaled(50),
+            height=dp_scaled(55),
             background_color=(0.20, 0.30, 0.25, 0.55),
             color=(0.95, 0.95, 0.98, 1),
             halign="left",
@@ -158,7 +158,7 @@ class DevicePickerMenu(FloatLayout):
             font_size=sp_scaled(20),
             markup=True,
             size_hint_y=None,
-            height=dp_scaled(50),
+            height=dp_scaled(55),
             background_color=(0.25, 0.20, 0.30, 0.55),
             color=(0.95, 0.95, 0.98, 1),
             halign="left",
@@ -183,7 +183,7 @@ class DevicePickerMenu(FloatLayout):
             font_size=sp_scaled(20),
             markup=True,
             size_hint_y=None,
-            height=dp_scaled(50),
+            height=dp_scaled(55),
             background_color=(0.15, 0.25, 0.35, 0.55), # Blau-Ton für WLAN
             color=(0.95, 0.95, 0.98, 1),
             halign="left",

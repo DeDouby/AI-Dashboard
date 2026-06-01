@@ -89,7 +89,6 @@ class FullScreenView(Screen):
         self.header = HeaderBar()
         self.header.pos_hint = {'top':1}
         self.layout.add_widget(self.header)
-        self.header.update_back_button("fullscreen")
 
         # NAV BUTTONS
         btn_size = dp_scaled(45)
@@ -193,10 +192,7 @@ class FullScreenView(Screen):
     
             # Header setzen
             # Header setzen
-            if hasattr(self.header, "set_title"):
-                self.header.set_title(readable_name)
-            else:
-                self.header.lbl_title.text = readable_name
+
                 
         # 1. Metrik-Konfig laden
         main_col, glow_col, bg_path = self._get_metric_config(self.tile_id)

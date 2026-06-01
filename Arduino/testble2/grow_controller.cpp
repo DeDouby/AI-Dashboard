@@ -1,3 +1,4 @@
+//grow_controller.cpp - Hauptsteuerung für das Grow-Controller-Projekt
 ///////////////////////////////////////////////////////////////////////////////
 // !!! ABSOLUTES GESETZ: DAS TARGET-REVISION-PRINZIP (C++ / ESP32) !!!
 // -------------------------------------------------------------------------

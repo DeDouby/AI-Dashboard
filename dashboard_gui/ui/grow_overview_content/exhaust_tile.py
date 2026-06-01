@@ -209,14 +209,14 @@ class ExhaustTile(BoxLayout):
         # === FIX FÜR STATUS LABEL ===
         self.lbl_reason.text = f"STATUS: {reason}"
         # Wenn der Grund sehr lang ist, Schriftgröße verringern
-        if len(reason) > 10:  # Richtwert, ggf. anpassen
+        if len(reason) > 20:  # Richtwert, ggf. anpassen
             self.lbl_reason.font_size = sp_scaled(13)
         else:
-            self.lbl_reason.font_size = sp_scaled(18)
+            self.lbl_reason.font_size = sp_scaled(16)
         chaos = bool(data.get("exhaust_fan_chaos_active", False))
         night = bool(data.get("exhaust_fan_night_reduction", False))
         reason = str(data.get("exhaust_fan_state_reason", "")).lower()
-        
+
         if chaos:
             mode = "CHAOS"
         elif night:

@@ -1,3 +1,4 @@
+//grow_controller.h - Hauptsteuerung für das Grow-Controller-Projekt
 #ifndef GROW_CONTROLLER_H
 #define GROW_CONTROLLER_H
 

@@ -26,8 +26,6 @@ class DevicePickerScreen(Screen):
 
         # --- HEADER ---
         self.header = HeaderBar()
-        self.header.lbl_title.text = "Device Management"
-        self.header.update_back_button("device_picker")
         root.add_widget(self.header)
 
         # --- BODY (Das 2-Spalten-Konzept) ---
@@ -126,10 +124,10 @@ class DevicePickerScreen(Screen):
 
     # -------------------------------------------------
     # Adapter für WindowPicker-Kompatibilität
-    # -------------------------------------------------
     def open(self):
-        if self.manager:
-            self.manager.current = self.name
+        from dashboard_gui.global_state_manager import GLOBAL_STATE
+    
+        GLOBAL_STATE.ui_handler.goto(self.name)
 
     def _device_row(self, mac, dev):
         box = BoxLayout(

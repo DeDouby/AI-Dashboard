@@ -26,273 +26,13 @@ from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.common.circulation_fan_control import CirculationFanControl
 from dashboard_gui.ui.common.exhaust_fan_control import ExhaustFanControl  # <--- NEU
 from dashboard_gui.ui.common.light_control import LightControl
-# -------------------------------------------------------
-# IconLabel
-# -------------------------------------------------------
-class IconLabel(Label):
-    def __init__(self, **kw):
-        kw.setdefault("font_name", "FA")
-        kw.setdefault("font_size", sp_scaled(22))
-        kw.setdefault("halign", "center")
-        kw.setdefault("valign", "middle")
-        super().__init__(**kw)
-        self.bind(size=lambda *_: self.texture_update())
-
-
-# -------------------------------------------------------
-# Signal Bars (PNG Version)
-# -------------------------------------------------------
-# --- NACHHER (OPTIMIERT) ---
-class SignalBars(BoxLayout):
-    def __init__(self, **kw):
-        super().__init__(**kw)
-        self.size_hint = (None, 1)
-        self.width = dp_scaled(40)  # Fixed breite
-        self.padding = [0, dp_scaled(2)]  # Oben/Unten Padding für bessere Proportion
-        self.img = Image(
-            fit_mode="contain",
-            keep_ratio=True,
-            size_hint=(1, 1),
-            pos_hint={'center_y': 0.5}
-        )
-        self.add_widget(self.img)
-
-        # absoluter Pfad zu /dashboard_gui/assets/icons/signal
-        self._icon_dir = os.path.join(
-            os.path.dirname(__file__),
-            "..", "..", "assets", "icons", "signal"
-        )
-
-        # Default: kein Signal
-        self.set_rssi(None)
-
-    def _panel_bg(self, panel):
-        panel.canvas.before.clear()
-        with panel.canvas.before:
-            Color(0.05,0.05,0.08,0.95)
-            Rectangle(pos=panel.pos,size=panel.size)
-    def _close_signal_overlay(self):
-        if self._signal_overlay and self._signal_overlay.parent:
-            self._signal_overlay.parent.remove_widget(self._signal_overlay)
-        self._signal_overlay = None
-
-    def _pick_icon(self, level):
-        """level = 0..5"""
-        fn = f"signal{level}.png"
-        p = os.path.join(self._icon_dir, fn)
-        return p if os.path.exists(p) else ""
-
-    def set_rssi(self, rssi):
-        """RSSI → 0..5 Balken"""
-        try:
-            rssi = float(rssi)
-        except:
-            level = 0
-            self.img.source = self._pick_icon(level)
-            return
-
-        # Abstufungen (anpassbar)
-        if rssi >= -55:
-            level = 5
-        elif rssi >= -65:
-            level = 4
-        elif rssi >= -75:
-            level = 3
-        elif rssi >= -85:
-            level = 2
-        elif rssi >= -95:
-            level = 1
-        else:
-            level = 0
-
-        self.img.source = self._pick_icon(level)
-        self.img.reload()
-
-
-# -------------------------------------------------------
-# External Sensor – OPTIMIZED FOR 60DP HEADER
-# -------------------------------------------------------
-class ExternalIcon(BoxLayout):
-    def __init__(self, **kw):
-        super().__init__(**kw)
-        self.orientation = "horizontal" # Von vertikal auf horizontal gewechselt
-        self.spacing = dp_scaled(4)
-        self.size_hint = (None, 1)
-        self.width = dp_scaled(40)      # Etwas breiter für Icon + Text nebeneinander
-
-        # Icon etwas kleiner, damit es nicht "schreit"
-        self.icon = IconLabel(font_size=sp_scaled(22))
-        
-        # Text-Label zentrieren
-        self.text_label = Label(
-            font_size=sp_scaled(14), 
-            color=(0.8, 0.8, 0.8, 1),
-            halign="left",
-            valign="middle"
-        )
-        self.text_label.bind(size=self.text_label.setter('text_size'))
-
-        self.add_widget(self.icon)
-        self.add_widget(self.text_label)
-
-        self.set_external(False)
-
-    def set_external(self, present):
-        if present:
-            self.icon.text = "\uf2c7" # Thermometer Icon
-            self.icon.color = (0.3, 1, 0.3, 1) # Giftgrün
-            self.text_label.text = "EXT"
-            self.text_label.color = (0.3, 1, 0.3, 1)
-        else:
-            self.icon.text = "\uf059" # Fragezeichen
-            self.icon.color = (0.4, 0.4, 0.4, 1)
-            self.text_label.text = "OFF"
-            self.text_label.color = (0.4, 0.4, 0.4, 1)
-
-
-            
-#######BATTERY
-class BatteryIcon(BoxLayout):
-    def __init__(self, **kw):
-        super().__init__(**kw)
-        self.orientation = "horizontal"
-        self.spacing = dp_scaled(4)
-        self.size_hint = (None, 1)
-        self.width = dp_scaled(75) # Platz für Icon + "4.1V"
-
-        self.icon = IconLabel(font_size=sp_scaled(22))
-        self.text_label = Label(
-            text="--V",
-            font_size=sp_scaled(12),
-            color=(0.8, 0.8, 0.8, 1),
-            halign="left",
-            valign="middle"
-        )
-        self.text_label.bind(size=self.text_label.setter('text_size'))
-
-        self.add_widget(self.icon)
-        self.add_widget(self.text_label)
-
-    def set_voltage(self, voltage):
-        if voltage is None or voltage < 0.1:
-            self.icon.text = "\uf244" # Batterie leer Icon
-            self.icon.color = (0.4, 0.4, 0.4, 1)
-            self.text_label.text = "OFF"
-            return
-
-        self.text_label.text = f"{float(voltage):.2f}V"
-        
-        # Farblogik & Icons
-        if voltage >= 3.9:
-            self.icon.text = "\uf240" # Full
-            self.icon.color = (0.3, 1, 0.3, 1) # Grün
-        elif voltage >= 3.6:
-            self.icon.text = "\uf242" # Half
-            self.icon.color = (1, 0.8, 0.2, 1) # Gelb
-        else:
-            self.icon.text = "\uf243" # Low
-            self.icon.color = (1, 0.2, 0.2, 1) # Rot
-# -------------------------------------------------------
-# LED Circle – MODERN UI (NO LOGIC CHANGE)
-# -------------------------------------------------------
-class LEDCircle(Widget):
-    def __init__(self, **kw):
-        super().__init__(**kw)
-
-        self._pulse_event = None
-        self._base_status = "offline"
-
-        with self.canvas:
-            # --- Outer Glow ---
-            self.glow_color = Color(0, 1, 0, 0.25)
-            self.glow = Ellipse()
-
-            # --- Ring ---
-            self.ring_color = Color(0, 1, 0, 0.9)
-            self.ring = Ellipse()
-
-            # --- Core ---
-            self.core_color = Color(0, 1, 0, 1)
-            self.core = Ellipse()
-
-        self.bind(pos=self._u, size=self._u)
-        self._u()
-
-    def _u(self, *_):
-        size = dp_scaled(16)
-        glow = size * 1.6
-        ring = size * 1.15
-
-        cx = self.x + self.width / 2
-        cy = self.y + self.height / 2
-
-        self.glow.size = (glow, glow)
-        self.glow.pos = (cx - glow / 2, cy - glow / 2)
-
-        self.ring.size = (ring, ring)
-        self.ring.pos = (cx - ring / 2, cy - ring / 2)
-
-        self.core.size = (size, size)
-        self.core.pos = (cx - size / 2, cy - size / 2)
-
-    # -------------------------------
-    # LOGIC – UNCHANGED
-    # -------------------------------
-    def set_state(self, alive, status):
-        base = "stale" if status == "flow" else status
-        self._base_status = base
-
-        if base in ("offline", "error") and self._pulse_event:
-            self._pulse_event.cancel()
-            self._pulse_event = None
-
-        if not self._pulse_event:
-            self._apply(base)
-
-        if status == "flow":
-            self._pulse()
-
-    def _apply(self, s):
-        # Wenn wir im Flow/Stale sind, aber aktiv (Webserver online), 
-        # nutzen wir ein sattes Grün als Basis, kein Gelb.
-        if s == "stale":
-            # Hier kannst du entscheiden: 
-            # Gelb (1, 0.8, 0) für "Daten stehen, aber alt"
-            # Oder ein gedimmtes Grün (0, 0.6, 0) für "Web-Verbindung steht"
-            self._set_color(0, 0.6, 0) 
-            return
-            
-        if s == "nodata":
-            self._set_color(1, 0.8, 0); return
-        if s == "error":
-            self._set_color(1, 0, 0); return
-        if s == "offline":
-            self._set_color(0.4, 0.1, 0.1); return # Dunkles Rot
-
-        self._set_color(0.5, 0.5, 0.5)
-
-    def _set_color(self, r, g, b):
-        self.core_color.rgba = (r, g, b, 1)
-        self.ring_color.rgba = (r * 0.8, g * 0.8, b * 0.8, 0.9)
-        self.glow_color.rgba = (r, g, b, 0.25)
-
-    def _pulse(self):
-        if self._pulse_event:
-            self._pulse_event.cancel()
-
-        self._set_color(0.3, 1, 0.3)
-        self.glow_color.a = 0.45
-
-        self._pulse_event = Clock.schedule_once(
-            lambda *_: self._end(), 0.1
-        )
-
-    def _end(self, *_):
-        self._pulse_event = None
-        self._apply(self._base_status)
-
-
-
+from dashboard_gui.ui.common.signal_bars import SignalBars
+from dashboard_gui.ui.common.led_circle import LEDCircle
+from dashboard_gui.ui.common.icon_label import IconLabel
+from dashboard_gui.ui.common.battery_icon import BatteryIcon
+from dashboard_gui.ui.common.external_icon import ExternalIcon
+from dashboard_gui.ui.common.external2_icon import External2Icon
+from dashboard_gui.ui.common.push_message_icon import PushMessageIcon
 #--------------------------------------------------------
 # HEADER BAR
 # -------------------------------------------------------
@@ -320,6 +60,7 @@ class HeaderBar(BoxLayout):
             "battery": None,
             "light": None,
             "external": False,
+            "external2": False,
             "led_alive": False,
             "led_status": "offline",
             "circulation_fan_rpm": None,
@@ -351,19 +92,7 @@ class HeaderBar(BoxLayout):
             pos_hint={'center_y': 0.5}
         )
         
-        # TITLE - Auch Fixed, für Fenster-Beschriftung
-        self.lbl_title = Label(
-            text="LGS",
-            font_size=sp_scaled(18),
-            halign="left",
-            valign="middle",
-            size_hint=(None, 1),
-            width=dp_scaled(80),  # Mehr Breite für Titel
-            text_size=(dp_scaled(80), None),  # Text passt in Breite
-            shorten=True,
-            shorten_from='right'
-        )
-        
+
         # DEVICE NAME - Klickbar, Flexible Breite (SPACER)
         self.lbl_dev = Button(
             text="---",
@@ -393,6 +122,10 @@ class HeaderBar(BoxLayout):
         self.external = ExternalIcon(size_hint=(None, 1))
         self.external.width = dp_scaled(75)  # Gleichmäßige Breite
 
+        # Externer2 Sensor
+        self.external2 = External2Icon(size_hint=(None, 1))
+        self.external2.width = dp_scaled(75)  # Gleichmäßige Breite
+
         # Circulation Fan
         self.circulation_fan = CirculationFanControl(
             parent_header=self,
@@ -413,7 +146,11 @@ class HeaderBar(BoxLayout):
             size_hint=(None, 1),
             width=dp_scaled(40)  # Gleichmäßige Breite
         )
-
+        # Push Message Icon
+        self.push_message = PushMessageIcon(
+            size_hint=(None, 1),
+            width=dp_scaled(40)
+        )
         # Battery
         self.battery = BatteryIcon(size_hint=(None, 1))
         self.battery.width = dp_scaled(70)  # Gleichmäßige Breite
@@ -461,24 +198,23 @@ class HeaderBar(BoxLayout):
 
         # Center flexible area: branding + device label
         self.center_zone = BoxLayout(size_hint=(1, 1), spacing=dp_scaled(6))
-        self.lbl_title.size_hint = (None, 1)
-        self.lbl_title.width = dp_scaled(170)
+
         self.lbl_dev.size_hint = (1, 1)
         self.lbl_dev.width = dp_scaled(170)
-        self.center_zone.add_widget(self.lbl_title)
         self.center_zone.add_widget(self.lbl_dev)
         self.add_widget(self.center_zone)
 
         # Right edge icon chain: status, less-important actions, menu anchor
         self.add_widget(self.signal)
+        self.add_widget(self.push_message)
+
         self.add_widget(self.light)
-        
         self.add_widget(self.circulation_fan)
         self.add_widget(self.exhaust_fan)
         self.add_widget(self.btn_broadcast)
         self.add_widget(self.led)
         self.add_widget(self.external)
-       
+        self.add_widget(self.external2)
         self.add_widget(self.battery)
         self.add_widget(self.lbl_clock)
         
@@ -493,7 +229,9 @@ class HeaderBar(BoxLayout):
             (self.light, 3),
             (self.exhaust_fan, 3),
             (self.circulation_fan, 3),
-            (self.external, 2)
+            (self.external, 2),
+            (self.external2, 2),
+            (self.push_message, 2)
         ]
         self._responsive_defaults = {}
         for widget, _ in self._responsive_items:
@@ -519,6 +257,7 @@ class HeaderBar(BoxLayout):
         self.light.set_brightness(s["light"])
     
         self.external.set_external(s["external"])
+        self.external2.set_external2(s["external2"])
         self.led.set_state(s["led_alive"], s["led_status"])
             # 🔥 FANS FIX
         self.circulation_fan.set_rpm(s["circulation_fan_rpm"])
@@ -528,17 +267,21 @@ class HeaderBar(BoxLayout):
     # ---------------------------------------------------
     # Back Button Control
     # ---------------------------------------------------
-    def update_back_button(self, screen_name):
-            if screen_name == "dashboard":
-                self.btn_back.opacity = 0
-                self.btn_back.disabled = True
-                self.btn_back.width = 0           
-                self.btn_back.size_hint_x = None
-            else:
-                self.btn_back.opacity = 1
-                self.btn_back.disabled = False
-                self.btn_back.width = dp_scaled(70) # <--- HIER: Breite ebenfalls auf 55
-                self.btn_back.size_hint_x = None
+    def update_back_button(self):
+        from dashboard_gui.global_state_manager import GLOBAL_STATE
+    
+        can_go_back = GLOBAL_STATE.ui_handler.can_go_back()
+    
+        if can_go_back:
+            self.btn_back.opacity = 1
+            self.btn_back.disabled = False
+            self.btn_back.width = dp_scaled(70)
+            self.btn_back.size_hint_x = None
+        else:
+            self.btn_back.opacity = 0
+            self.btn_back.disabled = True
+            self.btn_back.width = 0
+            self.btn_back.size_hint_x = None
 
     def _go_back(self, *_):
         App.get_running_app().root.current = getattr(self, "_back_target", "dashboard")
@@ -603,9 +346,7 @@ class HeaderBar(BoxLayout):
         if self._signal_overlay:
             self._signal_overlay.close()
 
-    def set_title(self, title):
-        if hasattr(self, 'lbl_title'):
-            self.lbl_title.text = title
+
     # ---------------------------------------------------
     # Menu overlay
     # ---------------------------------------------------
@@ -690,7 +431,11 @@ class HeaderBar(BoxLayout):
             health.get("external", {}).get("present")
             or web_ch.get("external", {}).get("present", False)
         )
-    
+  
+        self._state["external2"] = bool(
+            health.get("external2", {}).get("present")
+            or web_ch.get("external2", {}).get("present", False)
+        )
         self._state["led_alive"] = frame.get("alive", False)
         self._state["led_status"] = frame.get("status", "offline")
     
@@ -702,6 +447,7 @@ class HeaderBar(BoxLayout):
         frame_with_channel = self._last_frame.copy()
         frame_with_channel["channel"] = active_channel
         self._last_frame = frame_with_channel
+        self.push_message.update_from_frame(frame)
         self._update_clock()
 
 

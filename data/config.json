@@ -1,7 +1,7 @@
 {
   "devices": {
     "E697B52A-2E7F-D41E-BC4D-2D027CB38D0B": {
-      "name": "Real_Grow!",
+      "name": "ESP32-S3 Real_Grow!",
       "adv_decoder": "LGS_SENSOR",
       "gatt_decoder": "",
       "bridge_profile": "",
@@ -61,7 +61,7 @@
   "refresh_interval": 0.1,
   "stale_timeout": 17.0,
   "ui_refresh_interval": 1.0,
-  "tile_graph_window": 230,
+  "tile_graph_window": 1200,
   "temperature_unit": "C",
   "temperature_offset": 0.0,
   "humidity_offset": 0.0,

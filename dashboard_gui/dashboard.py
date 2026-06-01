@@ -92,10 +92,14 @@ class DashboardScreen(Screen):
     # Navigation
     # -----------------------------------------------------
     def goto_setup(self, *_):
-        self.manager.current = "setup"
+        from dashboard_gui.global_state_manager import GLOBAL_STATE
+    
+        GLOBAL_STATE.ui_handler.goto("setup")
 
     def goto_debug(self, *_):
-        self.manager.current = "debug"
+        from dashboard_gui.global_state_manager import GLOBAL_STATE
+    
+        GLOBAL_STATE.ui_handler.goto("debug")
 
     # -----------------------------------------------------
     # OPEN DEVICE PICKER
@@ -106,7 +110,9 @@ class DashboardScreen(Screen):
         """
         picker = self.manager.get_screen("device_picker")
         picker.open()
-        self.manager.current = "device_picker"
+        
+        from dashboard_gui.global_state_manager import GLOBAL_STATE
+        GLOBAL_STATE.ui_handler.goto("device_picker")
 
 
     # -----------------------------------------------------
@@ -153,9 +159,9 @@ class DashboardScreen(Screen):
     def open_fullscreen(self, tile_id):
         fs = self.manager.get_screen("fullscreen")
         fs.activate_tile(tile_id)
-        self.manager.current = "fullscreen"
-
-
+    
+        from dashboard_gui.global_state_manager import GLOBAL_STATE
+        GLOBAL_STATE.ui_handler.goto("fullscreen")
 
 
 

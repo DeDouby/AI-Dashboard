@@ -56,16 +56,12 @@ class VPDScatterScreen(Screen):
         # HEADER
         # -------------------------------------------------
         app = App.get_running_app()
-        sm = app.root if app else None
 
         self.header = HeaderBar()
-        self.header.lbl_title.text = "VPD-Chart"
 
         self.main.add_widget(self.header)
 
-        self.header.enable_back("dashboard")
-        self.header.update_back_button("vpd_scatter")
-
+        self.header.enable_back()
         self.gsm.ui_handler.attach_screen("vpd_scatter", self)
         self._reset_active = False
 

@@ -31,15 +31,15 @@ void light_control_set_temperature(float temperature);
 
 enum LightPhase {
     LIGHT_PHASE_NIGHT = 0,
-    LIGHT_PHASE_MORNING,
+    LIGHT_PHASE_SUNRISE,
     LIGHT_PHASE_DAY,
-    LIGHT_PHASE_EVENING
+    LIGHT_PHASE_SUNSET
 };
 enum PlantPhase {
     DAY_TRANSPIRE,
-    EVENING_TRANSITION,
+    SUNSET_TRANSITION,
     NIGHT_RECOVERY,
-    MORNING_WAKEUP
+    SUNRISE_WAKEUP
 };
 enum LightMode {
     LIGHT_MODE_OFF_LOCKED = 0,

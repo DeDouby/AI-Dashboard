@@ -27,9 +27,7 @@ class SettingsScreen(Screen):
 
         # Header Bar
         self.header = HeaderBar()
-        self.header.lbl_title.text = "Settings"
  
-        self.header.update_back_button("settings")
         root.add_widget(self.header)
 
         # Settings Panel

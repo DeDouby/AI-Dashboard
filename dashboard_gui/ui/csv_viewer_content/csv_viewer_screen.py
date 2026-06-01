@@ -24,8 +24,6 @@ class CSVViewerScreen(Screen):
         self.add_widget(root)
 
         self.header = HeaderBar()
-        self.header.lbl_title.text = "CSV Viewer"
-        self.header.update_back_button("csv_viewer")
         root.add_widget(self.header)
 
         self.area = BoxLayout(orientation="vertical")

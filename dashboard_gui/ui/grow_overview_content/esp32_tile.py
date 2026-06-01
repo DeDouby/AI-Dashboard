@@ -28,7 +28,7 @@ class ESP32Tile(BoxLayout):
 
         # ---------------- TOP BOX (wichtigste Infos) ----------------
         self.main_box = self._create_value_box(
-            height=dp_scaled(700),
+            height=dp_scaled(630),
             title="ESP32 Controller"
         )
         
@@ -37,7 +37,7 @@ class ESP32Tile(BoxLayout):
         self.device_image = Image(
             source=ESP32_PIC,
             size_hint=(1, None),
-            height=dp_scaled(280),
+            height=dp_scaled(220),
             allow_stretch=True,
             keep_ratio=True
         )
@@ -46,6 +46,21 @@ class ESP32Tile(BoxLayout):
         # Labels verwalten
         self.labels = {}
         self._create_labels()
+
+        self._state = {
+            "status": None,
+            "ssid": None,
+            "ip": None,
+            "rssi": None,
+            "uptime": None,
+            "fw_ver": None,
+            "rev_grow": None,
+            "boot_cause": None,
+            "wifi_mode": None,
+            "free_heap": None,
+            "max_alloc": None,
+        }
+
 
     def _create_value_box(self, height, title=""):
         box = BoxLayout(
@@ -156,97 +171,258 @@ class ESP32Tile(BoxLayout):
         if hasattr(obj, 'border'):
             obj.border.rounded_rectangle = rect
 
-    # ==================== DATA UPDATE ====================
-    def update_values(self, data):
-        # Fallback: Wenn überhaupt keine Daten kommen, Kachel rot färben
-        if not data:
-            self._update_box_color(self.main_box, False)
-            return
+    def _apply_state(self):
+    
+        self.labels["status"].text = (
+            f"System Status: {self._state['status']}"
+            if self._state["status"] is not None
+            else "System Status: -"
+        )
+    
+        self.labels["ssid"].text = (
+            f"Connected To: {self._state['ssid']}"
+            if self._state["ssid"]
+            else "Connected To: -"
+        )
+    
+        self.labels["ip"].text = (
+            f"IP: {self._state['ip']}"
+            if self._state["ip"]
+            else "IP: -"
+        )
+    
+        self.labels["rssi"].text = (
+            f"RSSI: {self._state['rssi']} dBm"
+            if self._state["rssi"] is not None
+            else "RSSI: -"
+        )
+    
+        self.labels["uptime"].text = (
+            f"Uptime: {self._state['uptime']}"
+            if self._state["uptime"]
+            else "Uptime: -"
+        )
+    
+        self.labels["fw_ver"].text = (
+            f"Firmware: {self._state['fw_ver']}"
+            if self._state["fw_ver"]
+            else "Firmware: -"
+        )
+    
+        self.labels["rev_grow"].text = (
+            f"Revision: REV-{self._state['rev_grow']}"
+            if self._state["rev_grow"] is not None
+            else "Revision: -"
+        )
+    
+        self.labels["boot_cause"].text = (
+            f"Boot Cause: {self._state['boot_cause']}"
+            if self._state["boot_cause"]
+            else "Boot Cause: -"
+        )
+    
+        self.labels["wifi_mode"].text = (
+            f"WiFi Mode: {self._state['wifi_mode']}"
+            if self._state["wifi_mode"]
+            else "WiFi Mode: -"
+        )
+    
+        self.labels["free_heap"].text = (
+            f"Free Heap: {self._state['free_heap']}"
+            if self._state["free_heap"] is not None
+            else "Free Heap: -"
+        )
+    
+        self.labels["max_alloc"].text = (
+            f"Max Alloc: {self._state['max_alloc']}"
+            if self._state["max_alloc"] is not None
+            else "Max Alloc: -"
+        ) 
+         # -------------------------------------------------
+        # RESET ALL LABEL COLORS
+        # -------------------------------------------------
 
-        web = data.get("webserver", data)
+        for lbl in self.labels.values():
+            lbl.color = (1, 1, 1, 1)
 
-        def set_label(key, text, color=None):
-            if key not in self.labels:
-                return
-            lbl = self.labels[key]
-            lbl.text = text
-            if color:
-                lbl.color = color
+        # -------------------------------------------------
+        # STATUS COLOR
+        # -------------------------------------------------
 
-        # Variable zur Statusverfolgung
-        status_ok = False
+        status = self._state["status"]
 
-        # ==================== TOP BOX ====================
-        if "status" in web:
-            status = str(web["status"]).upper()
+        if status is not None:
+            status = str(status).upper()
+
             if status in ("ACTIVE", "OK"):
-                color = (0.2, 1, 0.2, 1)
-                status_ok = True
+                self.labels["status"].color = (0.2, 1, 0.2, 1)
+
             else:
-                color = (1, 0.7, 0.2, 1)
-                status_ok = False
-            set_label("status", f"System Status: {status}", color)
+                self.labels["status"].color = (1, 0.7, 0.2, 1)
 
-        if "ssid" in web:
-            set_label("ssid", f"Connected To: {web['ssid']}")
+        # -------------------------------------------------
+        # RSSI COLOR
+        # -------------------------------------------------
 
-        if "ip" in web:
-            set_label("ip", f"IP: {web['ip']}")
+        rssi = self._state["rssi"]
 
-        if "rssi" in web:
-            rssi = web["rssi"]
+        if rssi is not None:
             try:
                 val = int(str(rssi).replace(" dBm", ""))
-                if val > -60:
-                    color = (0.2, 1, 0.2, 1)
-                elif val > -80:
-                    color = (1, 0.85, 0.2, 1)
-                else:
-                    color = (1, 0.3, 0.2, 1)
-                set_label("rssi", f"RSSI: {rssi} dBm", color)
-            except:
-                set_label("rssi", f"RSSI: {rssi}")
 
-        # ==================== BOTTOM BOX ====================
-        if "uptime_esp_s" in web:
+                if val > -60:
+                    self.labels["rssi"].color = (0.2, 1, 0.2, 1)
+
+                elif val > -80:
+                    self.labels["rssi"].color = (1, 0.85, 0.2, 1)
+
+                else:
+                    self.labels["rssi"].color = (1, 0.3, 0.2, 1)
+
+            except:
+                pass
+
+        # -------------------------------------------------
+        # FREE HEAP COLOR
+        # -------------------------------------------------
+
+        heap = self._state["free_heap"]
+
+        if heap is not None:
             try:
-                s = int(web["uptime_esp_s"])
+                heap_val = int(str(heap).replace(".", ""))
+
+                if heap_val < 90000:
+                    self.labels["free_heap"].color = (1, 0.2, 0.2, 1)
+
+                elif heap_val < 130000:
+                    self.labels["free_heap"].color = (1, 0.65, 0, 1)
+
+                else:
+                    self.labels["free_heap"].color = (0.2, 1, 0.2, 1)
+
+            except:
+                pass
+    # ==================== DATA UPDATE ====================
+    # ==================== DATA UPDATE ====================
+    def update_values(self, data):
+    
+        if not data:
+            for key in self._state:
+                self._state[key] = None
+    
+            self._apply_state()
+            self._update_box_color(self.main_box, False)
+            return
+    
+        web = data.get("webserver", data)
+    
+        # -------------------------------------------------
+        # STATE RESET
+        # -------------------------------------------------
+        for key in self._state:
+            self._state[key] = None
+    
+        status_ok = False
+    
+        # -------------------------------------------------
+        # STATUS
+        # -------------------------------------------------
+        status = web.get("status")
+    
+        if status is not None:
+            status = str(status).upper()
+            self._state["status"] = status
+    
+            if status in ("ACTIVE", "OK"):
+                status_ok = True
+    
+        # -------------------------------------------------
+        # NETWORK
+        # -------------------------------------------------
+        self._state["ssid"] = web.get("ssid")
+        self._state["ip"] = web.get("ip")
+    
+        # -------------------------------------------------
+        # RSSI
+        # -------------------------------------------------
+        rssi = web.get("rssi")
+    
+        if rssi is not None:
+            self._state["rssi"] = rssi
+    
+        # -------------------------------------------------
+        # UPTIME
+        # -------------------------------------------------
+        uptime_raw = web.get("uptime_esp_s")
+    
+        if uptime_raw is not None:
+            try:
+                s = int(uptime_raw)
+    
                 h = s // 3600
                 m = (s % 3600) // 60
                 sec = s % 60
-                uptime_str = f"{h:02d}:{m:02d}:{sec:02d}" if h < 24 else f"{h//24}d {h%24:02d}:{m:02d}:{sec:02d}"
-                set_label("uptime", f"Uptime: {uptime_str}")
+    
+                uptime_str = (
+                    f"{h:02d}:{m:02d}:{sec:02d}"
+                    if h < 24
+                    else f"{h//24}d {h%24:02d}:{m:02d}:{sec:02d}"
+                )
+    
+                self._state["uptime"] = uptime_str
+    
             except:
                 pass
-
-        if "fw_ver" in web:
-            set_label("fw_ver", f"Firmware: {web['fw_ver']}")
-
-        if "rev_grow" in web:
-            set_label("rev_grow", f"Revision: REV-{web['rev_grow']}")
-
-        if "boot_cause" in web:
-            set_label("boot_cause", f"Boot Cause: {web['boot_cause']}")
-
-        if "wifi_mode" in web:
-            mode = "AP Mode" if web["wifi_mode"] == 0 else "Router Mode"
-            set_label("wifi_mode", f"WiFi Mode: {mode}")
-
-        if "free_heap" in web:
+    
+        # -------------------------------------------------
+        # SYSTEM
+        # -------------------------------------------------
+        self._state["fw_ver"] = web.get("fw_ver")
+        self._state["rev_grow"] = web.get("rev_grow")
+        self._state["boot_cause"] = web.get("boot_cause")
+    
+        wifi_mode = web.get("wifi_mode")
+    
+        if wifi_mode is not None:
+            self._state["wifi_mode"] = (
+                "AP Mode"
+                if wifi_mode == 0
+                else "Router Mode"
+            )
+    
+        # -------------------------------------------------
+        # MEMORY
+        # -------------------------------------------------
+        free_heap = web.get("free_heap")
+    
+        if free_heap is not None:
             try:
-                heap = int(web["free_heap"])
-                color = (1,0.2,0.2,1) if heap < 90000 else (1,0.65,0,1) if heap < 130000 else (0.2,1,0.2,1)
-                set_label("free_heap", f"Free Heap: {heap:,}".replace(",", "."), color)
+                self._state["free_heap"] = (
+                    f"{int(free_heap):,}".replace(",", ".")
+                )
             except:
                 pass
-
-        if "max_alloc" in web:
-            set_label("max_alloc", f"Max Alloc: {int(web['max_alloc']):,}".replace(",", "."))
-
-        # Hier wird die Rahmenfarbe final basierend auf dem Status geschaltet
-        self._update_box_color(self.main_box, status_ok)
-
-
+    
+        max_alloc = web.get("max_alloc")
+    
+        if max_alloc is not None:
+            try:
+                self._state["max_alloc"] = (
+                    f"{int(max_alloc):,}".replace(",", ".")
+                )
+            except:
+                pass
+    
+        # -------------------------------------------------
+        # FINAL APPLY
+        # -------------------------------------------------
+        self._apply_state()
+    
+        self._update_box_color(
+            self.main_box,
+            status_ok
+        )
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
     

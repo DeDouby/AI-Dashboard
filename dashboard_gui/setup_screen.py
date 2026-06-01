@@ -43,8 +43,6 @@ class SetupScreen(Screen):
 
         # 2) Header (Jetzt perfekt im Gleichtakt)
         self.header = HeaderBar()
-        self.header.lbl_title.text = "Setup"
-        self.header.update_back_button("setup")
         root.add_widget(self.header)
 
         # 3) CONTENT-CONTAINER MIT PADDING (Nur für das Panel)
@@ -299,13 +297,15 @@ class SetupScreen(Screen):
         # -------------------------
         # 3) Direkt ins Dashboard springen
         # -------------------------
-        if self.manager:
-            self.manager.current = "dashboard"
+        from dashboard_gui.global_state_manager import GLOBAL_STATE
+        
+        GLOBAL_STATE.ui_handler.go_back()
 
     # ---------------------------------------------------------
     def _back(self, *_):
-        if self.manager:
-            self.manager.current = "dashboard"
+        from dashboard_gui.global_state_manager import GLOBAL_STATE
+    
+        GLOBAL_STATE.ui_handler.go_back()
 
     def set_adv(self, mac, val):
         if val == "---":

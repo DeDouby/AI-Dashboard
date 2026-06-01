@@ -1,3 +1,4 @@
+//ble_bridge.h - BLE-Bridge für LGS Sensoren
 #ifndef BLE_BRIDGE_H
 #define BLE_BRIDGE_H
 

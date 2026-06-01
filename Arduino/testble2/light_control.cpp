@@ -268,7 +268,7 @@ void light_update() {
             light_state_reason = "DAY";
         
             // =====================================================
-            // 🌅 MORNING RAMP
+            // 🌅 SUNRISE RAMP
             // =====================================================
         
             if (elapsed < sunrise_sec) {
@@ -281,7 +281,7 @@ void light_update() {
             }
         
             // =====================================================
-            // 🌇 EVENING RAMP
+            // 🌇 SUNSET RAMP
             // =====================================================
         
             else if (remaining < sunset_sec) {
@@ -455,10 +455,10 @@ float light_get_phase_progress() {
     uint32_t sunrise_sec = l_target_sunrise * 60;
     uint32_t sunset_sec = l_target_sunset * 60;
 
-    // 🌅 MORNING
+    // 🌅 SUNRISE
     if (elapsed < sunrise_sec) return (float)elapsed / sunrise_sec;
     
-    // 🌇 EVENING
+    // 🌇 SUNSET
     uint32_t remaining = dur_sec - elapsed;
     if (remaining < sunset_sec) return 1.0f - ((float)remaining / sunset_sec);
 
@@ -552,11 +552,11 @@ LightPhase light_get_current_phase() {
     }
 
     if (elapsed < sunrise_sec) {
-        return LIGHT_PHASE_MORNING;
+        return LIGHT_PHASE_SUNRISE;
     }
 
     if (remaining < sunset_sec) {
-        return LIGHT_PHASE_EVENING;
+        return LIGHT_PHASE_SUNSET;
     }
 
     return LIGHT_PHASE_DAY;
@@ -569,11 +569,11 @@ PlantPhase getPlantPhase() {
 
     switch (lp) {
 
-        case LIGHT_PHASE_MORNING:
-            return MORNING_WAKEUP;
+        case LIGHT_PHASE_SUNRISE:
+            return SUNRISE_WAKEUP;
 
-        case LIGHT_PHASE_EVENING:
-            return EVENING_TRANSITION;
+        case LIGHT_PHASE_SUNSET:
+            return SUNSET_TRANSITION;
 
         case LIGHT_PHASE_DAY:
             return DAY_TRANSPIRE;

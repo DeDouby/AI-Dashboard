@@ -94,9 +94,10 @@ class DashboardApp(App):
 
         for screen in screens:
             self.sm.add_widget(screen)
-
+        
+        self.sm.current = "dashboard"
+        
         return self.sm
-
     def on_start(self):
         core.start()
         # Kein Clock.schedule_once mehr für Screens nötig

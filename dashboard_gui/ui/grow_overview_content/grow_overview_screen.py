@@ -53,8 +53,6 @@ class GrowOverviewScreen(Screen):
 
         # ---------------- HEADER ----------------
         self.header = HeaderBar()
-        self.header.lbl_title.text = I18N.t("menu.grow_overview")
-        self.header.update_back_button("grow_overview")
         root.add_widget(self.header)
 
 
@@ -168,7 +166,7 @@ class GrowOverviewScreen(Screen):
         self.tapo_tile.size_hint_x = 1
         
         self.esp32_tile.size_hint_y = None
-        self.esp32_tile.height = dp_scaled(720)
+        self.esp32_tile.height = dp_scaled(650)
         self.esp32_tile.size_hint_x = 1
 
         # Place tiles into appropriate columns

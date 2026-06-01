@@ -1,5 +1,6 @@
 # dashboard_gui/gesture_engines/dashboard_swipe.py
 from kivy.metrics import dp
+import dashboard_gui.global_state_manager as gsm
 
 class DashboardSwipeEngine:
     def __init__(self, gsm):
@@ -16,8 +17,7 @@ class DashboardSwipeEngine:
             fs = sm.get_screen("fullscreen")
             fs.activate_tile(full_key)
             sm.transition.direction = "up"
-            sm.current = "fullscreen"
-
+            gsm.GLOBAL_STATE.ui_handler.goto("fullscreen")
     # --- TOUCH-LOGIK (Wird vom GGM gefüttert) ---
 
     def process_touch_down(self, touch):

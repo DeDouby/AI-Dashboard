@@ -69,14 +69,21 @@ class CirculationFanOverlay(FloatLayout):
         )
 
         with self.panel.canvas.before:
-            Color(0, 0, 0, 0.75)
-            self.bg_rect = RoundedRectangle(radius=[dp_scaled(20)])
-            Color(0, 1, 0, 0.3)
-            self.outline = Line(width=2.2)
-            Color(0.2, 0.8, 0.2, 0.4) # Grünlicher Ton 
-            self.value_glow = Line(width=5)
-            Color(0.2, 0.8, 0.2, 0.8)
-            self.value_border = Line(width=3.3)
+        
+            self.bg_color = Color(0, 0, 0, 0.75)
+            self.bg_rect = RoundedRectangle(
+                radius=[dp_scaled(20)]
+            )
+        
+            self.glow_color = Color(
+                0.0, 0.7, 1.0, 0.35
+            )
+            self.value_glow = Line(width=4)
+        
+            self.border_color = Color(
+                0.0, 0.7, 1.0, 0.85
+            )
+            self.value_border = Line(width=2.5)
 
         self.panel.bind(pos=self._u, size=self._u)
 
@@ -223,6 +230,8 @@ class CirculationFanOverlay(FloatLayout):
         # Live-Werte immer anzeigen
         self.lbl_rpm.text = f"RPM: {int(server_data.get('circulation_fan_rpm', 0))}"
         self.lbl_live_speed.text = f"LIVE: {int(server_data.get('circulation_fan_speed_now', 0))}%"
+        rpm = int(server_data.get('circulation_fan_rpm', 0))
+        self._update_box_color(rpm)     
 
 # === 4. ICON LOGIK (Der ehrliche Status) ===
         status = self.engine.get_status(
@@ -398,7 +407,14 @@ class CirculationFanOverlay(FloatLayout):
         srv_min = data.get("circulation_fan_min", 20)
         srv_max = data.get("circulation_fan_pct", 65)
         srv_mode = data.get("circulation_fan_mode", "nat")
+        rpm = int(
+            data.get(
+                "circulation_fan_rpm",
+                0
+            )
+        )
         
+        self._update_box_color(rpm)
         self._ui_lock = True
         self.range_slider.min_value = srv_min
         self.range_slider.max_value = srv_max
@@ -421,10 +437,48 @@ class CirculationFanOverlay(FloatLayout):
         self.range_slider.disabled = False
 
     def _u(self, *_):
-        self.bg_rect.pos = self.panel.pos
-        self.bg_rect.size = self.panel.size
-        self.outline.rounded_rectangle = (self.panel.x, self.panel.y, self.panel.width, self.panel.height, dp_scaled(20))
-
+    
+        if not hasattr(self, "bg_rect"):
+            return
+    
+        pos = self.panel.pos
+        size = self.panel.size
+    
+        self.bg_rect.pos = pos
+        self.bg_rect.size = size
+    
+        rect = (
+            pos[0],
+            pos[1],
+            size[0],
+            size[1],
+            dp_scaled(20)
+        )
+    
+        self.value_glow.rounded_rectangle = rect
+        self.value_border.rounded_rectangle = rect
+    def _update_box_color(self, rpm):
+    
+        if rpm <= 0:
+            color = (1.0, 0.2, 0.2)
+    
+        elif rpm < 400:
+            color = (0.0, 0.7, 1.0)
+    
+        elif rpm < 800:
+            color = (0.0, 1.0, 0.5)
+    
+        elif rpm < 1200:
+            color = (0.0, 1.0, 0.0)
+    
+        elif rpm < 1600:
+            color = (1.0, 1.0, 0.0)
+    
+        else:
+            color = (1.0, 0.5, 0.0)
+    
+        self.glow_color.rgba = (*color, 0.35)
+        self.border_color.rgba = (*color, 0.85)
     def close(self):
         if self._update_event: self._update_event.cancel()
         if self.parent: self.parent.remove_widget(self)

@@ -65,20 +65,16 @@ class ExhaustFanOverlay(FloatLayout):
 
         # Suche diesen Block in deiner __init__:
         with self.panel.canvas.before:
-            Color(0, 0, 0, 0.75)
+            self.bg_color = Color(0.05, 0.05, 0.05, 0.85)
             self.bg_rect = RoundedRectangle(radius=[dp_scaled(20)])
-            # ÄNDERE DAS HIER:
-            self.outline_color = Color(0, 1, 0, 0.3)  # <-- Referenz speichern!
+        
+            self.glow_color = Color(0.1, 0.45, 0.9, 0.35)
+            self.glow_line = Line(width=4)
+        
+            self.border_color = Color(0.1, 0.45, 0.9, 0.85)
+            self.border_line = Line(width=2.5)
 
-            Color(0.05, 0.05, 0.05, 0.85) # Tieferes, edleres Anthrazit
-            self.bg_rect = RoundedRectangle(radius=[dp_scaled(20)])
-            Color(0, 1, 0, 0.25)
-            self.outline = Line(width=2.2)
-            Color(0.2, 0.8, 0.2, 0.4) # Grünlicher Ton 
-            self.value_glow = Line(width=5)
-            Color(0.2, 0.8, 0.2, 0.8)
-            self.value_border = Line(width=3.3)
-
+        # WICHTIG: Bindung an Panel-Größe für konsistentes Verhalten
         self.panel.bind(pos=self._u, size=self._u)
 
         # Header
@@ -185,9 +181,9 @@ class ExhaustFanOverlay(FloatLayout):
         
         self._phase_map = {
             0: "DAY",
-            1: "EVENING",
+            1: "SUNSET",
             2: "NIGHT",
-            3: "MORNING"
+            3: "SUNRISE"
         }
         self._last_phase = -1
         # Lock & Events
@@ -293,14 +289,9 @@ class ExhaustFanOverlay(FloatLayout):
         # Update Header
         self.lbl_title.text = f"EXHAUST FAN CONTROL • {phase_name}"
         
-        # Nacht-Spezial: UI verdunkeln wenn Nacht
-        # Ersetze den fehlerhaften Block (ca. Zeile 246) durch das hier:
-        
-        # Nacht-Spezial: UI verdunkeln wenn Nacht
-        if phase_idx == 2:
-            self.outline_color.rgba = (0.2, 0.2, 0.2, 1)
-        else:
-            self.outline_color.rgba = (0, 1, 0, 0.3)
+        rpm = int(data.get("exhaust_fan_rpm", 0))
+        self._update_box_color(rpm)
+
     # ===================================================================
     # Weitere Methoden
     # ===================================================================
@@ -322,6 +313,47 @@ class ExhaustFanOverlay(FloatLayout):
             color=(1, 1, 1, 1),  # 🔥 FIX: LESBARKEIT
             font_size=sp_scaled(20)
         )
+    def _update_box_color(self, rpm):
+    
+        if rpm is None or rpm < 0:
+            rgb = (0.3, 0.3, 0.3)
+    
+        elif rpm == 0:
+            rgb = (1.0, 0.4, 0.4)
+    
+        elif rpm < 200:
+            rgb = (0.6, 0.9, 1.0)
+    
+        elif rpm < 400:
+            rgb = (0.5, 1.0, 0.9)
+    
+        elif rpm < 600:
+            rgb = (0.5, 1.0, 0.7)
+    
+        elif rpm < 800:
+            rgb = (0.7, 1.0, 0.5)
+    
+        elif rpm < 1000:
+            rgb = (0.9, 1.0, 0.5)
+    
+        elif rpm < 1200:
+            rgb = (1.0, 1.0, 0.6)
+    
+        elif rpm < 1400:
+            rgb = (1.0, 0.9, 0.5)
+    
+        elif rpm < 1600:
+            rgb = (1.0, 0.8, 0.5)
+    
+        elif rpm < 1800:
+            rgb = (1.0, 0.7, 0.5)
+    
+        else:
+            rgb = (1.0, 0.6, 0.5)
+    
+        # TILE STYLE APPLY
+        self.glow_color.rgba = (*rgb, 0.35)
+        self.border_color.rgba = (*rgb, 0.85)
 
     def _set_mode(self, mode):
         if self._locked:
@@ -429,7 +461,10 @@ class ExhaustFanOverlay(FloatLayout):
                 return
 
         # === 3. LIVE-WERTE (immer aktuell) ===
-        self.lbl_rpm.text = f"RPM: {int(server_data.get('exhaust_fan_rpm', 0))}"
+        rpm = int(server_data.get('exhaust_fan_rpm', 0))
+        self.lbl_rpm.text = f"RPM: {rpm}"
+        
+        self._update_box_color(rpm)        
         self.lbl_live_speed.text = f"LIVE: {int(server_data.get('exhaust_fan_speed_now', 0))}%"
         
         # ==========================================================
@@ -557,12 +592,28 @@ class ExhaustFanOverlay(FloatLayout):
         self._locked = False
         for s in [self.range_slider, self.temp_slider, self.hum_slider, self.vpd_slider]:
             s.disabled = False
-
-    def _u(self, *_):
-        self.bg_rect.pos = self.panel.pos
-        self.bg_rect.size = self.panel.size
-        self.outline.rounded_rectangle = (self.panel.x, self.panel.y, self.panel.width, self.panel.height, dp_scaled(20))
-
+    def _u(self, *args):
+    
+        if not hasattr(self, 'bg_rect'):
+            return
+    
+        pos = self.panel.pos
+        size = self.panel.size
+    
+        self.bg_rect.pos = pos
+        self.bg_rect.size = size
+    
+        rect = (
+            self.panel.x,
+            self.panel.y,
+            self.panel.width,
+            self.panel.height,
+            dp_scaled(20)
+        )
+    
+        self.glow_line.rounded_rectangle = rect
+        self.border_line.rounded_rectangle = rect
+    
     def close(self):
         if hasattr(self, '_update_event') and self._update_event:
             self._update_event.cancel()

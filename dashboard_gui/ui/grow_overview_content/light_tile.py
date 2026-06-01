@@ -116,9 +116,9 @@ class LightTile(BoxLayout):
                                 halign="left", valign="middle")
         self.lbl_remaining = Label(text="REST: --:--", font_size=sp_scaled(18),
                                    halign="left", valign="middle")
-        self.lbl_status = Label(text="STATUS: INIT", font_size=sp_scaled(16),
+        self.lbl_status = Label(text="STATUS: INIT", font_size=sp_scaled(18),
                                 halign="left", valign="middle", markup=True)
-        self.lbl_phase = Label(text="PHASE: --", font_size=sp_scaled(14),
+        self.lbl_phase = Label(text="PHASE: --", font_size=sp_scaled(18),
                                halign="left", valign="middle", color=(1, 1, 1, 1))
 
         # Labels in die linke Spalte packen
@@ -208,34 +208,37 @@ class LightTile(BoxLayout):
             self.lbl_status.text = "STATUS: [color=ff8000]PEND[/color]"
 
     # ==================== PHASE ====================
+# ==================== PHASE ====================
     def _update_phase(self, data):
-        phase = str(data.get("light_phase", "DAY")).upper()
+        # Wir nutzen direkt light_state_reason als führenden Wert
+        state = str(data.get("light_state_reason", "NIGHT")).upper().strip()
         climate_override = bool(data.get("light_climate_override", False))
-        state_reason = str(data.get("light_state_reason", "")).upper().strip()
+        
+        # Konfiguration für die Phasen
+        phase_config = {
+            "SUNRISE": {"text": "SUNRISE", "color": (1.0, 0.72, 0.15, 1)},
+            "SUNSET":  {"text": "SUNSET",  "color": (1.0, 0.45, 0.1, 1)},
+            "NIGHT":   {"text": "NIGHT",   "color": (0.45, 0.65, 1.0, 1)},
+            "DAY":     {"text": "DAY",     "color": (1.0, 1.0, 0.6, 1)}
+        }
+
+        # Fallback auf NIGHT, falls etwas Unerwartetes kommt
+        config = phase_config.get(state, phase_config["NIGHT"])
+        
+        text = config["text"]
+        color = config["color"]
     
-        if phase == "MORNING":
-            text = "SUNRISE"
-            color = (1.0, 0.72, 0.15, 1)
-        elif phase == "EVENING":
-            text = "SUNSET"
-            color = (1.0, 0.45, 0.1, 1)
-        elif phase == "NIGHT":
-            text = "NIGHT"
-            color = (0.45, 0.65, 1.0, 1)
-        else:
-            text = "DAY"
-            color = (0.0, 1.0, 0.35, 1)
-    
+        # Climate Override anhängen, falls aktiv
         if climate_override:
             text += " | CLIM"
     
-        ignored = {"", "MANUAL", "NORMAL", "DAY", "TIMER"}
-        if state_reason not in ignored:
-            text += f" | {state_reason}"
-    
         self.lbl_phase.text = f"PHASE: {text}"
+                # Wenn der Grund sehr lang ist, Schriftgröße verringern
+        if len(text) > 10:  # Richtwert, ggf. anpassen
+            self.lbl_phase.font_size = sp_scaled(16)
+        else:
+            self.lbl_phase.font_size = sp_scaled(18)
         self.lbl_phase.color = color
-
     # ==================== TIME ====================
     def _calculate_remaining_time(self, data):
         mode = data.get('light_mode', 'man')

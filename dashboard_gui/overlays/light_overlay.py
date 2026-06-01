@@ -58,27 +58,31 @@ class LightOverlay(FloatLayout):
             pos_hint={"right": 0.98, "y": 0.01} 
         )
 
-        # Leinwand für Hintergrund-Styling und Tageskurve
+# Leinwand für Hintergrund-Styling und Tageskurve
         with self.panel.canvas.before:
-            Color(0.05, 0.05, 0.05, 0.85) # Tieferes, edleres Anthrazit
+            # 1. Background
+            Color(0.05, 0.05, 0.05, 0.85)
             self.bg_rect = RoundedRectangle(radius=[dp_scaled(20)])
-            Color(0, 1, 0, 0.25)
-            self.outline = Line(width=2.2)
-            Color(0.2, 0.8, 0.2, 0.4) # Grünlicher Ton 
-            self.value_glow = Line(width=5)
-            Color(0.2, 0.8, 0.2, 0.8)
-            self.value_border = Line(width=3.3)
-            # --- EDLER BACKGROUND GRAPH (Tageskurve) ---
+            
+            # 2. Dynamische Farben (Intensitäts-Glow & Rahmen)
+            self.glow_color = Color(1.0, 0.72, 0.15, 0.35) 
+            self.value_glow = Line(width=4)
+            
+            self.border_color = Color(1.0, 0.72, 0.15, 0.85)
+            self.value_border = Line(width=2.5)
+            
+            # 3. Graph Elemente
             from kivy.graphics import Mesh
-            Color(1, 0.72, 0.05, 0.15) # Schön sichtbares, dezentes Hintergrund-Gold
+            Color(1, 0.72, 0.05, 0.15)
             self.graph_fill = Mesh(mode='triangle_strip')
             
-            Color(1, 0.72, 0.05, 0.08) # Glow
-            self.graph_glow = Line(width=dp_scaled(4), joint='round')
-            Color(1, 0.72, 0.15, 1.25) # Line
+            Color(1, 0.72, 0.05, 0.08)
+            self.graph_glow = Line(width=dp_scaled(3), joint='round')
+            
+            Color(1, 0.72, 0.15, 1.25)
             self.graph_line = Line(width=dp_scaled(1.5), joint='round')
 
-            # --- VERTIKALER ROTER ZEITINDIKATOR ---
+            # 4. Zeit-Indikator
             Color(1, 0.2, 0.2, 0.85) 
             self.time_indicator = Line(width=dp_scaled(1.5))
 
@@ -231,6 +235,23 @@ class LightOverlay(FloatLayout):
         
         self.add_widget(self.panel)
     
+
+    def _update_overlay_colors(self, brightness):
+        if brightness is None or brightness < 0:
+            rgb = (0.5, 0.5, 0.5)
+        elif brightness <= 0:
+            rgb = (0.2, 0.2, 0.2)
+        elif brightness < 20:
+            rgb = (0.6, 0.5, 0.0)
+        elif brightness < 50:
+            rgb = (0.8, 0.8, 0.0)
+        elif brightness < 80:
+            rgb = (1.0, 1.0, 0.0)
+        else:
+            rgb = (1.0, 1.0, 0.6)
+    
+        self.glow_color.rgba = (*rgb, 0.35)
+        self.border_color.rgba = (*rgb, 0.85)    
     def _create_styled_btn(self, text):
         return Button(
             text=text,
@@ -257,180 +278,80 @@ class LightOverlay(FloatLayout):
         if not data:
             return
     
+        # 1. Daten holen
         mode = data.get('light_mode', 'man')
-    
-        phase = str(
-            data.get('light_phase', 'DAY')
-        ).upper()
-    
-        climate_override = bool(
-            data.get('light_climate_override', False)
-        )
-    
-        state_reason = str(
-            data.get('light_state_reason', '')
-        ).upper().strip()
-    
-        target = int(data.get('light_target', 0))
         current_hw = int(data.get('light_pct', 0))
+        target = int(data.get('light_target', 0))
+        state_reason = str(data.get('light_state_reason', 'DAY')).upper().strip()
+        climate_override = bool(data.get('light_climate_override', False))
+        
+        # 2. UI Updates (Farben & Basiswerte)
+        self._update_overlay_colors(current_hw)
+        self.lbl_val.text = f"{current_hw}%"
+        self.lbl_slider_target.text = f"{target}%"
+        
+        # Status Text
+        if mode == "off":
+            self.lbl_status_text.text = "STATUS: AUS"
+            self.lbl_status_text.color = (1, 0.2, 0.2, 0.8)
+        elif mode == "man":
+            self.lbl_status_text.text = "STATUS: MANUELL"
+            self.lbl_status_text.color = (0, 0.8, 1, 1)
+        else:
+            self.lbl_status_text.text = "STATUS: TIMER"
+            self.lbl_status_text.color = (0, 1, 0, 1)
+
+        # 3. Phase Logik (Mapping statt if/else Kaskade)
+        phase_config = {
+            "SUNRISE": {"text": "SUNRISE", "color": (1.0, 0.72, 0.15, 1)},
+            "SUNSET":  {"text": "SUNSET",  "color": (1.0, 0.45, 0.1, 1)},
+            "NIGHT":   {"text": "NIGHT",   "color": (0.45, 0.65, 1.0, 1)},
+            "DAY":     {"text": "DAY",     "color": (0.0, 1.0, 0.35, 1)}
+        }
+        
+        config = phase_config.get(state_reason, phase_config["DAY"])
+        base_text = config["text"]
+        base_color = config["color"]
     
+        # Extensions (Climate + Reason)
+        extensions = []
+        if climate_override:
+            extensions.append("[color=00ff66]CLIM-OVR[/color]")
+            
+        # Nur zusätzliche Reason, wenn kein Standard-Phasenname
+        if state_reason not in phase_config and state_reason not in ["", "MANUAL", "NORMAL", "TIMER"]:
+            extensions.append(f"[color=ffcc33]{state_reason}[/color]")
+    
+        self.lbl_light_state.markup = True
+        self.lbl_light_state.text = f"{base_text}{' | ' + ' | '.join(extensions) if extensions else ''}"
+        self.lbl_light_state.color = base_color
+    
+        # 4. Slider & Zeit-Daten
         h = int(data.get('l_start_h', 8))
         m = int(data.get('l_start_m', 0))
-    
         dur = int(data.get('l_dur', 720))
         srise = int(data.get('l_sunrise', 60))
         sset = int(data.get('l_sunset', 60))
     
-        # =====================================================
-        # CURRENT VALUE COLOR
-        # =====================================================
+        dur_steps = dur // 15
+        self.slider.value = target
+        self.slider_start.value = (h * 60 + m) // 15
+        self.slider_dur.value = dur_steps
+        self.slider_sunrise_sunset.range_max = dur_steps
+        self.slider_sunrise_sunset.min_value = srise // 15
+        self.slider_sunrise_sunset.max_value = dur_steps - (sset // 15)
     
+        # 5. Label Texte & Abschluss
+        self.lbl_start.text = f"START: {h:02d}:{m:02d}"
+        self.lbl_dur.text = f"DAUER: {dur//60}h {dur%60:02d}m"
+        
         if mode == "tim" and current_hw != target and current_hw > 0:
             self.lbl_val.color = (1, 0.72, 0.05, 1)
         else:
             self.lbl_val.color = (1, 1, 1, 1)
     
-        self.lbl_val.text = f"{current_hw}%"
-        self.lbl_slider_target.text = f"{target}%"
-    
-        # =====================================================
-        # BASE LIGHT PHASE
-        # =====================================================
-    
-        if phase == "MORNING":
-    
-            base_text = "SUNRISE"
-            base_color = (1.0, 0.72, 0.15, 1)
-    
-        elif phase == "EVENING":
-    
-            base_text = "SUNSET"
-            base_color = (1.0, 0.45, 0.1, 1)
-    
-        elif phase == "NIGHT":
-    
-            base_text = "NIGHT"
-            base_color = (0.45, 0.65, 1.0, 1)
-    
-        else:
-    
-            base_text = "DAY"
-            base_color = (0.0, 1.0, 0.35, 1)
-    
-        # =====================================================
-        # STATE EXTENSIONS
-        # =====================================================
-    
-        extensions = []
-    
-        # -----------------------------------------------------
-        # CLIMATE OVERRIDE FLAG
-        # -----------------------------------------------------
-    
-        if climate_override:
-    
-            extensions.append(
-                "[color=00ff66]CLIM-OVR[/color]"
-            )
-    
-        # -----------------------------------------------------
-        # STATE REASON
-        # -----------------------------------------------------
-    
-        ignored_reasons = {
-            "",
-            "MANUAL",
-            "NORMAL",
-            "DAY",
-            "TIMER"
-        }
-    
-        if state_reason not in ignored_reasons:
-    
-            extensions.append(
-                f"[color=ffcc33]{state_reason}[/color]"
-            )
-    
-        # =====================================================
-        # FINAL LIGHT STATE LABEL
-        # =====================================================
-    
-        final_text = base_text
-    
-        if extensions:
-    
-            final_text += " | " + " | ".join(extensions)
-    
-        self.lbl_light_state.markup = True
-        self.lbl_light_state.text = final_text
-        self.lbl_light_state.color = base_color
-    
-        # =====================================================
-        # STATUS TEXT
-        # =====================================================
-    
-        if mode == "off":
-    
-            self.lbl_status_text.text = "STATUS: AUS"
-            self.lbl_status_text.color = (1, 0.2, 0.2, 0.8)
-    
-        elif mode == "man":
-    
-            self.lbl_status_text.text = "STATUS: MANUELL"
-            self.lbl_status_text.color = (0, 0.8, 1, 1)
-    
-        else:
-    
-            self.lbl_status_text.text = "STATUS: TIMER"
-            self.lbl_status_text.color = (0, 1, 0, 1)
-    
-        # =====================================================
-        # SLIDERS
-        # =====================================================
-    
-        self.slider.value = target
-    
-        self.slider_start.value = (
-            (h * 60 + m) // 15
-        )
-    
-        dur_steps = dur // 15
-    
-        self.slider_dur.value = dur_steps
-    
-        self.slider_sunrise_sunset.range_max = dur_steps
-    
-        self.slider_sunrise_sunset.min_value = (
-            srise // 15
-        )
-    
-        self.slider_sunrise_sunset.max_value = (
-            dur_steps - (sset // 15)
-        )
-    
-        # =====================================================
-        # LABELS
-        # =====================================================
-    
-        self.lbl_start.text = (
-            f"START: {h:02d}:{m:02d}"
-        )
-    
-        self.lbl_dur.text = (
-            f"DAUER: {dur//60}h {dur%60:02d}m"
-        )
-    
-        # =====================================================
-        # FINALIZE
-        # =====================================================
-    
         self._update_ramp_label(srise, sset)
-    
-        self._apply_button_styles(
-            mode,
-            target
-        )
-    
+        self._apply_button_styles(mode, target)
         self._update_graph()
     def _update_graph(self, *args):
         if not self._init_done: return
@@ -547,6 +468,7 @@ class LightOverlay(FloatLayout):
         if self._init_done and not self._ui_lock and not self._locked:
             value = int(self.slider.value)
             self.lbl_slider_target.text = f"{value}%"      # nur noch hier
+            self._update_overlay_colors(value)
             self.sync_icon.color = (1, 0.5, 0, 1)
             self._update_graph()
 
@@ -691,10 +613,28 @@ class LightOverlay(FloatLayout):
         fix(self.btn_tim, mode == "tim")
         fix(self.btn_climate, climate_active)
         
-    def _u(self, *_):
-        self.bg_rect.pos, self.bg_rect.size = self.panel.pos, self.panel.size
-        self.outline.rounded_rectangle = (self.panel.x, self.panel.y, self.panel.width, self.panel.height, dp_scaled(20))
-        self._update_graph()
+    def _u(self, *args):
+        # Sicherheitsprüfung: Existieren die Canvas-Objekte schon?
+        if not hasattr(self, 'bg_rect') or not hasattr(self, 'value_border'):
+            return
+
+        # Position und Dimensionen
+        pos = self.panel.pos
+        size = self.panel.size
+        r = dp_scaled(20)
+        rect = (pos[0], pos[1], size[0], size[1], r)
+
+        # Update Background
+        self.bg_rect.pos = pos
+        self.bg_rect.size = size
+        
+        # Update Rahmen (anstatt 'outline' verwenden wir 'value_border')
+        self.value_border.rounded_rectangle = rect
+        self.value_glow.rounded_rectangle = rect
+        
+        # Nur Graph updaten, wenn Initialisierung fertig
+        if self._init_done:
+            self._update_graph()
 
     def close(self):
         if self._update_event: self._update_event.cancel()

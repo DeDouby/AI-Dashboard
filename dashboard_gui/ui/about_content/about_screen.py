@@ -49,8 +49,6 @@ class AboutScreen(Screen):
         root.bind(pos=lambda *_: setattr(self.bg_rect, "pos", root.pos), size=lambda *_: setattr(self.bg_rect, "size", root.size))
         
         self.header = HeaderBar()
-        self.header.lbl_title.text = I18N.t("menu.about")
-        self.header.update_back_button("about")
         root.add_widget(self.header)
 
         scroll = ScrollView(do_scroll_x=False)

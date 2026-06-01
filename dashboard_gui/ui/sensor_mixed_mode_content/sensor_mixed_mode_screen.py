@@ -38,8 +38,6 @@ class SensorMixedModeScreen(Screen):
         layout = BoxLayout(orientation="vertical")
         self.header = HeaderBar()
         layout.add_widget(self.header)
-        self.header.lbl_title.text = "Mixed-Mode"
-        self.header.update_back_button("setup")
         self.panel = MixedModePanel(self)
         layout.add_widget(self.panel)
 

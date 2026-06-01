@@ -28,9 +28,7 @@ class CamViewerScreen(Screen):
         
         # HEADER
         self.header = HeaderBar()
-        self.header.lbl_title.text = "Camera"
 
-        self.header.update_back_button("cam_viewer")
         
         root.add_widget(self.header)
 

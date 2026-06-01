@@ -207,8 +207,8 @@ class CirculationTile(BoxLayout):
             "natural": "NATURAL"
         }
     
-        self.lbl_status.text = mode_map.get(mode, "UNKNOWN")
-    
+        self.lbl_status.text = f"MODE: {mode_map.get(mode, 'UNKNOWN')}"
+
         self._update_box_color(rpm)
     # ---------------- TOUCH ----------------
     def on_touch_down(self, touch):

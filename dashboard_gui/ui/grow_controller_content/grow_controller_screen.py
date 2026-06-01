@@ -63,8 +63,6 @@ class GrowControllerScreen(Screen):
         self.bind(pos=self._update_bg, size=self._update_bg)
 
         self.header = HeaderBar()
-        self.header.set_title("GROW MASTER S3")
-        self.header.update_back_button("grow_controller")
         self.root.add_widget(self.header)
 
         self.scroll = ScrollView(do_scroll_x=False, bar_width=dp(4))
@@ -414,6 +412,15 @@ class GrowControllerScreen(Screen):
         
         self.header.update_from_global(data)
         web = data.get("webserver", {})
+        # -------------------------------------------------
+        # RESET ALL LABELS (Header-Prinzip)
+        # -------------------------------------------------
+        
+        for lbl in self.labels.values():
+            if lbl is None:
+                continue
+            lbl.text = "---"
+            lbl.color = (1, 1, 1, 1)
 
         # Uptime
         esp_s = web.get("uptime_esp_s")
