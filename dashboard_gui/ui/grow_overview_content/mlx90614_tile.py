@@ -94,14 +94,18 @@ class SensorExternalMLX90614Tile(BoxLayout):
             markup=True,
             font_size=sp_scaled(20),
             halign="left",
-            valign="middle"
+            valign="middle",
+            size_hint=(1, None),
+            height=dp_scaled(25)
         )
         self.lbl_vpd_leaf = Label(
             text="--",
             markup=True,
             font_size=sp_scaled(20),
             halign="left",
-            valign="middle"
+            valign="middle",
+            size_hint=(1, None),
+            height=dp_scaled(25)
         )
 
         for lbl in (self.lbl_leaf_temp, self.lbl_vpd_leaf):

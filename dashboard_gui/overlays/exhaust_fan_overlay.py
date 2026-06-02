@@ -105,23 +105,27 @@ class ExhaustFanOverlay(FloatLayout):
         top_container.add_widget(img_fan)
         
         # 2. Mitte: Speed-Bereich & Live-Status
-        mid_col = BoxLayout(orientation="vertical")
+        mid_col = BoxLayout(orientation="vertical", size_hint_x=0.75)
         self.lbl_val = Label(text="0% - 0%", font_size=sp_scaled(30), bold=True, halign="left", valign="middle")
         self.lbl_val.bind(size=self.lbl_val.setter('text_size'))
-        self.lbl_reason = Label(text="AUTO IDLE", font_size=sp_scaled(20), bold=True, color=(0, 1, 1, 0.9), halign="left", valign="middle")
-        self.lbl_reason.bind(size=self.lbl_reason.setter('text_size'))
+        self.lbl_reason1 = Label(text="AUTO IDLE", font_size=sp_scaled(18), bold=True, color=(0, 1, 1, 0.9), halign="left", valign="middle", size_hint=(0.65, None), height=dp_scaled(28))
+        self.lbl_reason1.bind(size=lambda inst, *_: setattr(inst, 'text_size', (inst.width, inst.height)))
+        self.lbl_reason2 = Label(text="", font_size=sp_scaled(16), color=(0.8, 0.8, 1, 0.9), halign="left", valign="middle", size_hint=(0.25, None), height=dp_scaled(28))
+        self.lbl_reason2.bind(size=lambda inst, *_: setattr(inst, 'text_size', (inst.width, inst.height)))
+        self.lbl_live_speed = Label(text="LIVE: 0%", font_size=sp_scaled(16), bold=True, color=(0, 1, 1, 0.8), halign="right", valign="middle", size_hint=(None, None), width=dp_scaled(80), height=dp_scaled(28))
+        self.reason_row = BoxLayout(orientation="horizontal", size_hint=(1, None), height=dp_scaled(28), spacing=dp_scaled(10))
+        self.reason_row.add_widget(self.lbl_reason1)
+        self.reason_row.add_widget(self.lbl_reason2)
+        self.reason_row.add_widget(self.lbl_live_speed)
         mid_col.add_widget(self.lbl_val)
-        mid_col.add_widget(self.lbl_reason)
+        mid_col.add_widget(self.reason_row)
         top_container.add_widget(mid_col)
         
         # 3. Rechts: RPM & Live-Speed
-        right_col = BoxLayout(orientation="vertical")
+        right_col = BoxLayout(orientation="vertical", size_hint_x=0.25)
         self.lbl_rpm = Label(text="RPM: 0", font_size=sp_scaled(22), color=(0.7, 0.7, 1, 0.8), halign="center", valign="middle")
         self.lbl_rpm.bind(size=self.lbl_rpm.setter('text_size'))
-        self.lbl_live_speed = Label(text="LIVE: 0%", font_size=sp_scaled(22), bold=True, color=(0, 1, 1, 0.8), halign="center", valign="middle")
-        self.lbl_live_speed.bind(size=self.lbl_live_speed.setter('text_size'))
         right_col.add_widget(self.lbl_rpm)
-        right_col.add_widget(self.lbl_live_speed)
         top_container.add_widget(right_col)
         
         self.panel.add_widget(top_container)
@@ -470,7 +474,8 @@ class ExhaustFanOverlay(FloatLayout):
         # ==========================================================
         # LIVE STATE REASON
         # ==========================================================
-        reason = server_data.get("exhaust_fan_state_reason", "idle")
+        reason = server_data.get("exhaust_fan_state_reason_1", "idle")
+        reason2 = server_data.get("exhaust_fan_state_reason_2", "")
         
         pretty_reason = (
             reason
@@ -478,25 +483,26 @@ class ExhaustFanOverlay(FloatLayout):
             .upper()
         )
         
-        self.lbl_reason.text = pretty_reason
+        self.lbl_reason1.text = pretty_reason
+        self.lbl_reason2.text = "" if not reason2 else reason2.replace("_", " ").upper()
         # STATUS FARBEN
         if "FAILSAFE" in pretty_reason or "CRIT" in pretty_reason:
-            self.lbl_reason.color = (1, 0.2, 0.2, 1)
+            self.lbl_reason1.color = (1, 0.2, 0.2, 1)
         
         elif "CHAOS" in pretty_reason:
-            self.lbl_reason.color = (1, 0.5, 0, 1)
+            self.lbl_reason1.color = (1, 0.5, 0, 1)
         
         elif "VPD" in pretty_reason:
-            self.lbl_reason.color = (0.3, 1, 1, 1)
+            self.lbl_reason1.color = (0.3, 1, 1, 1)
         
         elif "REFINED" in pretty_reason:
-            self.lbl_reason.color = (0.4, 1, 0.4, 1)
+            self.lbl_reason1.color = (0.4, 1, 0.4, 1)
         
         elif "NIGHT" in pretty_reason:
-            self.lbl_reason.color = (0.6, 0.6, 1, 1)
+            self.lbl_reason1.color = (0.6, 0.6, 1, 1)
         
         else:
-            self.lbl_reason.color = (1, 1, 1, 0.8)
+            self.lbl_reason1.color = (1, 1, 1, 0.8)
         # === 4. ICON LOGIK (Status-Feedback) ===
         status = self.engine.get_status(
             server_init,

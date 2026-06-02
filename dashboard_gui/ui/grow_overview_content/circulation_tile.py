@@ -59,7 +59,7 @@ class CirculationTile(BoxLayout):
         self.columns_box = BoxLayout(
             orientation="horizontal",
             size_hint=(1, 1),
-            spacing=dp_scaled(10)
+            spacing=dp_scaled(2)
         )
 
         self.labels_column = BoxLayout(
@@ -107,21 +107,27 @@ class CirculationTile(BoxLayout):
             text="RPM: 0",
             font_size=sp_scaled(20),
             halign="left",
-            valign="middle"
+            valign="middle",
+            size_hint=(1, None),
+            height=dp_scaled(20)
         )
 
         self.lbl_live_speed = Label(
             text="LIVE: 0%",
             font_size=sp_scaled(18),
             halign="left",
-            valign="middle"
+            valign="middle",
+            size_hint=(1, None),
+            height=dp_scaled(20)
         )
 
         self.lbl_status = Label(
             text="STATUS: OFFLINE",
             font_size=sp_scaled(18),
             halign="left",
-            valign="middle"
+            valign="middle",
+            size_hint=(1, None),
+            height=dp_scaled(20)
         )
 
         for lbl in (self.lbl_rpm, self.lbl_live_speed, self.lbl_status):

@@ -117,27 +117,27 @@ class GrowOverviewScreen(Screen):
         self.scd41_tile = SensorSCD41Tile()
         # ---------------- SENSOR SIZE SETTINGS ----------------
         self.sht31_internal_tile.size_hint_y = None
-        self.sht31_internal_tile.height = dp_scaled(160)
+        self.sht31_internal_tile.height = dp_scaled(150)
         self.sht31_internal_tile.size_hint_x = 1
         
         self.sht31_external_tile.size_hint_y = None
-        self.sht31_external_tile.height = dp_scaled(160)
+        self.sht31_external_tile.height = dp_scaled(150)
         self.sht31_external_tile.size_hint_x = 1
         
         self.thermobeacon_tile.size_hint_y = None
-        self.thermobeacon_tile.height = dp_scaled(180)
+        self.thermobeacon_tile.height = dp_scaled(150)
         self.thermobeacon_tile.size_hint_x = 1
         
         self.inkbird_tile.size_hint_y = None
-        self.inkbird_tile.height = dp_scaled(180)
+        self.inkbird_tile.height = dp_scaled(150)
         self.inkbird_tile.size_hint_x = 1
         
         self.mlx90614_tile.size_hint_y = None
-        self.mlx90614_tile.height = dp_scaled(160)
+        self.mlx90614_tile.height = dp_scaled(150)
         self.mlx90614_tile.size_hint_x = 1
 
         self.scd41_tile.size_hint_y = None
-        self.scd41_tile.height = dp_scaled(160)
+        self.scd41_tile.height = dp_scaled(150)
         self.scd41_tile.size_hint_x = 1
 
         # their value box.
@@ -146,11 +146,11 @@ class GrowOverviewScreen(Screen):
         self.exhaust_tile.size_hint_x = 1
 
         self.humidifier_tile.size_hint_y = None
-        self.humidifier_tile.height = dp_scaled(180)
+        self.humidifier_tile.height = dp_scaled(160)
         self.humidifier_tile.size_hint_x = 1
 
         self.circ_tile.size_hint_y = None
-        self.circ_tile.height = dp_scaled(180)
+        self.circ_tile.height = dp_scaled(160)
         self.circ_tile.size_hint_x = 1
 
         self.light_tile.size_hint_y = None
@@ -158,11 +158,11 @@ class GrowOverviewScreen(Screen):
         self.light_tile.size_hint_x = 1
 
         self.rtc_tile.size_hint_y = None
-        self.rtc_tile.height = dp_scaled(160)
+        self.rtc_tile.height = dp_scaled(140)
         self.rtc_tile.size_hint_x = 1
         
         self.tapo_tile.size_hint_y = None
-        self.tapo_tile.height = dp_scaled(160)
+        self.tapo_tile.height = dp_scaled(140)
         self.tapo_tile.size_hint_x = 1
         
         self.esp32_tile.size_hint_y = None

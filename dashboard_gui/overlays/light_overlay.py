@@ -280,6 +280,7 @@ class LightOverlay(FloatLayout):
     
         # 1. Daten holen
         mode = data.get('light_mode', 'man')
+        self._target_mode = mode
         current_hw = int(data.get('light_pct', 0))
         target = int(data.get('light_target', 0))
         state_reason = str(data.get('light_state_reason', 'DAY')).upper().strip()
@@ -565,6 +566,7 @@ class LightOverlay(FloatLayout):
     def _send_command(self, is_retry=False, **kwargs):
         mac = GLOBAL_STATE.get_active_device_id()
         if not mac or not self._init_done: return
+        send_mode = kwargs.get("mode", self._target_mode)
         start_min = max(0, min(95, int(self.slider_start.value))) * 15
         
         # Hol den Klima-Zustand: Entweder aus den kwargs (frischer Klick) oder aus dem UI-Buffer-Zustand
@@ -574,7 +576,7 @@ class LightOverlay(FloatLayout):
         rev = GLOBAL_STATE.send_overlay_command(
             "light", 
             pct=int(self.slider.value), 
-            mode=kwargs.get("mode", self._target_mode),
+            mode=send_mode,                    # immer explizit senden
             h=start_min // 60, 
             m=start_min % 60, 
             dur=int(self.slider_dur.value) * 15,

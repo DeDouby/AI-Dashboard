@@ -122,21 +122,29 @@ class HumidifierTile(BoxLayout):
             font_size=sp_scaled(20),
             halign="left",
             valign="middle",
-            color=(1, 1, 1, 1)
+            color=(1, 1, 1, 1),
+            size_hint=(1, None),
+            height=dp_scaled(20)
         )
 
         self.lbl_live = Label(
             text="LIVE: 65%",
             font_size=sp_scaled(18),
             halign="left",
-            valign="middle"
+            valign="middle",
+            color=(0.8, 0.8, 1, 1),
+            size_hint=(1, None),
+            height=dp_scaled(20)
         )
 
         self.lbl_status = Label(
             text="STATUS: HUMIDIFY",
             font_size=sp_scaled(18),
             halign="left",
-            valign="middle"
+            valign="middle",
+            color=(0.9, 0.9, 0.9, 1),
+            size_hint=(1, None),
+            height=dp_scaled(20)
         )
 
         for lbl in (

@@ -132,21 +132,30 @@ class TapoTile(BoxLayout):
             text="CAM: ONLINE",
             font_size=sp_scaled(20),
             halign="left",
-            valign="middle"
+            valign="middle",
+            size_hint=(1, None),
+            height=dp_scaled(20),
+            color=(0.2, 1, 0.2, 1)  
         )
 
         self.lbl_stream = Label(
             text="STREAM: ACTIVE",
             font_size=sp_scaled(18),
             halign="left",
-            valign="middle"
+            valign="middle",
+            size_hint=(1, None),
+            height=dp_scaled(20),
+            color=(0.2, 1, 0.2, 1)
         )
 
         self.lbl_status = Label(
             text="STATUS: FAKE",
-            font_size=sp_scaled(18),
+            font_size=sp_scaled(14),
             halign="left",
-            valign="middle"
+            valign="middle",
+            size_hint=(1, None),
+            height=dp_scaled(20),
+            color=(1, 0.8, 0.2, 1)
         )
 
         for lbl in (
@@ -307,7 +316,7 @@ class TapoTile(BoxLayout):
             self.lbl_stream.text = "STREAM: INACTIVE"
             self.lbl_stream.color = (1, 0.7, 0.2, 1)
 
-        self.lbl_status.text = "STATUS: FAKE PLACEHOLDER"
+        self.lbl_status.text = "STATUS: PLACEHOLDER"
         self.lbl_status.color = (1, 0.8, 0.2, 1)
 
         self._update_box_color(True)

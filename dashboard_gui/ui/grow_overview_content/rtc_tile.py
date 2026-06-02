@@ -98,21 +98,27 @@ class RTCTile(BoxLayout):
             text="TIME: --:--:--",
             font_size=sp_scaled(20),
             halign="left",
-            valign="middle"
+            valign="middle",
+            size_hint=(1, None),
+            height=dp_scaled(20)
         )
 
         self.lbl_found = Label(
             text="RTC: ---",
             font_size=sp_scaled(18),
             halign="left",
-            valign="middle"
+            valign="middle",
+            size_hint=(1, None),
+            height=dp_scaled(20)
         )
 
         self.lbl_status = Label(
             text="STATUS: OFFLINE",
             font_size=sp_scaled(18),
             halign="left",
-            valign="middle"
+            valign="middle",
+            size_hint=(1, None),
+            height=dp_scaled(20)
         )
 
         for lbl in (self.lbl_time, self.lbl_found, self.lbl_status):

@@ -74,7 +74,8 @@ static float temp_before_test = 0.0f;
 static uint32_t last_wind_change = 0;
 static uint32_t last_rev_seen = 0;
 static uint32_t last_warn_msg = 0; // Neu: Damit die Konsole nicht zugespamt wird
-static String exhaust_fan_state_reason = "day_auto";
+static String exhaust_fan_state_reason_1 = "idle_balanced";
+static String exhaust_fan_state_reason_2 = "";
 static bool vpd_control_enabled = true; // für zukünftige UI-Steuerung
 // Ganz oben bei den anderen globalen Variablen einfügen:
 bool exhaust_fan_chaos_active = false;
@@ -238,12 +239,12 @@ float estimate_refined_humidity(float temp_out, float hum_out, float temp_target
 
 void exhaust_fan_update() {
     uint32_t now = millis();
-    static uint32_t last_wind_change = 0;
-    static uint32_t last_rev_seen = 0;
-    
+
     // ============================================================
     // 1. REVISION & TIMING CHECK
     // ============================================================
+    static uint32_t last_wind_change = 0;
+
     if (last_rev_seen != exhaust_fan_rev) {
         last_rev_seen = exhaust_fan_rev;
         last_wind_change = 0;
@@ -253,18 +254,14 @@ void exhaust_fan_update() {
     if (now - last_wind_change < 1500 && last_wind_change != 0) return;
     last_wind_change = now;
 
+    // ============================================================
+    // 2. GRUNDVARIABLEN
+    // ============================================================
     float final_pct = 0.0f;
     bool is_manual = (current_exhaust_fan_mode == exhaust_fan_MODE_MANUAL);
-    
-    
     PlantPhase phase = getPlantPhase();
-        
-    // KRITISCH:
-    // IMMER setzen.
-    // Nicht nur im else!
     current_phase = phase;
-    
-    
+
     float in_temp = getTempExt();
     float in_hum  = getExternalHumidity();
     float out_temp = BLEScanner::get_sps_temp();
@@ -272,71 +269,52 @@ void exhaust_fan_update() {
     bool out_ok    = BLEScanner::is_sps_online();
 
     // ============================================================
-    // 2. VEREDELUNGS-ANALYSE (THERMODYNAMIK)
-    // ============================================================
-    bool air_can_be_refined = false;
-    if (out_ok && out_temp < target_temp_max) {
-        // Wie feucht wäre die Außenluft, wenn sie auf unsere Ziel-Temp erwärmt wird?
-        float potential_hum = estimate_refined_humidity(out_temp, out_hum, target_temp_max);
-        
-        // Wenn die Luft nach Erwärmung unter unser Feuchte-Target fällt -> TOP!
-        if (potential_hum <= (float)target_humidity_max) {
-            air_can_be_refined = true;
-        }
-    }
-
-
-    // ============================================================
-    // 3. BASIS-REGELUNG (TEMP, HUM & VPD) WITH SENSOR FAILSAFE
+    // 3. DEFAULT STATE (wichtig!)
     // ============================================================
     if (is_manual) {
-    
+        exhaust_fan_state_reason_1 = "manual";
+    } else {
+        exhaust_fan_state_reason_1 = "idle_balanced";   // ← WICHTIG: Immer Default setzen
+    }
+
+    // ============================================================
+    // 4. MANUAL MODE
+    // ============================================================
+    if (is_manual) {
         final_pct = (float)exhaust_fan_pct;
-    
-        if (
-            exhaust_fan_night_reduction &&
-            phase == NIGHT_RECOVERY
-        ) {
+
+        if (exhaust_fan_night_reduction && phase == NIGHT_RECOVERY) {
             final_pct *= 0.5f;
-            exhaust_fan_state_reason = "night_manual";
-        }
-        else {
-            exhaust_fan_state_reason = "manual";
+            exhaust_fan_state_reason_1 = "night_manual";
         }
     }
+    // ============================================================
+    // 5. AUTOMATIC MODE
+    // ============================================================
     else {
         bool sensors_valid = (in_temp > -200.0f && in_hum > -200.0f);
 
         if (sensors_valid) {
             float mix_factor = 0.0f;
-            
-            // A: Temperatur-Stress (immer aktiv)
+
+            // Basis-Stress Faktoren
             float t_f = constrain((in_temp - target_temp_max) / 3.0f, 0.0f, 1.0f);
-            
-            // B: Feuchtigkeits-Stress (immer aktiv)
             float h_f = constrain((in_hum - (float)target_humidity_max) / 10.0f, 0.0f, 1.0f);
             
-            // C: VPD-Stress → NUR bei Licht!
             float vpd_f = 0.0f;
             bool vpd_active = false;
-            bool temp_high = in_temp > target_temp_max;
-            bool temp_low  = in_temp < target_temp_min;
-            
-            bool hum_high = in_hum > target_humidity_max;
-            bool hum_low  = in_hum < target_humidity_min;
-            
+
             float current_vpd = calculate_current_vpd(in_temp, in_hum);
-            
             bool vpd_high = current_vpd > target_vpd_max;
             bool vpd_low  = current_vpd < target_vpd_min;
-            // VPD nur aktiv während Lichtphase (inkl. Rampen)
-            if (phase == DAY_TRANSPIRE || 
-                phase == SUNRISE_WAKEUP || 
-                phase == SUNSET_TRANSITION) {
-                
-                vpd_active = true;
-                float current_vpd = calculate_current_vpd(in_temp, in_hum);
+            bool temp_high = in_temp > target_temp_max;
+            bool temp_low  = in_temp < target_temp_min;
+            bool hum_high = in_hum > target_humidity_max;
+            bool hum_low  = in_hum < target_humidity_min;
 
+            // VPD nur in Lichtphasen
+            if (phase == DAY_TRANSPIRE || phase == SUNRISE_WAKEUP || phase == SUNSET_TRANSITION) {
+                vpd_active = true;
                 if (current_vpd < target_vpd_min) {
                     vpd_f = constrain((target_vpd_min - current_vpd) / 0.3f, 0.0f, 1.0f);
                 } else if (current_vpd > target_vpd_max) {
@@ -344,135 +322,121 @@ void exhaust_fan_update() {
                 }
             }
 
-            // Dominanter Faktor
             mix_factor = max({t_f, h_f, vpd_f});
 
-            // === Phasen-Anpassung ===
+            // Phasen-Anpassungen
             if (phase == NIGHT_RECOVERY) {
-            
                 if (exhaust_fan_night_reduction) {
                     mix_factor *= 0.5f;
-                    exhaust_fan_state_reason = "night_throttled";
+                    if (exhaust_fan_state_reason_2.isEmpty()) {
+                        if (exhaust_fan_state_reason_2 != "crit_sensor_timeout") {
+
+                            exhaust_fan_state_reason_2 = "night_reduction_active";
+                        }
+                    }
                 }
-                else {
-                    exhaust_fan_state_reason = "night_full";
-                }
-            }
+            } 
             else if (phase == SUNSET_TRANSITION) {
                 mix_factor *= 0.75f;
-                exhaust_fan_state_reason = vpd_active && vpd_f > 0.1f ? "vpd_sunset" : "sunset_ramp";
+                if (exhaust_fan_state_reason_2.isEmpty()) exhaust_fan_state_reason_2 = "sunset_phase";
             } 
             else if (phase == SUNRISE_WAKEUP) {
                 mix_factor *= 1.1f;
-                exhaust_fan_state_reason = vpd_active && vpd_f > 0.1f ? "vpd_sunrise" : "sunrise_ramp";
+                if (exhaust_fan_state_reason_2.isEmpty()) exhaust_fan_state_reason_2 = "sunrise_phase";
             } 
             else { // DAY_TRANSPIRE
-            
                 float dominant = max({t_f, h_f, vpd_f});
-            
-                // Alles stabil
+
                 if (dominant <= 0.01f) {
-            
-                    exhaust_fan_state_reason = "idle_balanced";
+                    exhaust_fan_state_reason_1 = "idle_balanced";
                 }
-            
-                // ===== VPD DOMINANT =====
                 else if (vpd_f >= t_f && vpd_f >= h_f) {
-            
-                    if (vpd_high) {
-                        exhaust_fan_state_reason = "vpd_high";
-                    }
-                    else if (vpd_low) {
-                        exhaust_fan_state_reason = "vpd_low";
-                    }
-                    else {
-                        exhaust_fan_state_reason = "vpd_balanced";
-                    }
+                    exhaust_fan_state_reason_1 = vpd_high ? "vpd_high" : (vpd_low ? "vpd_low" : "idle_balanced");
                 }
-            
-                // ===== TEMP DOMINANT =====
                 else if (t_f >= h_f) {
-            
-                    if (temp_high) {
-                        exhaust_fan_state_reason = "temp_high";
-                    }
-                    else if (temp_low) {
-                        exhaust_fan_state_reason = "temp_low";
-                    }
-                    else {
-                        exhaust_fan_state_reason = "temp_balanced";
-                    }
+                    exhaust_fan_state_reason_1 = temp_high ? "temp_high" : (temp_low ? "temp_low" : "idle_balanced");
                 }
-            
-                // ===== HUM DOMINANT =====
                 else {
-            
-                    if (hum_high) {
-                        exhaust_fan_state_reason = "hum_high";
-                    }
-                    else if (hum_low) {
-                        exhaust_fan_state_reason = "hum_low";
-                    }
-                    else {
-                        exhaust_fan_state_reason = "hum_balanced";
-                    }
+                    exhaust_fan_state_reason_1 = hum_high ? "hum_high" : (hum_low ? "hum_low" : "idle_balanced");
                 }
             }
+
             int fan_range = exhaust_fan_pct - exhaust_fan_min;
             final_pct = (float)exhaust_fan_min + (fan_range * mix_factor);
         } 
         else {
-            // Sensor-Failsafe
+            // Sensor Failsafe
             final_pct = (float)exhaust_fan_pct;
-            exhaust_fan_state_reason = "CRIT_SENSOR_TIMEOUT";
+            if (exhaust_fan_state_reason_2.isEmpty()) {
+                exhaust_fan_state_reason_2 = "crit_sensor_timeout";
+            }
         }
 
         // ============================================================
-        // 4. SMART FAILSAFE ( unverändert )
+        // 6. SMART FAILSAFE (höchste Priorität!)
         // ============================================================
-        if (sensors_valid) {
+        if (sensors_valid && out_ok) {
             bool values_too_high = (in_temp > target_temp_max || in_hum > target_humidity_max);
             bool outside_is_bad = (out_temp > in_temp + 0.2f || out_hum > in_hum + 2.0f);
 
-            if (out_ok && values_too_high && outside_is_bad && !air_can_be_refined) {
+            bool air_can_be_refined = false;
+            if (out_temp < target_temp_max) {
+                float potential_hum = estimate_refined_humidity(out_temp, out_hum, target_temp_max);
+                if (potential_hum <= (float)target_humidity_max) {
+                    air_can_be_refined = true;
+                }
+            }
+
+            if (values_too_high && outside_is_bad && !air_can_be_refined) {
+                // === FAILSAFE UNREFINABLE ===
                 failsafe_phase += 1;
                 float pulse = (sin(failsafe_phase * 0.15f) * 0.5f + 0.5f);
                 int fs_min = max((int)EXHAUST_FAILSAFE_MIN, exhaust_fan_min);
+                
                 final_pct = fs_min + ((exhaust_fan_pct - fs_min) * pulse);
-                exhaust_fan_state_reason = "failsafe_unrefinable";
+                
+                exhaust_fan_state_reason_1 = "failsafe_unrefinable";
+                if (exhaust_fan_state_reason_2.isEmpty()) {
+                    if (exhaust_fan_state_reason_2 != "crit_sensor_timeout") {
+                        exhaust_fan_state_reason_2 = "outside_air_bad";
+                    }
+                }
             } 
             else if (values_too_high && air_can_be_refined) {
-                exhaust_fan_state_reason = "refined_air";
+                exhaust_fan_state_reason_1 = "refined_air";
+                if (exhaust_fan_state_reason_2.isEmpty()) {
+                    if (exhaust_fan_state_reason_2 != "crit_sensor_timeout") {
+
+                        exhaust_fan_state_reason_2 = "outside_air_refinable";
+
+                    }    
+                }
+            }
+            // Wenn kein Failsafe → bleibt beim Grundzustand aus Abschnitt 5
+        }
+    }
+
+    // ============================================================
+    // 7. CHAOS MODE
+    // ============================================================
+    if (exhaust_fan_chaos_active) {
+        float wobble = (float)random(-80, 81) / 10.0f;
+        final_pct += wobble;
+        if (exhaust_fan_state_reason_2.isEmpty()) {
+            if (exhaust_fan_state_reason_2 != "crit_sensor_timeout") {
+                exhaust_fan_state_reason_2 = "chaos_mode_active";
             }
         }
     }
 
     // ============================================================
-    // 5. CHAOS & HARDWARE OUTPUT
+    // 8. FINALE BEGRENZUNG & HARDWARE OUTPUT
     // ============================================================
-    if (exhaust_fan_chaos_active) {
-        float wobble = (float)random(-80, 81) / 10.0f; // +/- 8%
-        final_pct += wobble;
-        if (!is_manual && exhaust_fan_state_reason.startsWith("day")) {
-            exhaust_fan_state_reason = "chaos_active";
-        }
-    }
+    int real_min = min(exhaust_fan_min, exhaust_fan_pct);
+    int real_max = max(exhaust_fan_min, exhaust_fan_pct);
 
-    // Finale Begrenzung auf User-Settings
-    int real_min =
-        min(exhaust_fan_min,
-            exhaust_fan_pct);
+    final_pct = constrain(final_pct, (float)real_min, (float)real_max);
     
-    int real_max =
-        max(exhaust_fan_min,
-            exhaust_fan_pct);
-    
-    final_pct =
-        constrain(
-            final_pct,
-            (float)real_min,
-            (float)real_max
-        );
     current_exhaust_fan_speed = (int)(final_pct + 0.5f);
     
     ledcWrite(_exhaust_fan_pin, map(current_exhaust_fan_speed, 0, 100, 0, 255));
@@ -570,7 +534,8 @@ void exhaust_fan_get_status(JsonObject doc) {
     doc["rev_init_exhaust"] = exhaust_fan_init_rev;
     doc["plant_phase"] = (int)current_phase;
     doc["exhaust_fan_chaos_active"] = exhaust_fan_chaos_active;
-    doc["exhaust_fan_state_reason"] = exhaust_fan_state_reason;
+    doc["exhaust_fan_state_reason_1"] = exhaust_fan_state_reason_1;
+    doc["exhaust_fan_state_reason_2"] = exhaust_fan_state_reason_2;
     doc["exhaust_fan_night_reduction"] =
         exhaust_fan_night_reduction;
 }

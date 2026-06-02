@@ -27,7 +27,7 @@ class ExhaustTile(BoxLayout):
         self.val_box_h = dp_scaled(140)
 
         self.padding = dp_scaled(10)
-        self.spacing = dp_scaled(6)
+        self.spacing = dp_scaled(2)
 
         # ================= TITLE =================
         self.title_label = Label(
@@ -54,14 +54,14 @@ class ExhaustTile(BoxLayout):
             orientation="vertical",
             size_hint=(1, 1),
             padding=[dp_scaled(12), dp_scaled(10)],
-            spacing=dp_scaled(6)
+            spacing=dp_scaled(4)
         )
 
         # ================= COLUMNS =================
         self.columns_box = BoxLayout(
             orientation="horizontal",
             size_hint=(1, 1),
-            spacing=dp_scaled(10)
+            spacing=dp_scaled(2)
         )
 
         self.labels_column = BoxLayout(
@@ -69,7 +69,7 @@ class ExhaustTile(BoxLayout):
             size_hint=(0.5, 1),
             spacing=dp_scaled(2)
         )
-
+        
         self.image_column = BoxLayout(
             orientation="vertical",
             size_hint=(0.5, 1)
@@ -80,6 +80,7 @@ class ExhaustTile(BoxLayout):
             source=FAN_PIC,
             size_hint=(1, 1),
             fit_mode="contain"
+
         )
         self.image_column.add_widget(self.fan_image)
 
@@ -104,25 +105,30 @@ class ExhaustTile(BoxLayout):
 
         # ================= LABELS =================
         self.lbl_rpm = Label(
-            text="RPM: 0",
+            text="RPM: 0 | LIVE: 0%",
             font_size=sp_scaled(20),
             halign="left",
             valign="middle",
-            color=(1, 1, 1, 1)
+            size_hint=(1, None),
+            height=dp_scaled(18)
         )
 
-        self.lbl_live_speed = Label(
-            text="LIVE: 0%",
+        self.lbl_reason1 = Label(
+            text="",
             font_size=sp_scaled(18),
             halign="left",
-            valign="middle"
+            valign="middle",
+            size_hint=(1, None),
+            height=dp_scaled(20)
         )
-
-        self.lbl_reason = Label(
-            text="STATUS: IDLE",
-            font_size=sp_scaled(18),
+        self.lbl_reason2 = Label(
+            text="",
+            font_size=sp_scaled(14),
             halign="left",
-            valign="middle"
+            valign="middle",
+            color=(0.8, 0.8, 1, 1),
+            size_hint=(1, None),
+            height=dp_scaled(20)
         )
 
         self.lbl_mode = Label(
@@ -130,14 +136,17 @@ class ExhaustTile(BoxLayout):
             font_size=sp_scaled(18),
             halign="left",
             valign="middle",
-            color=(0.9, 0.9, 0.9, 1)
+            color=(0.9, 0.9, 0.9, 1),
+            size_hint=(1, None),
+            height=dp_scaled(20)
         )
-
-        for lbl in (self.lbl_rpm, self.lbl_live_speed, self.lbl_reason):
-            lbl.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
-            self.labels_column.add_widget(lbl)
-        self.lbl_mode.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
+        self.labels_column.add_widget(self.lbl_rpm)
+        self.labels_column.add_widget(self.lbl_reason1)
+        self.labels_column.add_widget(self.lbl_reason2)
         self.labels_column.add_widget(self.lbl_mode)
+
+        for lbl in (self.lbl_rpm, self.lbl_reason1, self.lbl_reason2, self.lbl_mode):
+            lbl.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
         # ================= BUILD =================
         self.columns_box.add_widget(self.labels_column)
         self.columns_box.add_widget(self.image_column)
@@ -199,23 +208,19 @@ class ExhaustTile(BoxLayout):
     def update_values(self, data):
         rpm = int(data.get("exhaust_fan_rpm", 0))
         speed = int(data.get("exhaust_fan_speed_now", 0))
-        reason = str(data.get("exhaust_fan_state_reason", "IDLE")).upper()
-    
+        reason1 = str(data.get("exhaust_fan_state_reason_1", "")).replace('_', ' ').upper()
+        reason2 = str(data.get("exhaust_fan_state_reason_2", "")).replace('_', ' ').upper()
+
         self.prog_bar.value = speed
         self.prog_bar.max = 100
     
-        self.lbl_rpm.text = f"RPM: {rpm}"
-        self.lbl_live_speed.text = f"LIVE: {speed}%"
+        self.lbl_rpm.text = f"RPM: {rpm} | LIVE: {speed}%"
         # === FIX FÜR STATUS LABEL ===
-        self.lbl_reason.text = f"STATUS: {reason}"
-        # Wenn der Grund sehr lang ist, Schriftgröße verringern
-        if len(reason) > 20:  # Richtwert, ggf. anpassen
-            self.lbl_reason.font_size = sp_scaled(13)
-        else:
-            self.lbl_reason.font_size = sp_scaled(16)
+        self.lbl_reason1.text = reason1
+        self.lbl_reason2.text = reason2
         chaos = bool(data.get("exhaust_fan_chaos_active", False))
         night = bool(data.get("exhaust_fan_night_reduction", False))
-        reason = str(data.get("exhaust_fan_state_reason", "")).lower()
+        reason = str(data.get("exhaust_fan_state_reason_1", "")).lower()
 
         if chaos:
             mode = "CHAOS"
@@ -226,7 +231,7 @@ class ExhaustTile(BoxLayout):
         elif reason.startswith("temp"):
             mode = "TEMP"
         else:
-            mode = "NATURAL"
+            mode = "UNKNOWN"
         
         self.lbl_mode.text = f"MODE: {mode}"    
         self._update_box_color(rpm)

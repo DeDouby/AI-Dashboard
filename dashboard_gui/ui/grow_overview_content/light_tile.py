@@ -242,27 +242,29 @@ class LightTile(BoxLayout):
     # ==================== TIME ====================
     def _calculate_remaining_time(self, data):
         mode = data.get('light_mode', 'man')
-        if mode != "tim":
-            return "MANUELL"
+        if mode != "tim": 
+            return "MODUS: MANUELL/AUS"
+        
+        h, m = int(data.get('l_start_h', 8)), int(data.get('l_start_m', 0))
+        dur = int(data.get('l_dur', 720))
 
-        try:
-            h = int(data.get('l_start_h', 8))
-            m = int(data.get('l_start_m', 0))
-            dur = int(data.get('l_dur', 720))
+        now = time.localtime()
+        current_min = now.tm_hour * 60 + now.tm_min
+        start_min = h * 60 + m
+        end_min = (start_min + dur)
 
-            now = time.localtime()
-            current_min = now.tm_hour * 60 + now.tm_min
-            start_min = h * 60 + m
-            end_min = start_min + dur
+        is_active = False
+        if end_min <= 1440:
+            if start_min <= current_min < end_min: is_active = True
+        else:
+            if current_min >= start_min or current_min < (end_min % 1440): is_active = True
 
-            if start_min <= current_min < end_min:
-                rem_min = end_min - current_min
-                return f"REST: {rem_min // 60}h {rem_min % 60:02d}m"
-
+        if is_active:
+            rem_min = (end_min - current_min) if current_min >= start_min else ((end_min % 1440) - current_min)
+            return f"RESTZEIT: {rem_min // 60}h {rem_min % 60:02d}m"
+        else:
             wait_min = (start_min - current_min + 1440) % 1440
-            return f"IN: {wait_min // 60}h {wait_min % 60:02d}m"
-        except Exception:
-            return "REST: --:--"
+            return f"STARTET IN: {wait_min // 60}h {wait_min % 60:02d}m"
 
     def on_touch_down(self, touch):
         if not self.collide_point(*touch.pos):

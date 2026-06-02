@@ -93,21 +93,27 @@ class SensorInternalSHT31Tile(BoxLayout):
             markup=True,
             font_size=sp_scaled(20),
             halign="left",
-            valign="middle"
+            valign="middle",
+            size_hint=(1, None),
+            height=dp_scaled(25)
         )
         self.lbl_hum = Label(
             text="--",
             markup=True,
             font_size=sp_scaled(20),
             halign="left",
-            valign="middle"
+            valign="middle",
+            size_hint=(1, None),
+            height=dp_scaled(25)
         )
         self.lbl_vpd = Label(
             text="--",
             markup=True,
             font_size=sp_scaled(20),
             halign="left",
-            valign="middle"
+            valign="middle",
+            size_hint=(1, None),
+            height=dp_scaled(25)
         )
 
         for lbl in (self.lbl_temp, self.lbl_hum, self.lbl_vpd):

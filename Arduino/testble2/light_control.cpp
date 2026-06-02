@@ -119,16 +119,17 @@ void light_save_state() {
     lightPrefs.putInt("mode", (int)current_light_mode);
     lightPrefs.putInt("target", target_brightness);
     lightPrefs.putBool("clim_ovr", light_climate_override);
+    lightPrefs.putUInt("rev", light_rev);
 }
 
 // === REBOOT RECONSTRUCT ===
 void light_reconstruct_after_boot() {
+    // Mode wird schon in light_init() aus Preferences geladen → nichts machen
+    
     if (current_light_mode == LIGHT_MODE_TIMER) {
-        // rebuild start time deterministically
-        struct tm ti;
         time_t now = time(nullptr);
-
-        if (now > 946684800) {
+        if (now > 946684800) {  // gültige Zeit
+            struct tm ti;
             localtime_r(&now, &ti);
             ti.tm_hour = l_target_h;
             ti.tm_min = l_target_m;
@@ -142,7 +143,6 @@ void light_init() {
     ledcAttach(PIN_LIGHT, 5000, 8);
     lightPrefs.begin("light", false);
 
-    // Targets laden
     l_target_h = lightPrefs.getInt("l_h", 8);
     l_target_m = lightPrefs.getInt("l_m", 0);
     l_target_dur = lightPrefs.getInt("l_dur", 720);
@@ -151,23 +151,15 @@ void light_init() {
     current_light_mode = (LightMode)lightPrefs.getInt("mode", (int)LIGHT_MODE_MANUAL);
     target_brightness = lightPrefs.getInt("target", 50);
     light_climate_override = lightPrefs.getBool("clim_ovr", false);
+    
+    // Revision aus Flash laden
+    light_rev = lightPrefs.getUInt("rev", 0);
 
     light_duration_sec = (uint32_t)l_target_dur * 60;
+    
+    // Berechnet Startzeit deterministisch (ersetzt den gelöschten Block)
     light_reconstruct_after_boot();
-    // === NEU: Kein Boot-Reset mehr! ===
-    // Wenn wir schon eine gültige Zeit haben → light_start_unix korrekt setzen
-    time_t now = time(nullptr);
-    if (now > 946684800) { // > Jahr 2000
-        struct tm ti;
-        localtime_r(&now, &ti);
-        ti.tm_hour = l_target_h;
-        ti.tm_min = l_target_m;
-        ti.tm_sec = 0;
-        light_start_unix = mktime(&ti);
-        Serial.println("Light: Startzeit aus aktueller Uhrzeit berechnet");
-    } else {
-        light_start_unix = 0; // noch keine gültige Zeit
-    }
+    
     light_update();
     Serial.println("Light Module initialisiert (stabiler Modus)");
 }
@@ -747,10 +739,17 @@ void light_control_process_json(JsonObject &doc) {
         if (received_rev > light_rev) {
             light_rev = received_rev;
 
-            // A: Not-Aus / Stop
-            if (doc.containsKey("light_stop") && (int)doc["light_stop"] == 1) {
-                light_set_mode(LIGHT_MODE_MANUAL);
-                light_set_brightness(0);
+            // D: Modus-Wechsel
+            if (doc.containsKey("light_mode")) {
+                String lm = doc["light_mode"];
+
+                if (lm == "tim") {
+                    light_set_mode(LIGHT_MODE_TIMER);
+                }
+                else {
+                    light_set_mode(LIGHT_MODE_MANUAL);
+                }
+
                 flash_changed = true;
             }
 
@@ -783,19 +782,7 @@ void light_control_process_json(JsonObject &doc) {
                 flash_changed = true;
             }
 
-            // D: Modus-Wechsel
-            if (doc.containsKey("light_mode")) {
-                String lm = doc["light_mode"];
 
-                if (lm == "tim") {
-                    light_set_mode(LIGHT_MODE_TIMER);
-                }
-                else {
-                    light_set_mode(LIGHT_MODE_MANUAL);
-                }
-
-                flash_changed = true;
-            }
         } else {
             // Alte Revision -> Ignorieren (Verhindert Echo-Effekte)
             return;
@@ -813,7 +800,16 @@ void light_control_get_status(JsonObject &doc) {
     if (doc.isNull()) return;
 
     doc["light_pct"] = light_get_effective_brightness();
-    doc["light_target"] = target_brightness; 
+    doc["light_target"] = target_brightness;
+
+    // === WICHTIG: Immer den aktuellen gespeicherten Modus senden ===
+    if (current_light_mode == LIGHT_MODE_TIMER) {
+        doc["light_mode"] = "tim";
+    } else {
+        doc["light_mode"] = "man";
+    }
+
+
 
     // Targets für UI (15-min Raster)
     doc["l_start_h"] = l_target_h;
