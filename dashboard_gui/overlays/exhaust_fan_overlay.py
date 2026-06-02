@@ -171,7 +171,7 @@ class ExhaustFanOverlay(FloatLayout):
         self.btn_auto = self._create_styled_btn("AUTOMATIC")
         self.btn_chao = self._create_styled_btn("CHAOTIC")
         self.btn_night =self._create_styled_btn("NIGHT")
-        self.btn_man.bind(on_release=lambda *_: self._set_mode("man"))
+        self.btn_man.bind(on_release=lambda *_: self._set_mode("manual"))
         self.btn_auto.bind(on_release=lambda *_: self._set_mode("auto"))
         self.btn_chao.bind(on_release=lambda *_: self._set_mode("chao"))
         self.btn_night.bind(on_release=lambda *_: self._set_mode("night"))
@@ -369,7 +369,7 @@ class ExhaustFanOverlay(FloatLayout):
         if mode == "night":
             self._night_reduction_enabled = not self._night_reduction_enabled
         # NUR echte Hauptmodi setzen
-        elif mode in ("auto", "man"):
+        elif mode in ("auto", "manual"):
             self._target_mode = mode
 
         self._last_user_action = time.time()
@@ -386,7 +386,7 @@ class ExhaustFanOverlay(FloatLayout):
         base = (0.15, 0.15, 0.15, 1)
     
         # MANUAL
-        self.btn_man.background_color = (0, 1, 0, 0.85) if mode == "man" else base
+        self.btn_man.background_color = (0, 1, 0, 0.85) if mode == "manual" else base
     
         # AUTO
         self.btn_auto.background_color = (0, 0.7, 1, 0.85) if mode == "auto" else base
@@ -398,7 +398,7 @@ class ExhaustFanOverlay(FloatLayout):
         def fix(btn, active):
             btn.color = (0, 0, 0, 1) if active else (1, 1, 1, 1)
     
-        fix(self.btn_man, mode == "man")
+        fix(self.btn_man, mode == "manual")
         fix(self.btn_auto, mode == "auto")
         fix(self.btn_chao, chaos_active)
         fix(self.btn_night, self._night_reduction_enabled)

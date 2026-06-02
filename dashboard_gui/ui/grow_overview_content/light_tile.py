@@ -195,9 +195,9 @@ class LightTile(BoxLayout):
         )
 
         if status == "green":
-            if mode == "man":
+            if mode == "manual":
                 self.lbl_status.text = "STATUS: [color=00ff00]MANU[/color]"
-            elif mode == "tim":
+            elif mode == "time":
                 self.lbl_status.text = "STATUS: [color=00ff00]TIMER[/color]"
             else:
                 self.lbl_status.text = "STATUS: [color=00ff00]OK[/color]"
@@ -242,7 +242,7 @@ class LightTile(BoxLayout):
     # ==================== TIME ====================
     def _calculate_remaining_time(self, data):
         mode = data.get('light_mode', 'man')
-        if mode != "tim": 
+        if mode != "time": 
             return "MODUS: MANUELL/AUS"
         
         h, m = int(data.get('l_start_h', 8)), int(data.get('l_start_m', 0))

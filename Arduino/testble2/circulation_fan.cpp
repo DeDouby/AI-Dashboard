@@ -240,7 +240,7 @@ void circulation_fan_get_status(JsonObject doc) {
     doc["circulation_fan_speed_now"] = effective_circulation_fan_speed;
     doc["circulation_fan_min"] = current_circulation_fan_min_speed;
     doc["circulation_fan_mode"] = (current_circulation_fan_mode == circulation_fan_MODE_NATURAL) ? "nat" : 
-                                 (current_circulation_fan_mode == circulation_fan_MODE_CHAOTIC) ? "chao" : "man";
+                                 (current_circulation_fan_mode == circulation_fan_MODE_CHAOTIC) ? "chao" : "manual";
     
     doc["rev_circfan"] = circulation_fan_rev;        // ← WICHTIG: Eigenes Rev zurücksenden
     doc["rev_init_circfan"] = circulation_fan_init_rev;

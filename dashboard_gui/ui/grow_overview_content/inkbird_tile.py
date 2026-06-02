@@ -26,7 +26,7 @@ class SensorBLEInkbirdTile(BoxLayout):
 
         # ================= TITLE =================
         self.title_label = Label(
-            text="BLE: Inkbird IBS-TH2",
+            text="BLE: Inkbird IBS",
             font_size=sp_scaled(20),
             bold=True,
             halign="left",

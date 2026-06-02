@@ -56,7 +56,7 @@ class GlobalStateManager:
 
         self.fan_rpm = 0
         self.fan_pct = 0
-        self.active_mode = "man"
+        self.active_mode = "manual"
         ###### REFACTORING!!!!! ENGINES
         self.graph_engine = GraphEngine(self)
         self.ui_handler = UIManager(self)

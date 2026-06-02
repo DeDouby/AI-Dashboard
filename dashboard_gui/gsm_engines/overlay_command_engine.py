@@ -184,7 +184,7 @@ class OverlayCommandEngine:
         
         payload = {
             "light_pct": int(kwargs.get("pct", current.get("light_pct", 0))),
-            "light_mode": kwargs.get("mode", current.get("light_mode", "man")),
+            "light_mode": kwargs.get("mode", current.get("light_mode", "manual")),
             "l_start_h": int(kwargs.get("h", current.get("l_start_h", 8))),
             "l_start_m": int(kwargs.get("m", current.get("l_start_m", 0))),
             "l_dur": int(kwargs.get("dur", current.get("l_dur", 720))),

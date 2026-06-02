@@ -743,7 +743,7 @@ void light_control_process_json(JsonObject &doc) {
             if (doc.containsKey("light_mode")) {
                 String lm = doc["light_mode"];
 
-                if (lm == "tim") {
+                if (lm == "time") {
                     light_set_mode(LIGHT_MODE_TIMER);
                 }
                 else {
@@ -804,9 +804,9 @@ void light_control_get_status(JsonObject &doc) {
 
     // === WICHTIG: Immer den aktuellen gespeicherten Modus senden ===
     if (current_light_mode == LIGHT_MODE_TIMER) {
-        doc["light_mode"] = "tim";
+        doc["light_mode"] = "time";
     } else {
-        doc["light_mode"] = "man";
+        doc["light_mode"] = "manual";
     }
 
 
@@ -819,9 +819,9 @@ void light_control_get_status(JsonObject &doc) {
     doc["l_sunset"] = l_target_sunset;    // MINUTEN (15-min Raster)
     
     if (current_light_mode == LIGHT_MODE_TIMER) {
-        doc["light_mode"] = "tim";
+        doc["light_mode"] = "time";
     } else {
-        doc["light_mode"] = "man";
+        doc["light_mode"] = "manual";
     }
     doc["light_climate_override"] = light_climate_override;
     doc["light_remaining"] = light_get_minutes_to_next_change();

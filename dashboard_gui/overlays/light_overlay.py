@@ -32,7 +32,7 @@ class LightOverlay(FloatLayout):
         self._last_user_action = 0 
         self._init_done = False
         self._locked = True
-        self._target_mode = "tim"
+        self._target_mode = "time"
         self._last_sent_rev = 0
         self._last_send_time = 0
         self._retry_count = 0
@@ -223,8 +223,8 @@ class LightOverlay(FloatLayout):
         self.panel.add_widget(btn_row)
 
 
-        self.btn_man.bind(on_release=lambda *_: self._set_mode("man"))
-        self.btn_tim.bind(on_release=lambda *_: self._set_mode("tim"))
+        self.btn_man.bind(on_release=lambda *_: self._set_mode("manual"))
+        self.btn_tim.bind(on_release=lambda *_: self._set_mode("time"))
         self.btn_climate.bind(on_release=lambda *_: self._toggle_climate_override()) # <- Eigene Toggle-Funktion
 
         self.lock_overlay = LockOverlay(parent=self, panel=self.panel, unlock_callback=self._on_unlock)
@@ -295,7 +295,7 @@ class LightOverlay(FloatLayout):
         if mode == "off":
             self.lbl_status_text.text = "STATUS: AUS"
             self.lbl_status_text.color = (1, 0.2, 0.2, 0.8)
-        elif mode == "man":
+        elif mode == "manual":
             self.lbl_status_text.text = "STATUS: MANUELL"
             self.lbl_status_text.color = (0, 0.8, 1, 1)
         else:
@@ -346,7 +346,7 @@ class LightOverlay(FloatLayout):
         self.lbl_start.text = f"START: {h:02d}:{m:02d}"
         self.lbl_dur.text = f"DAUER: {dur//60}h {dur%60:02d}m"
         
-        if mode == "tim" and current_hw != target and current_hw > 0:
+        if mode == "time" and current_hw != target and current_hw > 0:
             self.lbl_val.color = (1, 0.72, 0.05, 1)
         else:
             self.lbl_val.color = (1, 1, 1, 1)
@@ -439,7 +439,7 @@ class LightOverlay(FloatLayout):
 
     def _calculate_remaining_time(self, data):
         mode = data.get('light_mode', 'man')
-        if mode != "tim": 
+        if mode != "time": 
             return "MODUS: MANUELL/AUS"
         
         h, m = int(data.get('l_start_h', 8)), int(data.get('l_start_m', 0))
@@ -595,10 +595,10 @@ class LightOverlay(FloatLayout):
         base = (0.15, 0.15, 0.15, 1)
     
         # MANUAL
-        self.btn_man.background_color = (0, 1, 0, 0.85) if mode == "man" else base
+        self.btn_man.background_color = (0, 1, 0, 0.85) if mode == "manual" else base
     
         # TIMER
-        self.btn_tim.background_color = (0, 0.7, 1, 0.85) if mode == "tim" else base
+        self.btn_tim.background_color = (0, 0.7, 1, 0.85) if mode == "time" else base
     
         # CLIMATE (ESP LIVE STATUS)
         mac = GLOBAL_STATE.get_active_device_id()
@@ -611,8 +611,8 @@ class LightOverlay(FloatLayout):
         def fix(btn, active):
             btn.color = (0, 0, 0, 1) if active else (1, 1, 1, 1)
     
-        fix(self.btn_man, mode == "man")
-        fix(self.btn_tim, mode == "tim")
+        fix(self.btn_man, mode == "manual")
+        fix(self.btn_tim, mode == "time")
         fix(self.btn_climate, climate_active)
         
     def _u(self, *args):

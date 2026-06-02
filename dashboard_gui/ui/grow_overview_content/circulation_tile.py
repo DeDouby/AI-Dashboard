@@ -208,7 +208,7 @@ class CirculationTile(BoxLayout):
         mode = data.get('circulation_fan_mode', 'manual')
         mode_map = {
             "chao": "CHAOS",
-            "man": "MANUAL",
+            "manual": "MANUAL",
             "nat": "NATURAL",
             "natural": "NATURAL"
         }

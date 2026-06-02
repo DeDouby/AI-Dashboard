@@ -1,3 +1,4 @@
+#exhaust_tile.py
 import os
 
 from kivy.app import App
@@ -107,7 +108,7 @@ class ExhaustTile(BoxLayout):
         # ================= LABELS =================
         self.lbl_rpm = Label(
             text="RPM: 0 | LIVE: 0%",
-            font_size=sp_scaled(20),
+            font_size=sp_scaled(18),
             halign="left",
             valign="middle",
             size_hint=(1, None),
@@ -124,7 +125,7 @@ class ExhaustTile(BoxLayout):
         )
         self.lbl_reason2 = Label(
             text="",
-            font_size=sp_scaled(14),
+            font_size=sp_scaled(15),
             halign="left",
             valign="middle",
             color=(0.8, 0.8, 1, 1),
@@ -225,16 +226,22 @@ class ExhaustTile(BoxLayout):
         self.lbl_reason2.text = reason2
         chaos = bool(data.get("exhaust_fan_chaos_active", False))
         night = bool(data.get("exhaust_fan_night_reduction", False))
+        manual = bool(data.get("exhaust_fan_manual_control", False))
+        
         reason = str(data.get("exhaust_fan_state_reason_1", "")).lower()
 
         if chaos:
             mode = "CHAOS"
         elif night:
             mode = "NIGHT"
+    
+        elif manual:
+            mode = "MANUAL"
         elif reason.startswith("hum"):
             mode = "HUMIDITY"
         elif reason.startswith("temp"):
             mode = "TEMP"
+        
         else:
             mode = "UNKNOWN"
         

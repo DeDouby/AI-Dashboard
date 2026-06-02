@@ -151,7 +151,7 @@ class CirculationFanOverlay(FloatLayout):
         btn_row.add_widget(self.btn_chao)
         self.panel.add_widget(btn_row)
 
-        self.btn_man.bind(on_release=lambda *_: self._set_mode("man"))
+        self.btn_man.bind(on_release=lambda *_: self._set_mode("manual"))
         self.btn_nat.bind(on_release=lambda *_: self._set_mode("nat"))
         self.btn_chao.bind(on_release=lambda *_: self._set_mode("chao"))
 
@@ -375,7 +375,7 @@ class CirculationFanOverlay(FloatLayout):
         base = (0.15, 0.15, 0.15, 1)
     
         # MANUAL
-        self.btn_man.background_color = (0, 1, 0, 0.85) if mode == "man" else base
+        self.btn_man.background_color = (0, 1, 0, 0.85) if mode == "manual" else base
     
         # NATURAL
         self.btn_nat.background_color = (0, 0.6, 1, 0.85) if mode == "nat" else base
@@ -387,7 +387,7 @@ class CirculationFanOverlay(FloatLayout):
         def fix(btn, active):
             btn.color = (0, 0, 0, 1) if active else (1, 1, 1, 1)
     
-        fix(self.btn_man, mode == "man")
+        fix(self.btn_man, mode == "manual")
         fix(self.btn_nat, mode == "nat")
         fix(self.btn_chao, mode == "chao")
 
