@@ -29,8 +29,8 @@ class HumidifierTile(BoxLayout):
         self.val_box_w = dp_scaled(200)
         self.val_box_h = dp_scaled(140)
 
-        self.padding = dp_scaled(10)
-        self.spacing = dp_scaled(6)
+        self.padding = dp_scaled(6)
+        self.spacing = dp_scaled(0)
 
         # ================= TITLE =================
         self.title_label = Label(

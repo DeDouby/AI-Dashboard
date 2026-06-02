@@ -63,7 +63,7 @@ class GrowOverviewScreen(Screen):
         # BoxLayout so unlimited items can be added.
         from kivy.uix.scrollview import ScrollView
 
-        self.content = BoxLayout(orientation="horizontal", spacing=dp_scaled(2), padding=dp_scaled(2))
+        self.content = BoxLayout(orientation="horizontal", spacing=dp_scaled(0), padding=dp_scaled(2))
 
         # helper to create a column with header and scroll container
         def make_column(header_text):
@@ -79,7 +79,7 @@ class GrowOverviewScreen(Screen):
                 valign="middle"
             )
             # inner layout holds dynamic children
-            inner = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp_scaled(8), padding=[0, dp_scaled(8), 0, dp_scaled(8)])
+            inner = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp_scaled(1), padding=[0, dp_scaled(8), 0, dp_scaled(8)])
             inner.bind(minimum_height=inner.setter('height'))
 
             sv = ScrollView(size_hint=(1, 1))
@@ -117,56 +117,56 @@ class GrowOverviewScreen(Screen):
         self.scd41_tile = SensorSCD41Tile()
         # ---------------- SENSOR SIZE SETTINGS ----------------
         self.sht31_internal_tile.size_hint_y = None
-        self.sht31_internal_tile.height = dp_scaled(150)
+        self.sht31_internal_tile.height = dp_scaled(140)
         self.sht31_internal_tile.size_hint_x = 1
         
         self.sht31_external_tile.size_hint_y = None
-        self.sht31_external_tile.height = dp_scaled(150)
+        self.sht31_external_tile.height = dp_scaled(140)
         self.sht31_external_tile.size_hint_x = 1
         
         self.thermobeacon_tile.size_hint_y = None
-        self.thermobeacon_tile.height = dp_scaled(150)
+        self.thermobeacon_tile.height = dp_scaled(140)
         self.thermobeacon_tile.size_hint_x = 1
         
         self.inkbird_tile.size_hint_y = None
-        self.inkbird_tile.height = dp_scaled(150)
+        self.inkbird_tile.height = dp_scaled(140)
         self.inkbird_tile.size_hint_x = 1
         
         self.mlx90614_tile.size_hint_y = None
-        self.mlx90614_tile.height = dp_scaled(120)
+        self.mlx90614_tile.height = dp_scaled(110)
         self.mlx90614_tile.size_hint_x = 1
 
         self.scd41_tile.size_hint_y = None
-        self.scd41_tile.height = dp_scaled(150)
+        self.scd41_tile.height = dp_scaled(140)
         self.scd41_tile.size_hint_x = 1
 
         # their value box.
         self.exhaust_tile.size_hint_y = None
-        self.exhaust_tile.height = dp_scaled(180)
+        self.exhaust_tile.height = dp_scaled(170)
         self.exhaust_tile.size_hint_x = 1
 
         self.humidifier_tile.size_hint_y = None
-        self.humidifier_tile.height = dp_scaled(160)
+        self.humidifier_tile.height = dp_scaled(150)
         self.humidifier_tile.size_hint_x = 1
 
         self.circ_tile.size_hint_y = None
-        self.circ_tile.height = dp_scaled(160)
+        self.circ_tile.height = dp_scaled(150)
         self.circ_tile.size_hint_x = 1
 
         self.light_tile.size_hint_y = None
-        self.light_tile.height = dp_scaled(200)
+        self.light_tile.height = dp_scaled(170)
         self.light_tile.size_hint_x = 1
 
         self.rtc_tile.size_hint_y = None
-        self.rtc_tile.height = dp_scaled(140)
+        self.rtc_tile.height = dp_scaled(130)
         self.rtc_tile.size_hint_x = 1
         
         self.tapo_tile.size_hint_y = None
-        self.tapo_tile.height = dp_scaled(140)
+        self.tapo_tile.height = dp_scaled(130)
         self.tapo_tile.size_hint_x = 1
         
         self.esp32_tile.size_hint_y = None
-        self.esp32_tile.height = dp_scaled(580)
+        self.esp32_tile.height = dp_scaled(570)
         self.esp32_tile.size_hint_x = 1
 
         # Place tiles into appropriate columns

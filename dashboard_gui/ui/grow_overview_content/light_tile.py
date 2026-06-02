@@ -28,8 +28,8 @@ class LightTile(BoxLayout):
         self.val_box_w = dp_scaled(200)
         self.val_box_h = dp_scaled(140)
 
-        self.padding = dp_scaled(10)
-        self.spacing = dp_scaled(6)
+        self.padding = dp_scaled(6)
+        self.spacing = dp_scaled(0)
 
         # Titel oben drüber über die ganze Breite
         self.title_label = Label(
@@ -75,14 +75,13 @@ class LightTile(BoxLayout):
         # Linke Spalte für die Werte (auf 50% verkleinert, reicht für die Texte völlig)
         self.labels_column = BoxLayout(
             orientation="vertical",
-            size_hint=(0.5, 1),
+            size_hint=(0.6, 1),
             spacing=dp_scaled(2)
         )
-
-        # Rechte Spalte für das Hardware-Bild (auf 50% verbreitert für maximale Größe)
+        
         self.image_column = BoxLayout(
             orientation="vertical",
-            size_hint=(0.5, 1)
+            size_hint=(0.4, 1),
         )
         
         self.prog_bar = SegmentedProgressBar()
@@ -109,35 +108,67 @@ class LightTile(BoxLayout):
 
         self.value_box.bind(pos=self._update_value_box_canvas, size=self._update_value_box_canvas)
         self.labels_column.add_widget(self.title_label)
-        # Labels initialisieren
-        self.lbl_current = Label(text="LIVE: --%", font_size=sp_scaled(20), bold=True,
-                                 halign="left", valign="middle", color=(1, 1, 1, 1))
-        self.lbl_target = Label(text="TARGET: --%", font_size=sp_scaled(18),
-                                halign="left", valign="middle")
-        self.lbl_remaining = Label(text="REST: --:--", font_size=sp_scaled(18),
-                                   halign="left", valign="middle")
-        self.lbl_status = Label(text="STATUS: INIT", font_size=sp_scaled(18),
-                                halign="left", valign="middle", markup=True)
-        self.lbl_phase = Label(text="PHASE: --", font_size=sp_scaled(18),
-                               halign="left", valign="middle", color=(1, 1, 1, 1))
+        # 1. Labels initialisieren
+# ================= LABELS (EXAKT WIE IN EXHAUST TILE) =================
+        # LIVE und TARGET kombiniert in EINEM Label, mit fester Höhe
+        self.lbl_live_target = Label(
+            text="LIVE: --% | TARGET: --%", 
+            font_size=sp_scaled(18), 
+            bold=True,
+            halign="left", 
+            valign="middle", 
+            color=(1, 1, 1, 1),
+            size_hint=(1, None),
+            height=dp_scaled(20)  # Feste Höhe verhindert Platzverschwendung
+        )
+        
+        self.lbl_remaining = Label(
+            text="REST: --:--", 
+            font_size=sp_scaled(18),
+            halign="left", 
+            valign="middle",
+            size_hint=(1, None),
+            height=dp_scaled(20)
+        )
+        
+        self.lbl_status = Label(
+            text="STATUS: INIT", 
+            font_size=sp_scaled(18),
+            halign="left", 
+            valign="middle", 
+            markup=True,
+            size_hint=(1, None),
+            height=dp_scaled(20)
+        )
+        
+        self.lbl_phase = Label(
+            text="PHASE: --", 
+            font_size=sp_scaled(18),
+            halign="left", 
+            valign="middle", 
+            color=(1, 1, 1, 1),
+            size_hint=(1, None),
+            height=dp_scaled(20)
+        )
 
-        # Labels in die linke Spalte packen
-        for lbl in (self.lbl_current, self.lbl_target, self.lbl_remaining, self.lbl_status, self.lbl_phase):
+        # Bindung für die Textgröße (wichtig für die linksbündige Ausrichtung)
+        for lbl in (self.lbl_live_target, self.lbl_remaining, self.lbl_status, self.lbl_phase):
             lbl.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
             self.labels_column.add_widget(lbl)
 
+        # ================= BUILD =================
         # Spalten in die übergeordnete horizontale Box einfügen
         self.columns_box.add_widget(self.labels_column)
         self.columns_box.add_widget(self.image_column)
 
         # Zusammenbau der Value Box von oben nach unten
-        self.value_box.add_widget(self.columns_box)    # 2. Spalten (Werte & Bild)
-        self.value_box.add_widget(self.prog_bar)       # 3. Progressbar unten
+        self.value_box.add_widget(self.columns_box)    # Spalten (Werte & Bild)
+        self.value_box.add_widget(self.prog_bar)       # Progressbar unten
 
         self.content_container.add_widget(self.value_box)
         self.add_widget(self.content_container)
 
- 
+
     def _update_box_color(self, brightness):
         if brightness is None or brightness < 0:
             rgb = (0.5, 0.5, 0.5)
@@ -177,8 +208,8 @@ class LightTile(BoxLayout):
         self._update_box_color(current_hw)
         mode = data.get('light_mode', 'man')
 
-        self.lbl_current.text = f"LIVE: {current_hw}%"
-        self.lbl_target.text = f"TARGET: {target}%"
+        # SO IST ES RECHT (Exakt wie im ExhaustTile):
+        self.lbl_live_target.text = f"LIVE: {current_hw}% | TARGET: {target}%"
         self.lbl_remaining.text = self._calculate_remaining_time(data)
 
         self._update_phase(data)

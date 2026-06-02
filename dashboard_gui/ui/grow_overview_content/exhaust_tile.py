@@ -27,12 +27,12 @@ class ExhaustTile(BoxLayout):
         self.val_box_w = dp_scaled(200)
         self.val_box_h = dp_scaled(140)
 
-        self.padding = dp_scaled(10)
-        self.spacing = dp_scaled(2)
+        self.padding = dp_scaled(8)
+        self.spacing = dp_scaled(0)
 
         # ================= TITLE =================
         self.title_label = Label(
-            text="Exhaust: T6",
+            text="Exhaust: Vivosun T6",
             font_size=sp_scaled(20),
             bold=True,
             halign="left",
@@ -67,13 +67,13 @@ class ExhaustTile(BoxLayout):
 
         self.labels_column = BoxLayout(
             orientation="vertical",
-            size_hint=(0.5, 1),
+            size_hint=(0.6, 1),
             spacing=dp_scaled(2)
         )
         
         self.image_column = BoxLayout(
             orientation="vertical",
-            size_hint=(0.5, 1)
+            size_hint=(0.4, 1)
         )
         # ================= IMAGE =================
         self.fan_image = Image(
@@ -109,6 +109,7 @@ class ExhaustTile(BoxLayout):
         self.lbl_rpm = Label(
             text="RPM: 0 | LIVE: 0%",
             font_size=sp_scaled(18),
+            bold=True,
             halign="left",
             valign="middle",
             size_hint=(1, None),
@@ -125,7 +126,7 @@ class ExhaustTile(BoxLayout):
         )
         self.lbl_reason2 = Label(
             text="",
-            font_size=sp_scaled(15),
+            font_size=sp_scaled(18),
             halign="left",
             valign="middle",
             color=(0.8, 0.8, 1, 1),

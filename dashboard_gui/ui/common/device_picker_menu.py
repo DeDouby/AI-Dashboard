@@ -32,8 +32,8 @@ class DevicePickerMenu(FloatLayout):
         num_buttons = len(device_list) + 2  # + ADV + GATT
         self.panel_width = dp_scaled(300)
         panel_height = min(
-            dp_scaled(360),
-            dp_scaled(50 * (len(device_list) + 3))  # devices + separator + channels
+            dp_scaled(800),  # Maximalhöhe für das Panel
+            dp_scaled(60 * (len(device_list) + 3))  # devices + separator + channels
         )
         # Absolute Window-Position des Buttons
         btn_x, btn_y = parent_header.lbl_dev.to_window(*parent_header.lbl_dev.pos)

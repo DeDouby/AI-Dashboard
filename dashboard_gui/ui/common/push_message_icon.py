@@ -89,9 +89,8 @@ class PushMessageIcon(BoxLayout):
                         if (
                             val_lower.startswith("crit")
                             or val_lower.startswith("failsafe")
+                            or "offline" in val_lower
                         ):
-                            # Wir fügen den originalen Wert (value) hinzu,
-                            # damit das UI die echte Schreibweise behält.
                             found.append(value)
     
                 # Rekursiv tiefer in Dictionaries graben

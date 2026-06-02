@@ -315,14 +315,19 @@ ExhaustDecision compute_exhaust_decision(const ExhaustInputs& in) {
                 out.reason_1 = "refined_air";
             }
         }
-
-        // --- Strikte Reason_2 Kaskade (keine isEmpty() Checks mehr!) ---
-        if (is_failsafe_active)                  out.reason_2 = "outside_air_bad";
-        else if (is_refined_active)              out.reason_2 = "outside_air_refinable";
-        else if (in.phase == NIGHT_RECOVERY && in.night_reduction) out.reason_2 = "night_reduction";
-        else if (in.phase == SUNSET_TRANSITION)  out.reason_2 = "sunset_phase";
-        else if (in.phase == SUNRISE_WAKEUP)     out.reason_2 = "sunrise_phase";
-        else if (in.chaos_active)                out.reason_2 = "chaos_mode_active";
+        // Am Ende der Automatik-Regelung, falls der Außensensor fehlt:
+        // Am Ende der Automatik-Regelung, falls der Außensensor fehlt:
+        if (!in.out_ok) {
+            out.reason_2 = "out_sensor_offline"; 
+        } else {
+            // --- Strikte Reason_2 Kaskade ---
+            if (is_failsafe_active)                                    out.reason_2 = "outside_air_bad";
+            else if (is_refined_active)                                out.reason_2 = "outside_air_refinable";
+            else if (in.phase == NIGHT_RECOVERY && in.night_reduction) out.reason_2 = "night_reduction";
+            else if (in.phase == SUNSET_TRANSITION)                    out.reason_2 = "sunset_phase";
+            else if (in.phase == SUNRISE_WAKEUP)                       out.reason_2 = "sunrise_phase"; // <-- Hier korrigiert!
+            else if (in.chaos_active)                                  out.reason_2 = "chaos_mode_active";
+        }
     }
 
     // 5. CHAOS MODE (Nur Modulation)
@@ -377,13 +382,20 @@ void exhaust_fan_update() {
     // 🟨 DECISION LAYER (Einmalig entscheiden)
     ExhaustDecision decision = compute_exhaust_decision(inputs);
 
-    // 🟩 OUTPUT LAYER (Nur anwenden)
+    // 🟩 OUTPUT LAYER
     failsafe_phase = decision.new_failsafe_phase;
     exhaust_fan_state_reason_1 = decision.reason_1;
     exhaust_fan_state_reason_2 = decision.reason_2;
     current_exhaust_fan_speed = (int)(decision.target_pct + 0.5f);
     
+    // Rate-limited Warnung im seriellen Monitor
+    if (!inputs.out_ok && (now - last_warn_msg > 10000)) {
+        Serial.println("⚠️ WARNUNG: Außensensor (SPS) ist OFFLINE! Veredelung deaktiviert.");
+        last_warn_msg = now;
+    }
+    
     ledcWrite(_exhaust_fan_pin, map(current_exhaust_fan_speed, 0, 100, 0, 255));
+
 }
 
 // ============================================================

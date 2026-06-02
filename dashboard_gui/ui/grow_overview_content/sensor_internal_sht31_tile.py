@@ -19,12 +19,12 @@ class SensorInternalSHT31Tile(BoxLayout):
             **kw
         )
     
-        self.padding = dp_scaled(10)
-        self.spacing = dp_scaled(6)
+        self.padding = dp_scaled(6)
+        self.spacing = dp_scaled(0)
     
         # ================= TITLE =================
         self.title_label = Label(
-            text="Internal: SHT31",
+            text="Internal: SHT-31",
             font_size=sp_scaled(20),
             bold=True,
             halign="left",

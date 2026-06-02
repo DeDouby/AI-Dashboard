@@ -17,7 +17,8 @@ class ESP32Tile(BoxLayout):
     def __init__(self, **kwargs):
         super().__init__(orientation="vertical", spacing=dp_scaled(12), padding=dp_scaled(10), **kwargs)
         # ==================== BOX SIZES ====================
-
+        self.padding = dp_scaled(8)
+        self.spacing = dp_scaled(0)        
         # ==================== MAIN CONTAINER ====================
         self.content_container = BoxLayout(
             orientation="vertical",

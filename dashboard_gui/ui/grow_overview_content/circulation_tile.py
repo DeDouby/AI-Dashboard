@@ -24,13 +24,13 @@ class CirculationTile(BoxLayout):
         self.val_box_w = dp_scaled(200)
         self.val_box_h = dp_scaled(140)
 
-        self.padding = dp_scaled(10)
-        self.spacing = dp_scaled(6)
+        self.padding = dp_scaled(8)
+        self.spacing = dp_scaled(0)
 
         # ================= TITLE =================
         self.title_label = Label(
-            text="MARS PWMX",
-            font_size=sp_scaled(20),
+            text="Circulation: MARS PWMX",
+            font_size=sp_scaled(18),
             bold=True,
             halign="left",
             valign="middle",
@@ -64,13 +64,13 @@ class CirculationTile(BoxLayout):
 
         self.labels_column = BoxLayout(
             orientation="vertical",
-            size_hint=(0.5, 1),
+            size_hint=(0.6, 1),
             spacing=dp_scaled(2)
         )
 
         self.image_column = BoxLayout(
             orientation="vertical",
-            size_hint=(0.5, 1)
+            size_hint=(0.4, 1)
         )
 
         # ================= IMAGE =================

@@ -1,13 +1,1377 @@
 [
   {
-    "timestamp": 1780412006.450805,
+    "timestamp": 1780444402.365522,
     "device_id": "E697B52A-2E7F-D41E-BC4D-2D027CB38D0B",
     "name": "ESP32-S3 Real_Grow!",
     "adv": {
+      "alive": true,
+      "status": "active",
+      "packet_counter": null,
+      "raw": "D302A211082A1664083A167109F602E905F3A0",
+      "internal": {
+        "temperature": {
+          "value": 21.06,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": 57.45,
+          "unit": "%"
+        }
+      },
+      "external": {
+        "present": true,
+        "temperature": {
+          "value": 20.9,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": 57.32,
+          "unit": "%"
+        }
+      },
+      "external2": {
+        "present": true,
+        "leaf_temp": {
+          "value": 25.5,
+          "unit": "°C"
+        },
+        "vpd_leaf": {
+          "value": 1.846,
+          "unit": "kPa"
+        }
+      },
+      "vpd_internal": {
+        "value": 0.968,
+        "unit": "kPa"
+      },
+      "vpd_external": {
+        "value": 0.961,
+        "unit": "kPa"
+      },
+      "battery_voltage": 7.45,
+      "dew_point_internal": {
+        "value": 12.33,
+        "unit": "°C"
+      },
+      "dew_point_external": {
+        "value": 12.14,
+        "unit": "°C"
+      },
+      "coord": {
+        "internal": {
+          "x": 57.45,
+          "y": 19.56
+        },
+        "external": {
+          "x": 57.32,
+          "y": 19.4
+        }
+      }
+    },
+    "gatt": {
       "alive": false,
       "status": "offline",
       "packet_counter": null,
       "raw": null,
+      "internal": {
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external": {
+        "present": false,
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external2": {
+        "present": false,
+        "leaf_temp": {
+          "value": null,
+          "unit": "°C"
+        },
+        "vpd_leaf": {
+          "value": null,
+          "unit": "kPa"
+        }
+      },
+      "vpd_internal": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "vpd_external": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "battery_voltage": null,
+      "dew_point_internal": {
+        "value": null,
+        "unit": "°C"
+      },
+      "dew_point_external": {
+        "value": null,
+        "unit": "°C"
+      },
+      "coord": {
+        "internal": {
+          "x": null,
+          "y": null
+        },
+        "external": {
+          "x": null,
+          "y": null
+        }
+      }
+    },
+    "webserver": {
+      "alive": true,
+      "status": "active",
+      "packet_counter": null,
+      "raw": null,
+      "internal": {
+        "temperature": {
+          "value": 21.07,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": 57.46,
+          "unit": "%"
+        }
+      },
+      "external": {
+        "present": true,
+        "temperature": {
+          "value": 20.89,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": 57.35,
+          "unit": "%"
+        }
+      },
+      "external2": {
+        "present": true,
+        "leaf_temp": {
+          "value": 25.5,
+          "unit": "°C"
+        },
+        "vpd_leaf": {
+          "value": 1.846,
+          "unit": "kPa"
+        }
+      },
+      "vpd_internal": {
+        "value": 0.968,
+        "unit": "kPa"
+      },
+      "vpd_external": {
+        "value": 0.96,
+        "unit": "kPa"
+      },
+      "battery_voltage": 8.04,
+      "dew_point_internal": {
+        "value": 12.34,
+        "unit": "°C"
+      },
+      "dew_point_external": {
+        "value": 12.14,
+        "unit": "°C"
+      },
+      "coord": {
+        "internal": {
+          "x": 57.46,
+          "y": 19.57
+        },
+        "external": {
+          "x": 57.35,
+          "y": 19.39
+        }
+      },
+      "timestamp": 1780444401.3326569,
+      "circulation_fan": {
+        "circulation_fan_rpm": 1593,
+        "unit": "RPM"
+      },
+      "exhaust_fan": {
+        "exhaust_fan_rpm": 440,
+        "unit": "RPM"
+      },
+      "light_pct": 0,
+      "light_mode": "time",
+      "health": {
+        "signal": {
+          "rssi": -54
+        }
+      },
+      "rtc_found": true,
+      "rtc_time": "01:53",
+      "temp_in": 21.07,
+      "temp_ext": 20.89,
+      "humid_ext": 57.35,
+      "humid_in": 57.46,
+      "leaf_temp": 25.5,
+      "vbat": 8.04,
+      "rev": 0,
+      "exhaust_fan_rpm": 440,
+      "exhaust_fan_pct": 49,
+      "exhaust_fan_min": 0,
+      "exhaust_fan_speed_now": 7,
+      "exhaust_fan_mode": "auto",
+      "target_temp_min": 18.5,
+      "target_temp_max": 25.6,
+      "target_humidity_min": 46,
+      "target_humidity_max": 59,
+      "target_vpd_min": 1.1,
+      "target_vpd_max": 1.6,
+      "rev_exhaust": 348,
+      "rev_init_exhaust": 1780439918,
+      "plant_phase": 2,
+      "exhaust_fan_chaos_active": true,
+      "exhaust_fan_state_reason_1": "idle_balanced",
+      "exhaust_fan_state_reason_2": "night_reduction",
+      "exhaust_fan_night_reduction": true,
+      "circulation_fan_rpm": 1593,
+      "circulation_fan_pct": 89,
+      "circulation_fan_speed_now": 8,
+      "circulation_fan_min": 0,
+      "circulation_fan_mode": "chao",
+      "rev_circfan": 337,
+      "rev_init_circfan": 1780440396,
+      "rev_plant_planner": 0,
+      "light_target": 78,
+      "l_start_h": 11,
+      "l_start_m": 0,
+      "l_dur": 720,
+      "l_sunrise": 75,
+      "l_sunset": 240,
+      "light_climate_override": true,
+      "light_remaining": 546,
+      "rev_light": 7,
+      "rev_init_light": 1780438405,
+      "light_state_reason": "NIGHT",
+      "dev_name": "LGS_Grow_Master",
+      "log_level": 2,
+      "uptime_esp_s": 27915,
+      "fw_ver": "v2.5.6-rc",
+      "ip": "192.168.2.20",
+      "ssid": "Cudy-Indoor",
+      "rssi": -53,
+      "free_heap": 170900,
+      "max_alloc": 129012,
+      "heap_usage": 160768,
+      "boot_cause": "Software Reboot",
+      "rev_grow": 0,
+      "rev_init_grow": 0,
+      "wifi_mode": 1,
+      "ble_sensors": {
+        "sps": {
+          "online": true,
+          "temperature": {
+            "value": 22.48,
+            "unit": "°C"
+          },
+          "humidity": {
+            "value": 46.99,
+            "unit": "%"
+          },
+          "vpd": {
+            "value": 1.443,
+            "unit": "kPa"
+          },
+          "coord": {
+            "x": 46.99,
+            "y": 20.98
+          }
+        },
+        "tb2": {
+          "online": true,
+          "temperature": {
+            "value": 20.9375,
+            "unit": "°C"
+          },
+          "humidity": {
+            "value": 56.5,
+            "unit": "%"
+          },
+          "vpd": {
+            "value": 1.078,
+            "unit": "kPa"
+          },
+          "coord": {
+            "x": 56.5,
+            "y": 19.4375
+          }
+        }
+      },
+      "plant_planner": {
+        "rev_plant_planner": 56,
+        "rev_init_plant_planner": 1780316973,
+        "plants": [
+          {
+            "name": "Amnesia",
+            "strain": "Widow",
+            "breeder": "Spanish Seeds",
+            "phenotype": "fem",
+            "pot_size": "14l ",
+            "medium": "BioBizz LighMix",
+            "light": "",
+            "location": "",
+            "notes": "",
+            "tags": "",
+            "harvest_weight": "",
+            "dry_weight": "",
+            "favorite": false,
+            "harvest_date": "",
+            "germination_start": "2026-05-01",
+            "seedling_start": "",
+            "vegetative_start": "",
+            "flowering_start": "2026-03-31",
+            "drying_start": "",
+            "curing_start": ""
+          }
+        ]
+      }
+    },
+    "alive": true,
+    "status": "active",
+    "health": {
+      "uptime": {
+        "value": 1098.717473745346,
+        "unit": "s"
+      },
+      "battery": {
+        "value": null,
+        "unit": "V",
+        "voltage": 8.04
+      },
+      "signal": {
+        "rssi": -54,
+        "quality": null
+      }
+    },
+    "device_online": true,
+    "web_alive": true
+  },
+  {
+    "timestamp": 1780444402.365522,
+    "device_id": "C898B4F2-B452-7502-1A67-0536E77D49EA",
+    "name": "sps",
+    "adv": {
+      "alive": true,
+      "status": "active",
+      "packet_counter": null,
+      "raw": "C8085B1200BAC30008",
+      "internal": {
+        "temperature": {
+          "value": 22.48,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": 46.99,
+          "unit": "%"
+        }
+      },
+      "external": {
+        "present": false,
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external2": {
+        "present": false,
+        "leaf_temp": {
+          "value": null,
+          "unit": "°C"
+        },
+        "vpd_leaf": {
+          "value": null,
+          "unit": "kPa"
+        }
+      },
+      "vpd_internal": {
+        "value": 1.317,
+        "unit": "kPa"
+      },
+      "vpd_external": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "battery_voltage": null,
+      "dew_point_internal": {
+        "value": 10.6,
+        "unit": "°C"
+      },
+      "dew_point_external": {
+        "value": null,
+        "unit": "°C"
+      },
+      "coord": {
+        "internal": {
+          "x": 46.99,
+          "y": 20.98
+        },
+        "external": {
+          "x": null,
+          "y": null
+        }
+      }
+    },
+    "gatt": {
+      "alive": false,
+      "status": "offline",
+      "packet_counter": null,
+      "raw": null,
+      "internal": {
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external": {
+        "present": false,
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external2": {
+        "present": false,
+        "leaf_temp": {
+          "value": null,
+          "unit": "°C"
+        },
+        "vpd_leaf": {
+          "value": null,
+          "unit": "kPa"
+        }
+      },
+      "vpd_internal": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "vpd_external": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "battery_voltage": null,
+      "dew_point_internal": {
+        "value": null,
+        "unit": "°C"
+      },
+      "dew_point_external": {
+        "value": null,
+        "unit": "°C"
+      },
+      "coord": {
+        "internal": {
+          "x": null,
+          "y": null
+        },
+        "external": {
+          "x": null,
+          "y": null
+        }
+      }
+    },
+    "webserver": {
+      "alive": false,
+      "status": "offline",
+      "packet_counter": null,
+      "raw": null,
+      "internal": {
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external": {
+        "present": false,
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external2": {
+        "present": false,
+        "leaf_temp": {
+          "value": null,
+          "unit": "°C"
+        },
+        "vpd_leaf": {
+          "value": null,
+          "unit": "kPa"
+        }
+      },
+      "vpd_internal": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "vpd_external": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "battery_voltage": null,
+      "dew_point_internal": {
+        "value": null,
+        "unit": "°C"
+      },
+      "dew_point_external": {
+        "value": null,
+        "unit": "°C"
+      },
+      "coord": {
+        "internal": {
+          "x": null,
+          "y": null
+        },
+        "external": {
+          "x": null,
+          "y": null
+        }
+      }
+    },
+    "alive": true,
+    "status": "active",
+    "health": {
+      "uptime": {
+        "value": 1098.717473745346,
+        "unit": "s"
+      },
+      "battery": {
+        "value": null,
+        "unit": "V",
+        "voltage": null
+      },
+      "signal": {
+        "rssi": -63,
+        "quality": null
+      }
+    },
+    "device_online": false,
+    "web_alive": false
+  },
+  {
+    "timestamp": 1780444402.365522,
+    "device_id": "FF-FF-A1-00-00-01",
+    "name": "LGS_NODE_17",
+    "adv": {
+      "alive": true,
+      "status": "active",
+      "packet_counter": null,
+      "raw": "7445A11108311661A6",
+      "internal": {
+        "temperature": {
+          "value": 20.97,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": 57.29,
+          "unit": "%"
+        }
+      },
+      "external": {
+        "present": false,
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external2": {
+        "present": false,
+        "leaf_temp": {
+          "value": null,
+          "unit": "°C"
+        },
+        "vpd_leaf": {
+          "value": null,
+          "unit": "kPa"
+        }
+      },
+      "vpd_internal": {
+        "value": 0.966,
+        "unit": "kPa"
+      },
+      "vpd_external": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "battery_voltage": null,
+      "dew_point_internal": {
+        "value": 12.2,
+        "unit": "°C"
+      },
+      "dew_point_external": {
+        "value": null,
+        "unit": "°C"
+      },
+      "coord": {
+        "internal": {
+          "x": 57.29,
+          "y": 19.47
+        },
+        "external": {
+          "x": null,
+          "y": null
+        }
+      }
+    },
+    "gatt": {
+      "alive": false,
+      "status": "offline",
+      "packet_counter": null,
+      "raw": null,
+      "internal": {
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external": {
+        "present": false,
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external2": {
+        "present": false,
+        "leaf_temp": {
+          "value": null,
+          "unit": "°C"
+        },
+        "vpd_leaf": {
+          "value": null,
+          "unit": "kPa"
+        }
+      },
+      "vpd_internal": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "vpd_external": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "battery_voltage": null,
+      "dew_point_internal": {
+        "value": null,
+        "unit": "°C"
+      },
+      "dew_point_external": {
+        "value": null,
+        "unit": "°C"
+      },
+      "coord": {
+        "internal": {
+          "x": null,
+          "y": null
+        },
+        "external": {
+          "x": null,
+          "y": null
+        }
+      }
+    },
+    "webserver": {
+      "alive": false,
+      "status": "offline",
+      "packet_counter": null,
+      "raw": null,
+      "internal": {
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external": {
+        "present": false,
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external2": {
+        "present": false,
+        "leaf_temp": {
+          "value": null,
+          "unit": "°C"
+        },
+        "vpd_leaf": {
+          "value": null,
+          "unit": "kPa"
+        }
+      },
+      "vpd_internal": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "vpd_external": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "battery_voltage": null,
+      "dew_point_internal": {
+        "value": null,
+        "unit": "°C"
+      },
+      "dew_point_external": {
+        "value": null,
+        "unit": "°C"
+      },
+      "coord": {
+        "internal": {
+          "x": null,
+          "y": null
+        },
+        "external": {
+          "x": null,
+          "y": null
+        }
+      }
+    },
+    "alive": true,
+    "status": "active",
+    "health": {
+      "uptime": {
+        "value": 1098.717473745346,
+        "unit": "s"
+      },
+      "battery": {
+        "value": null,
+        "unit": "V",
+        "voltage": null
+      },
+      "signal": {
+        "rssi": -53,
+        "quality": null
+      }
+    },
+    "device_online": false,
+    "web_alive": false
+  },
+  {
+    "timestamp": 1780444402.365522,
+    "device_id": "FABCEA8B-7EC8-2594-4879-2B3B63989660",
+    "name": "ThermoBeacon2",
+    "adv": {
+      "alive": true,
+      "status": "active",
+      "packet_counter": null,
+      "raw": "190019060000F1F0630F4F018503FFFFFFFF54B62A00",
+      "internal": {
+        "temperature": {
+          "value": 20.9375,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": 56.3125,
+          "unit": "%"
+        }
+      },
+      "external": {
+        "present": false,
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external2": {
+        "present": false,
+        "leaf_temp": {
+          "value": null,
+          "unit": "°C"
+        },
+        "vpd_leaf": {
+          "value": null,
+          "unit": "kPa"
+        }
+      },
+      "vpd_internal": {
+        "value": 0.986,
+        "unit": "kPa"
+      },
+      "vpd_external": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "battery_voltage": null,
+      "dew_point_internal": {
+        "value": 11.91,
+        "unit": "°C"
+      },
+      "dew_point_external": {
+        "value": null,
+        "unit": "°C"
+      },
+      "coord": {
+        "internal": {
+          "x": 56.3125,
+          "y": 19.4375
+        },
+        "external": {
+          "x": null,
+          "y": null
+        }
+      }
+    },
+    "gatt": {
+      "alive": false,
+      "status": "offline",
+      "packet_counter": null,
+      "raw": null,
+      "internal": {
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external": {
+        "present": false,
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external2": {
+        "present": false,
+        "leaf_temp": {
+          "value": null,
+          "unit": "°C"
+        },
+        "vpd_leaf": {
+          "value": null,
+          "unit": "kPa"
+        }
+      },
+      "vpd_internal": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "vpd_external": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "battery_voltage": null,
+      "dew_point_internal": {
+        "value": null,
+        "unit": "°C"
+      },
+      "dew_point_external": {
+        "value": null,
+        "unit": "°C"
+      },
+      "coord": {
+        "internal": {
+          "x": null,
+          "y": null
+        },
+        "external": {
+          "x": null,
+          "y": null
+        }
+      }
+    },
+    "webserver": {
+      "alive": false,
+      "status": "offline",
+      "packet_counter": null,
+      "raw": null,
+      "internal": {
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external": {
+        "present": false,
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external2": {
+        "present": false,
+        "leaf_temp": {
+          "value": null,
+          "unit": "°C"
+        },
+        "vpd_leaf": {
+          "value": null,
+          "unit": "kPa"
+        }
+      },
+      "vpd_internal": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "vpd_external": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "battery_voltage": null,
+      "dew_point_internal": {
+        "value": null,
+        "unit": "°C"
+      },
+      "dew_point_external": {
+        "value": null,
+        "unit": "°C"
+      },
+      "coord": {
+        "internal": {
+          "x": null,
+          "y": null
+        },
+        "external": {
+          "x": null,
+          "y": null
+        }
+      }
+    },
+    "alive": true,
+    "status": "active",
+    "health": {
+      "uptime": {
+        "value": 1098.717473745346,
+        "unit": "s"
+      },
+      "battery": {
+        "value": null,
+        "unit": "V",
+        "voltage": null
+      },
+      "signal": {
+        "rssi": -70,
+        "quality": null
+      }
+    },
+    "device_online": false,
+    "web_alive": false
+  },
+  {
+    "timestamp": 1780444402.365522,
+    "device_id": "827482CC-A977-43D7-835E-8E8B6978E66A",
+    "name": "Grow_Test",
+    "adv": {
+      "alive": true,
+      "status": "active",
+      "packet_counter": null,
+      "raw": "D302A2119C009C009C009C0009F601A30000A7",
+      "internal": {
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": 399.36,
+          "unit": "%"
+        }
+      },
+      "external": {
+        "present": false,
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": 399.36,
+          "unit": "%"
+        }
+      },
+      "external2": {
+        "present": true,
+        "leaf_temp": {
+          "value": 25.5,
+          "unit": "°C"
+        },
+        "vpd_leaf": {
+          "value": null,
+          "unit": "kPa"
+        }
+      },
+      "vpd_internal": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "vpd_external": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "battery_voltage": 4.19,
+      "dew_point_internal": {
+        "value": null,
+        "unit": "°C"
+      },
+      "dew_point_external": {
+        "value": null,
+        "unit": "°C"
+      },
+      "coord": {
+        "internal": {
+          "x": null,
+          "y": null
+        },
+        "external": {
+          "x": null,
+          "y": null
+        }
+      }
+    },
+    "gatt": {
+      "alive": false,
+      "status": "offline",
+      "packet_counter": null,
+      "raw": null,
+      "internal": {
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external": {
+        "present": false,
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external2": {
+        "present": false,
+        "leaf_temp": {
+          "value": null,
+          "unit": "°C"
+        },
+        "vpd_leaf": {
+          "value": null,
+          "unit": "kPa"
+        }
+      },
+      "vpd_internal": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "vpd_external": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "battery_voltage": null,
+      "dew_point_internal": {
+        "value": null,
+        "unit": "°C"
+      },
+      "dew_point_external": {
+        "value": null,
+        "unit": "°C"
+      },
+      "coord": {
+        "internal": {
+          "x": null,
+          "y": null
+        },
+        "external": {
+          "x": null,
+          "y": null
+        }
+      }
+    },
+    "webserver": {
+      "alive": true,
+      "status": "active",
+      "packet_counter": null,
+      "raw": null,
+      "internal": {
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external": {
+        "present": false,
+        "temperature": {
+          "value": null,
+          "unit": "°C"
+        },
+        "humidity": {
+          "value": null,
+          "unit": "%"
+        }
+      },
+      "external2": {
+        "present": true,
+        "leaf_temp": {
+          "value": 25.5,
+          "unit": "°C"
+        },
+        "vpd_leaf": {
+          "value": null,
+          "unit": "kPa"
+        }
+      },
+      "vpd_internal": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "vpd_external": {
+        "value": null,
+        "unit": "kPa"
+      },
+      "battery_voltage": 4.194,
+      "dew_point_internal": {
+        "value": null,
+        "unit": "°C"
+      },
+      "dew_point_external": {
+        "value": null,
+        "unit": "°C"
+      },
+      "coord": {
+        "internal": {
+          "x": null,
+          "y": null
+        },
+        "external": {
+          "x": null,
+          "y": null
+        }
+      },
+      "timestamp": 1780444401.3326569,
+      "circulation_fan": {
+        "circulation_fan_rpm": 0,
+        "unit": "RPM"
+      },
+      "exhaust_fan": {
+        "exhaust_fan_rpm": 0,
+        "unit": "RPM"
+      },
+      "light_pct": 41,
+      "light_mode": "time",
+      "health": {
+        "signal": {
+          "rssi": -73
+        }
+      },
+      "rtc_found": false,
+      "rtc_time": "offline",
+      "temp_in": -256,
+      "temp_ext": -256,
+      "humid_ext": -256,
+      "humid_in": -256,
+      "leaf_temp": 25.5,
+      "vbat": 4.194,
+      "rev": 0,
+      "exhaust_fan_rpm": 0,
+      "exhaust_fan_pct": 62,
+      "exhaust_fan_min": 0,
+      "exhaust_fan_speed_now": 62,
+      "exhaust_fan_mode": "auto",
+      "target_temp_min": 17.3,
+      "target_temp_max": 25.2,
+      "target_humidity_min": 51,
+      "target_humidity_max": 67,
+      "target_vpd_min": 0.8,
+      "target_vpd_max": 1.9,
+      "rev_exhaust": 374,
+      "rev_init_exhaust": 375,
+      "plant_phase": 0,
+      "exhaust_fan_chaos_active": true,
+      "exhaust_fan_state_reason_1": "sensor_fail",
+      "exhaust_fan_state_reason_2": "crit_sensor_timeout",
+      "exhaust_fan_night_reduction": true,
+      "circulation_fan_rpm": 0,
+      "circulation_fan_pct": 3,
+      "circulation_fan_speed_now": 3,
+      "circulation_fan_min": 0,
+      "circulation_fan_mode": "manual",
+      "rev_circfan": 372,
+      "rev_init_circfan": 1780439418,
+      "rev_plant_planner": 0,
+      "light_target": 41,
+      "l_start_h": 0,
+      "l_start_m": 0,
+      "l_dur": 690,
+      "l_sunrise": 105,
+      "l_sunset": 270,
+      "light_climate_override": true,
+      "light_remaining": 576,
+      "rev_light": 30,
+      "rev_init_light": 1780440993,
+      "light_state_reason": "DAY",
+      "dev_name": "LGS_Grow_Master",
+      "log_level": 2,
+      "uptime_esp_s": 5985,
+      "fw_ver": "v2.5.6-rc",
+      "ip": "192.168.2.39",
+      "ssid": "Cudy-Indoor",
+      "rssi": -73,
+      "free_heap": 170120,
+      "max_alloc": 129012,
+      "heap_usage": 161548,
+      "boot_cause": "Power Cut / Hard Reset",
+      "rev_grow": 0,
+      "rev_init_grow": 0,
+      "wifi_mode": 1,
+      "ble_sensors": {
+        "sps": {
+          "online": true,
+          "temperature": {
+            "value": 22.48,
+            "unit": "°C"
+          },
+          "humidity": {
+            "value": 46.99,
+            "unit": "%"
+          },
+          "vpd": {
+            "value": 1.443,
+            "unit": "kPa"
+          },
+          "coord": {
+            "x": 46.99,
+            "y": 20.98
+          }
+        }
+      },
+      "plant_planner": {
+        "rev_plant_planner": 37,
+        "rev_init_plant_planner": 1779368358,
+        "plants": [
+          {
+            "name": "neue Pflanze",
+            "strain": "",
+            "breeder": "",
+            "phenotype": "",
+            "pot_size": "",
+            "medium": "",
+            "light": "",
+            "location": "",
+            "notes": "",
+            "tags": "",
+            "harvest_weight": "",
+            "dry_weight": "",
+            "favorite": false,
+            "harvest_date": "",
+            "germination_start": "",
+            "seedling_start": "",
+            "vegetative_start": "",
+            "flowering_start": "",
+            "drying_start": "",
+            "curing_start": ""
+          }
+        ]
+      }
+    },
+    "alive": true,
+    "status": "active",
+    "health": {
+      "uptime": {
+        "value": 1098.717473745346,
+        "unit": "s"
+      },
+      "battery": {
+        "value": null,
+        "unit": "V",
+        "voltage": 4.194
+      },
+      "signal": {
+        "rssi": -73,
+        "quality": null
+      }
+    },
+    "device_online": true,
+    "web_alive": true
+  },
+  {
+    "timestamp": 1780444402.365522,
+    "device_id": "E82776C8-C1D0-6A0D-2010-D5E80EFD3B21",
+    "name": "TP351S (987A)",
+    "adv": {
+      "alive": false,
+      "status": "offline",
+      "packet_counter": null,
+      "raw": "C2D3002D203301",
       "internal": {
         "temperature": {
           "value": null,
@@ -134,232 +1498,88 @@
       }
     },
     "webserver": {
-      "alive": true,
-      "status": "active",
+      "alive": false,
+      "status": "offline",
       "packet_counter": null,
       "raw": null,
       "internal": {
         "temperature": {
-          "value": 26.0,
+          "value": null,
           "unit": "°C"
         },
         "humidity": {
-          "value": 44.75,
+          "value": null,
           "unit": "%"
         }
       },
       "external": {
-        "present": true,
+        "present": false,
         "temperature": {
-          "value": 25.58,
+          "value": null,
           "unit": "°C"
         },
         "humidity": {
-          "value": 45.33,
+          "value": null,
           "unit": "%"
         }
       },
       "external2": {
-        "present": true,
+        "present": false,
         "leaf_temp": {
-          "value": 25.5,
+          "value": null,
           "unit": "°C"
         },
         "vpd_leaf": {
-          "value": 1.777,
+          "value": null,
           "unit": "kPa"
         }
       },
       "vpd_internal": {
-        "value": 1.699,
+        "value": null,
         "unit": "kPa"
       },
       "vpd_external": {
-        "value": 1.639,
+        "value": null,
         "unit": "kPa"
       },
-      "battery_voltage": 7.755,
+      "battery_voltage": null,
       "dew_point_internal": {
-        "value": 13.06,
+        "value": null,
         "unit": "°C"
       },
       "dew_point_external": {
-        "value": 12.88,
+        "value": null,
         "unit": "°C"
       },
       "coord": {
         "internal": {
-          "x": 44.75,
-          "y": 24.5
+          "x": null,
+          "y": null
         },
         "external": {
-          "x": 45.33,
-          "y": 24.08
+          "x": null,
+          "y": null
         }
-      },
-      "timestamp": 1780412005.962825,
-      "circulation_fan": {
-        "circulation_fan_rpm": 4351,
-        "unit": "RPM"
-      },
-      "exhaust_fan": {
-        "exhaust_fan_rpm": 1104,
-        "unit": "RPM"
-      },
-      "light_pct": 73,
-      "light_mode": "time",
-      "health": {
-        "signal": {
-          "rssi": -50
-        }
-      },
-      "rtc_found": true,
-      "rtc_time": "16:53",
-      "temp_in": 26,
-      "temp_ext": 25.58,
-      "humid_ext": 45.33,
-      "humid_in": 44.75,
-      "leaf_temp": 25.5,
-      "vbat": 7.755,
-      "rev": 0,
-      "exhaust_fan_rpm": 1104,
-      "exhaust_fan_pct": 75,
-      "exhaust_fan_min": 0,
-      "exhaust_fan_speed_now": 21,
-      "exhaust_fan_mode": "auto",
-      "target_temp_min": 18.5,
-      "target_temp_max": 25.8,
-      "target_humidity_min": 46,
-      "target_humidity_max": 59,
-      "target_vpd_min": 1.1,
-      "target_vpd_max": 1.6,
-      "rev_exhaust": 360,
-      "rev_init_exhaust": 1780410927,
-      "plant_phase": 0,
-      "exhaust_fan_chaos_active": true,
-      "exhaust_fan_state_reason_1": "vpd_high",
-      "exhaust_fan_state_reason_2": "chaos_mode_active",
-      "exhaust_fan_night_reduction": true,
-      "circulation_fan_rpm": 4351,
-      "circulation_fan_pct": 89,
-      "circulation_fan_speed_now": 88,
-      "circulation_fan_min": 0,
-      "circulation_fan_mode": "nat",
-      "rev_circfan": 342,
-      "rev_init_circfan": 343,
-      "rev_plant_planner": 0,
-      "light_target": 86,
-      "l_start_h": 11,
-      "l_start_m": 0,
-      "l_dur": 720,
-      "l_sunrise": 75,
-      "l_sunset": 240,
-      "light_climate_override": true,
-      "light_remaining": 366,
-      "rev_light": 0,
-      "rev_init_light": 1780410656,
-      "light_state_reason": "DAY",
-      "dev_name": "LGS_Grow_Master",
-      "log_level": 2,
-      "uptime_esp_s": 1570,
-      "fw_ver": "v2.5.6-rc",
-      "ip": "192.168.2.20",
-      "ssid": "Cudy-Indoor",
-      "rssi": -50,
-      "free_heap": 170164,
-      "max_alloc": 126964,
-      "heap_usage": 161504,
-      "boot_cause": "Power Cut / Hard Reset",
-      "rev_grow": 0,
-      "rev_init_grow": 0,
-      "wifi_mode": 1,
-      "ble_sensors": {
-        "sps": {
-          "online": true,
-          "temperature": {
-            "value": 25.63,
-            "unit": "°C"
-          },
-          "humidity": {
-            "value": 34.81,
-            "unit": "%"
-          },
-          "vpd": {
-            "value": 2.144,
-            "unit": "kPa"
-          },
-          "coord": {
-            "x": 34.81,
-            "y": 24.13
-          }
-        },
-        "tb2": {
-          "online": true,
-          "temperature": {
-            "value": 24.125,
-            "unit": "°C"
-          },
-          "humidity": {
-            "value": 47.8125,
-            "unit": "%"
-          },
-          "vpd": {
-            "value": 1.569,
-            "unit": "kPa"
-          },
-          "coord": {
-            "x": 47.8125,
-            "y": 22.625
-          }
-        }
-      },
-      "plant_planner": {
-        "rev_plant_planner": 56,
-        "rev_init_plant_planner": 1780316973,
-        "plants": [
-          {
-            "name": "Amnesia",
-            "strain": "Widow",
-            "breeder": "Spanish Seeds",
-            "phenotype": "fem",
-            "pot_size": "14l ",
-            "medium": "BioBizz LighMix",
-            "light": "",
-            "location": "",
-            "notes": "",
-            "tags": "",
-            "harvest_weight": "",
-            "dry_weight": "",
-            "favorite": false,
-            "harvest_date": "",
-            "germination_start": "2026-05-01",
-            "seedling_start": "",
-            "vegetative_start": "",
-            "flowering_start": "2026-03-31",
-            "drying_start": "",
-            "curing_start": ""
-          }
-        ]
       }
     },
-    "alive": true,
-    "status": "active",
+    "alive": false,
+    "status": "offline",
     "health": {
       "uptime": {
-        "value": 120.03494596481323,
+        "value": 1098.717473745346,
         "unit": "s"
       },
       "battery": {
         "value": null,
         "unit": "V",
-        "voltage": 7.755
+        "voltage": null
       },
       "signal": {
-        "rssi": -50,
+        "rssi": null,
         "quality": null
       }
     },
-    "device_online": true,
-    "web_alive": true
+    "device_online": false,
+    "web_alive": false
   }
 ]

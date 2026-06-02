@@ -20,8 +20,8 @@ class RTCTile(BoxLayout):
             **kw
         )
 
-        self.padding = dp_scaled(10)
-        self.spacing = dp_scaled(6)
+        self.padding = dp_scaled(6)
+        self.spacing = dp_scaled(0)
 
         # ================= TITLE =================
         self.title_label = Label(

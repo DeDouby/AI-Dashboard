@@ -43,8 +43,10 @@ class SegmentedProgressBar(Widget):
         segment_h = h
 
         ratio = 0 if self.max == 0 else self.value / self.max
-        filled_count = int(ratio * self.num_segments)
-
+        filled_count = max(
+            1 if self.value > 0 else 0,
+            int(ratio * self.num_segments)
+        )
         with self.canvas:
             for i in range(self.num_segments):
                 if i < filled_count:
