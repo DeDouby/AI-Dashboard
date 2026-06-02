@@ -133,7 +133,7 @@ class GrowOverviewScreen(Screen):
         self.inkbird_tile.size_hint_x = 1
         
         self.mlx90614_tile.size_hint_y = None
-        self.mlx90614_tile.height = dp_scaled(150)
+        self.mlx90614_tile.height = dp_scaled(120)
         self.mlx90614_tile.size_hint_x = 1
 
         self.scd41_tile.size_hint_y = None

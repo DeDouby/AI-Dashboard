@@ -1,10 +1,10 @@
 [
   {
-    "timestamp": "2026-06-02T09:41:38.404100",
-    "avg_temp": 20.64,
-    "avg_hum": 58.54,
-    "avg_vpd": 0.919,
-    "avg_dew": 12.22,
+    "timestamp": "2026-06-02T10:11:27.689926",
+    "avg_temp": 20.67,
+    "avg_hum": 58.12,
+    "avg_vpd": 0.93,
+    "avg_dew": 12.14,
     "devices": [
       "E697B52A-2E7F-D41E-BC4D-2D027CB38D0B",
       "FABCEA8B-7EC8-2594-4879-2B3B63989660"
