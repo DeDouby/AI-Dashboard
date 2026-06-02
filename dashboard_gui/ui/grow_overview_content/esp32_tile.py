@@ -28,7 +28,7 @@ class ESP32Tile(BoxLayout):
 
         # ---------------- TOP BOX (wichtigste Infos) ----------------
         self.main_box = self._create_value_box(
-            height=dp_scaled(630),
+            height=dp_scaled(560),
             title="ESP32 Controller"
         )
         
@@ -134,7 +134,7 @@ class ESP32Tile(BoxLayout):
             halign="left",
             valign="middle",
             size_hint=(1, None),
-            height=dp_scaled(26)
+            height=dp_scaled(20)
         )
         lbl.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
 

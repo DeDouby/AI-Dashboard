@@ -24,7 +24,7 @@ class SensorExternalMLX90614Tile(BoxLayout):
 
         # ================= TITLE =================
         self.title_label = Label(
-            text="Leaf Temp: MLX90614",
+            text="MLX90614",
             font_size=sp_scaled(20),
             bold=True,
             halign="left",
@@ -87,6 +87,7 @@ class SensorExternalMLX90614Tile(BoxLayout):
             pos=self._update_value_box_canvas,
             size=self._update_value_box_canvas
         )
+        self.labels_column.add_widget(self.title_label)
 
         # ================= LABELS =================
         self.lbl_leaf_temp = Label(
@@ -115,7 +116,6 @@ class SensorExternalMLX90614Tile(BoxLayout):
         # ================= BUILD =================
         self.columns_box.add_widget(self.labels_column)
         self.columns_box.add_widget(self.image_column)
-        self.value_box.add_widget(self.title_label)
         self.value_box.add_widget(self.columns_box)
         self.content_container.add_widget(self.value_box)
         self.add_widget(self.content_container)

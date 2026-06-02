@@ -166,7 +166,7 @@ class GrowOverviewScreen(Screen):
         self.tapo_tile.size_hint_x = 1
         
         self.esp32_tile.size_hint_y = None
-        self.esp32_tile.height = dp_scaled(650)
+        self.esp32_tile.height = dp_scaled(580)
         self.esp32_tile.size_hint_x = 1
 
         # Place tiles into appropriate columns

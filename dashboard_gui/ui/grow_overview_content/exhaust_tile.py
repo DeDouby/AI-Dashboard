@@ -31,7 +31,7 @@ class ExhaustTile(BoxLayout):
 
         # ================= TITLE =================
         self.title_label = Label(
-            text="Exhaust: Vivosun T6",
+            text="Exhaust: T6",
             font_size=sp_scaled(20),
             bold=True,
             halign="left",
@@ -74,7 +74,6 @@ class ExhaustTile(BoxLayout):
             orientation="vertical",
             size_hint=(0.5, 1)
         )
-
         # ================= IMAGE =================
         self.fan_image = Image(
             source=FAN_PIC,
@@ -102,6 +101,8 @@ class ExhaustTile(BoxLayout):
 
         self.value_box.bind(pos=self._update_value_box_canvas,
                             size=self._update_value_box_canvas)
+
+        self.labels_column.add_widget(self.title_label)
 
         # ================= LABELS =================
         self.lbl_rpm = Label(
@@ -147,16 +148,20 @@ class ExhaustTile(BoxLayout):
 
         for lbl in (self.lbl_rpm, self.lbl_reason1, self.lbl_reason2, self.lbl_mode):
             lbl.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
+        
         # ================= BUILD =================
+        # ================= BUILD =================
+        
         self.columns_box.add_widget(self.labels_column)
         self.columns_box.add_widget(self.image_column)
-
-        self.value_box.add_widget(self.title_label)
+        
         self.value_box.add_widget(self.columns_box)
         self.value_box.add_widget(self.prog_bar)
-
+        
         self.content_container.add_widget(self.value_box)
         self.add_widget(self.content_container)
+
+
     def _update_box_color(self, rpm):
     
         if rpm is None or rpm < 0:

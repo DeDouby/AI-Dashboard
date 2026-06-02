@@ -126,6 +126,8 @@ class TapoTile(BoxLayout):
             size=self._update_value_box_canvas
         )
 
+        self.labels_column.add_widget(self.title_label)
+
         # ================= LABELS =================
 
         self.lbl_camera = Label(
@@ -172,14 +174,14 @@ class TapoTile(BoxLayout):
 
         # ================= BUILD =================
 
+        # ================= BUILD =================
+        
         self.columns_box.add_widget(self.labels_column)
         self.columns_box.add_widget(self.image_column)
-
-        self.value_box.add_widget(self.title_label)
+        
         self.value_box.add_widget(self.columns_box)
-
+        
         self.content_container.add_widget(self.value_box)
-
         self.add_widget(self.content_container)
 
     def _update_box_color(self, is_ok):

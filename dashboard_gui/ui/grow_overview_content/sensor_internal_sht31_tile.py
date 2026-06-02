@@ -18,9 +18,10 @@ class SensorInternalSHT31Tile(BoxLayout):
             size_hint=(1, 1),
             **kw
         )
+    
         self.padding = dp_scaled(10)
         self.spacing = dp_scaled(6)
-
+    
         # ================= TITLE =================
         self.title_label = Label(
             text="Internal: SHT31",
@@ -32,15 +33,17 @@ class SensorInternalSHT31Tile(BoxLayout):
             height=dp_scaled(25),
             color=(1, 1, 1, 1)
         )
-        self.title_label.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
-
+        self.title_label.bind(
+            size=lambda inst, *_: setattr(inst, "text_size", inst.size)
+        )
+    
         # ================= MAIN =================
         self.content_container = BoxLayout(
             orientation="horizontal",
             size_hint=(1, 1),
             spacing=dp_scaled(2)
         )
-
+    
         # ================= VALUE BOX =================
         self.value_box = BoxLayout(
             orientation="vertical",
@@ -48,45 +51,50 @@ class SensorInternalSHT31Tile(BoxLayout):
             padding=[dp_scaled(12), dp_scaled(10)],
             spacing=dp_scaled(6)
         )
-
+    
         # ================= COLUMNS =================
         self.columns_box = BoxLayout(
             orientation="horizontal",
             size_hint=(1, 1),
             spacing=dp_scaled(10)
         )
+    
         self.labels_column = BoxLayout(
             orientation="vertical",
             size_hint=(0.5, 1),
             spacing=dp_scaled(2)
         )
+    
         self.image_column = BoxLayout(
             orientation="vertical",
             size_hint=(0.5, 1)
         )
-
+    
         # ================= IMAGE =================
         self.sensor_image = Image(
             source=SHT31_PIC,
             size_hint=(1, 1),
             fit_mode="contain"
         )
+    
         self.image_column.add_widget(self.sensor_image)
-
-        # ================= CANVAS (GREEN SENSOR STYLE) =================
+    
+        # ================= CANVAS =================
         with self.value_box.canvas.before:
             Color(0, 0, 0, 0.62)
             self.value_bg = RoundedRectangle(radius=[dp_scaled(14)])
+    
             self.glow_color = Color(0.2, 0.8, 0.2, 0.35)
             self.value_glow = Line(width=5)
+    
             self.border_color = Color(0.2, 0.8, 0.2, 0.85)
             self.value_border = Line(width=1.3)
-
+    
         self.value_box.bind(
             pos=self._update_value_box_canvas,
             size=self._update_value_box_canvas
         )
-
+    
         # ================= LABELS =================
         self.lbl_temp = Label(
             text="--",
@@ -97,6 +105,7 @@ class SensorInternalSHT31Tile(BoxLayout):
             size_hint=(1, None),
             height=dp_scaled(25)
         )
+    
         self.lbl_hum = Label(
             text="--",
             markup=True,
@@ -106,6 +115,7 @@ class SensorInternalSHT31Tile(BoxLayout):
             size_hint=(1, None),
             height=dp_scaled(25)
         )
+    
         self.lbl_vpd = Label(
             text="--",
             markup=True,
@@ -115,20 +125,24 @@ class SensorInternalSHT31Tile(BoxLayout):
             size_hint=(1, None),
             height=dp_scaled(25)
         )
-
+    
+        # ================= LEFT COLUMN =================
+        self.labels_column.add_widget(self.title_label)
+    
         for lbl in (self.lbl_temp, self.lbl_hum, self.lbl_vpd):
-            lbl.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
+            lbl.bind(
+                size=lambda inst, *_: setattr(inst, "text_size", inst.size)
+            )
             self.labels_column.add_widget(lbl)
-
+    
         # ================= BUILD =================
         self.columns_box.add_widget(self.labels_column)
         self.columns_box.add_widget(self.image_column)
-        self.value_box.add_widget(self.title_label)
+    
         self.value_box.add_widget(self.columns_box)
+    
         self.content_container.add_widget(self.value_box)
         self.add_widget(self.content_container)
-
-
     def _update_box_color(self, is_ok):
         """Schaltet die UI-Glow und Border-Farbe basierend auf dem Zustand um."""
         if is_ok:

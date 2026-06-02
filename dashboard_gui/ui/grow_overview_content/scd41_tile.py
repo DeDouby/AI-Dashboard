@@ -159,6 +159,9 @@ class SensorSCD41Tile(BoxLayout):
             height=dp_scaled(25)
         )
 
+        self.labels_column.add_widget(self.title_label)
+
+
         for lbl in (
             self.lbl_co2,
             self.lbl_temp,
@@ -172,15 +175,13 @@ class SensorSCD41Tile(BoxLayout):
             self.labels_column.add_widget(lbl)
 
         # ================= BUILD =================
-
+        # ================= BUILD =================
         self.columns_box.add_widget(self.labels_column)
         self.columns_box.add_widget(self.image_column)
-
-        self.value_box.add_widget(self.title_label)
+        
         self.value_box.add_widget(self.columns_box)
-
+        
         self.content_container.add_widget(self.value_box)
-
         self.add_widget(self.content_container)
 
     def _update_box_color(self, has_values):

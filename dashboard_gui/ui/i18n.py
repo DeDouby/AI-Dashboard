@@ -68,6 +68,9 @@ class I18N:
             "about.community_text": "Community & Grow Talk:",
             "about.community_url": "https://www.facebook.com/groups/896803673081754",
             "about.community_name": "OpenGrowController Community ",
+            "about.coffee_url": "https://buymeacoffee.com/livinggrowcontrollers",
+            "about.coffee_text": "Buy Me a Coffee:",
+            "about.coffee_name": "Support the Project",
             "about.copyright": "© 2026 Dominik Rosenthal (Hackintosh1980)",
         },
 
@@ -130,6 +133,9 @@ class I18N:
             "about.community_text": "Comunidad y charla Grow:",
             "about.community_url": "https://www.facebook.com/groups/896803673081754",
             "about.community_name": "OpenGrowController Community ",
+            "about.coffee_url": "https://buymeacoffee.com/livinggrowcontrollers",
+            "about.coffee_text": "Buy Me a Coffee:",
+            "about.coffee_name": "Support the Project",
             "about.copyright": "© 2026 Dominik Rosenthal (Hackintosh1980)",
         },
 
@@ -192,6 +198,9 @@ class I18N:
             "about.community_text": "Community & Grow Talk:",
             "about.community_url": "https://www.facebook.com/groups/896803673081754",
             "about.community_name": "OpenGrowController Community ",
+            "about.coffee_url": "https://buymeacoffee.com/livinggrowcontrollers",
+            "about.coffee_text": "Buy Me a Coffee:",
+            "about.coffee_name": "Support the Project",
             "about.copyright": "© 2026 Dominik Rosenthal (Hackintosh1980)", 
         }
     }

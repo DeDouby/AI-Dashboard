@@ -108,7 +108,7 @@ class LightTile(BoxLayout):
             self.value_border = Line(width=1.3)
 
         self.value_box.bind(pos=self._update_value_box_canvas, size=self._update_value_box_canvas)
-
+        self.labels_column.add_widget(self.title_label)
         # Labels initialisieren
         self.lbl_current = Label(text="LIVE: --%", font_size=sp_scaled(20), bold=True,
                                  halign="left", valign="middle", color=(1, 1, 1, 1))
@@ -131,7 +131,6 @@ class LightTile(BoxLayout):
         self.columns_box.add_widget(self.image_column)
 
         # Zusammenbau der Value Box von oben nach unten
-        self.value_box.add_widget(self.title_label)    # 1. Titel
         self.value_box.add_widget(self.columns_box)    # 2. Spalten (Werte & Bild)
         self.value_box.add_widget(self.prog_bar)       # 3. Progressbar unten
 
@@ -211,7 +210,7 @@ class LightTile(BoxLayout):
 # ==================== PHASE ====================
     def _update_phase(self, data):
         # Wir nutzen direkt light_state_reason als führenden Wert
-        state = str(data.get("light_state_reason", "NIGHT")).upper().strip()
+        state = str(data.get("light_state_reason", "UNKNOWN")).upper().strip()
         climate_override = bool(data.get("light_climate_override", False))
         
         # Konfiguration für die Phasen
@@ -219,11 +218,12 @@ class LightTile(BoxLayout):
             "SUNRISE": {"text": "SUNRISE", "color": (1.0, 0.72, 0.15, 1)},
             "SUNSET":  {"text": "SUNSET",  "color": (1.0, 0.45, 0.1, 1)},
             "NIGHT":   {"text": "NIGHT",   "color": (0.45, 0.65, 1.0, 1)},
-            "DAY":     {"text": "DAY",     "color": (1.0, 1.0, 0.6, 1)}
+            "DAY":     {"text": "DAY",     "color": (1.0, 1.0, 0.6, 1)},
+            "UNKNOWN": {"text": "UNKNOWN", "color": (0.5, 0.5, 0.5, 1)}
         }
 
         # Fallback auf NIGHT, falls etwas Unerwartetes kommt
-        config = phase_config.get(state, phase_config["NIGHT"])
+        config = phase_config.get(state, phase_config["UNKNOWN"])
         
         text = config["text"]
         color = config["color"]

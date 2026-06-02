@@ -94,6 +94,17 @@ class AboutScreen(Screen):
         community_link.bind(on_ref_press=lambda _, url: webbrowser.open(url))
         body.add_widget(community_link)
 
+        coffee_link = add_label(
+            f"[ref={I18N.t('about.coffee_url')}]"
+            f"{I18N.t('about.coffee_text')}\n"
+            f"{I18N.t('about.coffee_name')}"
+            "[/ref]",
+            color=(0.45, 0.82, 1, 1),
+            markup=True
+        )
+        coffee_link.bind(on_ref_press=lambda _, url: webbrowser.open(url))
+        body.add_widget(coffee_link)
+
         body.add_widget(add_label(I18N.t("about.copyright"), size=14, color=(0.75, 0.75, 0.75, 1)))
 
         scroll.add_widget(body)

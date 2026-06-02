@@ -116,6 +116,7 @@ class HumidifierTile(BoxLayout):
             size=self._update_value_box_canvas
         )
 
+        self.labels_column.add_widget(self.title_label) 
         # ================= LABELS =================
         self.lbl_output = Label(
             text="OUTPUT: 65%",
@@ -162,7 +163,6 @@ class HumidifierTile(BoxLayout):
         self.columns_box.add_widget(self.labels_column)
         self.columns_box.add_widget(self.image_column)
 
-        self.value_box.add_widget(self.title_label)
         self.value_box.add_widget(self.columns_box)
         self.value_box.add_widget(self.prog_bar)
 

@@ -29,7 +29,7 @@ class CirculationTile(BoxLayout):
 
         # ================= TITLE =================
         self.title_label = Label(
-            text="Mars Gaming PWMX",
+            text="MARS PWMX",
             font_size=sp_scaled(20),
             bold=True,
             halign="left",
@@ -102,6 +102,7 @@ class CirculationTile(BoxLayout):
             size=self._update_value_box_canvas
         )
 
+        self.labels_column.add_widget(self.title_label)
         # ================= LABELS =================
         self.lbl_rpm = Label(
             text="RPM: 0",
@@ -138,7 +139,6 @@ class CirculationTile(BoxLayout):
         self.columns_box.add_widget(self.labels_column)
         self.columns_box.add_widget(self.image_column)
 
-        self.value_box.add_widget(self.title_label)
         self.value_box.add_widget(self.columns_box)
         self.value_box.add_widget(self.prog_bar)
 

@@ -26,7 +26,7 @@ class SensorBLEThermoBeaconTile(BoxLayout):
 
         # ================= TITLE =================
         self.title_label = Label(
-            text="Bluetooth: ThermoBeacon",
+            text="BLE: THB-1S",
             font_size=sp_scaled(20),
             bold=True,
             halign="left",
@@ -118,6 +118,7 @@ class SensorBLEThermoBeaconTile(BoxLayout):
             size_hint=(1, None),
             height=dp_scaled(25)
         )
+        self.labels_column.add_widget(self.title_label)
 
         for lbl in (self.lbl_temp, self.lbl_hum, self.lbl_vpd):
             lbl.bind(size=lambda inst, *_: setattr(inst, "text_size", inst.size))
@@ -126,8 +127,9 @@ class SensorBLEThermoBeaconTile(BoxLayout):
         # ================= BUILD =================
         self.columns_box.add_widget(self.labels_column)
         self.columns_box.add_widget(self.image_column)
-        self.value_box.add_widget(self.title_label)
+        
         self.value_box.add_widget(self.columns_box)
+        
         self.content_container.add_widget(self.value_box)
         self.add_widget(self.content_container)
 
