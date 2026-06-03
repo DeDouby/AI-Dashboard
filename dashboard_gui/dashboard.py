@@ -28,9 +28,14 @@ class DashboardScreen(Screen):
         super().__init__(**kw)
         self.root_layout = BoxLayout(orientation="vertical")
 
-        # --- HIER: Hintergrund für den VOLLEN Screen ---
+        # Hintergrund-Optimierung für das gesamte Screen-Layout
         with self.root_layout.canvas.before:
             from kivy.graphics import Rectangle, Color
+            # Grundebene auf satten, dunklen OLED-Ton setzen
+            Color(0.05, 0.05, 0.06, 1)
+            self.base_bg = Rectangle(pos=self.pos, size=self.size)
+            
+            # Jetzt die Grafik-Ebene darüberlegen
             Color(1, 1, 1, 1)
             self.bg_rect = Rectangle(
                 source=os.path.join(ASSET_ROOT, "background.png"),
@@ -39,8 +44,14 @@ class DashboardScreen(Screen):
             )
         
         self.root_layout.bind(
-            pos=lambda *_: setattr(self.bg_rect, "pos", self.root_layout.pos),
-            size=lambda *_: setattr(self.bg_rect, "size", self.root_layout.size)
+            pos=lambda *_: [
+                setattr(self.base_bg, "pos", self.root_layout.pos),
+                setattr(self.bg_rect, "pos", self.root_layout.pos)
+            ],
+            size=lambda *_: [
+                setattr(self.base_bg, "size", self.root_layout.size),
+                setattr(self.bg_rect, "size", self.root_layout.size)
+            ]
         )
         self.add_widget(self.root_layout)
         # IDIOTENSICHERER PFAD-CACHE

@@ -42,9 +42,9 @@ class External2Icon(BoxLayout):
     def set_external2(self, present):
         if present:
             self.icon.text = "\uf2c7" # Thermometer Icon
-            self.icon.color = (0.3, 1, 0.3, 1) # Giftgrün
+            self.icon.color = (1, 0.5, 0, 1) # lachsfarben orange-grün
             self.text_label.text = "EXT2"
-            self.text_label.color = (0.3, 1, 0.3, 1)
+            self.text_label.color = (1, 0.5, 0, 1) # hintergrundfarbe des icons undfüllbox
         else:
             self.icon.text = "\uf059" # Fragezeichen
             self.icon.color = (0.4, 0.4, 0.4, 1)

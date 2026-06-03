@@ -1,10 +1,11 @@
+import os
 import time
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.screenmanager import Screen
 from kivy_garden.graph import Graph, LinePlot
-from kivy.graphics import Rectangle, Color
+from kivy.graphics import Rectangle, Color, Mesh  # NEU: Mesh importiert
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.metrics import dp
@@ -13,8 +14,6 @@ from dashboard_gui.ui.common.header_online import HeaderBar
 from dashboard_gui.ui.common.control_buttons import ControlButtons
 from dashboard_gui.global_state_manager import GLOBAL_STATE
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
-
-import os
 
 class FullScreenView(Screen):
     name = "fullscreen"
@@ -27,59 +26,73 @@ class FullScreenView(Screen):
 
         self.layout = FloatLayout()
         self.add_widget(self.layout)
-        self.xmax=config.get_tile_graph_window(), # Das Fenster aus der Config
-        
+        self.xmax = config.get_tile_graph_window()
 
-        # HINTERGRUND
+        # -------------------------------------------------
+        # 1. HINTERGRUND INITIALISIERUNG
+        # -------------------------------------------------
         with self.layout.canvas.before:
-            self.bg_color = Color(0, 0, 0, 1)
+            # Startet mit dem edlen, abgedunkelten Kachel-Grundton
+            self.bg_color = Color(0.08, 0.08, 0.1, 0.40)
             self.bg_rect = Rectangle(pos=self.pos, size=self.size, source="")
         self.layout.bind(pos=self._update_bg, size=self._update_bg)
 
-        # GRAPH
+        # -------------------------------------------------
+        # 2. GRAPH & PLOTS
+        # -------------------------------------------------
         win_seconds = config.get_tile_graph_window()
+        # Ersetze den alten Graph-Block durch diesen:
         self.graph = Graph(
-            xmin=0, xmax=win_seconds,
+            xmin=0, xmax=1,                    # wird später überschrieben
             ymin=0, ymax=1,
             draw_border=False,
             background_color=(0, 0, 0, 0),
             y_grid_label=True,
             x_grid_label=False,
-            padding=0,
-            label_options={'color':[1,1,1,0.4],'bold':True},
-            size_hint=(1,1),
-            pos_hint={'x':0,'y':0}
+            padding=dp_scaled(10),
+            label_options={'color': [1, 1, 1, 0.4], 'bold': True},
+            size_hint=(1, 1),
+            pos_hint={'x': 0, 'y': 0}
         )
-        self.plot = LinePlot(line_width=dp_scaled(4.5))
-        self.plot_glow = LinePlot(line_width=dp_scaled(8))
+        self.plot = LinePlot(line_width=dp_scaled(3.5))  # Leicht optimiert für Fullscreen
+        self.plot_glow = LinePlot(line_width=dp_scaled(7))
         self.graph.add_plot(self.plot_glow)
         self.graph.add_plot(self.plot)
         self.layout.add_widget(self.graph)
 
+        # -------------------------------------------------
+        # 3. NEU: TRANSPARENTE FILL-FLÄCHE (Mesh-Engine aus ChartTile)
+        # -------------------------------------------------
+        with self.graph.canvas.after:
+            self.mesh_color = Color(1, 1, 1, 0.25)  # Wird dynamisch in activate_tile angepasst
+            self.mesh = Mesh(mode='triangle_strip')
+        
+        self.graph.bind(pos=self._upd_mesh, size=self._upd_mesh)
+
         # X-ACHSE LABELS
         self.x_axis_labels = GridLayout(
-            cols=5, size_hint=(1,None), height=dp_scaled(20),
-            pos_hint={'x':0,'y':0.08}
+            cols=5, size_hint=(1, None), height=dp_scaled(20),
+            pos_hint={'x': 0, 'y': 0.08}
         )
         self.labels_list = []
         for _ in range(5):
-            lbl = Label(text="", font_size=sp_scaled(16), color=(1,1,1,0.5))
+            lbl = Label(text="", font_size=sp_scaled(16), color=(1, 1, 1, 0.5))
             self.labels_list.append(lbl)
             self.x_axis_labels.add_widget(lbl)
         self.layout.add_widget(self.x_axis_labels)
 
         # VALUE HUD
         self.hud = BoxLayout(
-            orientation="vertical", size_hint=(1,None), height=dp_scaled(180),
-            pos_hint={'center_x':0.5,'top':0.85}, spacing=dp_scaled(-10)
+            orientation="vertical", size_hint=(1, None), height=dp_scaled(180),
+            pos_hint={'center_x': 0.5, 'top': 0.85}, spacing=dp_scaled(-10)
         )
         self.lbl_value = Label(
             text="--", font_size=sp_scaled(80), bold=True, markup=True,
-            outline_width=2, outline_color=(0,0,0,1)
+            outline_width=2, outline_color=(0, 0, 0, 1)
         )
         self.lbl_sub = Label(
             text="avg: -- | min: -- | max: --", font_size=sp_scaled(18),
-            color=(0.8,0.8,0.8,0.8), outline_width=1, outline_color=(0,0,0,1)
+            color=(0.8, 0.8, 0.8, 0.8), outline_width=1, outline_color=(0, 0, 0, 1)
         )
         self.hud.add_widget(self.lbl_value)
         self.hud.add_widget(self.lbl_sub)
@@ -87,88 +100,125 @@ class FullScreenView(Screen):
 
         # HEADER
         self.header = HeaderBar()
-        self.header.pos_hint = {'top':1}
+        self.header.pos_hint = {'top': 1}
         self.layout.add_widget(self.header)
 
         # NAV BUTTONS
         btn_size = dp_scaled(45)
         self.btn_left = Button(
             text="[font=FA]\uf060[/font]", markup=True, font_size=sp_scaled(20),
-            size_hint=(None,None), size=(btn_size,btn_size),
-            pos_hint={"x":0.02,"center_y":0.5}, background_color=(0,0,0,0.4)
+            size_hint=(None, None), size=(btn_size, btn_size),
+            pos_hint={"x": 0.02, "center_y": 0.5}, background_color=(0, 0, 0, 0.4)
         )
         self.btn_left.bind(on_release=lambda *_: self._switch(-1))
         self.btn_right = Button(
             text="[font=FA]\uf061[/font]", markup=True, font_size=sp_scaled(20),
-            size_hint=(None,None), size=(btn_size,btn_size),
-            pos_hint={"right":0.98,"center_y":0.5}, background_color=(0,0,0,0.4)
+            size_hint=(None, None), size=(btn_size, btn_size),
+            pos_hint={"right": 0.98, "center_y": 0.5}, background_color=(0, 0, 0, 0.4)
         )
         self.btn_right.bind(on_release=lambda *_: self._switch(1))
         self.layout.add_widget(self.btn_left)
         self.layout.add_widget(self.btn_right)
 
         # CONTROL BUTTONS
-# NEU:
-        self.controls = ControlButtons(
-            on_reset=self.reset_from_global
-        )
-        self.controls.size_hint = (1,None)
+        self.controls = ControlButtons(on_reset=self.reset_from_global)
+        self.controls.size_hint = (1, None)
         self.controls.height = dp_scaled(40)
-        self.controls.pos_hint = {'y':0}
+        self.controls.pos_hint = {'y': 0}
         self.layout.add_widget(self.controls)
-        self.active_tile = None  # <-- das ist jetzt der aktuelle Tile-Key
+        self.active_tile = None  
         GLOBAL_STATE.ui_handler.attach_screen("fullscreen", self)
 
     def _update_bg(self, *_):
         self.bg_rect.pos = self.pos
         self.bg_rect.size = self.size
 
-    def _get_metric_config(self, tile_id):
-        """Holt Farbe und Hintergrundbild-Pfad für die jeweilige Kachel."""
-        # Der Pfad zu deinen Assets
-        asset_path = os.path.join("dashboard_gui", "assets", "tiles")
+    # -------------------------------------------------
+    # 4. NEU: DYNAMISCHE MESH-BERECHNUNG FÜR FULLSCREEN
+    # -------------------------------------------------
+    def _upd_mesh(self, *args):
+        """Berechnet die Füllfläche exakt unter der Kurvenlinie im Fullscreen."""
+        if not hasattr(self, 'plot') or not self.plot.points:
+            self.mesh.vertices = []
+            return
+
+        g_pos = self.graph.pos
+        g_size = self.graph.size
         
-        # Deine alten Definitionen
+        pad = dp_scaled(10)
+        plot_w = g_size[0] - 2 * pad
+        plot_h = g_size[1] - 2 * pad
+        
+        x_min, x_max = self.graph.xmin, self.graph.xmax
+        y_min, y_max = self.graph.ymin, self.graph.ymax
+        
+        x_range = (x_max - x_min) if x_max != x_min else 1
+        y_range = (y_max - y_min) if y_max != y_min else 1
+
+        vertices = []
+        y_bottom_px = g_pos[1] + pad
+
+        for pt in self.plot.points:
+            px_x = g_pos[0] + pad + ((pt[0] - x_min) / x_range) * plot_w
+            px_y = g_pos[1] + pad + ((pt[1] - y_min) / y_range) * plot_h
+            
+            # 1. Punkt auf der Null-Linie (Boden)
+            vertices.extend([px_x, y_bottom_px, 0, 0])
+            # 2. Punkt direkt auf dem Kurvenpunkt
+            vertices.extend([px_x, px_y, 0, 0])
+
+        self.mesh.vertices = vertices
+        self.mesh.indices = list(range(len(vertices) // 4))
+
+    # -------------------------------------------------
+    # 5. ASSIMILIERTE FARB-DEFINITIONEN (1:1 Main Panel)
+    # -------------------------------------------------
+    def _get_metric_config(self, tile_id):
+        """Holt 1:1 die gedeckten, professionellen Farben aus dem DashboardMainPanel."""
+        asset_path = os.path.join("dashboard_gui", "assets")
+        
+        # Exakte Farbwerte aus deinem DashboardMainPanel kopiert
+        c_temp = [0.95, 0.55, 0.22, 1]   # Matt-Bernstein
+        c_hum  = [0.24, 0.56, 0.78, 1]   # Ruhiges Blau
+        c_vpd  = [0.52, 0.38, 0.76, 1]   # Edles Violett
+        c_green = [0.22, 0.68, 0.38, 1]  # Smaragdgrün
+        c_bat   = [0.85, 0.68, 0.15, 1]  # Mattgelb
+        
         config_map = {
             # --- INTERNAL ---
-            "temp_in": {"color": [1, 0.2, 0.2, 1], "bg": "tile_bg_temp_in.png"},
-            "hum_in":  {"color": [0.2, 0.6, 1, 1], "bg": "tile_bg_hum_in.png"},
-            "vpd_in":  {"color": [1, 0.8, 0.2, 1], "bg": "tile_bg_vpd_in.png"},
+            "temp_in": {"color": c_temp, "bg": "background2.png"},
+            "hum_in":  {"color": c_hum,  "bg": "background2.png"},
+            "vpd_in":  {"color": c_vpd,  "bg": "background2.png"},
 
             # --- EXTERNAL 1 ---
-            "temp_ex": {"color": [1, 0.4, 0.4, 1], "bg": "tile_bg_temp_out.png"},
-            "hum_ex":  {"color": [0.3, 1, 1, 1],   "bg": "tile_bg_hum_out.png"},
-            "vpd_ex":  {"color": [0.3, 1, 0.3, 1], "bg": "tile_bg_vpd_out.png"},
+            "temp_ex": {"color": c_temp, "bg": "background2.png"},
+            "hum_ex":  {"color": c_hum,  "bg": "background2.png"},
+            "vpd_ex":  {"color": c_vpd,  "bg": "background2.png"},
 
             # --- EXTERNAL 2 (LEAF) ---
-            "leaf_temp": {"color": [0.2, 0.8, 0.2, 1], "bg": "tile_bg_temp_out.png"},
-            "vpd_leaf":  {"color": [0.6, 1, 0.2, 1],   "bg": "tile_bg_vpd_out.png"},
+            "leaf_temp": {"color": c_green, "bg": "background2.png"},
+            "vpd_leaf":  {"color": c_vpd,   "bg": "background2.png"},
 
             # --- BLE SPS ---
-            "ble_temp_sps": {"color": [1, 0.2, 0.5, 1], "bg": "tile_bg_temp_in.png"},
-            "ble_hum_sps":  {"color": [0.2, 0.8, 1, 1], "bg": "tile_bg_hum_in.png"},
-            "ble_vpd_sps":  {"color": [0.6, 0.4, 1, 1], "bg": "tile_bg_vpd_in.png"},
+            "ble_temp_sps": {"color": c_temp, "bg": "background2.png"},
+            "ble_hum_sps":  {"color": c_hum,  "bg": "background2.png"},
+            "ble_vpd_sps":  {"color": c_vpd,  "bg": "background2.png"},
 
             # --- BLE TB2 ---
-            "ble_temp_tb2": {"color": [1, 0.5, 0.2, 1], "bg": "tile_bg_temp_in.png"},
-            "ble_hum_tb2":  {"color": [0.5, 0.8, 1, 1], "bg": "tile_bg_hum_in.png"},
-            "ble_vpd_tb2":  {"color": [0.4, 0.6, 1, 1], "bg": "tile_bg_vpd_out.png"},
+            "ble_temp_tb2": {"color": c_temp, "bg": "background2.png"},
+            "ble_hum_tb2":  {"color": c_hum,  "bg": "background2.png"},
+            "ble_vpd_tb2":  {"color": c_vpd,  "bg": "background2.png"},
 
             # --- MISC (BATT / FANS) ---
-            "v_bat":               {"color": [1, 0.8, 0.2, 1], "bg": "tile_bg_batt.png"},
-            "circulation_fan_rpm": {"color": [0.3, 1, 0.3, 1], "bg": "tile_bg_fan.png"},
-            "exhaust_fan_rpm":     {"color": [0.3, 1, 0.3, 1], "bg": "tile_bg_fan.png"},
-        
-
-
+            "v_bat":               {"color": c_bat,   "bg": "background2.png"},
+            "circulation_fan_rpm": {"color": c_green, "bg": "background2.png"},
+            "exhaust_fan_rpm":     {"color": c_green, "bg": "background2.png"},
         }
         
-        
-        # Daten holen oder Fallback auf Weiß/Leer
         c_data = config_map.get(tile_id, {"color": [1, 1, 1, 1], "bg": ""})
         
         main_color = c_data["color"]
-        glow_color = [main_color[0], main_color[1], main_color[2], 0.3] # 30% Glow
+        glow_color = [main_color[0], main_color[1], main_color[2], 0.3] # 30% Glow für die dicke Linie
         full_bg_path = os.path.join(asset_path, c_data["bg"]) if c_data["bg"] else ""
         
         return main_color, glow_color, full_bg_path
@@ -178,35 +228,25 @@ class FullScreenView(Screen):
         print(f"[FS] Aktiviere: {full_key}")
         self.current_key = full_key
         
-        # Tile-ID extrahieren (z.B. temp_in)
         parts = full_key.split("_")
         self.tile_id = "_".join(parts[2:]) if len(parts) > 2 else full_key
-        # -------------- HEADER AKTUALISIEREN --------------
-        if hasattr(GLOBAL_STATE, 'tile_engine'):
-            # Nimm active_tiles aus der Engine
-            readable_name = self.tile_id.replace("_", " ").title()  # fallback
-            # Optional: du könntest hier auch ein Mapping in TileEngine hinterlegen
-            # wenn du fancy Names wie "Temp IN" brauchst
-            if self.tile_id in GLOBAL_STATE.tile_engine.active_tiles:
-                readable_name = self.tile_id.upper() if "vpd" in self.tile_id else self.tile_id.title()
-    
-            # Header setzen
-            # Header setzen
-
-                
-        # 1. Metrik-Konfig laden
+        
+        # 1. Metrik-Konfig laden (jetzt mit den neuen Farben)
         main_col, glow_col, bg_path = self._get_metric_config(self.tile_id)
         
-        # 2. HINTERGRUND REPARATUR
+        # 2. HINTERGRUND REPARATUR (An Kachel-Transparenz angepasst)
         if bg_path and os.path.exists(bg_path):
             self.bg_rect.source = bg_path
-            # WICHTIG: Farbe auf Weiß mit Alpha setzen, damit das Bild korrekt strahlt
-            self.bg_color.rgba = (1, 1, 1, 0.6) # 0.6 für schönen Kontrast zum Graphen
+            # NEU: Alpha auf 0.40 gesenkt für perfekten UI-Glow-Kontrast
+            self.bg_color.rgba = (1, 1, 1, 0.40) 
         else:
             self.bg_rect.source = ""
-            self.bg_color.rgba = (0, 0, 0, 1) # Fallback auf Schwarz
+            self.bg_color.rgba = (0.08, 0.08, 0.1, 1) # Fallback auf Kachel-Dunkelblau
         
-        # 3. Graph-Farben updaten (Plots löschen und neu setzen)
+        # 3. Mesh-Farbe updaten (25% Deckkraft der Linienfarbe analog zur Kachel)
+        self.mesh_color.rgba = (main_col[0], main_col[1], main_col[2], 0.25)
+        
+        # 4. Graph-Farben updaten
         for p in list(self.graph.plots):
             self.graph.remove_plot(p)
             
@@ -215,92 +255,49 @@ class FullScreenView(Screen):
         self.graph.add_plot(self.plot_glow)
         self.graph.add_plot(self.plot)
         
-        # 4. Daten laden
+        # 5. Daten laden
         self._load_data()
 
     def _load_data(self):
-        # 1. Den exakten Kontext holen
-        dev_id = GLOBAL_STATE.get_active_device_id()
-        channel = GLOBAL_STATE.get_active_channel()
-        
-        if not dev_id or not self.tile_id:
+        if not self.current_key:
             return
 
-        # 2. Key bauen
-        self.current_key = f"{dev_id}_{channel}_{self.tile_id}"
-        
-        # 3. Buffer aus der Engine holen
         buf = GLOBAL_STATE.graph_engine.get_buffer(self.current_key)
-        
-        # Wenn Puffer leer ist, sofort auf "Leer-Modus" schalten
         if not buf or len(buf) < 1:
-            unit = GLOBAL_STATE.get_unit(self.current_key) or ""
-            self.lbl_value.text = f"--- {unit}"
-            self.lbl_sub.text = "avg: --- | min: --- | max: ---"
-            self.plot.points = []
-            self.plot_glow.points = []
+            self._render_empty()
             return
 
-# 4. GRAPH ZEICHNEN (Mit Stauchungs-Effekt)
         win_size = config.get_tile_graph_window()
-        # Wir nehmen nur die letzten X Werte passend zum Fenster
         display_buf = list(buf)[-win_size:]
-        current_count = len(display_buf)
 
-        # Punkte setzen (Index 0 bis N)
+        # ←←← DAS IST DER WICHTIGSTE TEIL ←←←
+        self.graph.xmin = 0
+        self.graph.xmax = max(len(display_buf) - 1, 1)   # Sofort volle Breite
+
         pts = list(enumerate(display_buf))
         self.plot.points = pts
         self.plot_glow.points = pts
-        win_seconds = config.get_tile_graph_window()
-        # --- X-ACHSE DYNAMISCH (Das ist der Trick für die Stauchung) ---
-        # Wenn wir weniger Daten haben als ins Fenster passen, 
-        # schrumpfen wir die X-Achse auf die Datenmenge.
-        # Mindestens aber 1, um Abstürze zu vermeiden.
-        self.graph.xmin = 0
-        if current_count < win_size:
-            self.graph.xmax = max(1, current_count - 1)
+
+        # Y Skalierung
+        mn_val = min(display_buf)
+        mx_val = max(display_buf)
+        if mn_val == mx_val:
+            self.graph.ymin = mn_val - 1.0
+            self.graph.ymax = mx_val + 1.0
         else:
-            self.graph.xmax = win_size - 1
+            diff = mx_val - mn_val
+            self.graph.ymin = mn_val - (diff * 0.08)
+            self.graph.ymax = mx_val + (diff * 0.08)
 
-        # --- Y-ACHSE SKALIEREN (mit Puffer) ---
-        mn, mx = min(display_buf), max(display_buf)
-        if mn == mx: 
-            mn -= 1; mx += 1
-        diff = mx - mn
-        self.graph.ymin = mn - (diff * 0.1)
-        self.graph.ymax = mx + (diff * 0.1)
-        # ---------------------------------------------------------
-        # NEU: ZEITACHSE BESCHRIFTEN (Idiotensicher)
-        # ---------------------------------------------------------
-        # Wir berechnen, wie viele Minuten das Fenster insgesamt groß ist
-        total_minutes = win_seconds / 60
-        
-        # Wir haben 5 Labels in deiner self.labels_list
-        # Label 0 (links) -> -Gesamtzeit
-        # Label 4 (rechts) -> 0 (Jetzt)
-        for i, lbl in enumerate(self.labels_list):
-            # Berechne den Zeitwert für dieses Label
-            # i=0 -> -total_minutes | i=4 -> 0
-            time_val = -total_minutes + (i * (total_minutes / 4))
-            
-            if time_val == 0:
-                lbl.text = "Jetzt"
-            else:
-                lbl.text = f"{int(time_val)}m"
+        self._upd_mesh()   # Mesh sofort updaten
 
-        # ---------------------------------------------------------
-        # 5. WERTE-ANZEIGE
-        # ---------------------------------------------------------
-        last_val = buf[-1]
         unit = GLOBAL_STATE.get_unit(self.current_key) or ""
-        trend_icon = GLOBAL_STATE.graph_engine.get_trend_icon(self.current_key)
-        icon_markup = f"[font=FA]{trend_icon}[/font]" if trend_icon else ""
-
-        self.lbl_value.text = f"{last_val:.2f} {unit} {icon_markup}"
-        
         avg_v, mn_stat, mx_stat = GLOBAL_STATE.graph_engine.get_stats(self.current_key)
+
+        self.lbl_value.text = f"{display_buf[-1]:.2f} [size={int(sp_scaled(30))}]{unit}[/size]"
         if avg_v is not None:
-            self.lbl_sub.text = f"avg: {avg_v:.2f} {unit} | min: {mn_stat:.2f} | max: {mx_stat:.2f}"
+            self.lbl_sub.text = f"avg: {avg_v:.2f} {unit} | min: {mn_stat:.2f} {unit} | max: {mx_stat:.2f} {unit}"
+
     def update_from_global(self, data):
         # 1. Header updaten
         self.header.update_from_global(data)
@@ -371,3 +368,9 @@ class FullScreenView(Screen):
             GLOBAL_STATE.ggm.handle_touch("fullscreen", "up", touch)
         return super().on_touch_up(touch)
     
+
+
+
+
+
+

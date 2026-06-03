@@ -9,60 +9,61 @@ from kivy.uix.scrollview import ScrollView
 class DashboardMainPanel(GridLayout):
     def __init__(self, **kw):
         super().__init__(**kw)
-        self._gesture_mode = None  # "scroll" oder "swipe"
-        self._start_x = 0
-        self._start_y = 0
         self.cols = 3
-        self.spacing = dp_scaled(12)
-        self.padding = dp_scaled(12)
-        
-        self.size_hint_y = None # Erlaubt dem Panel höher als der Screen zu sein
+        self.spacing = dp_scaled(14) # minimal vergrößert für mehr Cleanliness
+        self.padding = dp_scaled(14)
+        self.size_hint_y = None
         self.bind(minimum_height=self.setter('height'))
-        # ---------------------------------------------------
-        # 1. TILES INITIALISIEREN
-        # ---------------------------------------------------
-        self.tile_temp_in = ChartTile("temp_in", "Temp IN", "—", [1, 0.2, 0.2, 1], bg="tile_bg_temp_in.png")
-        self.tile_hum_in  = ChartTile("hum_in", "Hum IN", "%", [0.2, 0.6, 1, 1], bg="tile_bg_hum_in.png")
-        self.tile_vpd_in  = ChartTile("vpd_in", "VPD IN", "kPa", [1, 0.8, 0.2, 1], bg="tile_bg_vpd_in.png")
+        
+        # Gedeckte, professionelle Farbwerte aus dem Design-Konzept (RGBA)
+        c_temp = [0.95, 0.55, 0.22, 1]  # Matt-Bernstein
+        c_hum  = [0.24, 0.56, 0.78, 1]  # Ruhiges Blau
+        c_vpd  = [0.52, 0.38, 0.76, 1]  # Edles Violett
+        c_green = [0.22, 0.68, 0.38, 1] # Smaragdgrün (Blatt/Fans)
+        c_bat   = [0.85, 0.68, 0.15, 1] # Mattgelb
 
-        self.tile_temp_ex = ChartTile("temp_ex", "Temp EX", "—", [1, 0.4, 0.4, 1], bg="tile_bg_temp_out.png")
-        self.tile_hum_ex  = ChartTile("hum_ex", "Hum EX", "%", [0.3, 1, 1, 1], bg="tile_bg_hum_out.png")
-        self.tile_vpd_ex  = ChartTile("vpd_ex", "VPD EX", "kPa", [0.3, 1, 0.3, 1], bg="tile_bg_vpd_out.png")
-        # --- NEU: BLE SENSOR TILES ---
-        self.tile_ble_temp_sps = ChartTile("ble_temp_sps", "SPS Temp", "—", [1, 0.2, 0.5, 1], bg="tile_bg_temp_in.png")
-        self.tile_ble_hum_sps  = ChartTile("ble_hum_sps", "SPS Hum", "%", [0.2, 0.8, 1, 1], bg="tile_bg_hum_in.png")
-        # --- NEU: BLE VPD TILES ---
-        self.tile_ble_vpd_sps = ChartTile("ble_vpd_sps", "SPS VPD", "kPa", [0.6, 0.4, 1, 1], bg="tile_bg_vpd_in.png")
-        self.tile_ble_vpd_tb2 = ChartTile("ble_vpd_tb2", "TB2 VPD", "kPa", [0.4, 0.6, 1, 1], bg="tile_bg_vpd_out.png")
+        # ---------------------------------------------------
+        # TILES MIT NEUEM FARBSTIL INITIALISIEREN
+        # ---------------------------------------------------
+        self.tile_temp_in = ChartTile("temp_in", "Temp IN", "—", c_temp)
+        self.tile_hum_in  = ChartTile("hum_in", "Hum IN", "%", c_hum)
+        self.tile_vpd_in  = ChartTile("vpd_in", "VPD IN", "kPa", c_vpd)
         
-        self.tile_ble_temp_tb2 = ChartTile("ble_temp_tb2", "TB2 Temp", "—", [1, 0.5, 0.2, 1], bg="tile_bg_temp_in.png")
-        self.tile_ble_hum_tb2  = ChartTile("ble_hum_tb2", "TB2 Hum", "%", [0.5, 0.8, 1, 1], bg="tile_bg_hum_in.png")
-        # NEU: External 2 (Blatt) & Batterie
-        self.tile_leaf_temp = ChartTile("leaf_temp", "Leaf Temp", "—", [0.2, 0.8, 0.2, 1], bg="tile_bg_hum_out.png")
-        self.tile_vpd_leaf  = ChartTile("vpd_leaf", "VPD Leaf", "kPa", [0.6, 1, 0.2, 1], bg="tile_bg_vpd_out.png")
+        self.tile_temp_ex = ChartTile("temp_ex", "Temp EX", "—", c_temp)
+        self.tile_hum_ex  = ChartTile("hum_ex", "Hum EX", "%", c_hum)
+        self.tile_vpd_ex  = ChartTile("vpd_ex", "VPD EX", "kPa", c_vpd)
         
-        # NEU: FAN RPM TILE
-        self.tile_circulation_fan_rpm   = ChartTile("circulation_fan_rpm", "Circulation Fan Speed", "RPM", [0.3, 1, 0.3, 1], bg="tile_bg_fan.png")
-        self.tile_exhaust_fan_rpm   = ChartTile("exhaust_fan_rpm", "Exhaust Fan Speed", "RPM", [0.3, 1, 0.3, 1], bg="tile_bg_fan.png")
+        self.tile_ble_temp_sps = ChartTile("ble_temp_sps", "SPS Temp", "—", c_temp)
+        self.tile_ble_hum_sps  = ChartTile("ble_hum_sps", "SPS Hum", "%", c_hum)
+        self.tile_ble_vpd_sps  = ChartTile("ble_vpd_sps", "SPS VPD", "kPa", c_vpd)
         
-        self.tile_v_bat     = ChartTile("v_bat", "Battery", "V", [1, 0.8, 0.2, 1], bg="tile_bg_batt.png")
-
+        self.tile_ble_temp_tb2 = ChartTile("ble_temp_tb2", "TB2 Temp", "—", c_temp)
+        self.tile_ble_hum_tb2  = ChartTile("ble_hum_tb2", "TB2 Hum", "%", c_hum)
+        self.tile_ble_vpd_tb2  = ChartTile("ble_vpd_tb2", "TB2 VPD", "kPa", c_vpd)
+        
+        self.tile_leaf_temp = ChartTile("leaf_temp", "Leaf Temp", "—", c_green)
+        self.tile_vpd_leaf  = ChartTile("vpd_leaf", "VPD Leaf", "kPa", c_vpd)
+        
+        self.tile_circulation_fan_rpm = ChartTile("circulation_fan_rpm", "Circulation Fan", "RPM", c_green)
+        self.tile_exhaust_fan_rpm     = ChartTile("exhaust_fan_rpm", "Exhaust Fan", "RPM", c_green)
+        
+        self.tile_v_bat = ChartTile(
+            "v_bat",
+            "Battery",
+            "V",
+            c_bat
+        )
         self.tile_map = {
             "temp_in": self.tile_temp_in, "hum_in": self.tile_hum_in, "vpd_in": self.tile_vpd_in,
             "temp_ex": self.tile_temp_ex, "hum_ex": self.tile_hum_ex, "vpd_ex": self.tile_vpd_ex,
             "leaf_temp": self.tile_leaf_temp, "vpd_leaf": self.tile_vpd_leaf, 
             "circulation_fan_rpm": self.tile_circulation_fan_rpm, "exhaust_fan_rpm": self.tile_exhaust_fan_rpm, 
             "v_bat": self.tile_v_bat,
-            
-            # BLE Tiles - Namen müssen exakt mit 'active_keys' und 'order' übereinstimmen
-            "ble_temp_sps": self.tile_ble_temp_sps,
-            "ble_hum_sps":  self.tile_ble_hum_sps,
-            "ble_vpd_sps":  self.tile_ble_vpd_sps, # HIER KORRIGIERTSPS hast
-            
-            "ble_temp_tb2": self.tile_ble_temp_tb2,
-            "ble_hum_tb2":  self.tile_ble_hum_tb2,
-            "ble_vpd_tb2":  self.tile_ble_vpd_tb2  # HIER KORRIGIERTD Tile für TB2 hast
+            "ble_temp_sps": self.tile_ble_temp_sps, "ble_hum_sps":  self.tile_ble_hum_sps, "ble_vpd_sps":  self.tile_ble_vpd_sps,
+            "ble_temp_tb2": self.tile_ble_temp_tb2, "ble_hum_tb2":  self.tile_ble_hum_tb2, "ble_vpd_tb2":  self.tile_ble_vpd_tb2 
         }
+        
+    # (update_from_data & _apply_tile_visibility bleiben logisch intakt wie vorher)
 
 
 

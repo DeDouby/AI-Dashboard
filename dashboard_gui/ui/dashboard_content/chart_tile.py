@@ -1,24 +1,18 @@
-import os
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy_garden.graph import Graph, LinePlot
 from kivy.uix.behaviors import ButtonBehavior
-from kivy.graphics import Rectangle, Color
+from kivy.graphics import Rectangle, Color, RoundedRectangle, Mesh
 from kivy.uix.floatlayout import FloatLayout
-from kivy.app import App  # <--- Das hier fehlt!
 from dashboard_gui.ui.scaling_utils import dp_scaled, sp_scaled
 from dashboard_gui.global_state_manager import GLOBAL_STATE
-from kivy.uix.anchorlayout import AnchorLayout
 from dashboard_gui.ui.formatters import UIFormatter
-# Oben bei den anderen Graphics-Imports hinzufügen:
-from kivy.graphics import Rectangle, Color, RoundedRectangle
 import config
 
 class ChartTile(ButtonBehavior, BoxLayout):
-    def __init__(self, tile_id, title, unit, color_rgba, bg=None, **kw):
+    def __init__(self, tile_id, title, unit, color_rgba, **kw):
         ButtonBehavior.__init__(self, **kw)
-        # Wichtig: orientation="vertical" sorgt dafür, dass Header und Graph-Container untereinander liegen
-        BoxLayout.__init__(self, orientation="vertical", spacing=dp_scaled(2), padding=dp_scaled(6))
+        BoxLayout.__init__(self, orientation="vertical", spacing=dp_scaled(2), padding=dp_scaled(8))
         
         self.tile_id = tile_id
         self.title = title
@@ -29,93 +23,91 @@ class ChartTile(ButtonBehavior, BoxLayout):
         self._last_max = None
         self.color = color_rgba
         self.window = config.get_tile_graph_window()
-        self._frame_skip = 0
+
         # -------------------------------------------------
-        # 1. HINTERGRUND
+        # 1. MODERNISIERTER BACKGROUND (Jetzt noch transparenter!)
         # -------------------------------------------------
-        # -------------------------------------------------
-        # 1. HINTERGRUND (Jetzt abgerundet!)
-        # -------------------------------------------------
-        self.bg_path = os.path.join("dashboard_gui", "assets", "tiles", bg) if bg else None
         with self.canvas.before:
-            Color(1, 1, 1, 1)
-            # Hier: RoundedRectangle statt Rectangle
-            # radius=[(15, 15), (15, 15), (15, 15), (15, 15)] macht alle Ecken rund
-            self.bg_rect = RoundedRectangle(
-                pos=self.pos, 
-                size=self.size, 
-                radius=[dp_scaled(15)] 
-            )
-            if self.bg_path and os.path.exists(self.bg_path):
-                self.bg_rect.source = self.bg_path
+            Color(0.08, 0.08, 0.10, 0.40)
         
+            self.bg_rect = RoundedRectangle(
+                pos=self.pos,
+                size=self.size,
+                radius=[dp_scaled(12)]
+            )
         
         self.bind(pos=self._upd_bg, size=self._upd_bg)
 
         # -------------------------------------------------
-        # 2. HEADER (Feste Höhe)
+        # 2. HEADER & LIVE-WERT (Fokus auf große Typografie)
         # -------------------------------------------------
-        header = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp_scaled(50), padding=[dp_scaled(4), 0])
+        header = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp_scaled(55), padding=[dp_scaled(6), 0])
         self.lbl_main_info = Label(
             text=title, 
             markup=True, 
             halign="left", 
-            valign="top", # Text oben ausrichten für modernen Look
+            valign="middle",
             outline_width=1,
-            outline_color=(0,0,0,0.2)
+            outline_color=(0,0,0,0.15)
         )
         self.lbl_main_info.bind(size=self.lbl_main_info.setter('text_size'))
         header.add_widget(self.lbl_main_info)
         self.add_widget(header)
 
-# -------------------------------------------------
-        # 3. GRAPH CONTAINER
+        # -------------------------------------------------
+        # 3. GRAPH CONTAINER & GRAFIK-ENGINE
         # -------------------------------------------------
         self.graph_container = FloatLayout(size_hint=(1, 1))
         
-        # 1. Zuerst den Graphen (liegt ganz unten)
         self.graph = Graph(
             draw_border=False, 
             background_color=(0,0,0,0),
-            padding=dp_scaled(15), # Mehr Platz zu den Rändern
+            padding=dp_scaled(0), 
             xmin=0, xmax=self.window, ymin=0, ymax=1,
             size_hint=(1, 1), 
             pos_hint={'x': 0, 'y': 0}
         )
         
-        self.plot = LinePlot(color=self.color, line_width=dp_scaled(2.2))
-        self.plot_glow = LinePlot(color=[*self.color[:3], 0.15], line_width=dp_scaled(4))
-        ## self.graph.add_plot(self.plot_glow) # Glow-Effekt (optional, kann die Performance beeinträchtigen)
+        # Plot-Linie dicker für professionellen Look (Anti-Aliased Style)
+        self.plot = LinePlot(color=self.color, line_width=dp_scaled(2.5))
         self.graph.add_plot(self.plot)
         self.graph_container.add_widget(self.graph)
 
-        # 2. JETZT DIE LABELS (Werden NACH dem Graphen hinzugefügt -> liegen darüber)
-        
-        # AVG (unten rechts)
+        # -------------------------------------------------
+        # 4. TRANSTRANSQUARENTE FILL-FLÄCHE (Unterschwelliges Leuchten)
+        # -------------------------------------------------
+        with self.graph.canvas.after:
+            self.mesh_color = Color(self.color[0], self.color[1], self.color[2], 0.25)
+            # WICHTIG: triangle_strip statt triangle_fan
+            self.mesh = Mesh(mode='triangle_strip')
+            
+        self.graph.bind(pos=self._upd_mesh, size=self._upd_mesh)
+
+        # -------------------------------------------------
+        # 5. STATS LABELS (Subtil im Hintergrund gedimmt)
+        # -------------------------------------------------
         self.lbl_avg = Label(
             text="avg: --", 
-            font_size=sp_scaled(16), # Kleiner ist oft edler
-            color=(1, 1, 1, 0.5),    # Halbe Transparenz für Hintergrund-Feeling
+            font_size=sp_scaled(18), 
+            color=(1, 1, 1, 0.7),    # Gedimmtes Weiß
             size_hint=(None, None),
-            size=(dp_scaled(120), dp_scaled(20)),
-            pos_hint={'right': 0.98, 'top': 0.95}, # Nach oben verschoben
+            size=(dp_scaled(140), dp_scaled(20)),
+            pos_hint={'right': 0.96, 'top': 0.95}, 
             halign="right"
         )
         self.lbl_avg.bind(size=lambda s, w: setattr(s, 'text_size', (w[0], None)))
 
-        # MIN/MAX Box (unten links)
-        # MIN/MAX Box (Unten als horizontale Leiste statt vertikal gequetscht)
         self.minmax_box = BoxLayout(
-            orientation="horizontal", # Horizontal wirkt breiter/stabiler
+            orientation="horizontal", 
             size_hint=(1, None),
             height=dp_scaled(20),
-            pos_hint={'x': 0, 'y': 0.02},
-            padding=[dp_scaled(10), 0],
-            spacing=dp_scaled(15)
+            pos_hint={'x': 0, 'y': 0.04},
+            padding=[dp_scaled(12), 0],
+            spacing=dp_scaled(20)
         )
         
-        self.lbl_min = Label(text="min: --", font_size=sp_scaled(16), color=(1,1,1,0.4), halign="left")
-        self.lbl_max = Label(text="max: --", font_size=sp_scaled(16), color=(1,1,1,0.4), halign="left")
+        self.lbl_min = Label(text="min: --", font_size=sp_scaled(18), color=(1,1,1,0.7), halign="left")
+        self.lbl_max = Label(text="max: --", font_size=sp_scaled(18), color=(1,1,1,0.7), halign="left")
         
         for l in [self.lbl_min, self.lbl_max]:
             l.bind(size=lambda s, w: setattr(s, 'text_size', (w[0], None)))
@@ -123,21 +115,51 @@ class ChartTile(ButtonBehavior, BoxLayout):
         self.minmax_box.add_widget(self.lbl_max)
         self.minmax_box.add_widget(self.lbl_min)
         
-        # Diese add_widget Aufrufe kommen nach dem Graphen!
         self.graph_container.add_widget(self.lbl_avg)
         self.graph_container.add_widget(self.minmax_box)
-        
         self.add_widget(self.graph_container)
 
     def _upd_bg(self, *args):
         self.bg_rect.pos = self.pos
         self.bg_rect.size = self.size
-        # Falls sich der Radius dynamisch ändern soll, könnte man ihn hier auch setzen:
-        # self.bg_rect.radius = [dp_scaled(15)]
 
+    def _upd_mesh(self, *args):
+        """Berechnet die Füllfläche als sauberes Band exakt unter der Linie."""
+        if not self.plot.points:
+            self.mesh.vertices = []
+            return
 
-    # UPDATE – Die Steuerzentrale
-    # -------------------------------------------------
+        g_pos = self.graph.pos
+        g_size = self.graph.size
+        
+        pad = dp_scaled(0)
+        plot_w = g_size[0] - 2 * pad
+        plot_h = g_size[1] - 2 * pad
+        
+        x_min, x_max = self.graph.xmin, self.graph.xmax
+        y_min, y_max = self.graph.ymin, self.graph.ymax
+        
+        x_range = (x_max - x_min) if x_max != x_min else 1
+        y_range = (y_max - y_min) if y_max != y_min else 1
+
+        vertices = []
+        y_bottom_px = g_pos[1] + pad
+
+        # Wir bauen ein vertikales Band von links nach rechts
+        for pt in self.plot.points:
+            # Berechne X und Y Pixel-Position des Kurvenpunkts
+            px_x = g_pos[0] + pad + ((pt[0] - x_min) / x_range) * plot_w
+            px_y = g_pos[1] + pad + ((pt[1] - y_min) / y_range) * plot_h
+            
+            # 1. Punkt: Auf der Null-Linie (Boden) des aktuellen X-Werts
+            vertices.extend([px_x, y_bottom_px, 0, 0])
+            # 2. Punkt: Auf der Kurve des aktuellen X-Werts
+            vertices.extend([px_x, px_y, 0, 0])
+
+        self.mesh.vertices = vertices
+        # Indizes einfach fortlaufend generieren (0, 1, 2, 3...)
+        self.mesh.indices = list(range(len(vertices) // 4))
+
     def update(self, value, buf_key, render=False):
         if value is not None:
             GLOBAL_STATE.graph_engine.process_new_value(buf_key, value)
@@ -149,7 +171,7 @@ class ChartTile(ButtonBehavior, BoxLayout):
         unit = GLOBAL_STATE.get_unit(buf_key)
     
         if not history:
-            self.lbl_main_info.text = f"[color=#666666]{self.title}: --[/color]"
+            self.lbl_main_info.text = f"[color=#555555]{self.title}: --[/color]"
             self._render_empty_graph()
             return
     
@@ -158,158 +180,62 @@ class ChartTile(ButtonBehavior, BoxLayout):
     
         if last_val != self._last_val:
             self.lbl_main_info.text = UIFormatter.format_sensor_label(
-                name=self.title,
-                value=last_val,
-                unit=unit,
-                trend=trend_icon,
-                sz_val=28,
-                sz_name=14,
-                sz_trend=20,
-                sz_unit=14
+                name=self.title, value=last_val, unit=unit, trend=trend_icon,
+                sz_val=26, sz_name=13, sz_trend=18, sz_unit=13
             )
             self._last_val = last_val
     
         self._render_buffer(history, unit, buf_key)
-    # -------------------------------------------------
-    # RENDER EMPTY – Alles auf Null/Striche setzen
-    # -------------------------------------------------
-# -------------------------------------------------
-    # RENDER EMPTY – Alles auf Null/Striche setzen
-    # -------------------------------------------------
+        self._upd_mesh()
+
     def _render_empty_graph(self):
-        """Löscht die Linien im Graph und setzt Stats auf Platzhalter."""
         self.plot.points = []
-        self.plot_glow.points = []
-        
-        # FIX: Hier waren die alten Namen drin!
+        self.mesh.vertices = []
         self.lbl_avg.text = "avg: ---"
         self.lbl_min.text = "min: ---"
         self.lbl_max.text = "max: ---"
-        
-        # Y-Achse resetten
         self.graph.ymin = 0
         self.graph.ymax = 1
 
-    # -------------------------------------------------
-    # RENDER BUFFER – Den echten Graph zeichnen
-    # -------------------------------------------------
     def _render_buffer(self, buf, unit, buf_key):
-        # Sicherheitscheck: Wir brauchen min. 2 Punkte für eine Linie
         if not buf or len(buf) < 2: 
             self._render_empty_graph()
             return
     
-        # 1. Fenster berechnen (X-Achse)
-        current_count = len(buf)
-        display_buf = list(buf)[-self.window:] # Nur das sichtbare Fenster
-        
+        display_buf = list(buf)[-self.window:]
         self.graph.xmin = 0
         self.graph.xmax = (len(display_buf) - 1)
     
-        # 2. Skalierung berechnen (Y-Achse) mit 5% Puffer
         mn_val = min(display_buf)
         mx_val = max(display_buf)
         
         if mn_val == mx_val:
-            # Falls alle Werte gleich sind (flache Linie), künstlichen Raum schaffen
             self.graph.ymin = mn_val - 1.0
             self.graph.ymax = mx_val + 1.0
         else:
             diff = mx_val - mn_val
-            self.graph.ymin = mn_val - (diff * 0.05)
-            self.graph.ymax = mx_val + (diff * 0.05)
+            self.graph.ymin = mn_val - (diff * 0.08) # Etwas mehr Puffer nach oben/unten
+            self.graph.ymax = mx_val + (diff * 0.08)
     
-        # 3. Punkte setzen
-        pts = [(i, val) for i, val in enumerate(display_buf)]
-        self.plot.points = pts
-        self.plot_glow.points = pts
+        self.plot.points = [(i, val) for i, val in enumerate(display_buf)]
     
-# 4. Statistiken aus der Engine holen
         avg_v, mn_stat, mx_stat = GLOBAL_STATE.graph_engine.get_stats(buf_key)
-        
         if avg_v is not None:
             self.lbl_avg.text = f"avg: {avg_v:.2f} {unit}"
             self.lbl_min.text = f"min: {mn_stat:.2f}{unit}"
             self.lbl_max.text = f"max: {mx_stat:.2f}{unit}"
-        else:
-            self.lbl_avg.text = "avg: ---"
-            self.lbl_min.text = "min: ---"
-            self.lbl_max.text = "max: ---"
-    # -------------------------------------------------
-    # RESET
-    # -------------------------------------------------
-# -------------------------------------------------
-    # RESET - Zurück auf Werkseinstellungen
-    # -------------------------------------------------
+
     def reset(self):
-        """Bereinigt das Tile komplett."""
-        # Titel auf grau/leer setzen
-        self.lbl_main_info.text = f"[color=#666666]{self.title}[/color]"
-        
-        # Die Graph-Stats säubern (ruft den Fix von oben auf)
+        self.lbl_main_info.text = f"[color=#555555]{self.title}[/color]"
         self._render_empty_graph()
-        
-        # Falls du den last_value speicherst:
-        if hasattr(self, 'last_value'):
-            self.last_value = None
-    # -------------------------------------------------
-    # TILE CLICK → FULLSCREEN
-    # -------------------------------------------------
-# -------------------------------------------------
-    # TILE CLICK → FULLSCREEN (GGM Version)
-    # -------------------------------------------------
+
     def on_release(self):
         idx = GLOBAL_STATE.get_active_index()
         dev_list = GLOBAL_STATE.get_device_list()
         if not dev_list or idx >= len(dev_list): return
-            
-        # SICHERES EXTRAHIEREN (Idiotensicher)
         item = dev_list[idx]
         dev_id = item.get("device_id") if isinstance(item, dict) else item
-        
         channel = GLOBAL_STATE.get_active_channel()
         full_key = f"{dev_id}_{channel}_{self.tile_id}"
-        
         if hasattr(GLOBAL_STATE, "ggm"):
             GLOBAL_STATE.ggm.engines["dashboard"].open_fullscreen(full_key)
-
-
-    def rebuild_graph(self):
-        print(f"[GRAPH] rebuilding {self.tile_id}")
-    
-        old_points = list(self.plot.points)
-    
-        # Alten Graph komplett entfernen
-        try:
-            self.graph_container.remove_widget(self.graph)
-        except Exception as e:
-            print("remove graph failed:", e)
-    
-        # Komplett neuen Graph bauen
-        self.graph = Graph(
-            draw_border=False,
-            background_color=(0,0,0,0),
-            padding=dp_scaled(15),
-            xmin=0,
-            xmax=self.window,
-            ymin=0,
-            ymax=1,
-            size_hint=(1, 1),
-            pos_hint={'x': 0, 'y': 0}
-        )
-    
-        # Neuer Plot
-        self.plot = LinePlot(
-            color=self.color,
-            line_width=dp_scaled(2.2)
-        )
-    
-        self.plot.points = old_points
-    
-        self.graph.add_plot(self.plot)
-    
-        # Wieder einfügen
-        self.graph_container.add_widget(self.graph, index=0)
-    
-        # Refresh erzwingen
-        self.graph.canvas.ask_update()
