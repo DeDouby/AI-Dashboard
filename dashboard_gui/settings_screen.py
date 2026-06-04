@@ -50,7 +50,7 @@ class SettingsScreen(Screen):
         cfg = config._init()
     
         cfg["refresh_interval"] = float(values.get("refresh_interval", 2.0))
-        cfg["ui_refresh_interval"] = float(values.get("ui_refresh_interval", 1.0))
+        cfg["graph_resolution"] = float(values.get("graph_resolution", 80.0))
         cfg["stale_timeout"] = float(values.get("stale_timeout", 15.0))
         cfg["tile_graph_window"] = int(values.get("tile_graph_window", 120))
         cfg["temperature_offset"] = float(values.get("temperature_offset", 0.0))

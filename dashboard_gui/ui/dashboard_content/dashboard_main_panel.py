@@ -10,8 +10,8 @@ class DashboardMainPanel(GridLayout):
     def __init__(self, **kw):
         super().__init__(**kw)
         self.cols = 3
-        self.spacing = dp_scaled(14) # minimal vergrößert für mehr Cleanliness
-        self.padding = dp_scaled(14)
+        self.spacing = dp_scaled(2) # minimal vergrößert für mehr Cleanliness
+        self.padding = dp_scaled(2)
         self.size_hint_y = None
         self.bind(minimum_height=self.setter('height'))
         
@@ -189,8 +189,8 @@ class DashboardMainPanel(GridLayout):
         from kivy.core.window import Window
     
         offset = dp_scaled(100)
-        padding = dp_scaled(12)
-        spacing = dp_scaled(12)
+        padding = dp_scaled(0   ) # Minimal, da die Tiles selbst schon gepaddet sind
+        spacing = dp_scaled(0)
     
         available_height = max(0, Window.height - offset)
     

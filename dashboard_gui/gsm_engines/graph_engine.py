@@ -11,7 +11,11 @@ class GraphEngine:
         self.graph_buffers = defaultdict(self._new_buffer)
         self._trend_buffers = defaultdict(self._new_buffer)
         self._last_smoothed_values = {}
-        self._last_units = {}  # NEU: Speichert die Einheit des letzten Wertes
+        self._last_units = {}  
+        
+        # Counter für das Downsampling (Graph Resolution)
+        self._update_counters = defaultdict(int)
+        
         # Trends
         self.global_trends = {}
         
@@ -20,24 +24,22 @@ class GraphEngine:
 
     def _new_buffer(self):
         return deque(maxlen=self.window)
+
     # ---------------------------------------------------------
     # DATA ACCESS (Wichtig für Mixed Mode & Tiles)
     # ---------------------------------------------------------
     def get_last_value(self, key):
-        """Liefert den aktuellsten Wert aus dem Puffer für die UI."""
         buf = self.graph_buffers.get(key)
         if buf and len(buf) > 0:
             return buf[-1]
         return None
 
     def get_buffer(self, key):
-        """Liefert Liste für Kivy Graph. Wenn leer, gib leere Liste zurück."""
         buf = self.graph_buffers.get(key)
-        return list(buf) if buf else [] # KEINE 0.0 DUMMY PUNKTE MEHR!
+        return list(buf) if buf else []
+
     def get_stats(self, key):
-        """Liefert avg / min / max eines Graphbuffers mit Crash-Schutz."""
         buf = self.graph_buffers.get(key)
-    
         if not buf or len(buf) < 2:
             return None, None, None
     
@@ -46,24 +48,20 @@ class GraphEngine:
         mn = min(data)
         mx = max(data)
     
-        # 🔥 DER FIX: Verhindert ZeroDivisionError in Kivy-Garden Graph
         if mn == mx:
-            # Wenn die Werte gleich sind (z.B. Fan steht auf 800 RPM)
-            # geben wir dem Graphen einen winzigen Spielraum zum Rechnen
             mn -= 0.1
             mx += 0.1
     
         return avg, mn, mx
+
     def get_trend_icon(self, key):
-        """Liefert FontAwesome Icon."""
         val = self.global_trends.get(key, 0)
         icons = {-1: "\uf063", 1: "\uf062", 0: "\uf061"}
         return icons.get(val, "\uf061")
 
-
     def get_all_keys(self):
-        """Liefert alle aktuell existierenden Keys im Buffer."""
         return list(self.graph_buffers.keys())
+
     # ---------------------------------------------------------
     # PROCESS VALUE
     # ---------------------------------------------------------
@@ -75,27 +73,23 @@ class GraphEngine:
             val_float = float(value)
             current_unit = self.gsm.get_unit(key)
             
-            # löschen wir den Puffer für diesen Key, damit es keinen Peak gibt.
-# --- UNIT SWITCH LOGIK ---
+            # --- UNIT SWITCH LOGIK ---
             if key in self._last_units and self._last_units[key] != current_unit:
                 print(f"[GraphEngine] Unit switch... Resetting buffer for {key}")
-                
-                # Wir löschen nicht nur, wir initialisieren SOFORT mit zwei validen Punkten
-                # Damit len(buf) niemals 0 oder 1 ist, wenn die UI zugreift.
                 self.graph_buffers[key] = deque([val_float, val_float], maxlen=self.window)
                 self._trend_buffers[key] = deque([val_float, val_float], maxlen=self.window)
                 self._last_smoothed_values[key] = val_float
                 self._last_units[key] = current_unit
-                return # In diesem Durchlauf fertig, Struktur ist sicher
+                self._update_counters[key] = 0
+                return
+            
             # --- 1. SMOOTHING LOGIK ---
-            # TIPP: Mixed-Werte sind schon berechnet, hier Smoothing fast deaktivieren
             f = 0.8 if "mixed" in key else self.smoothing_factor
             
             if key not in self._last_smoothed_values:
                 smoothed = val_float
             else:
                 last = self._last_smoothed_values[key]
-                # DRIFT-CHECK: Bei Sprüngen > 5.0 sofort springen
                 if abs(val_float - last) > 5.0:
                     smoothed = val_float
                 else:
@@ -103,19 +97,41 @@ class GraphEngine:
             
             self._last_smoothed_values[key] = smoothed
             
-            # --- 2. PUFFER BEFÜLLEN ---
-            g_buf = self.graph_buffers[key]
-            g_buf.append(smoothed)
-            if len(g_buf) > self.window:
-                g_buf.popleft()
+            # --- 2. GRAPH RESOLUTION LOGIK (Slider: 1-100) ---
+            raw_res = float(config.get_graph_resolution())
             
-            t_buf = self._trend_buffers[key]
-            t_buf.append(smoothed)
-            if len(t_buf) > self.window:
-                t_buf.popleft()
+            # Sicherheitsnetz für alte Float-Reste (z.B. 0.01 -> 1, 1.0 -> 100)
+            if raw_res <= 1.0:
+                res_percent = max(1.0, raw_res * 100.0)
+            else:
+                res_percent = raw_res
                 
-            # --- 3. TREND BERECHNEN ---
-            self.global_trends[key] = self._calculate_trend_logic(list(t_buf))
+            if res_percent < 1: res_percent = 1.0
+            if res_percent > 100: res_percent = 100.0
+
+            # Umkehrung: 1% skippt maximal (Intervall 100), 100% skippt gar nicht (Intervall 1)
+            skip_interval = int(100.0 / res_percent)
+            if skip_interval < 1:
+                skip_interval = 1
+            
+            self._update_counters[key] += 1
+            
+            # Nur in den Buffer schreiben, wenn das Intervall erreicht ist
+            if self._update_counters[key] >= skip_interval:
+                self._update_counters[key] = 0  
+                
+                # Puffer befüllen
+                g_buf = self.graph_buffers[key]
+                g_buf.append(smoothed)
+                if len(g_buf) > self.window:
+                    g_buf.popleft()
+                
+                t_buf = self._trend_buffers[key]
+                t_buf.append(smoothed)
+                if len(t_buf) > self.window:
+                    t_buf.popleft()
+                    
+                self.global_trends[key] = self._calculate_trend_logic(list(t_buf))
             
         except Exception as e:
             print(f"[GraphEngine] Error in process_new_value: {e}")
@@ -136,9 +152,9 @@ class GraphEngine:
         self._trend_buffers.clear()
         self._last_smoothed_values.clear()
         self.global_trends.clear()
+        self._update_counters.clear()
 
     def rebuild_buffers(self):
-        """Rebuild deque buffers after the config window changes."""
         self.window = config.get_tile_graph_window()
         for key in list(self.graph_buffers.keys()):
             old_buf = list(self.graph_buffers[key])[-self.window:]

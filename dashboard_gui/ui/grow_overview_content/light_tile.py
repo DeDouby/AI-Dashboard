@@ -197,6 +197,7 @@ class LightTile(BoxLayout):
         self.value_border.rounded_rectangle = rect
 
     # ==================== UPDATE ====================
+# ==================== UPDATE ====================
     def update_values(self, data):
         if not data:
             return
@@ -206,36 +207,25 @@ class LightTile(BoxLayout):
         self.prog_bar.value = current_hw
         self.prog_bar.max = 100
         self._update_box_color(current_hw)
-        mode = data.get('light_mode', 'man')
-
+        
         # SO IST ES RECHT (Exakt wie im ExhaustTile):
         self.lbl_live_target.text = f"LIVE: {current_hw}% | TARGET: {target}%"
         self.lbl_remaining.text = self._calculate_remaining_time(data)
 
         self._update_phase(data)
         
-        server_init = int(data.get('rev_init_light', 0))
-        server_rev = int(data.get('rev_light', 0))
+        # --- REVISION / ENGINE LOGIK ENTFERNT, DA REIN PASSIV ---
 
-        if self.engine.adopt_new_session(server_init, server_rev):
-            self._last_sent_rev = server_rev
-            return
+        # Status direkt aus dem 'light_mode' ableiten
+        mode = data.get('light_mode', 'man')
 
-        status = self.engine.get_status(
-            server_init, server_rev, self._user_active, self._last_user_action
-        )
-
-        if status == "green":
-            if mode == "manual":
-                self.lbl_status.text = "STATUS: [color=00ff00]MANU[/color]"
-            elif mode == "time":
-                self.lbl_status.text = "STATUS: [color=00ff00]TIMER[/color]"
-            else:
-                self.lbl_status.text = "STATUS: [color=00ff00]OK[/color]"
-        elif status in ("retry", "error"):
-            self.lbl_status.text = "STATUS: [color=ff4c00]ERR[/color]"
+        if mode == "manual" or mode == "man":
+            self.lbl_status.text = "STATUS: [color=00ff00]MANU[/color]"
+        elif mode == "time":
+            self.lbl_status.text = "STATUS: [color=00ff00]TIMER[/color]"
         else:
-            self.lbl_status.text = "STATUS: [color=ff8000]PEND[/color]"
+            # Fallback, falls mal 'ok' oder ein anderer Modus kommt
+            self.lbl_status.text = f"STATUS: [color=00ff00]{mode.upper()}[/color]"
 
     # ==================== PHASE ====================
 # ==================== PHASE ====================

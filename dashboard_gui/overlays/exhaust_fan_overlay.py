@@ -123,10 +123,11 @@ class ExhaustFanOverlay(FloatLayout):
         self.lbl_reason2 = Label(
             text="",
             font_size=sp_scaled(20),
+            bold=True,
             color=(0.8, 0.8, 1, 0.9),
             halign="left",
             valign="middle",
-            size_hint=(0.5, None),
+            size_hint=(1, None),
             height=dp_scaled(28)
         )
         
@@ -152,6 +153,7 @@ class ExhaustFanOverlay(FloatLayout):
         self.lbl_rpm = Label(
             text="RPM: 0",
             font_size=sp_scaled(22),
+            bold=True,
             color=(0.7, 0.7, 1, 0.8),
             halign="center",
             valign="middle"
@@ -160,7 +162,7 @@ class ExhaustFanOverlay(FloatLayout):
         
         self.lbl_live_speed = Label(
             text="LIVE: 0%",
-            font_size=sp_scaled(16),
+            font_size=sp_scaled(22),
             bold=True,
             color=(0, 1, 1, 0.8),
             halign="center",

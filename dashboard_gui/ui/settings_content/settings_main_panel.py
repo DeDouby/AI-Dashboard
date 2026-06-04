@@ -98,7 +98,7 @@ class SettingsMainPanel(BoxLayout):
             row.add_widget(val)
 
             # Dev-Check Logik bleibt gleich
-            if not self.is_dev and key in ("refresh_interval","ui_refresh_interval","stale_timeout","tile_graph_window"):
+            if not self.is_dev and key in ("refresh_interval","graph_resolution","stale_timeout","tile_graph_window"):
                 row.height = 0
                 row.opacity = 0
                 row.disabled = True
@@ -108,10 +108,10 @@ class SettingsMainPanel(BoxLayout):
         # --- Verteilung der Slider ---
         
         # LINKS: System & Intervalle
-        add_slider("settings.refresh_interval", "refresh_interval", 0.1, 5.0, 0.1, container_left)
-        add_slider("settings.ui_refresh_interval", "ui_refresh_interval", 0.1, 5, 0.1, container_left)
+        add_slider("settings.refresh_interval", "refresh_interval", 0.1, 10.0, 0.1, container_left)
+        add_slider("settings.graph_resolution", "graph_resolution", 1.1, 100.0, 1, container_left)
         add_slider("settings.stale_timeout", "stale_timeout", 5, 60, 1, container_left)
-        add_slider("settings.tile_graph_window", "tile_graph_window", 120, 1200, 10, container_left)
+        add_slider("settings.tile_graph_window", "tile_graph_window", 200, 2000, 10, container_left)
         
         # RECHTS: Offsets & Mesh
         add_slider("settings.temp_offset", "temperature_offset", -10, 10, 0.1, container_right)
@@ -178,10 +178,10 @@ class SettingsMainPanel(BoxLayout):
        
 
         defaults = {
-            "refresh_interval":0.5,
-            "ui_refresh_interval":1.0,
+            "refresh_interval":0.1,
+            "graph_resolution":80.0,
             "stale_timeout":15.0,
-            "tile_graph_window":300,
+            "tile_graph_window":850,
             "temperature_offset":0.0,
             "humidity_offset":0.0,
             "leaf_offset":0.0,
@@ -207,7 +207,7 @@ class SettingsMainPanel(BoxLayout):
 
     def _update_dev_visibility(self):
         self.is_dev = config.is_developer_mode()
-        for key in ("refresh_interval","ui_refresh_interval","stale_timeout","tile_graph_window"):
+        for key in ("refresh_interval","graph_resolution","stale_timeout","tile_graph_window"):
 
             slider = self.inputs.get(key)
             if not slider:

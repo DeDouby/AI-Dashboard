@@ -22,7 +22,7 @@ DEFAULTS = {
     "bridge_profiles": {},
     "refresh_interval": 2.0,
     "stale_timeout": 15.0,
-    "ui_refresh_interval": 1.0,
+    "graph_resolution": 1.0,
     "tile_graph_window": 120,
     "temperature_unit": "C",
     "temperature_offset": 0.0,
@@ -145,8 +145,8 @@ def get_stale_timeout():
     return float(_init().get("stale_timeout"))
 
 
-def get_ui_refresh_interval():
-    return float(_init().get("ui_refresh_interval"))
+def get_graph_resolution():
+    return float(_init().get("graph_resolution"))
 
 
 def get_temperature_unit():

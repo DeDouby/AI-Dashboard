@@ -7,10 +7,17 @@ class TileEngine:
         self.available_tiles = [
             "temp_in", "hum_in", "vpd_in",
             "temp_ex", "hum_ex", "vpd_ex",
+
+            "ble_temp_sps",
+            "ble_hum_sps",
+            "ble_vpd_sps",
+            "ble_temp_tb2",
+            "ble_hum_tb2",
+            "ble_vpd_tb2",
             "leaf_temp", "vpd_leaf", 
-            "fan_rpm",  # NEU
-            "v_bat"     # NEU
-        ]
+            "circulation_fan_rpm",  # NEU
+            "exhaust_fan_rpm",      # NEU
+            "v_bat"            ]
         self.active_tiles = []
 
 

@@ -35,7 +35,9 @@ class ActiveChannelEngine:
             dev = cfg.get("devices", {}).get(device_id, {})
             bridge_profile = dev.get("bridge_profile", "")
 
-            if prev == "adv" and channel == "gatt":
+            # Vorher: if prev == "adv" and channel == "gatt":
+            # Jetzt: Startet, egal ob prev "adv" oder "webserver" war
+            if prev in ("adv", "webserver") and channel == "gatt":
                 if bridge_profile:
                     self.gatt_config_engine.write(device_id)
             elif prev == "gatt" and channel == "adv":

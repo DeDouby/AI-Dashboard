@@ -42,13 +42,13 @@ class ChartTile(ButtonBehavior, BoxLayout):
         # -------------------------------------------------
         # 2. HEADER & LIVE-WERT (Fokus auf große Typografie)
         # -------------------------------------------------
-        header = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp_scaled(30), padding=[dp_scaled(6), 0])
+        header = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp_scaled((35)), padding=[dp_scaled(6), 0])
         self.lbl_main_info = Label(
             text=title, 
             markup=True, 
             halign="left", 
             valign="middle",
-            font_size=sp_scaled(36),
+            font_size=sp_scaled((20)),
             bold=True,
             color=(1,1,1,0.9),
             outline_width=1,
@@ -125,7 +125,7 @@ class ChartTile(ButtonBehavior, BoxLayout):
         # DEZENTE ZEITACHSE UNTER MIN/MAX
         self.x_axis_labels = GridLayout(
             cols=5, size_hint=(1, None), height=dp_scaled(18),
-            pos_hint={'x': 0, 'y': 0.005}, padding=[dp_scaled(12), 0]
+            pos_hint={'x': 0, 'y': 0.026}, padding=[dp_scaled(12), 0]
         )
         self.labels_list = []
         for _ in range(5):
@@ -240,19 +240,46 @@ class ChartTile(ButtonBehavior, BoxLayout):
         self.plot.points = [(i, val) for i, val in enumerate(display_buf)]
         
         # DYNAMISCHE ZEITACHSEN-BERECHNUNG (DEZENT)
-        refresh_rate = config.get_refresh_interval()
-        total_seconds = len(display_buf) * refresh_rate
-        total_minutes = total_seconds / 60
+        # --- NEUE ZEITACHSEN-BERECHNUNG ---
+# --- NEUE ZEITACHSEN-BERECHNUNG (Slider: 1-100) ---
+        refresh_rate = config.get_refresh_interval()  # z.B. 0.1s
+        raw_res = float(config.get_graph_resolution())
+        
+        # Abwärtskompatibilität & Sicherheitsnetz (analog zur GraphEngine)
+        if raw_res <= 1.0:
+            res_percent = max(1.0, raw_res * 100.0)
+        else:
+            res_percent = raw_res
+            
+        if res_percent < 1: res_percent = 1.0
+        if res_percent > 100: res_percent = 100.0
 
-        if hasattr(self, 'labels_list'):
-            for i, lbl in enumerate(self.labels_list):
-                time_val = -total_minutes + (i * (total_minutes / 4))
-                if time_val == 0:
-                    lbl.text = "Now"
-                elif total_minutes < 1.0:
-                    lbl.text = f"{int(time_val * 60)}s"
-                else:
-                    lbl.text = f"{time_val:.1f}m" if abs(time_val) < 5 else f"{int(time_val)}m"
+        # Umkehrung: 1% skippt maximal (Intervall 100), 100% skippt gar nicht (Intervall 1)
+        skip_interval = int(100.0 / res_percent)
+        if skip_interval < 1:
+            skip_interval = 1
+        
+        # Wie viele Sekunden liegen WIRKLICH zwischen zwei Punkten im Buffer?
+        effective_sample_rate = refresh_rate * skip_interval  # z.B. 0.1s * 100 = 10.0s bei Res=1
+        
+        # Gesamte Zeitspanne im aktuellen Buffer berechnen
+        total_seconds = len(display_buf) * effective_sample_rate
+        total_minutes = total_seconds / 60
+        
+        # Labels befüllen
+        for i, lbl in enumerate(self.labels_list):
+            # Berechnung des relativen Zeitwerts (in Minuten) für die 5 Achsenpunkte
+            time_val = -total_minutes + (i * (total_minutes / 4))
+            
+            if abs(time_val) < 0.001:  # Float-sicherer Check auf "fast 0"
+                lbl.text = "Now"
+            elif total_minutes < 1.0:
+                # Wenn der gesamte Graph weniger als eine Minute zeigt -> in Sekunden beschriften
+                seconds_val = int(time_val * 60)
+                lbl.text = f"{seconds_val}s"
+            else:
+                # Ansonsten in Minuten beschriften
+                lbl.text = f"{time_val:.1f}m" if abs(time_val) < 5 else f"{int(time_val)}m"
     
         avg_v, mn_stat, mx_stat = GLOBAL_STATE.graph_engine.get_stats(buf_key)
         if avg_v is not None:

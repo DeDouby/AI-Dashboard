@@ -109,8 +109,8 @@ class DashboardApp(App):
     def on_resume(self):
         print("[APP] RESUME")
     
-        Clock.schedule_once(self._rebuild_dashboard_graphs, 0.5)
-    
+        Clock.schedule_once(self._rebuild_dashboard_graphs, 0.85)
+        core.restart_adv_bridge()  # Immer ADV neu starten, damit die Verbindung wiederhergestellt wird
         return True
     
     def _rebuild_dashboard_graphs(self, dt):
