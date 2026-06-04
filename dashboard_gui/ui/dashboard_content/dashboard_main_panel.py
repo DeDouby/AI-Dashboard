@@ -25,23 +25,23 @@ class DashboardMainPanel(GridLayout):
         # ---------------------------------------------------
         # TILES MIT NEUEM FARBSTIL INITIALISIEREN
         # ---------------------------------------------------
-        self.tile_temp_in = ChartTile("temp_in", "Temp IN", "—", c_temp)
-        self.tile_hum_in  = ChartTile("hum_in", "Hum IN", "%", c_hum)
-        self.tile_vpd_in  = ChartTile("vpd_in", "VPD IN", "kPa", c_vpd)
+        self.tile_temp_in = ChartTile("temp_in", "Temperature Internal", "—", c_temp)
+        self.tile_hum_in  = ChartTile("hum_in", "Humidity Internal", "%", c_hum)
+        self.tile_vpd_in  = ChartTile("vpd_in", "VPD Internal", "kPa", c_vpd)
         
-        self.tile_temp_ex = ChartTile("temp_ex", "Temp EX", "—", c_temp)
-        self.tile_hum_ex  = ChartTile("hum_ex", "Hum EX", "%", c_hum)
-        self.tile_vpd_ex  = ChartTile("vpd_ex", "VPD EX", "kPa", c_vpd)
+        self.tile_temp_ex = ChartTile("temp_ex", "Temperature External", "—", c_temp)
+        self.tile_hum_ex  = ChartTile("hum_ex", "Humidity External", "%", c_hum)
+        self.tile_vpd_ex  = ChartTile("vpd_ex", "VPD External", "kPa", c_vpd)
         
-        self.tile_ble_temp_sps = ChartTile("ble_temp_sps", "SPS Temp", "—", c_temp)
-        self.tile_ble_hum_sps  = ChartTile("ble_hum_sps", "SPS Hum", "%", c_hum)
-        self.tile_ble_vpd_sps  = ChartTile("ble_vpd_sps", "SPS VPD", "kPa", c_vpd)
+        self.tile_ble_temp_sps = ChartTile("ble_temp_sps", "Bluetooth SPS Temperature", "—", c_temp)
+        self.tile_ble_hum_sps  = ChartTile("ble_hum_sps", "Bluetooth SPS Humidity", "%", c_hum)
+        self.tile_ble_vpd_sps  = ChartTile("ble_vpd_sps", "Bluetooth SPS VPD", "kPa", c_vpd)
         
-        self.tile_ble_temp_tb2 = ChartTile("ble_temp_tb2", "TB2 Temp", "—", c_temp)
-        self.tile_ble_hum_tb2  = ChartTile("ble_hum_tb2", "TB2 Hum", "%", c_hum)
-        self.tile_ble_vpd_tb2  = ChartTile("ble_vpd_tb2", "TB2 VPD", "kPa", c_vpd)
+        self.tile_ble_temp_tb2 = ChartTile("ble_temp_tb2", "Bluetooth TB2 Temperature", "—", c_temp)
+        self.tile_ble_hum_tb2  = ChartTile("ble_hum_tb2", "Bluetooth TB2 Humidity", "%", c_hum)
+        self.tile_ble_vpd_tb2  = ChartTile("ble_vpd_tb2", "Bluetooth TB2 VPD", "kPa", c_vpd)
         
-        self.tile_leaf_temp = ChartTile("leaf_temp", "Leaf Temp", "—", c_green)
+        self.tile_leaf_temp = ChartTile("leaf_temp", "Leaf Temperature", "—", c_green)
         self.tile_vpd_leaf  = ChartTile("vpd_leaf", "VPD Leaf", "kPa", c_vpd)
         
         self.tile_circulation_fan_rpm = ChartTile("circulation_fan_rpm", "Circulation Fan", "RPM", c_green)
@@ -188,7 +188,7 @@ class DashboardMainPanel(GridLayout):
     
         from kivy.core.window import Window
     
-        offset = dp_scaled(150)
+        offset = dp_scaled(100)
         padding = dp_scaled(12)
         spacing = dp_scaled(12)
     

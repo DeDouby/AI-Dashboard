@@ -105,8 +105,7 @@ class LightOverlay(FloatLayout):
         self.panel.add_widget(title_row)
 
         # === STATUS BEREICH (nur aktueller Wert + Status + Restzeit) ===
-# === NEUER STATUS BEREICH (Layout wie Exhaust) ===
-# --- FIX: EINHEITLICHES KOMPAKT-LAYOUT (BILD + STATUS) ---
+
         top_container = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp_scaled(68), spacing=dp_scaled(2))
         
         # 1. Das Bild
@@ -126,7 +125,7 @@ class LightOverlay(FloatLayout):
         # 3. Status rechts
         status_right = BoxLayout(orientation='vertical', size_hint_x=0.6, spacing=dp_scaled(1))
         self.lbl_status_text = Label(text="STATUS: INIT", font_size=sp_scaled(20), bold=True, color=(0, 1, 0, 0.85), halign='center')
-        self.lbl_remaining = Label(text="RESTZEIT: --", font_size=sp_scaled(20), color=(1, 1, 0, 1), bold=True, halign='center')
+        self.lbl_remaining = Label(text="REMAINING: --", font_size=sp_scaled(20), color=(1, 1, 0, 1), bold=True, halign='center')
         self.lbl_status_text.bind(size=self.lbl_status_text.setter('text_size'))
         self.lbl_remaining.bind(size=self.lbl_remaining.setter('text_size'))
         status_right.add_widget(self.lbl_status_text)
@@ -171,9 +170,7 @@ class LightOverlay(FloatLayout):
         self.slider.bind(value=self._on_slider_change, on_touch_down=self._touch_down, on_touch_up=self._touch_up)
         self.panel.add_widget(self.slider)
 
-        # === Weiter mit Sunrise/Sunset etc. ===
 
-        # === Rest bleibt gleich (Sunrise/Sunset, Start, Dauer...) ===
 
         # Sunrise/Sunset
         self.lbl_sunrise_sunset = Label(text="RAMPEN: --", markup=True, font_size=sp_scaled(20), color=(1, 0.8, 0.2, 0.8), size_hint_y=None, height=dp_scaled(15))
@@ -190,7 +187,7 @@ class LightOverlay(FloatLayout):
         self.panel.add_widget(self.slider_start)
 
         # Dauer
-        self.lbl_dur = Label(text="DAUER: --", font_size=sp_scaled(20), size_hint_y=None, height=dp_scaled(15))
+        self.lbl_dur = Label(text="DURATION: --", font_size=sp_scaled(20), size_hint_y=None, height=dp_scaled(15))
         self.panel.add_widget(self.lbl_dur)
         self.slider_dur = UnifiedSlider(min=1, max=96, mode='single', size_hint_y=None, height=dp_scaled(38))
         self.slider_dur.bind(value=self._on_dur_change, on_touch_down=self._touch_down, on_touch_up=self._touch_up)
@@ -344,7 +341,7 @@ class LightOverlay(FloatLayout):
     
         # 5. Label Texte & Abschluss
         self.lbl_start.text = f"START: {h:02d}:{m:02d}"
-        self.lbl_dur.text = f"DAUER: {dur//60}h {dur%60:02d}m"
+        self.lbl_dur.text = f"DURATION: {dur//60}h {dur%60:02d}m"
         
         if mode == "time" and current_hw != target and current_hw > 0:
             self.lbl_val.color = (1, 0.72, 0.05, 1)
@@ -458,10 +455,10 @@ class LightOverlay(FloatLayout):
 
         if is_active:
             rem_min = (end_min - current_min) if current_min >= start_min else ((end_min % 1440) - current_min)
-            return f"RESTZEIT: {rem_min // 60}h {rem_min % 60:02d}m"
+            return f"REMAINING: {rem_min // 60}h {rem_min % 60:02d}m"
         else:
             wait_min = (start_min - current_min + 1440) % 1440
-            return f"STARTET IN: {wait_min // 60}h {wait_min % 60:02d}m"
+            return f"START IN: {wait_min // 60}h {wait_min % 60:02d}m"
 
 
 
@@ -477,7 +474,7 @@ class LightOverlay(FloatLayout):
         if self._init_done and not self._ui_lock:
             steps = max(1, min(96, int(value)))
             self.slider_dur.value = steps
-            self.lbl_dur.text = f"DAUER: {(steps*15)//60}h {(steps*15)%60:02d}m"
+            self.lbl_dur.text = f"DURATION: {(steps*15)//60}h {(steps*15)%60:02d}m"
             self.slider_sunrise_sunset.range_max = steps
             self._update_graph()
 

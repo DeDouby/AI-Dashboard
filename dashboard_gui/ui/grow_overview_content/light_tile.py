@@ -292,10 +292,10 @@ class LightTile(BoxLayout):
 
         if is_active:
             rem_min = (end_min - current_min) if current_min >= start_min else ((end_min % 1440) - current_min)
-            return f"RESTZEIT: {rem_min // 60}h {rem_min % 60:02d}m"
+            return f"REMAINING: {rem_min // 60}h {rem_min % 60:02d}m"
         else:
             wait_min = (start_min - current_min + 1440) % 1440
-            return f"STARTET IN: {wait_min // 60}h {wait_min % 60:02d}m"
+            return f"START IN: {wait_min // 60}h {wait_min % 60:02d}m"
 
     def on_touch_down(self, touch):
         if not self.collide_point(*touch.pos):

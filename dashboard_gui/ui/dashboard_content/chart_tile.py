@@ -1,4 +1,5 @@
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy_garden.graph import Graph, LinePlot
 from kivy.uix.behaviors import ButtonBehavior
@@ -33,7 +34,7 @@ class ChartTile(ButtonBehavior, BoxLayout):
             self.bg_rect = RoundedRectangle(
                 pos=self.pos,
                 size=self.size,
-                radius=[dp_scaled(12)]
+                radius=[dp_scaled(2)]
             )
         
         self.bind(pos=self._upd_bg, size=self._upd_bg)
@@ -41,12 +42,15 @@ class ChartTile(ButtonBehavior, BoxLayout):
         # -------------------------------------------------
         # 2. HEADER & LIVE-WERT (Fokus auf große Typografie)
         # -------------------------------------------------
-        header = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp_scaled(55), padding=[dp_scaled(6), 0])
+        header = BoxLayout(orientation="horizontal", size_hint_y=None, height=dp_scaled(30), padding=[dp_scaled(6), 0])
         self.lbl_main_info = Label(
             text=title, 
             markup=True, 
             halign="left", 
             valign="middle",
+            font_size=sp_scaled(36),
+            bold=True,
+            color=(1,1,1,0.9),
             outline_width=1,
             outline_color=(0,0,0,0.15)
         )
@@ -88,7 +92,8 @@ class ChartTile(ButtonBehavior, BoxLayout):
         # -------------------------------------------------
         self.lbl_avg = Label(
             text="avg: --", 
-            font_size=sp_scaled(18), 
+            font_size=sp_scaled(20), 
+            bold=True,
             color=(1, 1, 1, 0.7),    # Gedimmtes Weiß
             size_hint=(None, None),
             size=(dp_scaled(140), dp_scaled(20)),
@@ -101,22 +106,34 @@ class ChartTile(ButtonBehavior, BoxLayout):
             orientation="horizontal", 
             size_hint=(1, None),
             height=dp_scaled(20),
-            pos_hint={'x': 0, 'y': 0.04},
+            pos_hint={'x': 0.1, 'y': 0.13},
             padding=[dp_scaled(12), 0],
             spacing=dp_scaled(20)
         )
         
-        self.lbl_min = Label(text="min: --", font_size=sp_scaled(18), color=(1,1,1,0.7), halign="left")
-        self.lbl_max = Label(text="max: --", font_size=sp_scaled(18), color=(1,1,1,0.7), halign="left")
+        self.lbl_min = Label(text="min: --", font_size=sp_scaled(18), bold=True, color=(1,1,1,0.7), halign="left")
+        self.lbl_max = Label(text="max: --", font_size=sp_scaled(18), bold=True, color=(1,1,1,0.7), halign="left")
         
         for l in [self.lbl_min, self.lbl_max]:
             l.bind(size=lambda s, w: setattr(s, 'text_size', (w[0], None)))
         
         self.minmax_box.add_widget(self.lbl_max)
         self.minmax_box.add_widget(self.lbl_min)
-        
-        self.graph_container.add_widget(self.lbl_avg)
+        self.graph_container.add_widget(self.lbl_avg)   
         self.graph_container.add_widget(self.minmax_box)
+
+        # DEZENTE ZEITACHSE UNTER MIN/MAX
+        self.x_axis_labels = GridLayout(
+            cols=5, size_hint=(1, None), height=dp_scaled(18),
+            pos_hint={'x': 0, 'y': 0.005}, padding=[dp_scaled(12), 0]
+        )
+        self.labels_list = []
+        for _ in range(5):
+            lbl = Label(text="", font_size=sp_scaled(15), color=(1, 1, 1, 0.4), bold=True, halign="center")
+            self.labels_list.append(lbl)
+            self.x_axis_labels.add_widget(lbl)
+        
+        self.graph_container.add_widget(self.x_axis_labels)
         self.add_widget(self.graph_container)
 
     def _upd_bg(self, *args):
@@ -196,6 +213,9 @@ class ChartTile(ButtonBehavior, BoxLayout):
         self.lbl_max.text = "max: ---"
         self.graph.ymin = 0
         self.graph.ymax = 1
+        if hasattr(self, 'labels_list'):
+            for lbl in self.labels_list:
+                lbl.text = ""
 
     def _render_buffer(self, buf, unit, buf_key):
         if not buf or len(buf) < 2: 
@@ -204,7 +224,7 @@ class ChartTile(ButtonBehavior, BoxLayout):
     
         display_buf = list(buf)[-self.window:]
         self.graph.xmin = 0
-        self.graph.xmax = (len(display_buf) - 1)
+        self.graph.xmax = max(len(display_buf) - 1, 1)
     
         mn_val = min(display_buf)
         mx_val = max(display_buf)
@@ -214,16 +234,32 @@ class ChartTile(ButtonBehavior, BoxLayout):
             self.graph.ymax = mx_val + 1.0
         else:
             diff = mx_val - mn_val
-            self.graph.ymin = mn_val - (diff * 0.08) # Etwas mehr Puffer nach oben/unten
+            self.graph.ymin = mn_val - (diff * 0.08) 
             self.graph.ymax = mx_val + (diff * 0.08)
     
         self.plot.points = [(i, val) for i, val in enumerate(display_buf)]
+        
+        # DYNAMISCHE ZEITACHSEN-BERECHNUNG (DEZENT)
+        refresh_rate = config.get_refresh_interval()
+        total_seconds = len(display_buf) * refresh_rate
+        total_minutes = total_seconds / 60
+
+        if hasattr(self, 'labels_list'):
+            for i, lbl in enumerate(self.labels_list):
+                time_val = -total_minutes + (i * (total_minutes / 4))
+                if time_val == 0:
+                    lbl.text = "Now"
+                elif total_minutes < 1.0:
+                    lbl.text = f"{int(time_val * 60)}s"
+                else:
+                    lbl.text = f"{time_val:.1f}m" if abs(time_val) < 5 else f"{int(time_val)}m"
     
         avg_v, mn_stat, mx_stat = GLOBAL_STATE.graph_engine.get_stats(buf_key)
         if avg_v is not None:
             self.lbl_avg.text = f"avg: {avg_v:.2f} {unit}"
             self.lbl_min.text = f"min: {mn_stat:.2f}{unit}"
             self.lbl_max.text = f"max: {mx_stat:.2f}{unit}"
+
 
     def reset(self):
         self.lbl_main_info.text = f"[color=#555555]{self.title}[/color]"

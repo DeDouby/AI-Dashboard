@@ -33,7 +33,7 @@ class SensorSCD41Tile(BoxLayout):
         # ================= TITLE =================
 
         self.title_label = Label(
-            text="CO2: SCD41 (FAKE)",
+            text="CO2: SCD41",
             font_size=sp_scaled(20),
             bold=True,
             halign="left",
