@@ -25,6 +25,13 @@ Beenden mit `Strg+C`.
 
 - **Player**: Play-Button oben spielt den Channel direkt im Browser ab
   (mit Lautstärkeregler). Beim Fortsetzen springt er automatisch auf LIVE.
+- **Channel-Wechsel**: Dropdown im Player — Logger (und Player) springen
+  sofort auf den neuen Channel um, ohne Neustart des Programms.
+- **REC-Schalter** (versteckt 😉): **5× schnell auf das ♫-Logo klicken**
+  schaltet den Aufnahme-Button frei — nochmal 5×, und er verschwindet
+  wieder. Bei aktiver Aufnahme pulsiert der Button rot und die Statuszeile
+  zeigt Anzahl und Größe der bisherigen MP3s. (Läuft eine Aufnahme,
+  bleibt der Button sichtbar, damit man sie immer stoppen kann.)
 - **Läuft gerade**: der zuletzt erfasste Track, groß angezeigt, mit
   Direkt-Button zur YouTube-Suche.
 - **Favoriten**: Stern bei einem Track anklicken, um ihn zu merken.

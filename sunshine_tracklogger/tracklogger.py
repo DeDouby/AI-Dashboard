@@ -53,9 +53,12 @@ KNOWN_CHANNELS = [
 USER_AGENT = "SunshineTrackLogger/1.0 (privater Track-Logger)"
 
 stop_event = threading.Event()
+# Web-UI kann Channel/Aufnahme umschalten -> Logger verbindet sich neu.
+restart_event = threading.Event()
 
-# Wird in main() gesetzt und von der Web-UI abgefragt.
-CONFIG = {"channel": "techno", "stream_url": "", "started": None}
+# Wird in main() gesetzt, von der Web-UI gelesen und geaendert.
+CONFIG = {"channel": "techno", "stream_url": "", "started": None,
+          "record": False, "record_dir": None, "poll": 0}
 
 
 # ---------------------------------------------------------------- Datenbank
@@ -190,13 +193,16 @@ def read_exact(f, n):
     return buf
 
 
-def iter_stream_titles(url, single_shot=False, recorder=None):
+def iter_stream_titles(url, single_shot=False, recorder=None,
+                       abort_event=None):
     """Generator: liefert jeden StreamTitle, sobald er sich im Stream aendert.
     Bei single_shot=True wird nur der erste gefundene Titel geliefert.
-    Mit recorder werden die Audiodaten mitgeschnitten statt verworfen."""
+    Mit recorder werden die Audiodaten mitgeschnitten statt verworfen.
+    abort_event beendet die Schleife sauber (z.B. bei Channel-Wechsel)."""
     f, sock, metaint = open_icy_stream(url)
     try:
-        while not stop_event.is_set():
+        while not stop_event.is_set() and not (
+                abort_event and abort_event.is_set()):
             audio = read_exact(f, metaint)
             if recorder:
                 recorder.write(audio)
@@ -300,20 +306,34 @@ def log_title(conn, channel, raw, quiet_promos=True):
     return True
 
 
-def run_logger(channel, url, poll_interval=0, recorder=None):
+def run_logger(poll_interval=0):
     conn = db_connect()
     backoff = 2
-    print(f"Logge Channel '{channel}'  ->  {url}")
     print(f"Datenbank: {DB_PATH}")
-    if recorder:
-        print(f"Aufnahme AN: MP3s landen in {recorder.dir}")
     if poll_interval:
         print(f"Sparmodus: alle {poll_interval}s wird kurz nachgeschaut.\n")
     else:
         print("Dauerbetrieb: jeder Trackwechsel wird sofort erfasst.\n")
 
     last_seen = None
+    last_channel = None
+    last_record = None
     while not stop_event.is_set():
+        # Einstellungen koennen von der Web-UI geaendert worden sein.
+        channel = CONFIG["channel"]
+        url = CONFIG["stream_url"]
+        if channel != last_channel:
+            print(f"Logge Channel '{channel}'  ->  {url}")
+            last_channel = channel
+            last_seen = None
+        recorder = None
+        if CONFIG["record"] and not poll_interval:
+            recorder = Recorder(CONFIG["record_dir"] or
+                                BASE_DIR / "recordings" / channel)
+        if bool(recorder) != last_record:
+            print(f"Aufnahme {'AN: MP3s landen in ' + str(recorder.dir) if recorder else 'AUS'}")
+            last_record = bool(recorder)
+        restart_event.clear()
         try:
             if poll_interval:
                 for raw in iter_stream_titles(url, single_shot=True):
@@ -321,10 +341,15 @@ def run_logger(channel, url, poll_interval=0, recorder=None):
                         log_title(conn, channel, raw)
                         last_seen = raw
                 backoff = 2
-                stop_event.wait(poll_interval)
+                waited = 0
+                while (waited < poll_interval and not stop_event.is_set()
+                       and not restart_event.is_set()):
+                    stop_event.wait(1)
+                    waited += 1
             else:
                 fresh = True  # erster Titel nach (Re-)Connect ist angeschnitten
-                for raw in iter_stream_titles(url, recorder=recorder):
+                for raw in iter_stream_titles(url, recorder=recorder,
+                                              abort_event=restart_event):
                     if recorder and (fresh or raw != last_seen):
                         artist, title = split_artist_title(raw)
                         recorder.start_track(
@@ -338,15 +363,14 @@ def run_logger(channel, url, poll_interval=0, recorder=None):
                         last_seen = raw
                     backoff = 2
         except (OSError, ConnectionError) as exc:
-            if recorder:
-                recorder.finish(partial_end=True)
             if stop_event.is_set():
                 break
             print(f"Verbindungsproblem: {exc} - neuer Versuch in {backoff}s ...")
             stop_event.wait(backoff)
             backoff = min(backoff * 2, 60)
-    if recorder:
-        recorder.finish(partial_end=True)
+        finally:
+            if recorder:
+                recorder.finish(partial_end=True)
     conn.close()
     print("Logger beendet.")
 
@@ -377,7 +401,9 @@ PAGE = r"""<!doctype html>
   .logo { width: 34px; height: 34px; border-radius: 10px; flex: none;
           background: linear-gradient(135deg, var(--accent), #ff8a2b);
           display: grid; place-items: center; color: var(--accent-ink);
-          font-weight: 800; font-size: 1.05rem; }
+          font-weight: 800; font-size: 1.05rem; cursor: pointer;
+          user-select: none; -webkit-user-select: none; }
+  .logo:active { transform: scale(.92); }
   h1 { font-size: 1.05rem; margin: 0; font-weight: 650; letter-spacing: .01em; }
   .sub { color: var(--ink2); font-size: .8rem; margin-top: .1rem; }
   .badge { margin-left: auto; background: var(--surface2); border: 1px solid var(--border);
@@ -412,6 +438,14 @@ PAGE = r"""<!doctype html>
   .vol { display: flex; align-items: center; gap: .5rem; color: var(--ink2); }
   .vol input { accent-color: var(--accent); width: 110px; }
   .now-actions { display: flex; gap: .5rem; }
+  .ctl { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+  select { border: 1px solid var(--border2); background: var(--surface2);
+           color: var(--ink); border-radius: 999px; padding: .42rem .7rem;
+           font-size: .82rem; cursor: pointer; outline: none; }
+  select:focus { border-color: var(--accent); }
+  .chip.rec.on { background: #e5484d; border-color: #e5484d; color: #fff;
+                 font-weight: 700; animation: recpulse 1.6s ease-in-out infinite; }
+  @keyframes recpulse { 0%,100% { opacity: 1; } 50% { opacity: .65; } }
 
   /* ---------- Stat-Kacheln ---------- */
   .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -514,6 +548,11 @@ PAGE = r"""<!doctype html>
         <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg>
       <input type="range" id="vol" min="0" max="100" value="80">
     </div>
+    <div class="ctl">
+      <select id="chsel" title="Channel wechseln"></select>
+      <button class="chip rec" id="recbtn"
+        title="Aufnahme: jeder Track wird als eigene MP3 gespeichert">&#9679; REC</button>
+    </div>
   </div>
 
   <div class="stats">
@@ -576,15 +615,26 @@ function dayLabel(ts) {
 }
 
 /* ---------------- Player ---------------- */
+let curStream = null;
 function initPlayer(url) {
-  if (audio || !url) return;
-  audio = new Audio();
-  audio.preload = "none";
-  audio.src = url;
-  audio.volume = $("vol").value / 100;
-  audio.addEventListener("playing", () => setPlaying(true));
-  audio.addEventListener("pause", () => setPlaying(false));
-  audio.addEventListener("error", () => { setPlaying(false); toast("Stream konnte nicht abgespielt werden"); });
+  if (!url) return;
+  if (!audio) {
+    audio = new Audio();
+    audio.preload = "none";
+    audio.volume = $("vol").value / 100;
+    audio.addEventListener("playing", () => setPlaying(true));
+    audio.addEventListener("pause", () => setPlaying(false));
+    audio.addEventListener("error", () => { setPlaying(false); toast("Stream konnte nicht abgespielt werden"); });
+    audio.src = url;
+    curStream = url;
+  } else if (url !== curStream) {
+    // Channel wurde gewechselt: Player umziehen, Wiedergabe fortsetzen
+    const wasPlaying = !audio.paused;
+    audio.pause();
+    audio.src = url;
+    curStream = url;
+    if (wasPlaying) { audio.load(); audio.play().catch(() => {}); }
+  }
 }
 function setPlaying(on) {
   $("ic-play").style.display = on ? "none" : "";
@@ -653,7 +703,23 @@ function renderStats() {
   $("st-artists").textContent = stats.artists;
   $("st-favs").textContent = stats.favorites;
   $("channel").textContent = stats.channel;
-  $("statusline").textContent = "Logger aktiv · " + stats.total + " Tracks in der Datenbank";
+  let line = "Logger aktiv · " + stats.total + " Tracks in der Datenbank";
+  if (stats.record) {
+    line += " · ● Aufnahme läuft";
+    if (stats.rec_files) line += " (" + stats.rec_files + " MP3s, " + stats.rec_mb + " MB)";
+  }
+  $("statusline").textContent = line;
+
+  const sel = $("chsel");
+  if (!sel.options.length) {
+    const chans = (stats.channels || []).slice();
+    if (!chans.includes(stats.channel)) chans.unshift(stats.channel);
+    sel.innerHTML = chans.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+  }
+  if (document.activeElement !== sel) sel.value = stats.channel;
+  $("recbtn").classList.toggle("on", !!stats.record);
+  updateRecVisibility();
+
   initPlayer(stats.stream_url);
 
   const top = stats.top_artists || [];
@@ -667,12 +733,57 @@ function renderStats() {
   }
 }
 
+/* ---------------- Geheimschalter (5x aufs Logo klicken) ---------------- */
+let recUnlocked = localStorage.getItem("recUnlocked") === "1";
+let logoClicks = [];
+function updateRecVisibility() {
+  // Sichtbar nur, wenn freigeschaltet - oder Aufnahme bereits laeuft
+  // (sonst koennte man sie nicht mehr ausschalten).
+  const show = stats && stats.record_possible && (recUnlocked || stats.record);
+  $("recbtn").style.display = show ? "" : "none";
+}
+document.querySelector(".logo").addEventListener("click", () => {
+  const now = Date.now();
+  logoClicks = logoClicks.filter(t => now - t < 3000);
+  logoClicks.push(now);
+  if (logoClicks.length >= 5) {
+    logoClicks = [];
+    recUnlocked = !recUnlocked;
+    localStorage.setItem("recUnlocked", recUnlocked ? "1" : "0");
+    toast(recUnlocked ? "🎛️ Geheimschalter gefunden: Aufnahme freigeschaltet!"
+                      : "Aufnahme-Schalter wieder versteckt");
+    updateRecVisibility();
+  }
+});
+
 /* ---------------- Events ---------------- */
 $("filter").addEventListener("input", render);
 $("favonly").addEventListener("click", () => {
   favOnly = !favOnly; $("favonly").classList.toggle("on", favOnly); render();
 });
 $("dl").addEventListener("click", () => { location.href = "/export.csv"; });
+async function postSettings(body) {
+  try {
+    const r = await fetch("/api/settings", { method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body) });
+    const d = await r.json().catch(() => ({}));
+    if (d.error) { toast(d.error); return null; }
+    return d;
+  } catch (_) { toast("Keine Verbindung zum Logger"); return null; }
+}
+$("chsel").addEventListener("change", async e => {
+  const d = await postSettings({ channel: e.target.value });
+  if (d) { toast("Wechsle zu Channel: " + d.channel + " ..."); setTimeout(load, 1500); }
+});
+$("recbtn").addEventListener("click", async () => {
+  const d = await postSettings({ record: !(stats && stats.record) });
+  if (d) {
+    toast(d.record ? "Aufnahme AN – jeder Track wird als MP3 gespeichert"
+                   : "Aufnahme AUS");
+    setTimeout(load, 800);
+  }
+});
 $("list").addEventListener("click", async e => {
   const favBtn = e.target.closest("[data-fav]");
   const copyBtn = e.target.closest("[data-copy]");
@@ -768,9 +879,24 @@ class WebHandler(BaseHTTPRequestHandler):
                 "GROUP BY artist ORDER BY n DESC, artist LIMIT 8"
             ).fetchall()
             conn.close()
+            rec_files = rec_bytes = 0
+            rec_dir = Path(CONFIG["record_dir"] or
+                           BASE_DIR / "recordings" / CONFIG["channel"])
+            if CONFIG["record"] and rec_dir.is_dir():
+                for p in rec_dir.glob("*.mp3*"):
+                    try:
+                        rec_bytes += p.stat().st_size
+                        rec_files += 1
+                    except OSError:
+                        pass
             self._send(json.dumps({
                 "channel": CONFIG["channel"],
                 "stream_url": CONFIG["stream_url"],
+                "channels": KNOWN_CHANNELS,
+                "record": CONFIG["record"],
+                "record_possible": not CONFIG["poll"],
+                "rec_files": rec_files,
+                "rec_mb": round(rec_bytes / 1e6),
                 "total": total, "today": n_today, "artists": artists,
                 "favorites": favorites, "top_artists": top,
             }, ensure_ascii=False).encode("utf-8"))
@@ -816,6 +942,36 @@ class WebHandler(BaseHTTPRequestHandler):
             conn.commit()
             conn.close()
             self._send(b'{"ok": true}')
+
+        elif self.path == "/api/settings":
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                payload = json.loads(self.rfile.read(length))
+            except (ValueError, json.JSONDecodeError):
+                self.send_error(400)
+                return
+            if "channel" in payload:
+                ch = str(payload["channel"]).strip().lower()
+                if not re.fullmatch(r"[a-z0-9-]{2,40}", ch):
+                    self._send(json.dumps(
+                        {"error": "Ungueltiger Channel-Name."}).encode())
+                    return
+                CONFIG["channel"] = ch
+                CONFIG["stream_url"] = STREAM_TEMPLATE.format(channel=ch)
+            if "record" in payload:
+                if CONFIG["poll"]:
+                    self._send(json.dumps(
+                        {"error": "Aufnahme geht nicht im Sparmodus "
+                                  "(--poll). Ohne --poll neu starten."}
+                    ).encode("utf-8"))
+                    return
+                CONFIG["record"] = bool(payload["record"])
+            restart_event.set()
+            self._send(json.dumps({
+                "ok": True, "channel": CONFIG["channel"],
+                "record": CONFIG["record"],
+                "stream_url": CONFIG["stream_url"],
+            }).encode("utf-8"))
         else:
             self.send_error(404)
 
@@ -891,6 +1047,9 @@ def main():
     CONFIG["channel"] = args.channel
     CONFIG["stream_url"] = url
     CONFIG["started"] = datetime.now().isoformat(timespec="seconds")
+    CONFIG["record"] = args.record
+    CONFIG["record_dir"] = args.record_dir
+    CONFIG["poll"] = args.poll
 
     def handle_sigint(signum, frame):
         print("\nBeende ...")
@@ -901,12 +1060,7 @@ def main():
     if not args.no_web:
         start_web_server(args.port)
 
-    recorder = None
-    if args.record:
-        rec_dir = args.record_dir or (BASE_DIR / "recordings" / args.channel)
-        recorder = Recorder(rec_dir)
-
-    run_logger(args.channel, url, poll_interval=args.poll, recorder=recorder)
+    run_logger(poll_interval=args.poll)
 
 
 if __name__ == "__main__":
