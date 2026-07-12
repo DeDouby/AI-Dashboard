@@ -243,6 +243,7 @@ def is_station_promo(artist, title, raw):
 # wurde, waehrend der Logger nicht lief. Die API ist nicht dokumentiert,
 # daher ist alles hier bewusst tolerant gebaut.
 
+import urllib.error
 import urllib.request
 
 
@@ -333,66 +334,130 @@ def extract_playlist_tracks(data):
     return out
 
 
-def _norm_name(s):
-    s = s.lower().replace("sunshine live", "").replace("-", " ")
-    return " ".join(s.split())
+# Die Station-IDs der API sind nirgends dokumentiert. Wir finden sie selbst:
+# wir probieren IDs durch und erkennen "unseren" Channel daran, dass die
+# zuletzt vom Logger erfassten Tracks in dessen Playlist auftauchen.
+# Das Ergebnis wird gecacht, die Suche laeuft also nur einmal pro Channel.
+STATIONS_CACHE = BASE_DIR / "playlist_stations.json"
+_time_format = {"fmt": None}  # merkt sich, welches Zeitformat die API mag
+
+
+def _load_station_cache():
+    try:
+        return json.loads(STATIONS_CACHE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _save_station_cache(cache):
+    try:
+        STATIONS_CACHE.write_text(json.dumps(cache), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def fetch_playlist(sid, start, end, timeout=8):
+    """search.json fuer eine Station abrufen; probiert mehrere Zeitformate."""
+    fmts = [_time_format["fmt"]] if _time_format["fmt"] else [
+        "iso", "utc", "epoch"]
+    for fmt in fmts:
+        if fmt == "iso":
+            s = start.isoformat(timespec="seconds")
+            e = end.isoformat(timespec="seconds")
+        elif fmt == "utc":
+            s = start.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+            e = end.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+        else:
+            s, e = str(int(start.timestamp())), str(int(end.timestamp()))
+        url = (f"{IRIS_BASE}/search.json?station={urllib.parse.quote(str(sid))}"
+               f"&start={urllib.parse.quote(s)}&end={urllib.parse.quote(e)}")
+        data = fetch_json(url, timeout=timeout)
+        tracks = extract_playlist_tracks(data)
+        if tracks:
+            _time_format["fmt"] = fmt
+            return tracks
+    return []
+
+
+def _norm_track(s):
+    return " ".join(re.sub(r"[^\w ]", " ", s.lower()).split())
 
 
 def discover_station_id(channel):
-    """Sucht in der Stationsliste der API die ID zum Channel-Slug."""
-    errors = []
-    for path in ("/stations.json", "/channels.json", "/stations"):
-        try:
-            data = fetch_json(IRIS_BASE + path)
-        except Exception as exc:
-            errors.append(f"{path}: {exc}")
-            continue
-        cands = []
-        for d in _iter_dicts(data):
-            sid = d.get("id") if d.get("id") is not None else d.get("station_id")
-            name = d.get("name") or d.get("title") or d.get("display_name")
-            if sid is not None and isinstance(name, str) and name.strip():
-                cands.append((str(sid), name))
-        if not cands:
-            continue
-        want = _norm_name(channel)
-        exact = [c for c in cands if _norm_name(c[1]) == want]
-        if exact:
-            return exact[0][0]
-        ends = [c for c in cands if _norm_name(c[1]).endswith(want)]
-        if ends:
-            return min(ends, key=lambda c: len(_norm_name(c[1])))[0]
-        subs = [c for c in cands if want in _norm_name(c[1])]
-        if subs:
-            return min(subs, key=lambda c: len(_norm_name(c[1])))[0]
+    """Findet die Station-ID, indem die zuletzt geloggten Tracks mit den
+    Playlists aller Station-IDs verglichen werden."""
+    conn = db_connect()
+    rows = conn.execute(
+        "SELECT raw FROM tracks WHERE channel=? ORDER BY ts DESC LIMIT 3",
+        (channel,)).fetchall()
+    conn.close()
+    refs = [r[0] for r in rows]
+    if not refs:
         raise BackfillError(
-            f"Playlist-API kennt keinen Channel, der zu '{channel}' passt.")
-    raise BackfillError("Stationsliste der Playlist-API nicht abrufbar (" +
-                        "; ".join(errors[:2]) + ")")
+            "Zum Zuordnen des Channels brauche ich mindestens einen bereits "
+            "geloggten Track - bitte kurz warten und nochmal klicken.")
+    ref_norms = set()
+    for r in refs:
+        ref_norms.add(_norm_track(r))
+        ref_norms.add(_norm_track(split_artist_title(r)[1]))
+
+    # Erst pruefen, ob die API ueberhaupt erreichbar ist.
+    end = datetime.now()
+    start = end - timedelta(hours=3)
+    try:
+        fetch_playlist(1, start, end)
+    except urllib.error.HTTPError:
+        pass  # Server antwortet - gut
+    except Exception as exc:
+        raise BackfillError(f"Playlist-API nicht erreichbar: {exc}")
+
+    best, best_score = None, 0
+    for sid in range(1, 61):
+        if stop_event.is_set():
+            break
+        try:
+            tracks = fetch_playlist(sid, start, end, timeout=6)
+        except Exception:
+            continue
+        score = 0
+        for dt, a, t in tracks[-50:]:
+            raw = f"{a} - {t}" if a else t
+            if _norm_track(raw) in ref_norms or _norm_track(t) in ref_norms:
+                score += 1
+        if score > best_score:
+            best, best_score = str(sid), score
+        if score >= 2:
+            break
+    if not best:
+        raise BackfillError(
+            "Channel in der Playlist-API nicht gefunden - keine der Stationen "
+            "spielte die zuletzt geloggten Tracks.")
+    return best
 
 
 def backfill_channel(channel, hours=24):
     """Fehlende Tracks der letzten Stunden aus der offiziellen Playlist
     nachladen. Rueckgabe: (neu_eingetragen, gefunden)."""
-    sid = discover_station_id(channel)
+    cache = _load_station_cache()
+    sid = cache.get(channel)
+    fresh_discovery = False
+    if not sid:
+        sid = discover_station_id(channel)
+        fresh_discovery = True
     end = datetime.now()
     start = end - timedelta(hours=hours)
-    tracks = []
-    for fmt in ("local", "utc"):
-        if fmt == "local":
-            s, e = start.isoformat(timespec="seconds"), end.isoformat(timespec="seconds")
-        else:
-            s = start.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
-            e = end.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
-        url = (f"{IRIS_BASE}/search.json?station={urllib.parse.quote(sid)}"
-               f"&start={urllib.parse.quote(s)}&end={urllib.parse.quote(e)}")
-        try:
-            data = fetch_json(url)
-        except Exception as exc:
-            raise BackfillError(f"Playlist-Abruf fehlgeschlagen: {exc}")
-        tracks = extract_playlist_tracks(data)
-        if tracks:
-            break
+    try:
+        tracks = fetch_playlist(sid, start, end, timeout=15)
+    except Exception as exc:
+        raise BackfillError(f"Playlist-Abruf fehlgeschlagen: {exc}")
+    if not tracks and not fresh_discovery:
+        # Cache-Eintrag war womoeglich veraltet -> einmal neu suchen
+        sid = discover_station_id(channel)
+        fresh_discovery = True
+        tracks = fetch_playlist(sid, start, end, timeout=15)
+    if tracks and fresh_discovery:
+        cache[channel] = sid
+        _save_station_cache(cache)
     conn = db_connect()
     added = 0
     try:
@@ -983,7 +1048,7 @@ $("chsel").addEventListener("change", async e => {
   else if (stats) e.target.value = stats.channel;
 });
 $("bf").addEventListener("click", async () => {
-  toast("Lade offizielle Playlist der letzten 24h ...");
+  toast("Lade offizielle Playlist der letzten 24h ... (beim ersten Mal pro Channel kann das eine Minute dauern)");
   try {
     const r = await fetch("/api/backfill", { method: "POST",
       headers: { "Content-Type": "application/json" },
