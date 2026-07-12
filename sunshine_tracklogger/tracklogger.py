@@ -359,11 +359,15 @@ def _save_station_cache(cache):
 def fetch_playlist(sid, start, end, timeout=8):
     """search.json fuer eine Station abrufen; probiert mehrere Zeitformate."""
     fmts = [_time_format["fmt"]] if _time_format["fmt"] else [
-        "iso", "utc", "epoch"]
+        "iso", "space", "utc", "epoch"]
+    last_error = None
     for fmt in fmts:
         if fmt == "iso":
             s = start.isoformat(timespec="seconds")
             e = end.isoformat(timespec="seconds")
+        elif fmt == "space":
+            s = start.strftime("%Y-%m-%d %H:%M:%S")
+            e = end.strftime("%Y-%m-%d %H:%M:%S")
         elif fmt == "utc":
             s = start.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
             e = end.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
@@ -371,16 +375,44 @@ def fetch_playlist(sid, start, end, timeout=8):
             s, e = str(int(start.timestamp())), str(int(end.timestamp()))
         url = (f"{IRIS_BASE}/search.json?station={urllib.parse.quote(str(sid))}"
                f"&start={urllib.parse.quote(s)}&end={urllib.parse.quote(e)}")
-        data = fetch_json(url, timeout=timeout)
+        try:
+            data = fetch_json(url, timeout=timeout)
+        except Exception as exc:
+            # Format wird evtl. abgelehnt -> naechstes probieren
+            last_error = exc
+            continue
         tracks = extract_playlist_tracks(data)
         if tracks:
             _time_format["fmt"] = fmt
             return tracks
+        last_error = None
+    if last_error is not None:
+        raise last_error
     return []
 
 
 def _norm_track(s):
     return " ".join(re.sub(r"[^\w ]", " ", s.lower()).split())
+
+
+def fetch_window(station, s, e, depth=0):
+    """Fenster abfragen; liefert die API nur einen Ausschnitt (die
+    Playlist-Seite zeigt pro Zeitpunkt nur wenige Tracks), wird das
+    Fenster halbiert und erneut abgefragt."""
+    if stop_event.is_set():
+        return []
+    try:
+        tracks = fetch_playlist(station, s, e, timeout=10)
+    except Exception as exc:
+        raise BackfillError(f"Playlist-Abruf fehlgeschlagen: {exc}")
+    window = e - s
+    if len(tracks) >= 3 and depth < 8 and window > timedelta(minutes=10):
+        covered = tracks[-1][0] - tracks[0][0]
+        if covered < window * 0.7:
+            mid = s + window / 2
+            return (fetch_window(station, s, mid, depth + 1)
+                    + fetch_window(station, mid, e, depth + 1))
+    return tracks
 
 
 def discover_station_id(channel):
@@ -402,8 +434,10 @@ def discover_station_id(channel):
         ref_norms.add(_norm_track(split_artist_title(r)[1]))
 
     # Erst pruefen, ob die API ueberhaupt erreichbar ist.
+    # Kleines Zeitfenster: die API liefert pro Abfrage nur wenige Tracks
+    # rund um den angefragten Zeitpunkt.
     end = datetime.now()
-    start = end - timedelta(hours=3)
+    start = end - timedelta(minutes=60)
     try:
         fetch_playlist(1, start, end)
     except urllib.error.HTTPError:
@@ -416,7 +450,7 @@ def discover_station_id(channel):
         if stop_event.is_set():
             break
         try:
-            tracks = fetch_playlist(sid, start, end, timeout=6)
+            tracks = fetch_window(sid, start, end)
         except Exception:
             continue
         score = 0
@@ -435,26 +469,40 @@ def discover_station_id(channel):
     return best
 
 
-def backfill_channel(channel, hours=24):
-    """Fehlende Tracks der letzten Stunden aus der offiziellen Playlist
-    nachladen. Rueckgabe: (neu_eingetragen, gefunden)."""
+def backfill_channel(channel, hours=24, at=None):
+    """Fehlende Tracks aus der offiziellen Playlist nachladen.
+    Ohne 'at': die letzten <hours> Stunden. Mit 'at' (datetime): das
+    Fenster +/- 3 Stunden um diesen Zeitpunkt.
+    Rueckgabe: (neu_eingetragen, gefunden)."""
     cache = _load_station_cache()
     sid = cache.get(channel)
     fresh_discovery = False
     if not sid:
         sid = discover_station_id(channel)
         fresh_discovery = True
-    end = datetime.now()
-    start = end - timedelta(hours=hours)
-    try:
-        tracks = fetch_playlist(sid, start, end, timeout=15)
-    except Exception as exc:
-        raise BackfillError(f"Playlist-Abruf fehlgeschlagen: {exc}")
+    if at is not None:
+        start = at - timedelta(hours=3)
+        end = min(at + timedelta(hours=3), datetime.now())
+        if end <= start:
+            raise BackfillError("Der gewaehlte Zeitpunkt liegt in der Zukunft.")
+    else:
+        end = datetime.now()
+        start = end - timedelta(hours=hours)
+
+    def fetch_range(station):
+        merged = {}
+        pad = timedelta(minutes=45)
+        for tr in fetch_window(station, start, end):
+            if start - pad <= tr[0] <= end + pad:
+                merged[(tr[0].strftime("%Y-%m-%d %H:%M"), tr[2].lower())] = tr
+        return sorted(merged.values(), key=lambda x: x[0])
+
+    tracks = fetch_range(sid)
     if not tracks and not fresh_discovery:
         # Cache-Eintrag war womoeglich veraltet -> einmal neu suchen
         sid = discover_station_id(channel)
         fresh_discovery = True
-        tracks = fetch_playlist(sid, start, end, timeout=15)
+        tracks = fetch_range(sid)
     if tracks and fresh_discovery:
         cache[channel] = sid
         _save_station_cache(cache)
@@ -701,6 +749,10 @@ PAGE = r"""<!doctype html>
   select:focus { border-color: var(--accent); }
   .chip.rec.on { background: #e5484d; border-color: #e5484d; color: #fff;
                  font-weight: 700; animation: recpulse 1.6s ease-in-out infinite; }
+  input[type=datetime-local].chip { font-family: inherit; color: var(--ink2);
+                 padding: .34rem .6rem; cursor: auto; }
+  input[type=datetime-local].chip::-webkit-calendar-picker-indicator {
+                 filter: invert(.6); cursor: pointer; }
   @keyframes recpulse { 0%,100% { opacity: 1; } 50% { opacity: .65; } }
 
   /* ---------- Stat-Kacheln ---------- */
@@ -823,8 +875,10 @@ PAGE = r"""<!doctype html>
       <div class="toolbar">
         <input type="search" id="filter" placeholder="Filtern: Artist oder Titel ...">
         <button class="chip" id="favonly">&#9733; Nur Favoriten</button>
+        <input type="datetime-local" id="bfdate" class="chip"
+          title="Optional: Zeitpunkt waehlen - dann wird die Playlist rund um diese Zeit (+/- 3h) geholt">
         <button class="chip" id="bf"
-          title="Holt aus der offiziellen sunshine live Playlist nach, was in den letzten 24h lief (auch wenn der Logger aus war)">&#10227; Nachladen</button>
+          title="Holt aus der offiziellen sunshine live Playlist nach, was gespielt wurde (auch wenn der Logger aus war). Ohne Datum: die letzten 24h. Mit Datum: +/- 3h um den Zeitpunkt.">&#10227; Nachladen</button>
         <button class="chip" id="dl">&#8681; CSV</button>
       </div>
       <div id="list"><div class="empty">Lade Tracks ...</div></div>
@@ -1048,11 +1102,13 @@ $("chsel").addEventListener("change", async e => {
   else if (stats) e.target.value = stats.channel;
 });
 $("bf").addEventListener("click", async () => {
-  toast("Lade offizielle Playlist der letzten 24h ... (beim ersten Mal pro Channel kann das eine Minute dauern)");
+  const at = $("bfdate").value;
+  toast(at ? "Lade Playlist rund um " + at.replace("T", ", ") + " Uhr ..."
+           : "Lade offizielle Playlist der letzten 24h ... (beim ersten Mal pro Channel kann das eine Minute dauern)");
   try {
     const r = await fetch("/api/backfill", { method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ hours: 24 }) });
+      body: JSON.stringify(at ? { at: at } : { hours: 24 }) });
     const d = await r.json();
     if (d.error) toast(d.error);
     else { toast(d.added + " Tracks nachgeladen (" + d.found + " in der Playlist gefunden)"); load(); }
@@ -1262,9 +1318,17 @@ class WebHandler(BaseHTTPRequestHandler):
                 payload = json.loads(self.rfile.read(length)) if length else {}
                 hours = min(max(int(payload.get("hours", 24)), 1), 168)
             except (ValueError, json.JSONDecodeError):
-                hours = 24
+                payload, hours = {}, 24
+            at = None
+            if payload.get("at"):
+                try:
+                    at = datetime.fromisoformat(str(payload["at"]))
+                except ValueError:
+                    self._send(json.dumps(
+                        {"error": "Ungueltiges Datum/Uhrzeit."}).encode())
+                    return
             try:
-                added, found = backfill_channel(CONFIG["channel"], hours)
+                added, found = backfill_channel(CONFIG["channel"], hours, at)
                 self._send(json.dumps({"added": added, "found": found},
                                       ensure_ascii=False).encode("utf-8"))
             except BackfillError as exc:

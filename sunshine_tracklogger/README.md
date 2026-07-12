@@ -32,8 +32,12 @@ Beenden mit `Strg+C`.
   Stimmt ein Channel-Name nicht, zeigt die Statuszeile ein ⚠ mit dem
   Verbindungsfehler.
 - **⟲ Nachladen**: holt über die offizielle sunshine live Playlist-API
-  nach, was in den letzten 24 Stunden auf dem Channel lief — auch wenn
-  der Logger da gar nicht an war. Doppelte werden automatisch erkannt.
+  nach, was auf dem Channel lief — auch wenn der Logger da gar nicht an
+  war. Ohne Datum: die letzten 24 Stunden. Mit **Datum/Uhrzeit** im Feld
+  daneben: das Fenster ±3 Stunden um diesen Zeitpunkt („was lief da
+  eigentlich Samstagnacht?"). Doppelte werden automatisch erkannt.
+  Beim allerersten Klick pro Channel sucht das Programm selbstständig
+  die passende Station in der API (kann ~1 Minute dauern, danach sofort).
 - **REC-Schalter** (versteckt 😉): **5× schnell auf das ♫-Logo klicken**
   schaltet den Aufnahme-Button frei — nochmal 5×, und er verschwindet
   wieder. Bei aktiver Aufnahme pulsiert der Button rot und die Statuszeile
