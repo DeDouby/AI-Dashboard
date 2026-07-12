@@ -34,7 +34,7 @@ import sys
 import threading
 import time
 import urllib.parse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -43,12 +43,19 @@ DB_PATH = BASE_DIR / "tracks.db"
 
 STREAM_TEMPLATE = "http://stream.sunshine-live.de/{channel}/mp3-192/stream.sunshine-live.de/"
 
-# Bekannte Channel-Slugs (Auswahl). Es funktioniert jeder gueltige Slug von
-# https://www.sunshine-live.de/music/channels - einfach per --channel angeben.
+# Bekannte Channel-Slugs. Es funktioniert jeder gueltige Slug von
+# https://www.sunshine-live.de/music/channels - einfach per --channel angeben
+# oder in der GUI ueber "eigener Channel ..." eintragen.
 KNOWN_CHANNELS = [
-    "live", "techno", "melodic-techno", "trance", "house", "classics",
-    "hardstyle", "eurodance", "90er", "2000er", "hands-up", "deep-house",
+    "live", "techno", "melodic-techno", "hard-techno", "german-techno",
+    "tech-house", "house", "deep-house", "edm", "trance", "hardstyle",
+    "hands-up", "eurodance", "90er", "2000er", "charts", "party",
+    "festival", "classics", "chillout", "lounge", "ibiza", "summer-beats",
+    "gaming", "time-warp", "drum-and-bass",
 ]
+
+# Offizielle Playlist-API des Senders (fuer "Verlauf nachladen").
+IRIS_BASE = "https://iris-sunshinelive.loverad.io"
 
 USER_AGENT = "SunshineTrackLogger/1.0 (privater Track-Logger)"
 
@@ -58,7 +65,8 @@ restart_event = threading.Event()
 
 # Wird in main() gesetzt, von der Web-UI gelesen und geaendert.
 CONFIG = {"channel": "techno", "stream_url": "", "started": None,
-          "record": False, "record_dir": None, "poll": 0}
+          "record": False, "record_dir": None, "poll": 0,
+          "last_error": None}
 
 
 # ---------------------------------------------------------------- Datenbank
@@ -230,6 +238,187 @@ def is_station_promo(artist, title, raw):
     return check.startswith("sunshine live") or check.startswith("sunshine-live")
 
 
+# ------------------------------------------------- Playlist-API (Nachladen)
+# Holt ueber die offizielle Playlist-API des Senders nach, was gespielt
+# wurde, waehrend der Logger nicht lief. Die API ist nicht dokumentiert,
+# daher ist alles hier bewusst tolerant gebaut.
+
+import urllib.request
+
+
+class BackfillError(Exception):
+    pass
+
+
+def fetch_json(url, timeout=12):
+    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT,
+                                               "Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8", errors="replace"))
+
+
+def _iter_dicts(obj):
+    if isinstance(obj, dict):
+        yield obj
+        for v in obj.values():
+            yield from _iter_dicts(v)
+    elif isinstance(obj, list):
+        for v in obj:
+            yield from _iter_dicts(v)
+
+
+def _find_name(obj):
+    """Artist kann String, {'name': ...} oder verschachtelt sein."""
+    if isinstance(obj, str):
+        return obj
+    for d in _iter_dicts(obj):
+        v = d.get("name")
+        if isinstance(v, str) and v.strip():
+            return v
+    return None
+
+
+def _parse_time(val):
+    if isinstance(val, (int, float)):
+        try:
+            return datetime.fromtimestamp(val if val < 4e10 else val / 1000)
+        except (OSError, ValueError, OverflowError):
+            return None
+    s = str(val).strip().replace("Z", "+00:00")
+    try:
+        dt = datetime.fromisoformat(s)
+    except ValueError:
+        return None
+    if dt.tzinfo:
+        dt = dt.astimezone().replace(tzinfo=None)
+    return dt
+
+
+_TIME_KEYS = ("airtime", "starttime", "start", "played_at", "playedAt",
+              "time", "timestamp")
+
+
+def extract_playlist_tracks(data):
+    """Zieht (zeit, artist, titel) tolerant aus beliebig verschachteltem
+    Playlist-JSON."""
+    seen, out = set(), []
+    for d in _iter_dicts(data):
+        tval = None
+        for k in _TIME_KEYS:
+            v = d.get(k)
+            if isinstance(v, (str, int, float)) and v:
+                tval = v
+                break
+        if tval is None:
+            continue
+        dt = _parse_time(tval)
+        if not dt:
+            continue
+        title = artist = None
+        scope = d.get("song") if isinstance(d.get("song"), (dict, list)) else d
+        for dd in _iter_dicts(scope):
+            if title is None:
+                v = dd.get("title") or dd.get("song_title")
+                if isinstance(v, str) and v.strip():
+                    title = v.strip()
+            if artist is None and "artist" in dd:
+                artist = _find_name(dd["artist"])
+        if not title:
+            continue
+        key = (dt.strftime("%Y-%m-%d %H:%M"), title.lower())
+        if key not in seen:
+            seen.add(key)
+            out.append((dt, (artist or "").strip() or None, title))
+    out.sort(key=lambda x: x[0])
+    return out
+
+
+def _norm_name(s):
+    s = s.lower().replace("sunshine live", "").replace("-", " ")
+    return " ".join(s.split())
+
+
+def discover_station_id(channel):
+    """Sucht in der Stationsliste der API die ID zum Channel-Slug."""
+    errors = []
+    for path in ("/stations.json", "/channels.json", "/stations"):
+        try:
+            data = fetch_json(IRIS_BASE + path)
+        except Exception as exc:
+            errors.append(f"{path}: {exc}")
+            continue
+        cands = []
+        for d in _iter_dicts(data):
+            sid = d.get("id") if d.get("id") is not None else d.get("station_id")
+            name = d.get("name") or d.get("title") or d.get("display_name")
+            if sid is not None and isinstance(name, str) and name.strip():
+                cands.append((str(sid), name))
+        if not cands:
+            continue
+        want = _norm_name(channel)
+        exact = [c for c in cands if _norm_name(c[1]) == want]
+        if exact:
+            return exact[0][0]
+        ends = [c for c in cands if _norm_name(c[1]).endswith(want)]
+        if ends:
+            return min(ends, key=lambda c: len(_norm_name(c[1])))[0]
+        subs = [c for c in cands if want in _norm_name(c[1])]
+        if subs:
+            return min(subs, key=lambda c: len(_norm_name(c[1])))[0]
+        raise BackfillError(
+            f"Playlist-API kennt keinen Channel, der zu '{channel}' passt.")
+    raise BackfillError("Stationsliste der Playlist-API nicht abrufbar (" +
+                        "; ".join(errors[:2]) + ")")
+
+
+def backfill_channel(channel, hours=24):
+    """Fehlende Tracks der letzten Stunden aus der offiziellen Playlist
+    nachladen. Rueckgabe: (neu_eingetragen, gefunden)."""
+    sid = discover_station_id(channel)
+    end = datetime.now()
+    start = end - timedelta(hours=hours)
+    tracks = []
+    for fmt in ("local", "utc"):
+        if fmt == "local":
+            s, e = start.isoformat(timespec="seconds"), end.isoformat(timespec="seconds")
+        else:
+            s = start.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+            e = end.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+        url = (f"{IRIS_BASE}/search.json?station={urllib.parse.quote(sid)}"
+               f"&start={urllib.parse.quote(s)}&end={urllib.parse.quote(e)}")
+        try:
+            data = fetch_json(url)
+        except Exception as exc:
+            raise BackfillError(f"Playlist-Abruf fehlgeschlagen: {exc}")
+        tracks = extract_playlist_tracks(data)
+        if tracks:
+            break
+    conn = db_connect()
+    added = 0
+    try:
+        for dt, artist, title in tracks:
+            raw = f"{artist} - {title}" if artist else title
+            a, t = split_artist_title(raw)
+            if is_station_promo(a, t, raw):
+                continue
+            ts = dt.strftime("%Y-%m-%d %H:%M:%S")
+            dup = conn.execute(
+                "SELECT 1 FROM tracks WHERE channel=? AND raw=? AND "
+                "ts BETWEEN datetime(?, '-3 minutes') "
+                "AND datetime(?, '+3 minutes')",
+                (channel, raw, ts, ts)).fetchone()
+            if dup:
+                continue
+            conn.execute(
+                "INSERT INTO tracks (ts, channel, artist, title, raw) "
+                "VALUES (?,?,?,?,?)", (ts, channel, a, t, raw))
+            added += 1
+        conn.commit()
+    finally:
+        conn.close()
+    return added, len(tracks)
+
+
 # ---------------------------------------------------------------- Recorder
 
 class Recorder:
@@ -358,11 +547,13 @@ def run_logger(poll_interval=0):
                             partial=fresh,
                         )
                     fresh = False
+                    CONFIG["last_error"] = None
                     if raw != last_seen:
                         log_title(conn, channel, raw)
                         last_seen = raw
                     backoff = 2
         except (OSError, ConnectionError) as exc:
+            CONFIG["last_error"] = str(exc)
             if stop_event.is_set():
                 break
             print(f"Verbindungsproblem: {exc} - neuer Versuch in {backoff}s ...")
@@ -567,6 +758,8 @@ PAGE = r"""<!doctype html>
       <div class="toolbar">
         <input type="search" id="filter" placeholder="Filtern: Artist oder Titel ...">
         <button class="chip" id="favonly">&#9733; Nur Favoriten</button>
+        <button class="chip" id="bf"
+          title="Holt aus der offiziellen sunshine live Playlist nach, was in den letzten 24h lief (auch wenn der Logger aus war)">&#10227; Nachladen</button>
         <button class="chip" id="dl">&#8681; CSV</button>
       </div>
       <div id="list"><div class="empty">Lade Tracks ...</div></div>
@@ -708,13 +901,20 @@ function renderStats() {
     line += " · ● Aufnahme läuft";
     if (stats.rec_files) line += " (" + stats.rec_files + " MP3s, " + stats.rec_mb + " MB)";
   }
+  if (stats.last_error) line += " · ⚠ " + stats.last_error;
   $("statusline").textContent = line;
 
   const sel = $("chsel");
   if (!sel.options.length) {
     const chans = (stats.channels || []).slice();
     if (!chans.includes(stats.channel)) chans.unshift(stats.channel);
-    sel.innerHTML = chans.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+    sel.innerHTML = chans.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("")
+      + '<option value="__custom__">&#9998; eigener Channel ...</option>';
+  }
+  if (![...sel.options].some(o => o.value === stats.channel)) {
+    const o = document.createElement("option");
+    o.value = o.textContent = stats.channel;
+    sel.insertBefore(o, sel.firstChild);
   }
   if (document.activeElement !== sel) sel.value = stats.channel;
   $("recbtn").classList.toggle("on", !!stats.record);
@@ -773,8 +973,25 @@ async function postSettings(body) {
   } catch (_) { toast("Keine Verbindung zum Logger"); return null; }
 }
 $("chsel").addEventListener("change", async e => {
-  const d = await postSettings({ channel: e.target.value });
+  let ch = e.target.value;
+  if (ch === "__custom__") {
+    ch = (prompt("Channel-Name wie in der Stream-URL, z.B. tech-house:") || "").trim().toLowerCase();
+    if (!ch) { e.target.value = stats ? stats.channel : ""; return; }
+  }
+  const d = await postSettings({ channel: ch });
   if (d) { toast("Wechsle zu Channel: " + d.channel + " ..."); setTimeout(load, 1500); }
+  else if (stats) e.target.value = stats.channel;
+});
+$("bf").addEventListener("click", async () => {
+  toast("Lade offizielle Playlist der letzten 24h ...");
+  try {
+    const r = await fetch("/api/backfill", { method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hours: 24 }) });
+    const d = await r.json();
+    if (d.error) toast(d.error);
+    else { toast(d.added + " Tracks nachgeladen (" + d.found + " in der Playlist gefunden)"); load(); }
+  } catch (_) { toast("Keine Verbindung zum Logger"); }
 });
 $("recbtn").addEventListener("click", async () => {
   const d = await postSettings({ record: !(stats && stats.record) });
@@ -850,7 +1067,7 @@ class WebHandler(BaseHTTPRequestHandler):
             conn = sqlite3.connect(DB_PATH)
             rows = conn.execute(
                 "SELECT id, ts, channel, artist, title, raw, favorite "
-                "FROM tracks ORDER BY id DESC LIMIT ?",
+                "FROM tracks ORDER BY ts DESC, id DESC LIMIT ?",
                 (limit,),
             ).fetchall()
             conn.close()
@@ -895,6 +1112,7 @@ class WebHandler(BaseHTTPRequestHandler):
                 "channels": KNOWN_CHANNELS,
                 "record": CONFIG["record"],
                 "record_possible": not CONFIG["poll"],
+                "last_error": CONFIG["last_error"],
                 "rec_files": rec_files,
                 "rec_mb": round(rec_bytes / 1e6),
                 "total": total, "today": n_today, "artists": artists,
@@ -909,7 +1127,7 @@ class WebHandler(BaseHTTPRequestHandler):
             conn = sqlite3.connect(DB_PATH)
             for ts, channel, artist, title, raw, fav in conn.execute(
                 "SELECT ts, channel, artist, title, raw, favorite "
-                "FROM tracks ORDER BY id"
+                "FROM tracks ORDER BY ts, id"
             ):
                 query = urllib.parse.quote_plus(
                     f"{artist or ''} {title or raw}".strip())
@@ -972,6 +1190,25 @@ class WebHandler(BaseHTTPRequestHandler):
                 "record": CONFIG["record"],
                 "stream_url": CONFIG["stream_url"],
             }).encode("utf-8"))
+
+        elif self.path == "/api/backfill":
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                payload = json.loads(self.rfile.read(length)) if length else {}
+                hours = min(max(int(payload.get("hours", 24)), 1), 168)
+            except (ValueError, json.JSONDecodeError):
+                hours = 24
+            try:
+                added, found = backfill_channel(CONFIG["channel"], hours)
+                self._send(json.dumps({"added": added, "found": found},
+                                      ensure_ascii=False).encode("utf-8"))
+            except BackfillError as exc:
+                self._send(json.dumps({"error": str(exc)},
+                                      ensure_ascii=False).encode("utf-8"))
+            except Exception as exc:
+                self._send(json.dumps(
+                    {"error": f"Nachladen fehlgeschlagen: {exc}"},
+                    ensure_ascii=False).encode("utf-8"))
         else:
             self.send_error(404)
 

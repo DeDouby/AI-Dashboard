@@ -25,8 +25,15 @@ Beenden mit `Strg+C`.
 
 - **Player**: Play-Button oben spielt den Channel direkt im Browser ab
   (mit Lautstärkeregler). Beim Fortsetzen springt er automatisch auf LIVE.
-- **Channel-Wechsel**: Dropdown im Player — Logger (und Player) springen
-  sofort auf den neuen Channel um, ohne Neustart des Programms.
+- **Channel-Wechsel**: Dropdown im Player mit über 25 Channels — Logger
+  (und Player) springen sofort um, ohne Neustart des Programms. Fehlt ein
+  Channel oder kommt ein neuer dazu: unten im Dropdown **„✎ eigener
+  Channel …"** wählen und den Namen aus der Stream-URL eintippen.
+  Stimmt ein Channel-Name nicht, zeigt die Statuszeile ein ⚠ mit dem
+  Verbindungsfehler.
+- **⟲ Nachladen**: holt über die offizielle sunshine live Playlist-API
+  nach, was in den letzten 24 Stunden auf dem Channel lief — auch wenn
+  der Logger da gar nicht an war. Doppelte werden automatisch erkannt.
 - **REC-Schalter** (versteckt 😉): **5× schnell auf das ♫-Logo klicken**
   schaltet den Aufnahme-Button frei — nochmal 5×, und er verschwindet
   wieder. Bei aktiver Aufnahme pulsiert der Button rot und die Statuszeile
