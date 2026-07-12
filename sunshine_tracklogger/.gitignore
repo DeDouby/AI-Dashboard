@@ -1,0 +1,6 @@
+tracks.db
+tracks.csv
+recordings/
+playlist_stations.json
+*.log
+__pycache__/
