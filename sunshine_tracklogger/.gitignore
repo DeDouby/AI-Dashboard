@@ -1,3 +1,5 @@
 tracks.db
 tracks.csv
+recordings/
 *.log
+__pycache__/

@@ -190,13 +190,16 @@ def read_exact(f, n):
     return buf
 
 
-def iter_stream_titles(url, single_shot=False):
+def iter_stream_titles(url, single_shot=False, recorder=None):
     """Generator: liefert jeden StreamTitle, sobald er sich im Stream aendert.
-    Bei single_shot=True wird nur der erste gefundene Titel geliefert."""
+    Bei single_shot=True wird nur der erste gefundene Titel geliefert.
+    Mit recorder werden die Audiodaten mitgeschnitten statt verworfen."""
     f, sock, metaint = open_icy_stream(url)
     try:
         while not stop_event.is_set():
-            read_exact(f, metaint)  # Audiodaten verwerfen
+            audio = read_exact(f, metaint)
+            if recorder:
+                recorder.write(audio)
             length = read_exact(f, 1)[0] * 16
             if length:
                 title = parse_stream_title(read_exact(f, length))
@@ -221,6 +224,66 @@ def is_station_promo(artist, title, raw):
     return check.startswith("sunshine live") or check.startswith("sunshine-live")
 
 
+# ---------------------------------------------------------------- Recorder
+
+class Recorder:
+    """Schneidet den Stream mit und legt pro Track eine eigene MP3-Datei an.
+    Dateiname: 'HH-MM Artist - Titel.mp3'. Angeschnittene Tracks (Anfang
+    oder Ende fehlt, z.B. beim Start oder bei Verbindungsabbruch) bekommen
+    den Zusatz '(angeschnitten)'."""
+
+    def __init__(self, directory):
+        self.dir = Path(directory)
+        self.dir.mkdir(parents=True, exist_ok=True)
+        self.f = None
+        self.raw = None
+        self.partial = False
+        self.part_path = None
+
+    @staticmethod
+    def _safe_name(text):
+        text = re.sub(r'[\\/:*?"<>|]', "_", text)
+        return text.strip()[:150] or "unbenannt"
+
+    def write(self, data):
+        if self.f:
+            self.f.write(data)
+
+    def start_track(self, raw, save=True, partial=False):
+        """Aktuellen Track abschliessen und (falls save) neue Datei beginnen."""
+        self.finish()
+        if not save:
+            return
+        self.raw = raw
+        self.partial = partial
+        stamp = datetime.now().strftime("%Y-%m-%d %H-%M")
+        self.part_path = self.dir / f"{stamp} {self._safe_name(raw)}.mp3.part"
+        self.f = open(self.part_path, "wb")
+
+    def finish(self, partial_end=False):
+        """Datei schliessen und final benennen."""
+        if not self.f:
+            return
+        self.f.close()
+        self.f = None
+        final = self.part_path.with_suffix("")  # entfernt ".part" -> .mp3
+        if self.partial or partial_end:
+            final = final.with_name(final.stem + " (angeschnitten).mp3")
+        n = 2
+        while final.exists():
+            final = final.with_name(f"{final.stem} ({n}).mp3")
+            n += 1
+        try:
+            self.part_path.replace(final)
+            size_mb = final.stat().st_size / 1e6
+            print(f"  gespeichert: {final.name} ({size_mb:.1f} MB)")
+        except OSError as exc:
+            print(f"  Speichern fehlgeschlagen: {exc}")
+        self.part_path = None
+        self.raw = None
+        self.partial = False
+
+
 # ------------------------------------------------------------------ Logger
 
 def log_title(conn, channel, raw, quiet_promos=True):
@@ -237,11 +300,13 @@ def log_title(conn, channel, raw, quiet_promos=True):
     return True
 
 
-def run_logger(channel, url, poll_interval=0):
+def run_logger(channel, url, poll_interval=0, recorder=None):
     conn = db_connect()
     backoff = 2
     print(f"Logge Channel '{channel}'  ->  {url}")
     print(f"Datenbank: {DB_PATH}")
+    if recorder:
+        print(f"Aufnahme AN: MP3s landen in {recorder.dir}")
     if poll_interval:
         print(f"Sparmodus: alle {poll_interval}s wird kurz nachgeschaut.\n")
     else:
@@ -258,17 +323,30 @@ def run_logger(channel, url, poll_interval=0):
                 backoff = 2
                 stop_event.wait(poll_interval)
             else:
-                for raw in iter_stream_titles(url):
+                fresh = True  # erster Titel nach (Re-)Connect ist angeschnitten
+                for raw in iter_stream_titles(url, recorder=recorder):
+                    if recorder and (fresh or raw != last_seen):
+                        artist, title = split_artist_title(raw)
+                        recorder.start_track(
+                            raw,
+                            save=not is_station_promo(artist, title, raw),
+                            partial=fresh,
+                        )
+                    fresh = False
                     if raw != last_seen:
                         log_title(conn, channel, raw)
                         last_seen = raw
                     backoff = 2
         except (OSError, ConnectionError) as exc:
+            if recorder:
+                recorder.finish(partial_end=True)
             if stop_event.is_set():
                 break
             print(f"Verbindungsproblem: {exc} - neuer Versuch in {backoff}s ...")
             stop_event.wait(backoff)
             backoff = min(backoff * 2, 60)
+    if recorder:
+        recorder.finish(partial_end=True)
     conn.close()
     print("Logger beendet.")
 
@@ -793,7 +871,17 @@ def main():
                         help="Web-App nicht starten")
     parser.add_argument("--export", choices=["csv"],
                         help="Nur exportieren, kein Logging")
+    parser.add_argument("--record", action="store_true",
+                        help="Audio mitschneiden: jeder Track wird als eigene "
+                             "MP3-Datei gespeichert (recordings/<channel>/)")
+    parser.add_argument("--record-dir", default=None, metavar="ORDNER",
+                        help="Zielordner fuer Aufnahmen (Standard: "
+                             "recordings/<channel> neben dem Programm)")
     args = parser.parse_args()
+
+    if args.record and args.poll:
+        parser.error("--record braucht den Dauerbetrieb und geht nicht "
+                     "zusammen mit --poll.")
 
     if args.export == "csv":
         export_csv()
@@ -813,7 +901,12 @@ def main():
     if not args.no_web:
         start_web_server(args.port)
 
-    run_logger(args.channel, url, poll_interval=args.poll)
+    recorder = None
+    if args.record:
+        rec_dir = args.record_dir or (BASE_DIR / "recordings" / args.channel)
+        recorder = Recorder(rec_dir)
+
+    run_logger(args.channel, url, poll_interval=args.poll, recorder=recorder)
 
 
 if __name__ == "__main__":

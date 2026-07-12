@@ -51,6 +51,27 @@ Beenden mit `Strg+C`.
 | `python tracklogger.py --no-web` | ohne Web-App, nur Konsole |
 | `python tracklogger.py --port 9000` | anderer Port für die Web-App |
 | `python tracklogger.py --url http://...` | Stream-URL direkt angeben, falls sich die Adresse mal ändert |
+| `python tracklogger.py --record` | **Aufnahme**: jeder Track wird zusätzlich als eigene MP3 gespeichert |
+| `python tracklogger.py --record --record-dir D:\Musik` | Aufnahmen in einen eigenen Ordner legen |
+
+## Aufnahme (`--record`)
+
+Da das Programm über die Metadaten genau weiß, wann ein Track anfängt und
+endet, kann es den Stream direkt in **einzelne MP3-Dateien pro Track**
+zerschneiden — fertig benannt, z. B.:
+
+```
+recordings/techno/2026-07-12 21-04 Charlotte de Witte - Doppler.mp3
+```
+
+- Tracks, bei denen Anfang oder Ende fehlt (Programmstart mitten im Track,
+  Verbindungsabbruch, Beenden), bekommen den Zusatz **„(angeschnitten)"** —
+  so erkennst du sofort, welche Dateien komplett sind.
+- Sender-Jingles/Eigenwerbung werden nicht gespeichert.
+- Platzbedarf: ca. **85 MB pro Stunde** (192 kbit/s MP3).
+- Geht nur im Dauerbetrieb (nicht zusammen mit `--poll`).
+- Rechtlicher Hinweis: Mitschnitte aus dem Radio sind als **Privatkopie**
+  für den eigenen Gebrauch okay — nicht weiterverbreiten oder hochladen.
 
 ## Wie es funktioniert
 
