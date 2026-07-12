@@ -56,7 +56,10 @@ recordings/techno/Charlotte de Witte - Doppler.mp3
 
 - Tracks mit fehlendem Anfang/Ende (Programmstart mitten im Track,
   Verbindungsabbruch, Beenden) bekommen den Zusatz **„(angeschnitten)"**.
-- Jingles/Senderwerbung werden nicht gespeichert.
+- Werbung, Jingles und Eigenwerbung („sunshine live …", „Werbung", „Spot",
+  „Promo" …) werden weder aufgenommen noch in der Liste geführt; alte
+  Werbe-Einträge räumt das Programm beim Start automatisch aus der
+  Datenbank.
 - Platzbedarf: ca. 85 MB pro Stunde (192-kbit/s-MP3).
 - Rechtlich: Radio-Mitschnitte sind als **Privatkopie** für den eigenen
   Gebrauch okay — nicht weiterverbreiten oder hochladen.

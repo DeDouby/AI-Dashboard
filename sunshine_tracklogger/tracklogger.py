@@ -245,10 +245,34 @@ def iter_stream_titles(url, single_shot=False, recorder=None,
             pass
 
 
+# Typische Kennungen fuer Werbung/Jingles/Eigenwerbung im Streamtitel.
+_PROMO_EXACT = {"werbung", "spot", "spots", "spotblock", "promo", "promotion",
+                "jingle", "jingles", "advertisement", "ad break", "adbreak",
+                "commercial", "trailer", "station id", "opener", "teaser"}
+
+
 def is_station_promo(artist, title, raw):
-    """Jingles/Eigenwerbung des Senders aussortieren."""
-    check = (artist or raw).lower()
-    return check.startswith("sunshine live") or check.startswith("sunshine-live")
+    """Jingles/Werbung/Eigenwerbung des Senders aussortieren."""
+    text = raw.lower()
+    if ("sunshine live" in text or "sunshine-live" in text
+            or "sunshinelive" in text):
+        return True
+    for part in (artist, title, raw):
+        p = (part or "").strip().lower()
+        if p in _PROMO_EXACT or "werbung" in p:
+            return True
+    return False
+
+
+def purge_promos(conn):
+    """Bereits geloggte Werbe-/Promo-Eintraege einmalig entfernen."""
+    ids = [r[0] for r in conn.execute(
+        "SELECT id, artist, title, raw FROM tracks")
+        if is_station_promo(r[1], r[2], r[3])]
+    if ids:
+        conn.executemany("DELETE FROM tracks WHERE id=?", [(i,) for i in ids])
+        conn.commit()
+        print(f"{len(ids)} Werbe-/Promo-Eintraege aus der Datenbank entfernt.")
 
 
 # ------------------------------------------------- Playlist-API (Nachladen)
@@ -626,6 +650,7 @@ def log_title(conn, channel, raw, quiet_promos=True):
 
 def run_logger(poll_interval=0):
     conn = db_connect()
+    purge_promos(conn)
     backoff = 2
     print(f"Datenbank: {DB_PATH}")
     if poll_interval:
