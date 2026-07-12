@@ -2,5 +2,6 @@ tracks.db
 tracks.csv
 recordings/
 playlist_stations.json
+python-embed/
 *.log
 __pycache__/

@@ -34,6 +34,7 @@ import sys
 import threading
 import time
 import urllib.parse
+import webbrowser
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -83,12 +84,24 @@ def db_connect():
                raw TEXT NOT NULL
            )"""
     )
-    try:
-        conn.execute("ALTER TABLE tracks ADD COLUMN favorite INTEGER DEFAULT 0")
-    except sqlite3.OperationalError:
-        pass  # Spalte existiert schon
+    for migration in ("ALTER TABLE tracks ADD COLUMN favorite INTEGER DEFAULT 0",
+                      "ALTER TABLE tracks ADD COLUMN saved_file TEXT"):
+        try:
+            conn.execute(migration)
+        except sqlite3.OperationalError:
+            pass  # Spalte existiert schon
     conn.commit()
     return conn
+
+
+def mark_saved(conn, channel, raw, filename):
+    """Merkt sich am juengsten passenden Track, dass er als MP3 vorliegt."""
+    conn.execute(
+        "UPDATE tracks SET saved_file=? WHERE id="
+        "(SELECT id FROM tracks WHERE channel=? AND raw=? "
+        "ORDER BY id DESC LIMIT 1)",
+        (filename, channel, raw))
+    conn.commit()
 
 
 def last_raw(conn, channel):
@@ -540,13 +553,14 @@ class Recorder:
     oder Ende fehlt, z.B. beim Start oder bei Verbindungsabbruch) bekommen
     den Zusatz '(angeschnitten)'."""
 
-    def __init__(self, directory):
+    def __init__(self, directory, on_saved=None):
         self.dir = Path(directory)
         self.dir.mkdir(parents=True, exist_ok=True)
         self.f = None
         self.raw = None
         self.partial = False
         self.part_path = None
+        self.on_saved = on_saved  # Callback (raw, dateiname) nach dem Speichern
 
     @staticmethod
     def _safe_name(text):
@@ -564,8 +578,7 @@ class Recorder:
             return
         self.raw = raw
         self.partial = partial
-        stamp = datetime.now().strftime("%Y-%m-%d %H-%M")
-        self.part_path = self.dir / f"{stamp} {self._safe_name(raw)}.mp3.part"
+        self.part_path = self.dir / f"{self._safe_name(raw)}.mp3.part"
         self.f = open(self.part_path, "wb")
 
     def finish(self, partial_end=False):
@@ -581,10 +594,13 @@ class Recorder:
         while final.exists():
             final = final.with_name(f"{final.stem} ({n}).mp3")
             n += 1
+        raw = self.raw
         try:
             self.part_path.replace(final)
             size_mb = final.stat().st_size / 1e6
             print(f"  gespeichert: {final.name} ({size_mb:.1f} MB)")
+            if self.on_saved and raw:
+                self.on_saved(raw, final.name)
         except OSError as exc:
             print(f"  Speichern fehlgeschlagen: {exc}")
         self.part_path = None
@@ -630,8 +646,9 @@ def run_logger(poll_interval=0):
             last_seen = None
         recorder = None
         if CONFIG["record"] and not poll_interval:
-            recorder = Recorder(CONFIG["record_dir"] or
-                                BASE_DIR / "recordings" / channel)
+            recorder = Recorder(
+                CONFIG["record_dir"] or BASE_DIR / "recordings" / channel,
+                on_saved=lambda raw, fname: mark_saved(conn, channel, raw, fname))
         if bool(recorder) != last_record:
             print(f"Aufnahme {'AN: MP3s landen in ' + str(recorder.dir) if recorder else 'AUS'}")
             last_record = bool(recorder)
@@ -794,6 +811,11 @@ PAGE = r"""<!doctype html>
   .row:hover { background: var(--surface2); }
   .row .t { color: var(--muted); font-size: .78rem; width: 3.2rem; flex: none;
             font-variant-numeric: tabular-nums; }
+  .row .dur { color: var(--muted); font-size: .78rem; width: 2.6rem; flex: none;
+              text-align: right; font-variant-numeric: tabular-nums; }
+  .savedicon { color: var(--accent); flex: none; display: grid;
+               place-items: center; padding: .3rem; cursor: default; }
+  .savedicon svg { width: 15px; height: 15px; }
   .row .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
                white-space: nowrap; font-size: .92rem; }
   .row .name b { font-weight: 600; }
@@ -971,6 +993,11 @@ const SVG_STAR = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 17.3
 const SVG_STAR_O = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 17.3 6.2 21l1.6-6.6L2.5 9.9l6.8-.6L12 3l2.7 6.3 6.8.6-5.3 4.5L17.8 21z"/></svg>';
 const SVG_YT = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.6 7.2a2.8 2.8 0 0 0-2-2C17.9 4.8 12 4.8 12 4.8s-5.9 0-7.6.4a2.8 2.8 0 0 0-2 2A29 29 0 0 0 2 12a29 29 0 0 0 .4 4.8 2.8 2.8 0 0 0 2 2c1.7.4 7.6.4 7.6.4s5.9 0 7.6-.4a2.8 2.8 0 0 0 2-2A29 29 0 0 0 22 12a29 29 0 0 0-.4-4.8zM9.8 15.3V8.7l5.7 3.3z"/></svg>';
 const SVG_COPY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+const SVG_SAVED = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v10m0 0 4-4m-4 4L8 9"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>';
+function fmtDur(s) {
+  if (!s) return "";
+  return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+}
 
 function render() {
   const f = $("filter").value.toLowerCase();
@@ -988,6 +1015,8 @@ function render() {
     html += `<div class="row">
       <div class="t">${t.ts.slice(11, 16)}</div>
       <div class="name" title="${esc(t.raw)}">${name}</div>
+      <div class="dur" title="gespielte Dauer">${fmtDur(t.duration)}</div>
+      ${t.saved_file ? `<span class="savedicon" title="Als MP3 gespeichert: ${esc(t.saved_file)}">${SVG_SAVED}</span>` : ""}
       <button class="iconbtn${t.favorite ? " fav" : ""}" data-fav="${t.id}"
         title="${t.favorite ? "Favorit entfernen" : "Als Favorit merken"}">
         ${t.favorite ? SVG_STAR : SVG_STAR_O}</button>
@@ -1187,16 +1216,34 @@ class WebHandler(BaseHTTPRequestHandler):
                 limit = 200
             conn = sqlite3.connect(DB_PATH)
             rows = conn.execute(
-                "SELECT id, ts, channel, artist, title, raw, favorite "
-                "FROM tracks ORDER BY ts DESC, id DESC LIMIT ?",
+                "SELECT id, ts, channel, artist, title, raw, favorite, "
+                "saved_file FROM tracks ORDER BY ts DESC, id DESC LIMIT ?",
                 (limit,),
             ).fetchall()
             conn.close()
             data = [
                 {"id": r[0], "ts": r[1], "channel": r[2], "artist": r[3],
-                 "title": r[4], "raw": r[5], "favorite": r[6]}
+                 "title": r[4], "raw": r[5], "favorite": r[6],
+                 "saved_file": r[7]}
                 for r in rows
             ]
+            # Spieldauer = Abstand zum jeweils naechsten Track des Channels
+            # (nur plausible Werte; grosse Luecken = Logger war aus)
+            newer_ts = {}
+            for item in data:  # Liste ist absteigend sortiert
+                try:
+                    ts_dt = datetime.strptime(item["ts"], "%Y-%m-%d %H:%M:%S")
+                except ValueError:
+                    item["duration"] = None
+                    continue
+                nxt = newer_ts.get(item["channel"])
+                dur = None
+                if nxt is not None:
+                    secs = int((nxt - ts_dt).total_seconds())
+                    if 30 <= secs <= 1200:
+                        dur = secs
+                item["duration"] = dur
+                newer_ts[item["channel"]] = ts_dt
             self._send(json.dumps(data, ensure_ascii=False).encode("utf-8"))
 
         elif parsed.path == "/api/stats":
@@ -1399,6 +1446,9 @@ def main():
     parser.add_argument("--record-dir", default=None, metavar="ORDNER",
                         help="Zielordner fuer Aufnahmen (Standard: "
                              "recordings/<channel> neben dem Programm)")
+    parser.add_argument("--open", action="store_true",
+                        help="Web-App nach dem Start automatisch im "
+                             "Browser oeffnen")
     args = parser.parse_args()
 
     if args.record and args.poll:
@@ -1425,6 +1475,10 @@ def main():
 
     if not args.no_web:
         start_web_server(args.port)
+        if args.open:
+            threading.Timer(
+                1.0, webbrowser.open, (f"http://localhost:{args.port}",)
+            ).start()
 
     run_logger(poll_interval=args.poll)
 
