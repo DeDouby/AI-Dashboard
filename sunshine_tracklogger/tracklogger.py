@@ -852,6 +852,11 @@ PAGE = r"""<!doctype html>
   .iconbtn svg { width: 17px; height: 17px; }
   .iconbtn.fav { color: var(--accent); }
   .empty { padding: 1.6rem 1rem; color: var(--muted); font-size: .88rem; }
+  .pager { display: flex; gap: .6rem; align-items: center; justify-content: center;
+           padding: .75rem 1rem; border-top: 1px solid var(--border); flex-wrap: wrap; }
+  .pager .info { color: var(--muted); font-size: .82rem; min-width: 7.5rem;
+                 text-align: center; font-variant-numeric: tabular-nums; }
+  .pager .chip:disabled { opacity: .35; cursor: default; }
 
   /* ---------- Top Artists ---------- */
   .bars { padding: .2rem 1rem 1rem; }
@@ -929,6 +934,15 @@ PAGE = r"""<!doctype html>
         <button class="chip" id="dl">&#8681; CSV</button>
       </div>
       <div id="list"><div class="empty">Lade Tracks ...</div></div>
+      <div class="pager" id="pager" style="display:none">
+        <select id="psize" title="Tracks pro Seite">
+          <option value="25">25</option><option value="50" selected>50</option>
+          <option value="100">100</option><option value="0">Alle</option>
+        </select>
+        <button class="chip" id="prev">&#8249; Zur&uuml;ck</button>
+        <span class="info" id="pinfo"></span>
+        <button class="chip" id="next">Weiter &#8250;</button>
+      </div>
     </div>
     <div class="card">
       <h2>Top Artists</h2>
@@ -1024,11 +1038,25 @@ function fmtDur(s) {
   return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
 }
 
+let page = 1;
+let pageSize = parseInt(localStorage.getItem("pageSize") || "50", 10);
+
 function render() {
   const f = $("filter").value.toLowerCase();
-  const rows = tracks.filter(t =>
+  const all = tracks.filter(t =>
     (!favOnly || t.favorite) &&
     (!f || (t.raw || "").toLowerCase().includes(f)));
+
+  const totalPages = pageSize ? Math.max(1, Math.ceil(all.length / pageSize)) : 1;
+  page = Math.min(Math.max(1, page), totalPages);
+  const rows = pageSize ? all.slice((page - 1) * pageSize, page * pageSize) : all;
+
+  $("pager").style.display = all.length ? "" : "none";
+  $("pinfo").textContent = pageSize
+    ? `Seite ${page} / ${totalPages} · ${all.length} Tracks`
+    : all.length + " Tracks";
+  $("prev").disabled = page <= 1;
+  $("next").disabled = page >= totalPages;
 
   let html = "", lastDay = null;
   for (const t of rows) {
@@ -1130,10 +1158,19 @@ document.querySelector(".logo").addEventListener("click", () => {
 });
 
 /* ---------------- Events ---------------- */
-$("filter").addEventListener("input", render);
+$("filter").addEventListener("input", () => { page = 1; render(); });
 $("favonly").addEventListener("click", () => {
-  favOnly = !favOnly; $("favonly").classList.toggle("on", favOnly); render();
+  favOnly = !favOnly; $("favonly").classList.toggle("on", favOnly);
+  page = 1; render();
 });
+$("prev").addEventListener("click", () => { page--; render(); });
+$("next").addEventListener("click", () => { page++; render(); });
+$("psize").addEventListener("change", e => {
+  pageSize = parseInt(e.target.value, 10);
+  localStorage.setItem("pageSize", String(pageSize));
+  page = 1; render();
+});
+if (String(pageSize) !== "50") $("psize").value = String(pageSize);
 $("dl").addEventListener("click", () => { location.href = "/export.csv"; });
 async function postSettings(body) {
   try {
